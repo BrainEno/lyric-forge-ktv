@@ -297,7 +297,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           icon: Icons.auto_awesome_rounded,
                                           title: '还没有歌词工程',
                                           message:
-                                              '导入歌曲后，LyricForge KTV 会在后台逐首识别并保存工程。',
+                                              '导入歌曲后，Elysium Player 会在后台逐首识别并保存工程。',
                                           action: '导入歌曲',
                                           onAction: () => Navigator.pushNamed(
                                             context,
@@ -362,7 +362,7 @@ class _Header extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'LyricForge KTV',
+              'Elysium Player',
               style:
                   (layout.isCompact
                           ? Theme.of(context).textTheme.headlineSmall
@@ -676,7 +676,7 @@ class _PlayingHero extends StatelessWidget {
                   ? item.artist!
                   : item.projectId == null
                   ? '本地音乐'
-                  : 'LyricForge KTV 工程',
+                  : 'Elysium Player 工程',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(

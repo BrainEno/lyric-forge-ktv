@@ -4,7 +4,7 @@
 
 1. 产品名称
 
-LyricForge KTV（暂名）
+Elysium Player
 
 2. 产品定位
 

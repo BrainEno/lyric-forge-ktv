@@ -476,8 +476,8 @@ class _AiTranscriptionSettingsSectionState
         title: Text(reinstall ? '删除并重新安装模型？' : '删除本地模型？'),
         content: Text(
           reinstall
-              ? '会删除 LyricForge KTV 托管的 Qwen / Whisper 模型，然后按当前质量方案重新下载。手工指定的外部模型不会被删除。'
-              : '会删除 LyricForge KTV 托管的 Qwen / Whisper 模型。runtime 与手工指定的外部模型会保留。',
+              ? '会删除 Elysium Player 托管的 Qwen / Whisper 模型，然后按当前质量方案重新下载。手工指定的外部模型不会被删除。'
+              : '会删除 Elysium Player 托管的 Qwen / Whisper 模型。runtime 与手工指定的外部模型会保留。',
         ),
         actions: [
           TextButton(
@@ -662,7 +662,7 @@ class _AiTranscriptionSettingsSectionState
             _InfoTile(
               label: '托管环境占用空间',
               value: _formatBytes(_managedBytes),
-              detail: '仅统计 LyricForge KTV 托管目录；外部手工模型不计入',
+              detail: '仅统计 Elysium Player 托管目录；外部手工模型不计入',
             ),
             _InfoTile(
               label: '安装目录',

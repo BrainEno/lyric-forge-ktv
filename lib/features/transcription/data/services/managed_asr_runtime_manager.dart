@@ -133,7 +133,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         'FFmpeg 音频处理',
         ffmpeg != null,
         readyDetail: '已自动找到音频处理组件',
-        missingDetail: '尚未安装；可由 LyricForge 自动安装',
+        missingDetail: '尚未安装；可由 Elysium Player 自动安装',
         path: ffmpeg,
       ),
       _component(
@@ -141,7 +141,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         'Whisper 识别引擎',
         whisper != null,
         readyDetail: 'Whisper runtime 已就绪',
-        missingDetail: '尚未安装；可由 LyricForge 自动安装',
+        missingDetail: '尚未安装；可由 Elysium Player 自动安装',
         path: whisper,
       ),
       _component(
@@ -162,7 +162,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
               ? '当前自定义 Profile 需要在高级设置中指定 runtime'
               : qwenUsesManagedBundle && !managedRuntimeCurrent
               ? '检测到旧版 runtime；一键准备会自动下载修复版'
-              : '尚未安装；可由 LyricForge 自动安装',
+              : '尚未安装；可由 Elysium Player 自动安装',
           path: qwen,
           unavailable: !_profileSupportsManagedRuntime(profile.profile),
         ),
@@ -420,7 +420,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     _emit(
       AsrRuntimeComponent.qwenRuntime,
       0.05,
-      '识别引擎缺失或版本不匹配，正在下载 LyricForge 识别引擎',
+      '识别引擎缺失或版本不匹配，正在下载 Elysium Player 识别引擎',
       phase: AsrRuntimeInstallPhase.downloading,
     );
 
@@ -443,7 +443,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       );
     } on HttpException catch (error) {
       throw TranscriptionException(
-        '无法下载 LyricForge Qwen runtime。'
+        '无法下载 Elysium Player Qwen runtime。'
         '可能是当前版本的 runtime release 尚未发布，请稍后重试。',
         details: error.message,
       );
@@ -453,7 +453,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     _emit(
       AsrRuntimeComponent.qwenRuntime,
       0.225,
-      '正在校验 LyricForge 识别引擎完整性（刚下载的文件）',
+      '正在校验 Elysium Player 识别引擎完整性（刚下载的文件）',
       phase: AsrRuntimeInstallPhase.verifying,
     );
 
@@ -894,7 +894,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     final label = switch (component) {
       AsrRuntimeComponent.whisperModel => 'Whisper large-v3',
       AsrRuntimeComponent.ffmpeg => 'FFmpeg',
-      _ => 'LyricForge 识别引擎',
+      _ => 'Elysium Player 识别引擎',
     };
     // Only the large resumable transfers keep their part file on a network
     // error; the others report the raw error to their callers.

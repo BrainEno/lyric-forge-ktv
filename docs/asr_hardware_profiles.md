@@ -1,6 +1,6 @@
 # ASR Hardware Profiles
 
-LyricForge keeps project data portable and resolves model/runtime choices per
+Elysium Player keeps project data portable and resolves model/runtime choices per
 machine immediately before local transcription.
 
 A project does not need to know whether it is opened on an RTX workstation or
@@ -48,7 +48,7 @@ Detection:
 - `uname -m` reports `x86_64` / `amd64`
 
 The GPU model does not determine profile eligibility. This is intentional:
-current Qwen native acceleration paths used by LyricForge are not based on an
+current Qwen native acceleration paths used by Elysium Player are not based on an
 AMD CUDA backend, so the Radeon GPU is informative rather than the primary
 runtime selector.
 
@@ -140,7 +140,7 @@ and bypasses automatic model selection.
 
 ### Windows
 
-LyricForge uses:
+Elysium Player uses:
 
 ```text
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits
@@ -148,7 +148,7 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits
 
 ### macOS
 
-LyricForge uses:
+Elysium Player uses:
 
 ```text
 uname -m

@@ -36,7 +36,7 @@ class AsrModelDownloadEndpoints {
   );
 }
 
-/// Adds LyricForge-managed Qwen model downloads in front of the existing
+/// Adds Elysium Player-managed Qwen model downloads in front of the existing
 /// runtime installer so normal users never need to locate a Hugging Face cache.
 class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   static const Duration _downloadTimeout = Duration(seconds: 60);
@@ -275,7 +275,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
 
       if (response.statusCode < 200 || response.statusCode >= 400) {
         throw TranscriptionException(
-          'LyricForge 识别引擎安装包暂不可用，因此尚未开始下载大型模型。',
+          'Elysium Player 识别引擎安装包暂不可用，因此尚未开始下载大型模型。',
           details: '$asset: HTTP ${response.statusCode}',
         );
       }
@@ -284,7 +284,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     } catch (error) {
       _transfer.throwIfRequested();
       throw TranscriptionException(
-        '无法确认 LyricForge 识别引擎安装包，因此尚未开始下载大型模型。',
+        '无法确认 Elysium Player 识别引擎安装包，因此尚未开始下载大型模型。',
         details: error.toString(),
       );
     } finally {
@@ -424,7 +424,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   }) async {
     final files = _modelFiles[modelId];
     if (files == null) {
-      throw TranscriptionException('LyricForge 尚未定义 $modelId 的自动下载清单');
+      throw TranscriptionException('Elysium Player 尚未定义 $modelId 的自动下载清单');
     }
 
     final directory = _modelDirectory(root, modelId);

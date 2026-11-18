@@ -83,7 +83,7 @@ void main() {
       );
       expect(
         text,
-        '[lang:zh]\n[re:LyricForge]\n[ve:1]\n'
+        '[lang:zh]\n[re:Elysium Player]\n[ve:1]\n'
         '[00:01.000]<00:01.000>我<00:01.500>爱<00:02.000>你<00:02.500>\n',
       );
     });
@@ -131,7 +131,7 @@ void main() {
           '{\\kf50}我{\\kf50}爱\n',
         ),
       );
-      expect(text, contains('Title: LyricForge\n'));
+      expect(text, contains('Title: Elysium Player\n'));
     });
 
     test('ASS timestamps use h:mm:ss.cc', () {

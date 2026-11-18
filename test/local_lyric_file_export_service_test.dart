@@ -38,7 +38,7 @@ void main() {
         expect(encoded, contains('[ar:YOASOBI]'));
         expect(encoded, contains('[al:THE BOOK]'));
         expect(encoded, contains('[lang:ja]'));
-        expect(encoded, contains('[re:LyricForge]'));
+        expect(encoded, contains('[re:Elysium Player]'));
         expect(encoded, contains('[ve:1]'));
         expect(encoded, isNot(contains('[offset:')));
         expect(encoded, contains('[00:01.130]第一行'));
@@ -50,47 +50,44 @@ void main() {
       },
     );
 
-    test(
-      'round-trips effective playback timing through LRC import',
-      () {
-        final source = LyricDocument(
-          language: 'zh',
-          globalOffset: const Duration(milliseconds: 80),
-          lines: const [
-            LyricLine(
-              text: '你好吗',
-              startTime: Duration(milliseconds: 3456),
-              endTime: Duration(milliseconds: 6400),
-            ),
-            LyricLine(
-              text: 'I am fine',
-              startTime: Duration(milliseconds: 7123),
-              endTime: Duration(milliseconds: 9000),
-            ),
-          ],
-        );
+    test('round-trips effective playback timing through LRC import', () {
+      final source = LyricDocument(
+        language: 'zh',
+        globalOffset: const Duration(milliseconds: 80),
+        lines: const [
+          LyricLine(
+            text: '你好吗',
+            startTime: Duration(milliseconds: 3456),
+            endTime: Duration(milliseconds: 6400),
+          ),
+          LyricLine(
+            text: 'I am fine',
+            startTime: Duration(milliseconds: 7123),
+            endTime: Duration(milliseconds: 9000),
+          ),
+        ],
+      );
 
-        final encoded = exporter.encodeLrc(source, title: 'demo');
-        final imported = LocalLyricFileImportService().parseText(
-          encoded,
-          extension: 'lrc',
-        );
+      final encoded = exporter.encodeLrc(source, title: 'demo');
+      final imported = LocalLyricFileImportService().parseText(
+        encoded,
+        extension: 'lrc',
+      );
 
-        expect(imported.document.language, 'zh');
-        expect(imported.document.globalOffset, isNull);
-        expect(imported.document.lines, hasLength(2));
-        expect(imported.document.lines[0].text, '你好吗');
-        expect(
-          imported.document.lines[0].startTime,
-          const Duration(milliseconds: 3536),
-        );
-        expect(imported.document.lines[1].text, 'I am fine');
-        expect(
-          imported.document.lines[1].startTime,
-          const Duration(milliseconds: 7203),
-        );
-      },
-    );
+      expect(imported.document.language, 'zh');
+      expect(imported.document.globalOffset, isNull);
+      expect(imported.document.lines, hasLength(2));
+      expect(imported.document.lines[0].text, '你好吗');
+      expect(
+        imported.document.lines[0].startTime,
+        const Duration(milliseconds: 3536),
+      );
+      expect(imported.document.lines[1].text, 'I am fine');
+      expect(
+        imported.document.lines[1].startTime,
+        const Duration(milliseconds: 7203),
+      );
+    });
 
     test('clamps negative effective timestamps to zero', () {
       final document = LyricDocument(

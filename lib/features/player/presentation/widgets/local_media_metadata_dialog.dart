@@ -391,7 +391,7 @@ class _ArtworkEditor extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          '图片会复制到 LyricForge 自己的媒体目录，不修改原音频文件。',
+          '图片会复制到 Elysium Player 自己的媒体目录，不修改原音频文件。',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),

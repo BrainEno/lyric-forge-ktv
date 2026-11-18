@@ -1,4 +1,4 @@
-# LyricForge KTV — 总体 UI/UX 审计报告（A. 交付物）
+# Elysium Player — 总体 UI/UX 审计报告（A. 交付物）
 
 审计日期：2026-11-18 · 基线：`main@80b04a3` · 分支：`arena/f1dee18e-lyric-forge-ktv`
 **证据等级：静态代码审计（环境无法运行 Flutter，全部结论以文件+行号为据；运行验证、截图、多尺寸实测未完成，见 `environment-diagnostic.md`）**
@@ -51,7 +51,7 @@
 | 级别 | 数量 | 代表 |
 |---|---|---|
 | P0 | 0 | —（静态审计无法判定运行时阻断问题） |
-| P1 | 4 | 品牌断裂、旧名残留、主按钮对比度、字体失效 |
+| P1 | 4 | 品牌断裂、产品名不一致（更正：错在文档）、主按钮对比度、字体失效 |
 | P2 | 18 | 组件重复、菜单过载、入口冗余、设置缺区等 |
 | P3 | 21 | 文案、小字号、留白、工程债（T-01 于 2026-11-18 由 P2 更正为 P3） |
 
@@ -69,7 +69,7 @@
 ## 6. 优化优先级（§8.3）与实施路线（§8.4）
 
 **阶段 1（必须优先，低风险高收益）**
-- 全局正名 LyricForge KTV（B-02）；窗口标题、页头、设置、空态。
+- ~~全局正名 LyricForge KTV（B-02）~~ —— 更正：产品名为 Elysium Player，已按 D-030 统一文档与界面。
 - 打包 Inter + CJK fallback 或删声明（S-01）。
 - 修复两个对比度硬伤（A-01 accent 压暗；A-03 三级灰提亮）。
 - ~~删死代码 RemoteMediaLibraryScreen（T-01）~~ —— 更正：该页面是有意保留的待装配页面（2026-11-03 工作日志），交由维护者决定，不在本路线中删除。
@@ -103,3 +103,4 @@
 - A-01 / A-03 / S-01 —— 提交 `Raise theme text contrast and drop unbundled Inter font`。
 - T-01 —— 不实施（见上方更正）。
 - 更正：A-01 原记 2.31:1，复算为 2.59:1（仍不达标）。
+- **更正（2026-11-18，用户确认）：**产品名是 **Elysium Player**。上面的 B-02 提交方向反了，已由提交 `Restore Elysium Player as the product name` 撤回；README、CONTRIBUTING 和 `docs/` 现行文档同步改为 Elysium Player（D-030，D-029 标记为已取代）。

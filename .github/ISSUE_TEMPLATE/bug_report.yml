@@ -50,7 +50,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: LyricForge version or commit
+      label: Elysium Player version or commit
       placeholder: Commit SHA, tag, or local build
     validations:
       required: true

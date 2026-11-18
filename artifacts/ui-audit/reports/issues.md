@@ -9,7 +9,7 @@
 | ID | 页面 | 类别 | 位置 | 现象 | 影响 | 实测/计算数据 | 截图 | 改进建议 | 优先级 |
 |---|---|---|---|---|---|---|---|---|---|
 | B-01 | 全局 | 视觉/品牌 | color_tokens.dart:29；assets/images/icon.png；app_navigation_shell.dart:108 | 图标=红/黑/米白+"F"+均衡器条；UI=Spotify 绿 #1DB954+深灰；导航品牌位用原生 graphic_eq 图标 | 产品零识别度，图标与 UI 像两个产品 | 图标已目视确认；accent 值硬证 | 无（静态） | 制定品牌映射方案（见总报告 §8），红色作为强行动/焦点锚点 | 高 |
-| B-02 | 全局 | 品牌一致性 | app.dart:67；dashboard_screen.dart:333,291；settings_screen.dart:48 | 窗口标题、首页页头、设置副标、空态文案仍显示 "Elysium Player" | 用户看到的产品名与分发名（LyricForge KTV）不一致 | 4 处实证 | 无（静态） | 全局正名为 LyricForge KTV | 高 |
+| B-02 | 全局 | 品牌一致性 | app.dart:67；dashboard_screen.dart:333,291；settings_screen.dart:48 | **更正（2026-11-18）：**产品名是 Elysium Player。应用界面一直用 Elysium Player，README 和多份文档写的 LyricForge KTV 才是错的；审计时把方向判反了 | 文档与产品名不一致 | 4 处实证 | 无（静态） | 已按 D-030 把文档、导出标记和界面统一为 Elysium Player；LyricForge 只保留为目录名等内部标识 | 高 |
 | A-01 | 全局 | 无障碍 | app_theme.dart elevatedButtonTheme、snackBarTheme | 白字 #FFF 于 accent #1DB954 之上 | 主按钮/SnackBar 文字对比度不足 | **计算 2.59:1**，AA 需 4.5:1 | 无（静态） | accent 压暗（如 #14833B 计算约 4.6:1）或按钮用黑字/深色底 | 高 |
 | S-01 | 全局 | 视觉/字体 | app_theme.dart:195；pubspec.yaml fonts 段（全注释） | 声明 fontFamily:'Inter' 但未打包字体 | 设计意图从未生效；中英混排回退系统字体，跨平台字形不一致 | 实证：assets 无字体文件 | 无（静态） | 打包 Inter（OFL 许可）+ 配置 CJK fallback 链，或删除声明改用系统字 | 高 |
 

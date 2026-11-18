@@ -26,7 +26,7 @@ void main() {
   });
 
   group('effectiveQwenChunk', () {
-    test('LyricForge asks for 30 second chunks', () {
+    test('Elysium Player asks for 30 second chunks', () {
       expect(qwenRecognitionChunk, const Duration(seconds: 30));
       expect(effectiveQwenChunk(qwenRecognitionChunk), qwenRecognitionChunk);
     });

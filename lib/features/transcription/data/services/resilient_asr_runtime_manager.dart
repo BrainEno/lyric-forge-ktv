@@ -182,7 +182,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
       _emit(
         AsrRuntimeComponent.whisperRuntime,
         0.08,
-        '已找到 LyricForge 托管的 Whisper runtime',
+        '已找到 Elysium Player 托管的 Whisper runtime',
       );
       return existing.path;
     }

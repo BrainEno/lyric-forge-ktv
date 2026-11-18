@@ -17,4 +17,4 @@ Modifications, all made by `tool/generate_chinese_script_tables.dart`:
   because they still steer forward-maximum-matching segmentation);
 - script-specific character sets are computed from all candidates.
 
-No OpenCC code is included; LyricForge implements its own converter in Dart.
+No OpenCC code is included; Elysium Player implements its own converter in Dart.

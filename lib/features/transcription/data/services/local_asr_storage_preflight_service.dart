@@ -88,7 +88,7 @@ class LocalAsrStoragePreflightService implements AsrStoragePreflightService {
         safetyMarginBytes: 0,
         requiredAdditionalBytes: 0,
         availableBytes: await _readFreeSpace(root.path),
-        detail: '当前硬件 Profile 没有 LyricForge 托管安装预算，因此不会错误阻止高级手工配置。',
+        detail: '当前硬件 Profile 没有 Elysium Player 托管安装预算，因此不会错误阻止高级手工配置。',
       );
     }
 
@@ -149,11 +149,10 @@ class LocalAsrStoragePreflightService implements AsrStoragePreflightService {
     }
 
     return switch (profile) {
-      TranscriptionProfilePreference.rtx5080HighQuality =>
-        const _StorageBudget(
-          installedBytes: _rtxHighestInstalledBytes,
-          temporaryBytes: _rtxHighestTemporaryBytes,
-        ),
+      TranscriptionProfilePreference.rtx5080HighQuality => const _StorageBudget(
+        installedBytes: _rtxHighestInstalledBytes,
+        temporaryBytes: _rtxHighestTemporaryBytes,
+      ),
       TranscriptionProfilePreference.intelMacHighQuality =>
         const _StorageBudget(
           installedBytes: _intelMacHighestInstalledBytes,
@@ -217,10 +216,9 @@ class LocalAsrStoragePreflightService implements AsrStoragePreflightService {
 
     var total = 0;
     try {
-      await for (final child in Directory(entity.path).list(
-        recursive: true,
-        followLinks: false,
-      )) {
+      await for (final child in Directory(
+        entity.path,
+      ).list(recursive: true, followLinks: false)) {
         if (child is File) total += await child.length();
       }
     } catch (_) {
@@ -241,10 +239,12 @@ class LocalAsrStoragePreflightService implements AsrStoragePreflightService {
             "\$p=(Resolve-Path -LiteralPath '$escaped').Path; "
             '\$root=[System.IO.Path]::GetPathRoot(\$p); '
             '([System.IO.DriveInfo]::new(\$root)).AvailableFreeSpace';
-        final result = await Process.run(
-          'powershell.exe',
-          ['-NoProfile', '-NonInteractive', '-Command', script],
-        );
+        final result = await Process.run('powershell.exe', [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          script,
+        ]);
         if (result.exitCode != 0) return null;
         return parseWindowsAvailableBytes(result.stdout.toString());
       }
@@ -296,10 +296,7 @@ class LocalAsrStoragePreflightService implements AsrStoragePreflightService {
   }
 
   Directory _modelDirectory(Directory root, String modelId) {
-    final directoryName = modelId.replaceAll(
-      RegExp(r'[^A-Za-z0-9._-]+'),
-      '--',
-    );
+    final directoryName = modelId.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '--');
     return Directory(_join(root.path, ['models', 'qwen', directoryName]));
   }
 

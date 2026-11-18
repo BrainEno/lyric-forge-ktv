@@ -143,7 +143,7 @@ class LocalLyricFileImportService implements LyricFileImportService {
     final offset = int.tryParse(offsetText ?? '') ?? 0;
     final entries = <_TimedText>[];
     // A timestamp with no text is an end marker: players clear the lyric
-    // there (LyricForge writes them before interludes).
+    // there (Elysium Player writes them before interludes).
     final endMarkers = <Duration>[];
     final tagExpression = RegExp(r'\[([^\]]+)\]');
 

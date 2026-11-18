@@ -1,6 +1,6 @@
 import 'chinese_script_tables.dart';
 
-/// The written forms LyricForge can produce.
+/// The written forms Elysium Player can produce.
 ///
 /// OpenCC's "standard" traditional forms (裏, 爲, 着) read as unusual to most
 /// readers, so only the two regional traditional standards are offered.

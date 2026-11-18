@@ -71,7 +71,7 @@ class ElysiumPlayerApp extends StatelessWidget {
         : null;
 
     return MaterialApp(
-      title: 'LyricForge KTV',
+      title: 'Elysium Player',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       navigatorKey: _navigatorKey,

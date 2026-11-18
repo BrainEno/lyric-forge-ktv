@@ -1,4 +1,4 @@
-/// How LyricForge chunks a Qwen3-ASR request and how many tokens each chunk
+/// How Elysium Player chunks a Qwen3-ASR request and how many tokens each chunk
 /// may decode.
 ///
 /// The local runtime (`qwen3-asr-rs`) cuts the song into chunks at quiet
@@ -6,7 +6,7 @@
 /// ForcedAligner over each chunk's text. Two facts about that loop decide the
 /// numbers below:
 ///
-/// * Every LyricForge request asks for timestamps, and with timestamps the
+/// * Every Elysium Player request asks for timestamps, and with timestamps the
 ///   runtime caps a chunk at [qwenTimestampedMaxChunk] (180 s,
 ///   `MAX_FORCE_ALIGN_INPUT_SECONDS`), not at the 1200 s that plain
 ///   transcription uses. `max_new_tokens` applies **per chunk**.
@@ -21,7 +21,7 @@
 /// four-minute song about 2 200 tokens for each 180 s chunk, several times
 /// what the lyrics of that chunk need, which is the room a loop needs to fill
 /// the rest of the song. Real songs measured on the pinned runtime also lost
-/// lines with long chunks: the decoder skips and summarises. LyricForge
+/// lines with long chunks: the decoder skips and summarises. Elysium Player
 /// therefore asks for short chunks ([qwenRecognitionChunk]) and sizes the
 /// budget for one of them, so a loop can only fill one short chunk.
 library;
@@ -33,7 +33,7 @@ library;
 /// to it by the runtime.
 const Duration qwenTimestampedMaxChunk = Duration(seconds: 180);
 
-/// Chunk length LyricForge asks the runtime for (`chunk_max_sec`).
+/// Chunk length Elysium Player asks the runtime for (`chunk_max_sec`).
 ///
 /// Thirty seconds is the window Whisper was trained on and the length at
 /// which the pinned runtime kept the most words on the songs measured for
