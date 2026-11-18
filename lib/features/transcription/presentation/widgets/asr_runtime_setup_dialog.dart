@@ -455,7 +455,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                   _SectionLabel(
                     number: '1',
                     title: '选择识别方案',
-                    subtitle: '大多数电脑保持推荐选项即可，模型和路径由 Elysium Player 自动处理。',
+                    subtitle: '大多数电脑保持推荐选项即可，模型和路径由 LyricForge KTV 自动处理。',
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   DropdownButtonFormField<TranscriptionMode>(
@@ -646,7 +646,7 @@ class _SetupHeader extends StatelessWidget {
         : '首次使用，只需完成一次准备';
     final subtitle = ready
         ? '之后可以直接导入歌曲并在后台生成歌词。'
-        : 'Elysium Player 会自动检测电脑、下载所需组件并完成配置。';
+        : 'LyricForge KTV 会自动检测电脑、下载所需组件并完成配置。';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(

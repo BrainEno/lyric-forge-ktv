@@ -9,6 +9,7 @@
 - [2026-11-21 12:00] Fix Qwen chunk loops and detect block loops `Fix Qwen chunk loops and detect block loops` ([entry](log/entries/2026-11-21-1200-fix-qwen-chunk-loops-and-detect-block-loops.md))
 - [2026-11-20 12:00] Import karaoke word timing, add word timing check and fine-tuning `Import karaoke word timing, add word timing check and fine-tuning` ([entry](log/entries/2026-11-20-1200-import-check-and-fine-tune-word-timing.md))
 - [2026-11-19 12:00] Add word-by-word tap-to-sync and Whisper word timing `Add word-by-word tap-to-sync and Whisper word timing` ([entry](log/entries/2026-11-19-1200-add-word-tap-sync-and-whisper-word-timing.md))
+- [2026-11-18 21:00] Rename the user-facing product name to LyricForge KTV `Rename user-facing product name to LyricForge KTV` ([entry](log/entries/2026-11-18-2100-rename-user-facing-product-name.md))
 - [2026-11-18 12:00] Keep word timing and add a recognition loop check `Keep word timing, add recognition loop check and word timing view` ([entry](log/entries/2026-11-18-1200-keep-word-timing-and-add-loop-check.md))
 
 <!-- 308 entries total: 8 active, 300 archived. -->

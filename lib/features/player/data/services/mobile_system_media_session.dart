@@ -36,7 +36,7 @@ Future<void> initializeMobileSystemMediaSession({
     ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.braineno.lyricforge.playback',
-      androidNotificationChannelName: 'Elysium Player 播放',
+      androidNotificationChannelName: 'LyricForge KTV 播放',
       androidNotificationChannelDescription: '本地音乐播放、锁屏和耳机控制',
       androidNotificationIcon: 'drawable/ic_stat_lyricforge_music',
       androidShowNotificationBadge: false,
@@ -58,7 +58,9 @@ Future<void> initializeMobileSystemMediaSession({
   // headphones or disconnecting a route does not suddenly play through the
   // phone speaker.
   _becomingNoisySubscription?.cancel();
-  _becomingNoisySubscription = audioSession.becomingNoisyEventStream.listen((_) {
+  _becomingNoisySubscription = audioSession.becomingNoisyEventStream.listen((
+    _,
+  ) {
     if (audioPlayer.currentState.isPlaying) {
       unawaited(handler.pause());
     }

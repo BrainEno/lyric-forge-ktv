@@ -8,7 +8,7 @@ import 'package:flutter/foundation.dart';
 const String appVersion = '1.0.0+1';
 
 /// Display name used in reports.
-const String appDisplayName = 'Elysium Player';
+const String appDisplayName = 'LyricForge KTV';
 
 /// Facts about the running build and platform. Contains nothing that
 /// identifies the user: no host name, user name or device serial.

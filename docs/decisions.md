@@ -530,3 +530,18 @@
   - `ResilientAsrRuntimeManager` 的 Whisper runtime 下载现在也会拒绝不一致的续传响应，并检查大小。
 - 状态：生效
 - 来源：issue #458、#460、#461、#462、#464；[工作日志](log/entries/2026-11-24-1200-issue-cleanup-errors-endpoints-downloads.md)
+
+## D-029 对外名称统一为 LyricForge KTV；决定数据目录的平台标识暂不改名
+
+- 日期：2026-11-18
+- 背景：
+  - README 与仓库名都是 LyricForge KTV，但窗口标题、首页大标题、设置说明、诊断包、系统媒体会话、通知渠道、权限说明仍显示旧名 Elysium Player（UI/UX 审计 B-02，`artifacts/ui-audit/reports/issues.md`）。
+  - Windows 上 `path_provider_windows` 用可执行文件版本资源的 `CompanyName\ProductName` 拼出 `getApplicationSupportDirectory()`；音乐库、收藏、播放历史、诊断都存放在这里。macOS 的 `PRODUCT_NAME` 决定 `.app` 名称，三个 macOS CI 工作流按 `Elysium Player.app` 路径查找构建产物。
+- 决定：
+  - 所有用户可见文字统一为 LyricForge KTV：Dart UI 文案、`MaterialApp.title`、`appDisplayName`（诊断）、系统媒体标题与 Android 通知渠道名、Windows/Linux 窗口标题、Android `android:label`、iOS `CFBundleDisplayName`/`CFBundleName`/权限说明。
+  - `windows/runner/Runner.rc` 的 `ProductName`/`FileDescription`/`InternalName`/`OriginalFilename`、`windows/CMakeLists.txt` 的 `BINARY_NAME`、`macos/Runner/Configs/AppInfo.xcconfig` 的 `PRODUCT_NAME` 保持不变；Dart 类名 `ElysiumPlayerApp` 作为稳定代码标识保留。
+- 影响：
+  - 现有用户的数据目录不变，不需要迁移；Windows 任务管理器/文件属性和 macOS 应用包名仍显示旧名。
+  - 以后要改这些平台标识，必须同时提供旧目录到新目录的数据迁移，并更新 macOS 工作流中的产物路径。
+- 状态：生效
+- 来源：UI/UX 审计 B-02；[工作日志](log/entries/2026-11-18-2100-rename-user-facing-product-name.md)
