@@ -10,7 +10,7 @@
 ## Git 现场
 
 - 分支：`arena/abb66cea-lyric-forge-ktv`，基于 main `c7c2b1a`。
-- 提交：`Restore Elysium Player as the product name`。
+- 提交：`Restore Elysium Player as the product name`；`Group the proofreading menu into labelled sections`（审计 C-02/E-02，阶段 2 第一项）。
 
 ## 已改文件
 
@@ -23,12 +23,13 @@
 ## 下一步
 
 - 等 CI 通过后再合并。
-- 审计路线阶段 2：`AppArtwork`、`AppBadge`、`AppEmptyState`、`TransportBar` 共享组件，菜单分组校对，ASR 设置拆分。
+- 审计路线阶段 2 剩余：`AppEmptyState`、`AppArtwork`、`AppBadge`、`TransportBar` 共享组件，ASR 设置拆卡（C-03）。校对菜单已分为四组并去掉“V2”。
 
 ## 已知风险
 
 - 视觉和文字变化没有在运行中的应用里看过。
+- 校对菜单每组多一个约 30 px 的标题，完整菜单在矮窗口中更容易出现滚动。
 - 新导出的 LRC/ASS 文件里，创作工具标记从 LyricForge 改为 Elysium Player；以前导出的文件不受影响。
 - 数据目录、协议头、User-Agent 和 TLS 证书字段仍用 LyricForge（D-030），改名需要单独做数据迁移。
 
-最后更新：2026-11-18 23:10（Asia/Taipei）
+最后更新：2026-11-18 23:15（Asia/Taipei）

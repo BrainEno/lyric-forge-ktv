@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-18 23:00] Restore Elysium Player as the product name ([entry](log/entries/2026-11-18-2300-restore-elysium-player-name.md))
 - [2026-11-18 21:10] Raise theme text contrast and drop the unbundled Inter declaration ([entry](log/entries/2026-11-18-2110-raise-theme-text-contrast.md))
 - [2026-11-18 21:00] Rename the user-facing product name to LyricForge KTV ([entry](log/entries/2026-11-18-2100-rename-user-facing-product-name.md))
 - [2026-11-18 12:00] Keep word timing and add a recognition loop check ([entry](log/entries/2026-11-18-1200-keep-word-timing-and-add-loop-check.md))

@@ -15,32 +15,58 @@ import 'lyric_timing_shift_dialog.dart';
 import 'lyric_word_tap_dialog.dart';
 import 'lyric_word_timing_check_dialog.dart';
 
-/// The proofreading capabilities, in the order they are offered.
+/// The proofreading capabilities.
 ///
-/// Generation actions come first because they are what the user came for;
-/// reviewing and rolling back the last result sits behind a divider so the
-/// destructive-sounding entries are not the first thing under the cursor.
+/// The menu shows them in [LyricProofreadGroup] order and, within a group,
+/// in declaration order. Generation actions come first because they are what
+/// the user came for; reviewing and rolling back the last result is the last
+/// group, so the destructive-sounding entries are not the first thing under
+/// the cursor.
 enum LyricProofreadAction {
-  proofreadV2,
-  referenceAlignment,
-  referenceProofread,
-  repetitionConsistency,
-  textCleanup,
-  asrLoopCheck,
-  missedRepeatCheck,
-  spanRecognition,
-  lineStructure,
-  timelineRepair,
-  paceCheck,
-  timingShift,
-  tapSync,
-  wordTap,
-  wordTimingCheck,
-  unifyChineseScript,
-  findReplace,
-  viewComparison,
-  undoAlignment,
-  restoreBackup,
+  proofreadV2(LyricProofreadGroup.correction),
+  referenceAlignment(LyricProofreadGroup.correction),
+  referenceProofread(LyricProofreadGroup.correction),
+  spanRecognition(LyricProofreadGroup.correction),
+  textCleanup(LyricProofreadGroup.text),
+  repetitionConsistency(LyricProofreadGroup.text),
+  asrLoopCheck(LyricProofreadGroup.text),
+  missedRepeatCheck(LyricProofreadGroup.text),
+  lineStructure(LyricProofreadGroup.text),
+  unifyChineseScript(LyricProofreadGroup.text),
+  findReplace(LyricProofreadGroup.text),
+  timelineRepair(LyricProofreadGroup.timing),
+  paceCheck(LyricProofreadGroup.timing),
+  timingShift(LyricProofreadGroup.timing),
+  tapSync(LyricProofreadGroup.timing),
+  wordTap(LyricProofreadGroup.timing),
+  wordTimingCheck(LyricProofreadGroup.timing),
+  viewComparison(LyricProofreadGroup.review),
+  undoAlignment(LyricProofreadGroup.review),
+  restoreBackup(LyricProofreadGroup.review);
+
+  const LyricProofreadAction(this.group);
+
+  /// The menu section this action is listed under.
+  final LyricProofreadGroup group;
+}
+
+/// The labelled sections of the proofreading menu, in display order.
+enum LyricProofreadGroup {
+  /// Recognition-based and reference-based corrections.
+  correction('智能纠错'),
+
+  /// Text-only clean-up of the recognised lines.
+  text('文本整理'),
+
+  /// Timeline checks, shifting and tap-to-sync.
+  timing('时间轴与打轴'),
+
+  /// Looking at and rolling back the last alignment.
+  review('对比与回滚');
+
+  const LyricProofreadGroup(this.label);
+
+  final String label;
 }
 
 /// One entry point for every proofreading flow.
@@ -76,7 +102,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.compact = false,
   });
 
-  /// 智能校对 V2: builds a proposal from the ASR evidence without writing it.
+  /// 智能校对: builds a proposal from the ASR evidence without writing it.
   final VoidCallback? onProofreadV2;
 
   /// 参考歌词纠正: aligns a pasted reference and can replace timing.
@@ -136,24 +162,25 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   static const String label = '校对';
 
+  /// Menu title of the no-reference proposal flow ([onProofreadV2]).
+  static const String smartProofreadTitle = '智能校对';
+
   @override
   Widget build(BuildContext context) {
-    final items = _items();
-    if (items.isEmpty) return const SizedBox.shrink();
+    final groups = _groups();
+    if (groups.isEmpty) return const SizedBox.shrink();
 
     return MenuAnchor(
       menuChildren: [
-        for (var index = 0; index < items.length; index++) ...[
-          if (index > 0 && items[index].startsNewGroup)
-            const Divider(height: 1),
-          MenuItemButton(
-            onPressed: items[index].onPressed,
-            leadingIcon: Icon(items[index].icon, size: 18),
-            child: _MenuLabel(
-              title: items[index].title,
-              detail: items[index].detail,
+        for (final (index, group) in groups.indexed) ...[
+          if (index > 0) const Divider(height: 1),
+          _GroupHeader(group.$1.label),
+          for (final item in group.$2)
+            MenuItemButton(
+              onPressed: item.onPressed,
+              leadingIcon: Icon(item.icon, size: 18),
+              child: _MenuLabel(title: item.title, detail: item.detail),
             ),
-          ),
         ],
       ],
       builder: (context, controller, child) {
@@ -173,8 +200,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
           );
         }
         return Tooltip(
-          message:
-              '校对：智能提案、参考歌词纠正、重复行统一、文本清理、识别循环检查、漏唱和声检查、重新识别一段、整理断行、时间轴检查与平移、简繁统一、查找替换、逐行对比与回滚',
+          message: '校对：智能纠错、文本整理、时间轴与打轴、对比与回滚',
           child: FilledButton.tonalIcon(
             onPressed: open,
             icon: const Icon(Icons.spellcheck_rounded, size: 18),
@@ -185,7 +211,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
     );
   }
 
-  List<_ProofreadMenuItem> _items() {
+  /// Available entries per group; groups without any entry are left out.
+  List<(LyricProofreadGroup, List<_ProofreadMenuItem>)> _groups() {
     final actions = <LyricProofreadAction, VoidCallback?>{
       LyricProofreadAction.proofreadV2: onProofreadV2,
       LyricProofreadAction.referenceAlignment: onReferenceAlignment,
@@ -209,30 +236,32 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.restoreBackup: onRestoreBackup,
     };
 
-    final items = <_ProofreadMenuItem>[];
-    for (final action in LyricProofreadAction.values) {
-      final callback = actions[action];
-      if (callback == null) continue;
-      final text = _textFor(action);
-      items.add(
-        _ProofreadMenuItem(
-          title: text.$1,
-          detail: text.$2,
-          icon: _iconFor(action),
-          onPressed: callback,
-          startsNewGroup:
-              action == LyricProofreadAction.viewComparison && items.isNotEmpty,
-        ),
-      );
+    final groups = <(LyricProofreadGroup, List<_ProofreadMenuItem>)>[];
+    for (final group in LyricProofreadGroup.values) {
+      final items = <_ProofreadMenuItem>[];
+      for (final action in LyricProofreadAction.values) {
+        final callback = actions[action];
+        if (callback == null || action.group != group) continue;
+        final text = _textFor(action);
+        items.add(
+          _ProofreadMenuItem(
+            title: text.$1,
+            detail: text.$2,
+            icon: _iconFor(action),
+            onPressed: callback,
+          ),
+        );
+      }
+      if (items.isNotEmpty) groups.add((group, items));
     }
-    return items;
+    return groups;
   }
 
   /// Title plus the one-line explanation that distinguishes the strategies.
   static (String, String?) _textFor(LyricProofreadAction action) {
     return switch (action) {
       LyricProofreadAction.proofreadV2 => (
-        '智能校对 V2',
+        smartProofreadTitle,
         '不需要参考歌词；生成不写盘的提案，逐行对比后再应用',
       ),
       LyricProofreadAction.referenceAlignment => ('参考歌词纠正', '有参考歌词；可一并修正时间轴'),
@@ -336,14 +365,38 @@ class _ProofreadMenuItem {
     required this.detail,
     required this.icon,
     required this.onPressed,
-    required this.startsNewGroup,
   });
 
   final String title;
   final String? detail;
   final IconData icon;
   final VoidCallback onPressed;
-  final bool startsNewGroup;
+}
+
+/// Non-interactive section title inside the menu.
+class _GroupHeader extends StatelessWidget {
+  const _GroupHeader(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      header: true,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+        child: Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _MenuLabel extends StatelessWidget {

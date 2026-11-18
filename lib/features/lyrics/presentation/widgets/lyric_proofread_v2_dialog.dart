@@ -164,7 +164,7 @@ class _ProofreadV2RunOptionsDialogState
     return AlertDialog(
       backgroundColor: AppColors.bgElevated,
       scrollable: true,
-      title: const Text('歌词智能校对 V2'),
+      title: const Text('歌词智能校对'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: Column(

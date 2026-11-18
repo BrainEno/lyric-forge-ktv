@@ -25,7 +25,7 @@ void main() {
 
     expect(find.text(LyricProofreadMenuButton.label), findsOneWidget);
     // None of the individual flows is visible before the menu is opened.
-    expect(find.text('智能校对 V2'), findsNothing);
+    expect(find.text('智能校对'), findsNothing);
     expect(find.text('参考歌词纠正'), findsNothing);
     expect(find.text('逐行智能纠错（保留时间戳）'), findsNothing);
     expect(find.text('撤销最近更改'), findsNothing);
@@ -48,7 +48,7 @@ void main() {
     await tester.tap(find.text(LyricProofreadMenuButton.label));
     await tester.pumpAndSettle();
 
-    expect(find.text('智能校对 V2'), findsOneWidget);
+    expect(find.text('智能校对'), findsOneWidget);
     expect(find.text('不需要参考歌词；生成不写盘的提案，逐行对比后再应用'), findsOneWidget);
     expect(find.text('参考歌词纠正'), findsOneWidget);
     expect(find.text('逐行智能纠错（保留时间戳）'), findsOneWidget);
@@ -76,7 +76,7 @@ void main() {
     );
 
     for (final entry in {
-      '智能校对 V2': 'v2',
+      '智能校对': 'v2',
       '参考歌词纠正': 'alignment',
       '逐行智能纠错（保留时间戳）': 'proofread',
       '查看逐行对比': 'comparison',
@@ -91,6 +91,63 @@ void main() {
     }
 
     expect(fired, hasLength(6));
+  });
+
+  testWidgets('entries are listed under labelled sections in a fixed order', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        LyricProofreadMenuButton(
+          onRestoreBackup: () {},
+          onTapSync: () {},
+          onTextCleanup: () {},
+          onProofreadV2: () {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text(LyricProofreadMenuButton.label));
+    await tester.pumpAndSettle();
+
+    final expectedOrder = [
+      LyricProofreadGroup.correction.label,
+      LyricProofreadMenuButton.smartProofreadTitle,
+      LyricProofreadGroup.text.label,
+      '清理识别文本',
+      LyricProofreadGroup.timing.label,
+      '打轴（边听边标时间）',
+      LyricProofreadGroup.review.label,
+      '恢复对齐前版本',
+    ];
+    final tops = [
+      for (final text in expectedOrder) tester.getTopLeft(find.text(text)).dy,
+    ];
+    for (var index = 1; index < tops.length; index++) {
+      expect(
+        tops[index],
+        greaterThan(tops[index - 1]),
+        reason: '${expectedOrder[index]} after ${expectedOrder[index - 1]}',
+      );
+    }
+    // Section titles are labels, not extra actions.
+    expect(find.byType(MenuItemButton), findsNWidgets(4));
+    expect(find.byType(Divider), findsNWidgets(3));
+  });
+
+  testWidgets('sections without an available entry are hidden', (tester) async {
+    await tester.pumpWidget(
+      _host(LyricProofreadMenuButton(onProofreadV2: () {})),
+    );
+
+    await tester.tap(find.text(LyricProofreadMenuButton.label));
+    await tester.pumpAndSettle();
+
+    expect(find.text(LyricProofreadGroup.correction.label), findsOneWidget);
+    expect(find.text(LyricProofreadGroup.text.label), findsNothing);
+    expect(find.text(LyricProofreadGroup.timing.label), findsNothing);
+    expect(find.text(LyricProofreadGroup.review.label), findsNothing);
+    expect(find.byType(Divider), findsNothing);
   });
 
   testWidgets('renders nothing when every flow is unavailable', (tester) async {
@@ -119,7 +176,7 @@ void main() {
     await tester.tap(find.byTooltip(LyricProofreadMenuButton.label));
     await tester.pumpAndSettle();
 
-    expect(find.text('智能校对 V2'), findsOneWidget);
+    expect(find.text('智能校对'), findsOneWidget);
     expect(find.text('参考歌词纠正'), findsOneWidget);
   });
 }
