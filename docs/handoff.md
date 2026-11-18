@@ -2,35 +2,31 @@
 
 ## 目标
 
-用户更正：产品名是 **Elysium Player**，不是 LyricForge KTV。PR #470（已合并，`c7c2b1a`）根据 README 和仓库名把界面改成了 LyricForge KTV，方向错了。本分支的工作：
+审计路线阶段 2 的下一轮（PR #472 已合并为 `ca78297`）：
 
-1. 把对外名称恢复为 Elysium Player，并把 README、CONTRIBUTING、`docs/` 现行文档、导出文件的创作工具标记和代码注释一起改成 Elysium Player（D-030，D-029 标记为已取代）。
-2. 接着做审计路线阶段 2 的 UI 优化（`lib/core/widgets/` 共享组件等），作为单独的提交和工作日志。
+1. C-04 共享封面组件：`AppArtwork`（`lib/core/widgets/`）和播放器用的 `PlaybackArtwork`，先迁移播放器的四个界面：桌面播放条、移动播放条、播放队列、正在播放。
+2. 接着迁移音乐库和首页的五个封面（C-04 后半）。
 
 ## Git 现场
 
-- 分支：`arena/abb66cea-lyric-forge-ktv`，基于 main `c7c2b1a`。
-- 提交：`Restore Elysium Player as the product name`；`Group the proofreading menu into labelled sections`（审计 C-02/E-02）；`Add a shared empty-state widget`（C-06，新增 `lib/core/widgets/app_empty_state.dart`，迁移 4 个简单空状态）。
+- 分支：`arena/96221899-lyric-forge-ktv`，基于 main `ca78297`。
+- 提交：`Add a shared artwork widget for player surfaces`；`Use the shared artwork widget on library screens`。
 
 ## 已改文件
 
-见工作日志 `docs/log/entries/2026-11-18-2300-restore-elysium-player-name.md`：约 45 个 Dart 文件（界面文字、导出标记、注释、测试）、4 个平台文件、README/CONTRIBUTING/问题模板、11 份 `docs/` 页面、`decisions.md`（D-030）、审计资料更正。
+见工作日志 `2026-11-18-2338-add-shared-artwork-widget.md`（两个新组件、四个播放器文件、两个测试）和 `2026-11-18-2340-use-shared-artwork-in-library.md`（五个音乐库/首页文件、`AppArtwork` 增加 `placeholderColor`）。
 
 ## 检查结果
 
-沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。本地做了：按字符数检查改动行长度，只有 ASS 标题那一行因改名超过 80 列，已经改写；用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。
+沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。
 
 ## 下一步
 
-- 等 CI 通过后再合并。
-- 审计路线阶段 2 剩余：其余空状态（`_EmptyLibrary`、`_EmptyPlayer` 等需要 hero 变体，错误/加载类需要 `AppErrorState`）、`AppArtwork`、`AppBadge`、`TransportBar`，ASR 设置拆卡（C-03）。
+- C-04 已完成（传输域的 `RemoteMediaArtwork` 因为要走带认证的下载，保持独立）。之后：C-05 `AppBadge`、C-07 `TransportBar`、C-03 ASR 设置拆卡、其余空状态。
 
 ## 已知风险
 
-- 视觉和文字变化没有在运行中的应用里看过。
-- 校对菜单每组多一个约 30 px 的标题，完整菜单在矮窗口中更容易出现滚动。
-- 空歌词页的“添加第一行”按钮从整行宽改为按内容宽度；“没有搜索结果”的文字改为标题样式。
-- 新导出的 LRC/ASS 文件里，创作工具标记从 LyricForge 改为 Elysium Player；以前导出的文件不受影响。
-- 数据目录、协议头、User-Agent 和 TLS 证书字段仍用 LyricForge（D-030），改名需要单独做数据迁移。
+- 没有在运行中的应用里看过；占位图标的大小和颜色有小变化，首页封面占位从渐变改为纯色，详见工作日志。
+- 带 `remoteArtworkUri` 的本地条目不再加载远程封面（正常数据里不会出现）。
 
-最后更新：2026-11-18 23:20（Asia/Taipei）
+最后更新：2026-11-18 23:42（Asia/Taipei）

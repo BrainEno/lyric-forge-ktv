@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
@@ -14,6 +12,7 @@ import 'local_collection_actions.dart';
 import 'local_media_metadata_dialog.dart';
 import 'local_song_lyrics_import_action.dart';
 import 'playback_action_feedback.dart';
+import 'playback_artwork.dart';
 import 'playback_mode_controls.dart';
 import 'playback_queue_panel.dart';
 import 'seekable_progress_bar.dart';
@@ -183,9 +182,9 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                 context,
                                 Routes.nowPlaying,
                               ),
-                              child: _Artwork(
+                              child: PlaybackArtwork(
                                 item: item,
-                                extent: minimal ? 40 : 48,
+                                size: minimal ? 40 : 48,
                               ),
                             ),
                             SizedBox(
@@ -427,51 +426,6 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
           },
         );
       },
-    );
-  }
-}
-
-class _Artwork extends StatelessWidget {
-  final PlaybackItem item;
-  final double extent;
-
-  const _Artwork({required this.item, this.extent = 48});
-
-  @override
-  Widget build(BuildContext context) {
-    final localPath = item.artworkPath?.trim().isNotEmpty == true
-        ? item.artworkPath!.trim()
-        : item.audioAsset.thumbnailPath?.trim();
-    final file = localPath == null ? null : File(localPath);
-    final hasArtwork = file != null && file.existsSync();
-    final rawRemote = item.audioAsset.metadata['remoteArtworkUri'];
-    final remote = rawRemote is String ? Uri.tryParse(rawRemote.trim()) : null;
-    final hasRemote =
-        item.isRemoteStream &&
-        remote != null &&
-        (remote.scheme == 'http' || remote.scheme == 'https');
-
-    final fallback = Icon(
-      item.isRemoteStream ? Icons.cloud_rounded : Icons.music_note_rounded,
-      color: AppColors.textSecondary,
-    );
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-      child: Container(
-        width: extent,
-        height: extent,
-        color: AppColors.bgSurface,
-        child: hasArtwork
-            ? Image.file(file, fit: BoxFit.cover)
-            : hasRemote
-            ? Image.network(
-                remote.toString(),
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => fallback,
-              )
-            : fallback,
-      ),
     );
   }
 }

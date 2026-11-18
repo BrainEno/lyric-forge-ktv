@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
@@ -8,6 +5,7 @@ import '../../../../core/navigation/routes.dart';
 import '../dashboard_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../../player/domain/models/play_history.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/repositories/play_history_repository.dart';
@@ -1395,27 +1393,10 @@ class _Artwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    File? file;
-    if (!kIsWeb && path?.trim().isNotEmpty == true) file = File(path!);
-    final exists = file != null && file.existsSync();
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: exists
-            ? Image.file(file, fit: BoxFit.cover)
-            : Container(
-                decoration: const BoxDecoration(
-                  gradient: AppColors.cardGradient,
-                ),
-                child: Icon(
-                  Icons.album_rounded,
-                  size: size * 0.42,
-                  color: AppColors.textTertiary,
-                ),
-              ),
-      ),
+    return AppArtwork(
+      path: path,
+      size: size,
+      borderRadius: AppSpacing.radiusMedium,
     );
   }
 }
