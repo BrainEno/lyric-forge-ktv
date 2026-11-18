@@ -1,0 +1,69 @@
+name: tmp validate
+on:
+  push:
+    branches: [arena/61f424ad-lyric-forge-ktv]
+    paths-ignore: ['.ci-tmp/**', '.ci-trigger/**']
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format
+        run: |
+          mkdir -p .ci-tmp/validate
+          files=$(git diff --name-only --diff-filter=AMR 80b04a341c817fa3463645fe8d53b08a5ddf4610 -- 'lib/*.dart' 'test/*.dart' 'tool/*.dart'; git ls-files --others --exclude-standard -- '*.dart')
+          dart format $files > .ci-tmp/validate/format.txt 2>&1 || true
+      - name: Analyze
+        run: |
+          flutter analyze --no-fatal-infos > .ci-tmp/validate/analyze.txt 2>&1 || true
+          grep -E "^\s*(error|warning) " .ci-tmp/validate/analyze.txt > .ci-tmp/validate/analyze-problems.txt || true
+          grep -cE "^\s*info " .ci-tmp/validate/analyze.txt > .ci-tmp/validate/analyze-info-count.txt || true
+          files=$(git diff --name-only --diff-filter=AMR 80b04a341c817fa3463645fe8d53b08a5ddf4610 -- 'lib/*.dart' 'test/*.dart'; git ls-files --others --exclude-standard -- '*.dart')
+          for f in $files; do grep -F "$f" .ci-tmp/validate/analyze.txt; done > .ci-tmp/validate/analyze-touched.txt || true
+      - name: Targeted tests
+        run: |
+          flutter test --reporter expanded \
+            test/core/persistence/ \
+            test/core/diagnostics/ \
+            test/features/transcription/resumable_file_download_test.dart \
+            test/features/transcription/asr_endpoints_test.dart \
+            test/features/transcription/asr_runtime_resume_contract_test.dart \
+            test/features/transcription/qwen_model_integrity_contract_test.dart \
+            test/features/transcription/asr_install_experience_contract_test.dart \
+            test/features/transcription/model_scope_model_download_contract_test.dart \
+            test/features/transcription/managed_model_asr_runtime_manager_http_test.dart \
+            test/features/transcription/resilient_asr_runtime_manager_test.dart \
+            test/features/transcription/retrying_asr_runtime_manager_test.dart \
+            test/runtime_integrity_install_contract_test.dart \
+            test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart \
+            test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart \
+            test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart \
+            test/features/transfer/ \
+            test/architecture/ \
+            > .ci-tmp/validate/targeted.txt 2>&1 || true
+          tail -60 .ci-tmp/validate/targeted.txt > .ci-tmp/validate/targeted-tail.txt
+          grep -E "\[E\]|Expected:|Actual:|Error:|error:" -A12 .ci-tmp/validate/targeted.txt | head -400 > .ci-tmp/validate/targeted-failures.txt || true
+      - name: Full suite
+        run: |
+          flutter test > .ci-tmp/validate/full.txt 2>&1 || true
+          tail -30 .ci-tmp/validate/full.txt > .ci-tmp/validate/full-tail.txt
+          grep -E "\[E\]" .ci-tmp/validate/full.txt | sort -u | head -100 > .ci-tmp/validate/full-failures.txt || true
+          grep -E "\[E\]" -A25 .ci-tmp/validate/full.txt | head -600 > .ci-tmp/validate/full-failure-details.txt || true
+          rm .ci-tmp/validate/full.txt
+      - name: Work log
+        run: |
+          (dart tool/work_log.dart write && dart tool/work_log.dart check) > .ci-tmp/validate/worklog.txt 2>&1 || echo "FAILED" >> .ci-tmp/validate/worklog.txt
+      - name: Commit
+        run: |
+          git config user.name ci-bot
+          git config user.email ci-bot@users.noreply.github.com
+          git add .ci-tmp lib test tool docs
+          git commit -qm "ci: validation results" || exit 0
+          for i in 1 2 3; do git pull -q --rebase origin "$GITHUB_REF_NAME" && git push -q origin HEAD:"$GITHUB_REF_NAME" && break; sleep 5; done

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
+import '../../../../core/persistence/serial_write_queue.dart';
 import '../../domain/models/media_hub_connection.dart';
 import '../../domain/services/media_hub_connection_store.dart';
 
@@ -25,7 +26,7 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
 
   static const String _fileName = 'media_hub_connection.json';
 
-  Future<void> _writeChain = Future<void>.value();
+  final SerialWriteQueue _writes = SerialWriteQueue();
 
   Future<File> _file() async {
     final directory = await getApplicationSupportDirectory();
@@ -35,9 +36,7 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
 
   @override
   Future<MediaHubConnection?> loadLastConnection() async {
-    try {
-      await _writeChain;
-    } catch (_) {}
+    await _writes.idle;
     final file = await _file();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
     if (await file.exists() &&
@@ -63,12 +62,7 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
 
   @override
   Future<void> saveConnection(MediaHubConnection connection) {
-    final previous = _writeChain;
-    final operation = () async {
-      try {
-        await previous;
-      } catch (_) {}
-
+    return _writes.run(() async {
       final file = await _file();
       await AtomicJsonFile.write(
         file,
@@ -80,19 +74,12 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
         ),
         validate: _isValidStoreJson,
       );
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 
   @override
   Future<void> clear() {
-    final previous = _writeChain;
-    final operation = () async {
-      try {
-        await previous;
-      } catch (_) {}
-
+    return _writes.run(() async {
       try {
         final file = await _file();
         for (final sidecar in <File>[
@@ -107,8 +94,6 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
       } catch (_) {
         // Forget is best-effort; a missing/unavailable cache should not block UI.
       }
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 }

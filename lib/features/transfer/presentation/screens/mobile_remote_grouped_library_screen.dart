@@ -16,8 +16,11 @@ import '../../domain/services/media_hub_client_service.dart';
 import '../widgets/remote_media_artwork.dart';
 import 'remote_catalog_utils.dart';
 
+/// How [MobileRemoteGroupedLibraryScreen] groups the desktop tracks.
 enum RemoteCatalogView { artists, albums }
 
+/// Artists and albums tabs of [MobileRemoteLibraryShell]: the same desktop
+/// catalog grouped by [view], one card per group, opening its tracks.
 class MobileRemoteGroupedLibraryScreen extends StatefulWidget {
   final RemoteCatalogView view;
   final MobileRemoteLibraryDependencies dependencies;

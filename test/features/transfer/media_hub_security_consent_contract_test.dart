@@ -12,7 +12,7 @@ void main() {
 
     setUpAll(() async {
       source = await File(
-        'lib/features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart',
+        'lib/features/transfer/presentation/screens/desktop_media_transfer_hub_screen.dart',
       ).readAsString();
       serverSource = await File(
         'lib/features/transfer/data/services/http_media_hub_service.dart',

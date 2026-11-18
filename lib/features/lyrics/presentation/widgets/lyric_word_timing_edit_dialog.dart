@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/diagnostics/best_effort.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
@@ -129,7 +130,7 @@ class _LyricWordTimingEditDialogState extends State<LyricWordTimingEditDialog> {
     unawaited(_subscription?.cancel());
     final transport = widget.transport;
     if (transport != null && (_clock?.state.isPlaying ?? false)) {
-      unawaited(transport.pause().catchError((Object _) {}));
+      unawaited(_pause(transport, '关闭时暂停试听'));
     }
     _focus.dispose();
     super.dispose();
@@ -147,12 +148,19 @@ class _LyricWordTimingEditDialogState extends State<LyricWordTimingEditDialog> {
     if (position < stopAt) return;
     _stopAt = null;
     if (position - stopAt <= LyricWordTimingEditDialog.stopWindow) {
-      unawaited(_guard(widget.transport!.pause()));
+      unawaited(_pause(widget.transport!, '试听到词尾后暂停'));
     }
   }
 
-  static Future<void> _guard(Future<void> future) =>
-      future.catchError((Object _) {});
+  /// A pause that fails leaves the song playing, which the user hears and
+  /// can stop; it must not break the word editor.
+  static Future<void> _pause(LyricTapSyncTransport transport, String why) =>
+      bestEffort(
+        'lyrics.word',
+        why,
+        transport.pause,
+        impact: BestEffortImpact.degraded,
+      );
 
   void _edit(List<LyricWordTiming> next, {int? select}) {
     if (identical(next, _words) ||
@@ -220,7 +228,7 @@ class _LyricWordTimingEditDialogState extends State<LyricWordTimingEditDialog> {
     if (transport == null || clock == null || _words.isEmpty) return;
     if (clock.state.isPlaying) {
       _stopAt = null;
-      await _guard(transport.pause());
+      await _pause(transport, '暂停试听');
       return;
     }
     final word = _words[_selected];

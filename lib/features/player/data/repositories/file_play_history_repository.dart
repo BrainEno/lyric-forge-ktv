@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
+import '../../../../core/persistence/serial_write_queue.dart';
 import '../../domain/models/play_history.dart';
 import '../../domain/repositories/play_history_repository.dart';
 
@@ -28,7 +29,7 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
 
   final List<PlayHistory> _histories = <PlayHistory>[];
   Future<void>? _loadFuture;
-  Future<void> _writeChain = Future<void>.value();
+  final SerialWriteQueue _writes = SerialWriteQueue();
 
   FilePlayHistoryRepository({this.rootDirectory});
 
@@ -132,17 +133,10 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
           .toList(growable: false),
     });
 
-    final previous = _writeChain;
-    final operation = () async {
-      try {
-        await previous;
-      } catch (_) {}
-
+    return _writes.run(() async {
       final file = await _storeFile();
       await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 
   @override

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:record/record.dart';
 
+import '../../../../core/diagnostics/best_effort.dart';
 import '../../domain/models/ktv_microphone_state.dart';
 import '../../domain/services/ktv_microphone_preference_store.dart';
 import '../../domain/services/ktv_microphone_service.dart';
@@ -18,6 +19,7 @@ import 'pcm_delay_line.dart';
 /// position or source selection.
 class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
   static const int _sampleRate = 48000;
+  static const String _logTag = 'ktv.microphone';
 
   final AudioRecorder _recorder;
   final SoLoud _soloud;
@@ -402,11 +404,16 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
       await subscription.cancel();
     }
 
-    try {
-      if (await _recorder.isRecording()) {
-        await _recorder.stop();
-      }
-    } catch (_) {}
+    // A recorder that does not stop keeps the microphone busy for the next
+    // session, which the user notices; the monitor steps only free memory.
+    await bestEffort(
+      _logTag,
+      '停止麦克风录音',
+      () async {
+        if (await _recorder.isRecording()) await _recorder.stop();
+      },
+      impact: BestEffortImpact.degraded,
+    );
 
     final source = _monitorSource;
     final handle = _monitorHandle;
@@ -414,19 +421,21 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
     _monitorHandle = null;
 
     if (source != null) {
-      try {
-        _soloud.setDataIsEnded(source);
-      } catch (_) {}
+      bestEffortSync(
+        _logTag,
+        '结束返听数据流',
+        () => _soloud.setDataIsEnded(source),
+      );
     }
     if (handle != null) {
-      try {
-        await _soloud.stop(handle);
-      } catch (_) {}
+      await bestEffort(_logTag, '停止返听播放', () => _soloud.stop(handle));
     }
     if (source != null) {
-      try {
-        await _soloud.disposeSource(source);
-      } catch (_) {}
+      await bestEffort(
+        _logTag,
+        '释放返听音源',
+        () => _soloud.disposeSource(source),
+      );
     }
   }
 

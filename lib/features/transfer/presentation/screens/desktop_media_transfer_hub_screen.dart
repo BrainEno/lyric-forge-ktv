@@ -19,21 +19,21 @@ import '../../domain/services/media_share_catalog.dart';
 ///
 /// Opening this screen loads the local Library preview but does not expose the
 /// network service until the user reviews and accepts the HTTPS sharing scope.
-class DesktopMediaTransferHubV2Screen extends StatefulWidget {
+class DesktopMediaTransferHubScreen extends StatefulWidget {
   final DesktopMediaHubDependencies dependencies;
 
-  const DesktopMediaTransferHubV2Screen({
+  const DesktopMediaTransferHubScreen({
     super.key,
     required this.dependencies,
   });
 
   @override
-  State<DesktopMediaTransferHubV2Screen> createState() =>
-      _DesktopMediaTransferHubV2ScreenState();
+  State<DesktopMediaTransferHubScreen> createState() =>
+      _DesktopMediaTransferHubScreenState();
 }
 
-class _DesktopMediaTransferHubV2ScreenState
-    extends State<DesktopMediaTransferHubV2Screen> {
+class _DesktopMediaTransferHubScreenState
+    extends State<DesktopMediaTransferHubScreen> {
   late final MediaHubService _hub;
   late final MediaShareCatalog _catalog;
   late MediaHubState _hubState;

@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_library_entry.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/remote_audio_track.dart';
-import 'package:lyric_forge_ktv/features/transfer/presentation/screens/mobile_remote_music_library_screen.dart';
+import 'package:lyric_forge_ktv/features/transfer/presentation/screens/remote_catalog_utils.dart';
 
 void main() {
-  group('remoteTrackMatchesLocalEntry', () {
+  group('remoteTrackMatchesDownloadedEntry', () {
     RemoteAudioTrack track({
       String id = 'abcdef1234567890',
       String format = 'FLAC',
@@ -31,7 +31,7 @@ void main() {
 
     test('matches stable id suffix regardless of sanitised title', () {
       expect(
-        remoteTrackMatchesLocalEntry(
+        remoteTrackMatchesDownloadedEntry(
           track(),
           entry('/documents/LyricForge/Downloads/A_B Song_abcdef12.flac'),
         ),
@@ -41,7 +41,7 @@ void main() {
 
     test('supports Windows-style stored paths', () {
       expect(
-        remoteTrackMatchesLocalEntry(
+        remoteTrackMatchesDownloadedEntry(
           track(),
           entry(r'C:\Music\A_B Song_abcdef12.flac'),
         ),
@@ -51,7 +51,7 @@ void main() {
 
     test('does not mark a different remote track as downloaded', () {
       expect(
-        remoteTrackMatchesLocalEntry(
+        remoteTrackMatchesDownloadedEntry(
           track(id: '9999999934567890'),
           entry('/documents/LyricForge/Downloads/A_B Song_abcdef12.flac'),
         ),

@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
 import '../../../../core/persistence/retryable_load.dart';
+import '../../../../core/persistence/serial_write_queue.dart';
 import '../../domain/models/local_playlist.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/repositories/local_store_integrity.dart';
@@ -39,7 +40,7 @@ class FileLocalMediaCollectionRepository
   final StreamController<int> _changeController =
       StreamController<int>.broadcast();
   late final RetryableLoad _loader = RetryableLoad(_load);
-  Future<void> _writeChain = Future<void>.value();
+  final SerialWriteQueue _writes = SerialWriteQueue();
   int _revision = 0;
   LocalStoreLoadIssue? _loadIssue;
 
@@ -259,18 +260,10 @@ class FileLocalMediaCollectionRepository
           .toList(growable: false),
     });
 
-    final previous = _writeChain;
-    final operation = () async {
-      try {
-        await previous;
-      } catch (_) {
-        // A failed earlier write must not poison all future writes.
-      }
+    return _writes.run(() async {
       final file = await _storeFile();
       await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 
   Future<void> _persistAndNotify() async {

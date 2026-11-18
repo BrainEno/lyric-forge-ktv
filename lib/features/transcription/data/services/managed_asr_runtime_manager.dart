@@ -11,7 +11,9 @@ import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import 'asr_download_http_client_factory.dart';
+import 'asr_endpoints.dart';
 import 'qwen_runtime_session.dart';
+import 'resumable_file_download.dart';
 import 'runtime_release_asset_metadata.dart';
 
 class ManagedAsrRuntimeManager implements AsrRuntimeManager {
@@ -27,9 +29,8 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   static const String _whisperModelSha256 =
       '64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2';
 
-  static final Uri _whisperModelUri = Uri.parse(
-    'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/'
-    'ggml-large-v3.bin?download=true',
+  static final Uri _whisperModelUri = AsrEndpoints.whisperGgmlModel(
+    _whisperModelName,
   );
 
   final TranscriptionProfileResolver profileResolver;
@@ -41,8 +42,11 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       StreamController<AsrRuntimeInstallProgress>.broadcast();
 
   bool _installing = false;
-  bool _cancelRequested = false;
-  HttpClientRequest? _activeRequest;
+  final AsrTransferCancellation _transfer = AsrTransferCancellation();
+  late final ResumableFileDownload _downloader = ResumableFileDownload(
+    clientFactory: httpClientFactory,
+    timeout: _downloadTimeout,
+  );
   Process? _activeProcess;
 
   ManagedAsrRuntimeManager({
@@ -252,7 +256,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     }
 
     _installing = true;
-    _cancelRequested = false;
+    _transfer.reset();
 
     try {
       final profile = await profileResolver.resolve(config);
@@ -402,10 +406,9 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       _emit(null, 1.0, '本地歌词识别环境已准备完成');
       return repaired;
     } finally {
-      _activeRequest = null;
       _activeProcess = null;
       _installing = false;
-      _cancelRequested = false;
+      _transfer.reset();
     }
   }
 
@@ -818,7 +821,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         serveArguments: QwenRuntimeSessionProtocol.serveArguments(config),
         workingDirectory: File(executable).parent.path,
         startupTimeout: _qwenPreparationTimeout,
-        isCancelled: () => _cancelRequested,
+        isCancelled: () => _transfer.isRequested,
         onLogLine: capture,
         onProcessStarted: (process) => _activeProcess = process,
       );
@@ -887,154 +890,71 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     bool resumable = false,
     String proxyOverride = '',
   }) async {
-    await target.parent.create(recursive: true);
-    final part = File('${target.path}.part');
-
-    var existing = 0;
-    if (resumable && await part.exists()) {
-      existing = await part.length();
-    } else if (await part.exists()) {
-      await part.delete();
-    }
-
-    final client = await httpClientFactory.create(manualProxy: proxyOverride);
-    client.userAgent = 'LyricForge/1.0';
+    final part = ResumableFileDownload.partFileFor(target);
+    final label = switch (component) {
+      AsrRuntimeComponent.whisperModel => 'Whisper large-v3',
+      AsrRuntimeComponent.ffmpeg => 'FFmpeg',
+      _ => 'LyricForge 识别引擎',
+    };
+    // Only the large resumable transfers keep their part file on a network
+    // error; the others report the raw error to their callers.
+    final keepsPartFile =
+        component == AsrRuntimeComponent.whisperModel ||
+        (component == AsrRuntimeComponent.qwenRuntime && resumable);
 
     try {
-      final request = await client.getUrl(uri);
-      _activeRequest = request;
-      request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
-      if (existing > 0) {
-        request.headers.set(HttpHeaders.rangeHeader, 'bytes=$existing-');
-      }
-
-      final response = await request.close().timeout(_downloadTimeout);
-
-      if (response.statusCode != HttpStatus.ok &&
-          response.statusCode != HttpStatus.partialContent) {
-        await response.drain<void>().timeout(_downloadTimeout);
-        throw HttpException('HTTP ${response.statusCode}', uri: uri);
-      }
-
-      final append =
-          existing > 0 && response.statusCode == HttpStatus.partialContent;
-      if (!append) existing = 0;
-
-      final contentRange = response.headers.value(
-        HttpHeaders.contentRangeHeader,
-      );
-      final rangeMatch = contentRange == null
-          ? null
-          : RegExp(
-              r'^bytes (\d+)-(\d+)/(\d+|\*)$',
-            ).firstMatch(contentRange.toLowerCase());
-      if (response.statusCode == HttpStatus.partialContent &&
-          (rangeMatch == null ||
-              int.tryParse(rangeMatch.group(1)!) != existing ||
-              (rangeMatch.group(3) != '*' &&
-                  int.tryParse(rangeMatch.group(3)!) == null))) {
-        await response.drain<void>().timeout(_downloadTimeout);
-        if (await part.exists()) await part.delete();
-        throw TranscriptionException(
-          'Whisper 模型断点续传响应无效，已清理临时文件',
-          details: 'Content-Range: $contentRange',
-        );
-      }
-
-      final sink = part.openWrite(
-        mode: append ? FileMode.append : FileMode.write,
-      );
-
-      final contentLength = response.contentLength;
-      final rangeTotal = rangeMatch == null || rangeMatch.group(3) == '*'
-          ? null
-          : int.tryParse(rangeMatch.group(3)!);
-      final total =
-          rangeTotal ?? (contentLength > 0 ? existing + contentLength : -1);
-      var received = existing;
-      final transferStartBytes = existing;
-      final transferWatch = Stopwatch()..start();
-
-      try {
-        await for (final chunk in response.timeout(_downloadTimeout)) {
-          _throwIfCancelled();
-          sink.add(chunk);
-          received += chunk.length;
-
-          final fraction = total > 0
-              ? (received / total).clamp(0.0, 1.0).toDouble()
-              : 0.0;
-          final mapped =
-              startProgress + (endProgress - startProgress) * fraction;
-          final elapsedSeconds =
-              transferWatch.elapsedMicroseconds /
-              Duration.microsecondsPerSecond;
-          final transferred = received - transferStartBytes;
-          final speed = elapsedSeconds >= 0.5 && transferred > 0
-              ? transferred / elapsedSeconds
-              : null;
-          final remainingSeconds = total > 0 && speed != null && speed > 0
-              ? ((total - received) / speed).ceil()
-              : null;
+      await _downloader.fetch(
+        uri,
+        part,
+        cancellation: _transfer,
+        proxy: proxyOverride,
+        resume: resumable,
+        onProgress: (progress) {
+          final fraction = progress.fraction;
           _emit(
             component,
-            mapped,
-            total > 0 ? '正在下载 ${_percent(fraction)}' : '正在下载…',
+            startProgress + (endProgress - startProgress) * (fraction ?? 0),
+            fraction == null ? '正在下载…' : '正在下载 ${_percent(fraction)}',
             phase: AsrRuntimeInstallPhase.downloading,
-            downloadedBytes: received,
-            totalBytes: total > 0 ? total : null,
-            bytesPerSecond: speed,
-            estimatedRemaining: remainingSeconds == null
-                ? null
-                : Duration(seconds: remainingSeconds),
+            downloadedBytes: progress.receivedBytes,
+            totalBytes: progress.totalBytes,
+            bytesPerSecond: progress.bytesPerSecond,
+            estimatedRemaining: progress.estimatedRemaining,
           );
-        }
-      } finally {
-        await sink.close();
-      }
-
-      if (total > 0 && received < total) {
-        throw TranscriptionException(
-          'Whisper large-v3 下载未完成，已保留断点并将自动续传',
-          details: 'expected=$total, actual=$received',
-        );
-      }
-      if (total > 0 && received > total) {
-        await part.delete();
-        throw TranscriptionException(
-          'Whisper large-v3 下载大小异常，已清理损坏的临时文件',
-          details: 'expected=$total, actual=$received',
-        );
-      }
-
-      if (await target.exists()) await target.delete();
-      await part.rename(target.path);
+        },
+      );
+      await ResumableFileDownload.promote(part, target);
+    } on ResumableDownloadException catch (error) {
+      throw switch (error.failure) {
+        // The runtime bundle's caller explains a missing release itself.
+        DownloadFailure.httpStatus
+            when component != AsrRuntimeComponent.whisperModel =>
+          HttpException('HTTP ${error.statusCode}', uri: uri),
+        DownloadFailure.httpStatus => TranscriptionException(
+          '下载 $label 失败，已保留断点文件',
+          details: 'HTTP ${error.statusCode}',
+        ),
+        DownloadFailure.inconsistentResume => TranscriptionException(
+          '$label 断点续传响应无效，已清理临时文件',
+          details: 'Content-Range: ${error.contentRange}',
+        ),
+        DownloadFailure.incomplete => TranscriptionException(
+          '$label 下载未完成，已保留断点并将自动续传',
+          details: error.sizeDetails,
+        ),
+        DownloadFailure.oversized => TranscriptionException(
+          '$label 下载大小异常，已清理损坏的临时文件',
+          details: error.sizeDetails,
+        ),
+      };
     } on TranscriptionException {
       rethrow;
-    } on HttpException catch (error) {
-      if (component != AsrRuntimeComponent.whisperModel) rethrow;
-      throw TranscriptionException(
-        '下载 Whisper large-v3 失败，已保留断点文件',
-        details: error.toString(),
-      );
     } catch (error) {
-      if (_cancelRequested) {
-        throw const TranscriptionException.cancelled('识别环境安装已取消');
-      }
-      if (component != AsrRuntimeComponent.whisperModel &&
-          !(component == AsrRuntimeComponent.qwenRuntime && resumable)) {
-        rethrow;
-      }
-      final label = component == AsrRuntimeComponent.whisperModel
-          ? 'Whisper large-v3'
-          : 'LyricForge 识别引擎';
+      if (!keepsPartFile) rethrow;
       throw TranscriptionException(
         '下载 $label 失败，已保留断点文件',
         details: error.toString(),
       );
-    } finally {
-      _activeRequest = null;
-      client.close(force: true);
     }
   }
 
@@ -1298,22 +1218,19 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     required String proxyOverride,
   }) async {
     final assetName = _runtimeAssetName(profile);
-    final uri = Uri.parse(
-      'https://api.github.com/repos/BrainEno/lyric-forge-ktv/releases/tags/'
-      '$_runtimeReleaseTag',
-    );
+    final uri = AsrEndpoints.runtimeReleaseMetadata(_runtimeReleaseTag);
     final client = await httpClientFactory.create(manualProxy: proxyOverride);
     client.userAgent = 'LyricForge/1.0';
 
     try {
       final request = await client.getUrl(uri);
-      _activeRequest = request;
+      _transfer.track(client, request);
       request.headers.set(
         HttpHeaders.acceptHeader,
         'application/vnd.github+json',
       );
       final response = await request.close().timeout(_downloadTimeout);
-      _activeRequest = null;
+      _transfer.requestDone();
 
       if (response.statusCode != HttpStatus.ok) {
         await response.drain<void>().timeout(_downloadTimeout);
@@ -1340,15 +1257,13 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     } on TranscriptionException {
       rethrow;
     } catch (error) {
-      if (_cancelRequested) {
-        throw const TranscriptionException.cancelled('识别环境安装已取消');
-      }
+      _transfer.throwIfRequested();
       throw TranscriptionException(
         '无法读取识别引擎发布信息，请检查网络后重试',
         details: error.toString(),
       );
     } finally {
-      _activeRequest = null;
+      _transfer.release(client);
       client.close(force: true);
     }
   }
@@ -1425,24 +1340,18 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     );
   }
 
-  void _throwIfCancelled() {
-    if (_cancelRequested) {
-      throw const TranscriptionException.cancelled('识别环境安装已取消');
-    }
-  }
+  void _throwIfCancelled() => _transfer.throwIfRequested();
 
   @override
   Future<void> cancel() async {
     if (!_installing) return;
-    _cancelRequested = true;
-    _activeRequest?.abort();
+    _transfer.cancel();
     _activeProcess?.kill();
     _activeProcess = null;
   }
 
   Future<void> dispose() async {
-    _cancelRequested = true;
-    _activeRequest?.abort();
+    _transfer.cancel();
     _activeProcess?.kill();
     await _progressController.close();
   }

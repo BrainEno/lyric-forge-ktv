@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
 import '../../../../core/persistence/retryable_load.dart';
+import '../../../../core/persistence/serial_write_queue.dart';
 import '../../domain/models/embedded_audio_metadata.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
@@ -48,7 +49,7 @@ class FileLocalMediaLibraryRepository
   final List<LocalMediaLibraryEntry> _entries = <LocalMediaLibraryEntry>[];
   final List<String> _roots = <String>[];
   late final RetryableLoad _loader = RetryableLoad(_load);
-  Future<void> _writeChain = Future<void>.value();
+  final SerialWriteQueue _writes = SerialWriteQueue();
   LocalStoreLoadIssue? _loadIssue;
 
   FileLocalMediaLibraryRepository({this.rootDirectory, this.metadataReader});
@@ -250,16 +251,10 @@ class FileLocalMediaLibraryRepository
           .toList(growable: false),
     });
 
-    final previous = _writeChain;
-    final operation = () async {
-      try {
-        await previous;
-      } catch (_) {}
+    return _writes.run(() async {
       final file = await _storeFile();
       await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 
   /// Refreshes would rescan and persist; while the store is write-protected

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../../../../core/diagnostics/best_effort.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/ktv_recording_session.dart';
@@ -14,6 +15,8 @@ import 'ktv_project_storage.dart';
 import 'pcm16_wav_writer.dart';
 
 class LocalKtvRecordingService implements KtvRecordingService {
+  static const String _logTag = 'ktv.recording';
+
   final AudioPlayerService _audioService;
   final KtvMicrophoneService _microphoneService;
   final Future<String?> Function() _loadFfmpegExecutable;
@@ -404,24 +407,35 @@ class LocalKtvRecordingService implements KtvRecordingService {
     Pcm16WavWriter writer,
     Directory directory,
   ) async {
+    // The start failure is what the caller sees; each cleanup step below
+    // runs regardless of the others and only logs its own failure.
     final pcmSubscription = _pcmSubscription;
     _pcmSubscription = null;
-    try {
-      await pcmSubscription?.cancel();
-    } catch (_) {}
+    await bestEffort(
+      _logTag,
+      '回滚录音：取消麦克风订阅',
+      () => pcmSubscription?.cancel(),
+    );
 
     final playbackSubscription = _playbackSubscription;
     _playbackSubscription = null;
-    try {
-      await playbackSubscription?.cancel();
-    } catch (_) {}
+    await bestEffort(
+      _logTag,
+      '回滚录音：取消播放状态订阅',
+      () => playbackSubscription?.cancel(),
+    );
 
     _writer = null;
     _recordingClock?.stop();
     _recordingClock = null;
-    try {
-      await writer.close();
-    } catch (_) {}
+    // The take is deleted next, so an unclosed writer only leaks a handle
+    // until then.
+    await bestEffort(
+      _logTag,
+      '回滚录音：关闭录音文件',
+      writer.close,
+      impact: BestEffortImpact.degraded,
+    );
 
     _emit(
       _state.copyWith(

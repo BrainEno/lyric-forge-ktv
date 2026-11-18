@@ -7,11 +7,16 @@ void main() {
     final manager = File(
       'lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart',
     ).readAsStringSync();
+    final endpoints = File(
+      'lib/features/transcription/data/services/asr_endpoints.dart',
+    ).readAsStringSync();
 
-    expect(manager, contains(r"'/api/v1/models/$modelId/repo/files'"));
-    expect(manager, contains("'Revision': 'master'"));
-    expect(manager, contains("'Recursive': 'true'"));
-    expect(manager, contains(r"'/models/$modelId/resolve/master/$fileName'"));
+    expect(endpoints, contains(r"'/api/v1/models/$modelId/repo/files'"));
+    expect(endpoints, contains("'Revision': 'master'"));
+    expect(endpoints, contains("'Recursive': 'true'"));
+    expect(endpoints, contains(r"'/models/$modelId/resolve/master/$fileName'"));
+    expect(manager, contains('AsrEndpoints.modelScopeManifest'));
+    expect(manager, contains('AsrEndpoints.modelScopeFile'));
     expect(manager, contains('fromModelScopeManifest(jsonDecode(body))'));
     expect(manager, contains('_modelScopeManifestCache.clear()'));
   });

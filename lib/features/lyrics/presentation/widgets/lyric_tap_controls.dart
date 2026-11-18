@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../../../core/diagnostics/app_logger.dart';
+import '../../../../core/diagnostics/best_effort.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
 
@@ -126,6 +130,94 @@ class LyricTapPad extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Player commands of the tap-to-sync dialogs, with their failures shown.
+///
+/// The dialogs used to wrap play, pause and speed changes in an empty
+/// `catch`, so a player that refused to start left the user pressing a
+/// button that did nothing. A failed command now leaves a short message in
+/// [transportError] (shown by [LyricTapTransportError]) and a warning in the
+/// diagnostics log; the next command that succeeds clears it. The tapping
+/// session itself is never touched by a player failure.
+mixin LyricTapTransportFeedback<T extends StatefulWidget> on State<T> {
+  String? _transportError;
+
+  /// The last player failure, until a later command succeeds.
+  String? get transportError => _transportError;
+
+  /// Runs [command]; [action] names it in the message (播放、暂停、跳转…).
+  Future<void> runTransport(
+    String action,
+    Future<void> Function() command,
+  ) async {
+    try {
+      await command();
+    } on Object catch (error, stackTrace) {
+      appLog.warning(
+        'lyrics.tap',
+        'Tap-sync player command failed: $action',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _setTransportError('$action失败：播放器没有响应，可以再试一次或关闭后重开');
+      return;
+    }
+    _setTransportError(null);
+  }
+
+  /// Fires [command] while the dialog closes, when there is no one left to
+  /// show a message to; a failure is only logged.
+  void restoreTransport(String action, Future<void> Function() command) {
+    unawaited(
+      bestEffort(
+        'lyrics.tap',
+        '关闭打点窗口时$action',
+        command,
+        impact: BestEffortImpact.degraded,
+      ),
+    );
+  }
+
+  void _setTransportError(String? message) {
+    if (!mounted || message == _transportError) return;
+    setState(() => _transportError = message);
+  }
+}
+
+/// The message of [LyricTapTransportFeedback.transportError]; nothing when
+/// there is none.
+class LyricTapTransportError extends StatelessWidget {
+  const LyricTapTransportError({super.key, required this.message});
+
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = message;
+    if (text == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 16,
+            color: AppColors.error,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.error,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../../domain/services/asr_download_connection_checker.dart';
 import 'asr_download_http_client_factory.dart';
+import 'asr_endpoints.dart';
 import 'hugging_face_file_metadata.dart';
 
 /// Endpoint builders are injectable so connectivity preflight can be exercised
@@ -22,30 +23,14 @@ class AsrDownloadConnectionEndpoints {
 
   static const official = AsrDownloadConnectionEndpoints(
     whisperFileUri: _officialWhisperFileUri,
-    huggingFaceFileUri: _officialHuggingFaceFileUri,
-    modelScopeManifestUri: _officialModelScopeManifestUri,
-    modelScopeFileUri: _officialModelScopeFileUri,
+    huggingFaceFileUri: AsrEndpoints.huggingFaceFile,
+    modelScopeManifestUri: AsrEndpoints.modelScopeManifest,
+    modelScopeFileUri: AsrEndpoints.modelScopeFile,
   );
 }
 
-Uri _officialWhisperFileUri() => Uri.parse(
-      'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin?download=true',
-    );
-
-Uri _officialHuggingFaceFileUri(String modelId, String fileName) => Uri.parse(
-      'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
-    );
-
-Uri _officialModelScopeManifestUri(String modelId) => Uri.https(
-      'modelscope.cn',
-      '/api/v1/models/$modelId/repo/files',
-      const {'Revision': 'master', 'Recursive': 'true'},
-    );
-
-Uri _officialModelScopeFileUri(String modelId, String fileName) => Uri.https(
-      'modelscope.cn',
-      '/models/$modelId/resolve/master/$fileName',
-    );
+Uri _officialWhisperFileUri() =>
+    AsrEndpoints.whisperGgmlModel('ggml-large-v3.bin');
 
 class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
   final AsrDownloadHttpClientFactory clientFactory;

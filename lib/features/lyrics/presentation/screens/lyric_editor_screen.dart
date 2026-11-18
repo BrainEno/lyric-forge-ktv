@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/diagnostics/best_effort.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../player/domain/services/playback_session_service.dart';
@@ -1171,7 +1172,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
   void dispose() {
     // Leaving the editor must not leave a bounded audition sounding.
     if (_audition.isSounding) {
-      unawaited(_audioService.pause().catchError((Object _) {}));
+      unawaited(
+        bestEffort(
+          'lyrics.editor',
+          '离开编辑器时停止试听',
+          _audioService.pause,
+          impact: BestEffortImpact.degraded,
+        ),
+      );
     }
     _audition.removeListener(_handleAuditionChanged);
     _audition.dispose();

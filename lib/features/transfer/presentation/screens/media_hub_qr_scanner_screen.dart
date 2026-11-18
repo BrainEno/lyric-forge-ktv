@@ -4,6 +4,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 
+/// Reads the pairing QR code shown by the desktop hub and pops with its
+/// payload; connecting is left to the screen that opened it.
 class MediaHubQrScannerScreen extends StatefulWidget {
   const MediaHubQrScannerScreen({super.key});
 

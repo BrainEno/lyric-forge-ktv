@@ -36,6 +36,11 @@ abstract class AppColors {
   static const Color pressedOverlay = Color(0x33FFFFFF);
   static const Color focusRing = Color(0x80FFFFFF);
 
+  // Elevation shadows: a floating label close to its anchor, and a card
+  // lifted well above the page.
+  static const Color shadowNear = Color(0x66000000);
+  static const Color shadowFar = Color(0x52000000);
+
   // Borders (subtle, used sparingly)
   static const Color borderSubtle = Color(0x1AFFFFFF);
   static const Color borderMuted = Color(0x0DFFFFFF);

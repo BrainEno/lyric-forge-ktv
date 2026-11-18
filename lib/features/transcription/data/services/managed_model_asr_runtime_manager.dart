@@ -8,7 +8,9 @@ import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import 'asr_download_http_client_factory.dart';
+import 'asr_endpoints.dart';
 import 'hugging_face_file_metadata.dart';
+import 'resumable_file_download.dart';
 
 /// Injectable URI builders for managed model downloads.
 ///
@@ -28,24 +30,11 @@ class AsrModelDownloadEndpoints {
   });
 
   static const official = AsrModelDownloadEndpoints(
-    huggingFaceFileUri: _officialHuggingFaceFileUri,
-    modelScopeManifestUri: _officialModelScopeManifestUri,
-    modelScopeFileUri: _officialModelScopeFileUri,
+    huggingFaceFileUri: AsrEndpoints.huggingFaceFile,
+    modelScopeManifestUri: AsrEndpoints.modelScopeManifest,
+    modelScopeFileUri: AsrEndpoints.modelScopeFile,
   );
 }
-
-Uri _officialHuggingFaceFileUri(String modelId, String fileName) => Uri.parse(
-  'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
-);
-
-Uri _officialModelScopeManifestUri(String modelId) => Uri.https(
-  'modelscope.cn',
-  '/api/v1/models/$modelId/repo/files',
-  const {'Revision': 'master', 'Recursive': 'true'},
-);
-
-Uri _officialModelScopeFileUri(String modelId, String fileName) =>
-    Uri.https('modelscope.cn', '/models/$modelId/resolve/master/$fileName');
 
 /// Adds LyricForge-managed Qwen model downloads in front of the existing
 /// runtime installer so normal users never need to locate a Hugging Face cache.
@@ -103,10 +92,12 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   _modelScopeManifestCache = {};
 
   bool _installingModels = false;
-  bool _cancelRequested = false;
   double _delegateProgressBase = 0;
-  HttpClientRequest? _activeRequest;
-  HttpClient? _activeClient;
+  final AsrTransferCancellation _transfer = AsrTransferCancellation();
+  late final ResumableFileDownload _downloader = ResumableFileDownload(
+    clientFactory: httpClientFactory,
+    timeout: _downloadTimeout,
+  );
 
   ManagedModelAsrRuntimeManager({
     required this.delegate,
@@ -169,7 +160,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       throw const TranscriptionException('识别环境正在安装，请稍候');
     }
 
-    _cancelRequested = false;
+    _transfer.reset();
     _delegateProgressBase = 0;
     // The manifest cache is intentionally scoped to one installation attempt:
     // model revisions may move, so a later retry must re-read official metadata.
@@ -233,10 +224,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       final installed = await delegate.installRecommended(prepared);
       return await repair(installed);
     } finally {
-      _activeRequest = null;
-      _activeClient = null;
       _installingModels = false;
-      _cancelRequested = false;
+      _transfer.reset();
       _delegateProgressBase = 0;
     }
   }
@@ -264,15 +253,12 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     };
     if (asset == null) return;
 
-    final uri = Uri.parse(
-      'https://github.com/BrainEno/lyric-forge-ktv/releases/download/'
-      '$_runtimeReleaseTag/$asset',
-    );
+    final uri = AsrEndpoints.runtimeReleaseAsset(_runtimeReleaseTag, asset);
     final client = await httpClientFactory.create(
       manualProxy: config.downloadProxy,
     );
     client.userAgent = 'LyricForge/1.0';
-    _activeClient = client;
+    _transfer.track(client);
 
     try {
       _emit(
@@ -282,9 +268,9 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         phase: AsrRuntimeInstallPhase.checkingExisting,
       );
       final request = await client.headUrl(uri);
-      _activeRequest = request;
+      _transfer.track(client, request);
       final response = await request.close().timeout(_downloadTimeout);
-      _activeRequest = null;
+      _transfer.requestDone();
       await response.drain<void>().timeout(_downloadTimeout);
 
       if (response.statusCode < 200 || response.statusCode >= 400) {
@@ -296,16 +282,13 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     } on TranscriptionException {
       rethrow;
     } catch (error) {
-      if (_cancelRequested) {
-        throw const TranscriptionException.cancelled('识别环境安装已取消');
-      }
+      _transfer.throwIfRequested();
       throw TranscriptionException(
         '无法确认 LyricForge 识别引擎安装包，因此尚未开始下载大型模型。',
         details: error.toString(),
       );
     } finally {
-      _activeRequest = null;
-      _activeClient = null;
+      _transfer.release(client);
       client.close(force: true);
     }
   }
@@ -541,27 +524,20 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
             target: target,
             metadata: fileMetadata,
             proxyOverride: proxyOverride,
-            onProgress:
-                (
-                  fraction,
-                  downloadedBytes,
-                  totalBytes,
-                  bytesPerSecond,
-                  estimatedRemaining,
-                ) {
-                  final modelFraction =
-                      fileStart + (fileEnd - fileStart) * fraction;
-                  _emit(
-                    component,
-                    _mapProgress(modelFraction, startProgress, endProgress),
-                    '正在下载 ${_modelLabel(modelId)} · ${index + 1}/${files.length} · ${_percent(modelFraction)}',
-                    phase: AsrRuntimeInstallPhase.downloading,
-                    downloadedBytes: downloadedBytes,
-                    totalBytes: totalBytes,
-                    bytesPerSecond: bytesPerSecond,
-                    estimatedRemaining: estimatedRemaining,
-                  );
-                },
+            onProgress: (progress) {
+              final modelFraction =
+                  fileStart + (fileEnd - fileStart) * (progress.fraction ?? 0);
+              _emit(
+                component,
+                _mapProgress(modelFraction, startProgress, endProgress),
+                '正在下载 ${_modelLabel(modelId)} · ${index + 1}/${files.length} · ${_percent(modelFraction)}',
+                phase: AsrRuntimeInstallPhase.downloading,
+                downloadedBytes: progress.receivedBytes,
+                totalBytes: progress.totalBytes,
+                bytesPerSecond: progress.bytesPerSecond,
+                estimatedRemaining: progress.estimatedRemaining,
+              );
+            },
           );
         }
 
@@ -658,177 +634,79 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required File target,
     required HuggingFaceFileMetadata metadata,
     required String proxyOverride,
-    required void Function(
-      double fraction,
-      int downloadedBytes,
-      int totalBytes,
-      double? bytesPerSecond,
-      Duration? estimatedRemaining,
-    )
-    onProgress,
+    required void Function(DownloadProgress progress) onProgress,
   }) async {
-    await target.parent.create(recursive: true);
+    final size = metadata.sizeBytes;
+    final done = DownloadProgress(
+      receivedBytes: size,
+      totalBytes: size,
+      estimatedRemaining: Duration.zero,
+    );
     final part = File(_partialDownloadPath(target, metadata.source));
-    var existing = await part.exists() ? await part.length() : 0;
-
-    if (existing > metadata.sizeBytes) {
-      await part.delete();
-      existing = 0;
-    } else if (existing == metadata.sizeBytes && existing > 0) {
+    // A part file that already holds every byte is checked, not fetched
+    // again: a range request past the end would only get a 416.
+    if (await part.exists() && await part.length() == size && size > 0) {
       if (await _verifyLocalModelFile(part, metadata)) {
-        if (await target.exists()) await target.delete();
-        await part.rename(target.path);
-        onProgress(
-          1.0,
-          metadata.sizeBytes,
-          metadata.sizeBytes,
-          null,
-          Duration.zero,
-        );
+        await ResumableFileDownload.promote(part, target);
+        onProgress(done);
         return;
       }
       await part.delete();
-      existing = 0;
     }
 
     final uri = metadata.source == AsrModelDownloadSource.modelScope
         ? downloadEndpoints.modelScopeFileUri(modelId, fileName)
         : downloadEndpoints.huggingFaceFileUri(modelId, fileName);
-    final client = await httpClientFactory.create(manualProxy: proxyOverride);
-    client.userAgent = 'LyricForge/1.0';
-    _activeClient = client;
-
+    final label = _modelLabel(modelId);
     try {
-      final request = await client.getUrl(uri);
-      _activeRequest = request;
-      request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
-      if (existing > 0) {
-        request.headers.set(HttpHeaders.rangeHeader, 'bytes=$existing-');
-      }
-
-      final response = await request.close().timeout(_downloadTimeout);
-      _activeRequest = null;
-      if (response.statusCode != HttpStatus.ok &&
-          response.statusCode != HttpStatus.partialContent) {
-        await response.drain<void>().timeout(_downloadTimeout);
-        throw TranscriptionException(
-          '无法下载 ${_modelLabel(modelId)}',
-          details: '$fileName: ${_downloadResponseDiagnostics(uri, response)}',
-        );
-      }
-
-      final append =
-          existing > 0 && response.statusCode == HttpStatus.partialContent;
-      if (append) {
-        final contentRange = response.headers
-            .value(HttpHeaders.contentRangeHeader)
-            ?.toLowerCase();
-        if (contentRange == null ||
-            !contentRange.startsWith('bytes $existing-')) {
-          await response.drain<void>().timeout(_downloadTimeout);
-          if (await part.exists()) await part.delete();
-          throw TranscriptionException(
-            '${_modelLabel(modelId)} 断点续传响应不一致，已清理临时文件',
-            details:
-                '$fileName: content-range=$contentRange; '
-                '${_downloadResponseDiagnostics(uri, response)}',
-          );
-        }
-      } else {
-        existing = 0;
-      }
-
-      var received = existing;
-      final transferStartBytes = existing;
-      final transferWatch = Stopwatch()..start();
-      final sink = part.openWrite(
-        mode: append ? FileMode.append : FileMode.write,
+      await _downloader.fetch(
+        uri,
+        part,
+        cancellation: _transfer,
+        proxy: proxyOverride,
+        expectedBytes: size,
+        onProgress: onProgress,
       );
-
-      try {
-        await for (final chunk in response.timeout(_downloadTimeout)) {
-          _throwIfCancelled();
-          sink.add(chunk);
-          received += chunk.length;
-          final elapsedSeconds =
-              transferWatch.elapsedMicroseconds /
-              Duration.microsecondsPerSecond;
-          final transferred = received - transferStartBytes;
-          final speed = elapsedSeconds >= 0.5 && transferred > 0
-              ? transferred / elapsedSeconds
-              : null;
-          final remainingSeconds = speed != null && speed > 0
-              ? ((metadata.sizeBytes - received) / speed).ceil()
-              : null;
-          onProgress(
-            (received / metadata.sizeBytes).clamp(0.0, 1.0).toDouble(),
-            received,
-            metadata.sizeBytes,
-            speed,
-            remainingSeconds == null
-                ? null
-                : Duration(seconds: remainingSeconds),
-          );
-        }
-      } finally {
-        await sink.close();
-      }
-
-      _throwIfCancelled();
-      final actualSize = await part.length();
-      if (actualSize < metadata.sizeBytes) {
-        throw TranscriptionException(
-          '${_modelLabel(modelId)} 下载未完成，下次将从断点继续',
+    } on ResumableDownloadException catch (error) {
+      final diagnostics = _downloadResponseDiagnostics(uri, error.response);
+      throw switch (error.failure) {
+        DownloadFailure.httpStatus => TranscriptionException(
+          '无法下载 $label',
+          details: '$fileName: $diagnostics',
+        ),
+        DownloadFailure.inconsistentResume => TranscriptionException(
+          '$label 断点续传响应不一致，已清理临时文件',
           details:
-              '$fileName: expected=${metadata.sizeBytes}, actual=$actualSize; '
-              '${_downloadResponseDiagnostics(uri, response)}',
-        );
-      }
-      if (actualSize > metadata.sizeBytes) {
-        await part.delete();
-        throw TranscriptionException(
-          '${_modelLabel(modelId)} 文件大小异常，已清理损坏的临时文件',
-          details:
-              '$fileName: expected=${metadata.sizeBytes}, actual=$actualSize; '
-              '${_downloadResponseDiagnostics(uri, response)}',
-        );
-      }
-
-      if (!await _verifyLocalModelFile(part, metadata)) {
-        await part.delete();
-        if (await target.exists()) await target.delete();
-        throw TranscriptionException(
-          '${_modelLabel(modelId)} 完整性校验失败，已删除损坏文件',
-          details:
-              '$fileName: etag=${metadata.etag}; '
-              '${_downloadResponseDiagnostics(uri, response)}',
-        );
-      }
-
-      if (await target.exists()) await target.delete();
-      await part.rename(target.path);
-      onProgress(
-        1.0,
-        metadata.sizeBytes,
-        metadata.sizeBytes,
-        null,
-        Duration.zero,
-      );
+              '$fileName: content-range=${error.contentRange}; $diagnostics',
+        ),
+        DownloadFailure.incomplete => TranscriptionException(
+          '$label 下载未完成，下次将从断点继续',
+          details: '$fileName: ${error.sizeDetails}; $diagnostics',
+        ),
+        DownloadFailure.oversized => TranscriptionException(
+          '$label 文件大小异常，已清理损坏的临时文件',
+          details: '$fileName: ${error.sizeDetails}; $diagnostics',
+        ),
+      };
     } on TranscriptionException {
       rethrow;
     } catch (error) {
-      if (_cancelRequested) {
-        throw const TranscriptionException.cancelled('识别环境安装已取消');
-      }
       throw TranscriptionException(
-        '下载 ${_modelLabel(modelId)} 失败',
+        '下载 $label 失败',
         details: '$fileName: requested=${_redactDownloadUri(uri)}; $error',
       );
-    } finally {
-      _activeRequest = null;
-      _activeClient = null;
-      client.close(force: true);
     }
+
+    if (!await _verifyLocalModelFile(part, metadata)) {
+      await part.delete();
+      if (await target.exists()) await target.delete();
+      throw TranscriptionException(
+        '$label 完整性校验失败，已删除损坏文件',
+        details: '$fileName: etag=${metadata.etag}; ${_redactDownloadUri(uri)}',
+      );
+    }
+    await ResumableFileDownload.promote(part, target);
+    onProgress(done);
   }
 
   String _partialDownloadPath(File target, AsrModelDownloadSource source) {
@@ -913,15 +791,15 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     final uri = downloadEndpoints.huggingFaceFileUri(modelId, fileName);
     final client = await httpClientFactory.create(manualProxy: proxyOverride);
     client.userAgent = 'LyricForge/1.0';
-    _activeClient = client;
+    _transfer.track(client);
 
     try {
       final request = await client.headUrl(uri);
-      _activeRequest = request;
+      _transfer.track(client, request);
       request.followRedirects = false;
       request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
       final response = await request.close().timeout(_downloadTimeout);
-      _activeRequest = null;
+      _transfer.requestDone();
 
       if (response.statusCode < 200 || response.statusCode >= 400) {
         await response.drain<void>().timeout(_downloadTimeout);
@@ -948,16 +826,13 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     } on TranscriptionException {
       rethrow;
     } catch (error) {
-      if (_cancelRequested) {
-        throw const TranscriptionException.cancelled('识别环境安装已取消');
-      }
+      _transfer.throwIfRequested();
       throw TranscriptionException(
         '无法读取 ${_modelLabel(modelId)} 文件元数据',
         details: '$fileName: $error',
       );
     } finally {
-      _activeRequest = null;
-      _activeClient = null;
+      _transfer.release(client);
       client.close(force: true);
     }
   }
@@ -1002,15 +877,15 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     final uri = downloadEndpoints.modelScopeManifestUri(modelId);
     final client = await httpClientFactory.create(manualProxy: proxyOverride);
     client.userAgent = 'LyricForge/1.0';
-    _activeClient = client;
+    _transfer.track(client);
 
     try {
       final request = await client.getUrl(uri);
-      _activeRequest = request;
+      _transfer.track(client, request);
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
       final response = await request.close().timeout(_downloadTimeout);
-      _activeRequest = null;
+      _transfer.requestDone();
       if (response.statusCode != HttpStatus.ok) {
         final body = await utf8.decoder
             .bind(response)
@@ -1037,13 +912,10 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     } on TranscriptionException {
       rethrow;
     } catch (error) {
-      if (_cancelRequested) {
-        throw const TranscriptionException.cancelled('识别环境安装已取消');
-      }
+      _transfer.throwIfRequested();
       throw TranscriptionException('无法连接 ModelScope 模型文件清单', details: '$error');
     } finally {
-      _activeRequest = null;
-      _activeClient = null;
+      _transfer.release(client);
       client.close(force: true);
     }
   }
@@ -1166,7 +1038,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       }
       return (hasIntegrityMarker: true, failedFile: null);
     } catch (_) {
-      if (_cancelRequested) rethrow;
+      if (_transfer.isRequested) rethrow;
       return (hasIntegrityMarker: true, failedFile: '完整性记录');
     }
   }
@@ -1334,19 +1206,11 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     return current;
   }
 
-  void _throwIfCancelled() {
-    if (_cancelRequested) {
-      throw const TranscriptionException.cancelled('识别环境安装已取消');
-    }
-  }
+  void _throwIfCancelled() => _transfer.throwIfRequested();
 
   @override
   Future<void> cancel() async {
-    _cancelRequested = true;
-    _activeRequest?.abort();
-    _activeClient?.close(force: true);
-    _activeRequest = null;
-    _activeClient = null;
+    _transfer.cancel();
     await delegate.cancel();
   }
 }

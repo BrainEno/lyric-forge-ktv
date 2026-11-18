@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
 import '../../../../core/persistence/retryable_load.dart';
+import '../../../../core/persistence/serial_write_queue.dart';
 import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 
@@ -24,7 +25,7 @@ class FileLocalMediaMetadataRepository
 
   final Map<String, LocalMediaMetadata> _entries = {};
   late final RetryableLoad _loader = RetryableLoad(_load);
-  Future<void> _writeChain = Future<void>.value();
+  final SerialWriteQueue _writes = SerialWriteQueue();
   FormatException? _incompleteLoad;
 
   FileLocalMediaMetadataRepository({this.rootDirectory});
@@ -145,17 +146,10 @@ class FileLocalMediaMetadataRepository
       'encoding': 'utf-8',
       'items': _entries.values.map((entry) => entry.toJson()).toList(),
     });
-    final previous = _writeChain;
-    final operation = () async {
-      try {
-        await previous;
-      } catch (_) {}
-
+    return _writes.run(() async {
       final file = await _storeFile();
       await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 
   @override

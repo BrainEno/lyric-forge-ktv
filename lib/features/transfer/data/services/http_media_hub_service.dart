@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/diagnostics/best_effort.dart';
 import '../../../player/domain/services/audio_library_import_service.dart';
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
@@ -16,6 +17,8 @@ typedef IncomingMediaCallback = Future<void> Function(String path);
 typedef IncomingDiskSpaceProbe = Future<int?> Function(Directory directory);
 
 class HttpMediaHubService implements MediaHubService {
+  static const String _logTag = 'transfer.hub';
+
   static const int preferredPort = 48517;
   static const int defaultMaxIncomingAudioBytes = 2 * 1024 * 1024 * 1024;
   static const Duration defaultIncomingUploadIdleTimeout = Duration(
@@ -848,23 +851,25 @@ class HttpMediaHubService implements MediaHubService {
       // A client that disconnects mid-drain needs nothing more from us.
     } finally {
       if (ownsIterator) {
-        try {
-          await body.cancel();
-        } catch (_) {}
+        await bestEffort(_logTag, '取消被拒绝的请求体', body.cancel);
       }
     }
   }
 
   Future<void> _discardPartialUpload(IOSink? sink, File? partial) async {
     if (sink != null) {
-      try {
-        await sink.close();
-      } catch (_) {}
+      await bestEffort(_logTag, '关闭未完成的上传文件', sink.close);
     }
     if (partial != null) {
-      try {
-        if (await partial.exists()) await partial.delete();
-      } catch (_) {}
+      // A leftover partial file wastes space in the import folder.
+      await bestEffort(
+        _logTag,
+        '删除未完成的上传文件',
+        () async {
+          if (await partial.exists()) await partial.delete();
+        },
+        impact: BestEffortImpact.degraded,
+      );
     }
   }
 

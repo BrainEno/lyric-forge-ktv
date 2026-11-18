@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/diagnostics/best_effort.dart';
+
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
@@ -192,20 +194,20 @@ class LibraryMetadataPlaybackSessionService
     };
   }
 
-  Future<File?> _findCachedArtwork(Directory directory, String prefix) async {
-    try {
-      await for (final entity in directory.list(followLinks: false)) {
-        if (entity is! File) continue;
-        final name = entity.uri.pathSegments.isEmpty
-            ? entity.path
-            : entity.uri.pathSegments.last;
-        if (!name.startsWith(prefix) || name.endsWith('.part')) continue;
-        if (await entity.length() <= 0) continue;
-        return entity;
-      }
-    } catch (_) {}
-    return null;
-  }
+  /// An unreadable cache only means the cover is downloaded again.
+  Future<File?> _findCachedArtwork(Directory directory, String prefix) =>
+      bestEffortValue<File?>('player.artwork', '查找已缓存的封面', () async {
+        await for (final entity in directory.list(followLinks: false)) {
+          if (entity is! File) continue;
+          final name = entity.uri.pathSegments.isEmpty
+              ? entity.path
+              : entity.uri.pathSegments.last;
+          if (!name.startsWith(prefix) || name.endsWith('.part')) continue;
+          if (await entity.length() <= 0) continue;
+          return entity;
+        }
+        return null;
+      }, fallback: null);
 
   Future<void> _hydrateRemoteArtwork(PlaybackItem item, Uri uri) async {
     File? partial;
@@ -271,10 +273,11 @@ class LibraryMetadataPlaybackSessionService
       await _applyCachedArtwork(item.id, uri, destination.path);
       unawaited(_pruneArtworkCache(directory));
     } catch (_) {
-      if (partial != null && await partial.exists()) {
-        try {
-          await partial.delete();
-        } catch (_) {}
+      final leftover = partial;
+      if (leftover != null) {
+        await bestEffort('player.artwork', '删除未下载完的封面', () async {
+          if (await leftover.exists()) await leftover.delete();
+        });
       }
       // Artwork is cosmetic. A failed cover request must never block playback.
     } finally {
@@ -308,8 +311,11 @@ class LibraryMetadataPlaybackSessionService
     );
   }
 
-  Future<void> _pruneArtworkCache(Directory directory) async {
-    try {
+  /// A cache that cannot be pruned keeps growing, so failures are warnings.
+  Future<void> _pruneArtworkCache(Directory directory) => bestEffort(
+    'player.artwork',
+    '清理封面缓存',
+    () async {
       final files = await directory
           .list(followLinks: false)
           .where((entity) => entity is File && !entity.path.endsWith('.part'))
@@ -323,12 +329,15 @@ class LibraryMetadataPlaybackSessionService
       }
       dated.sort((a, b) => b.modified.compareTo(a.modified));
       for (final entry in dated.skip(_maxCachedArtworkFiles)) {
-        try {
-          await entry.file.delete();
-        } catch (_) {}
+        await bestEffort(
+          'player.artwork',
+          '删除过期的封面缓存',
+          entry.file.delete,
+        );
       }
-    } catch (_) {}
-  }
+    },
+    impact: BestEffortImpact.degraded,
+  );
 
   void _prioritizeCurrentArtwork() {
     final current = delegate.currentState.currentItem;
