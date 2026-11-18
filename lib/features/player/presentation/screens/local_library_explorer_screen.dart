@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_library_browse_item.dart';
 import '../../domain/models/local_media_library_entry.dart';
@@ -1041,23 +1042,9 @@ class _NoResults extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layout = AppResponsive.of(context);
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(layout.pageGutter),
-        child: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.search_off_rounded,
-              size: 56,
-              color: AppColors.textTertiary,
-            ),
-            SizedBox(height: AppSpacing.md),
-            Text('没有符合当前搜索或智能列表条件的歌曲'),
-          ],
-        ),
-      ),
+    return const AppEmptyState(
+      icon: Icons.search_off_rounded,
+      title: '没有符合当前搜索或智能列表条件的歌曲',
     );
   }
 }
