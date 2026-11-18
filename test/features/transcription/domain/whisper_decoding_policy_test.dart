@@ -18,6 +18,9 @@ options:
   -sns,      --suppress-nst      [false  ] suppress non-speech tokens
   --prompt PROMPT                [       ] initial prompt (max n_text_ctx/2 tokens)
   --carry-initial-prompt         [false  ] always prepend initial prompt
+  -mc N,     --max-context N     [-1     ] maximum number of text context tokens to store
+  -ot N,     --offset-t N        [0      ] time offset in milliseconds
+  -d  N,     --duration N        [0      ] duration of audio to process in milliseconds
   -m FNAME,  --model FNAME       [models/ggml-base.en.bin] model path
   -f FNAME,  --file FNAME        [       ] input audio file path
 ''';
@@ -42,8 +45,11 @@ void main() {
       expect(full.supports('--prompt'), isTrue);
       expect(full.supports('--suppress-nst'), isTrue);
       expect(full.supports('--vad'), isFalse);
+      expect(full.supports('--max-context'), isTrue);
+      expect(full.supportsLoopRecovery, isTrue);
       expect(old.probed, isTrue);
       expect(old.supports('--prompt'), isFalse);
+      expect(old.supportsLoopRecovery, isFalse);
     });
 
     test('text that is not whisper help is unknown, not empty-supported', () {
@@ -87,22 +93,24 @@ void main() {
       expect(plan.requestedProfile.id, 'whisper-standard-v1');
     });
 
-    test('lyrics profile on a capable runtime adds prompt and nst', () {
-      final plan = policy.plan(
-        profile: WhisperDecodingProfile.lyrics,
-        hints: hints,
-        language: 'en',
-        capabilities: full,
-      );
-      expect(plan.extraArguments, [
-        '--prompt',
-        'Song: Neon Harbor. Artist: Mira.',
-        '--suppress-nst',
-      ]);
-      expect(plan.effectiveProfile, WhisperDecodingProfile.lyrics);
-      expect(plan.promptSources, ['title', 'artist']);
-      expect(plan.omittedFlags, isEmpty);
-    });
+    test(
+      'lyrics profile switches the text history off and sends no prompt',
+      () {
+        final plan = policy.plan(
+          profile: WhisperDecodingProfile.lyrics,
+          hints: hints,
+          language: 'en',
+          capabilities: full,
+        );
+        expect(plan.extraArguments, ['--suppress-nst', '--max-context', '0']);
+        expect(plan.disablesTextHistory, isTrue);
+        expect(plan.prompt, isNull);
+        expect(plan.promptSources, isEmpty);
+        expect(plan.effectiveProfile, WhisperDecodingProfile.lyrics);
+        expect(plan.effectiveProfile.id, 'whisper-lyrics-v2');
+        expect(plan.omittedFlags, isEmpty);
+      },
+    );
 
     test('never uses carry-initial-prompt even when advertised', () {
       final plan = policy.plan(
@@ -112,6 +120,22 @@ void main() {
         capabilities: full,
       );
       expect(plan.extraArguments, isNot(contains('--carry-initial-prompt')));
+      expect(plan.extraArguments, isNot(contains('--prompt')));
+    });
+
+    test('a runtime without max-context keeps non-speech suppression', () {
+      final caps = WhisperRuntimeCapabilities.fromHelpText(
+        _fullHelp.replaceAll(RegExp(r'.*--max-context.*\n'), ''),
+      );
+      final plan = policy.plan(
+        profile: WhisperDecodingProfile.lyrics,
+        hints: hints,
+        language: 'en',
+        capabilities: caps,
+      );
+      expect(plan.extraArguments, ['--suppress-nst']);
+      expect(plan.disablesTextHistory, isFalse);
+      expect(plan.omittedFlags, ['--max-context']);
     });
 
     test('an old runtime falls back to the exact standard line', () {
@@ -124,7 +148,7 @@ void main() {
       expect(plan.isStandard, isTrue);
       expect(plan.requestedProfile, WhisperDecodingProfile.lyrics);
       expect(plan.effectiveProfile, WhisperDecodingProfile.standard);
-      expect(plan.omittedFlags, ['--prompt', '--suppress-nst']);
+      expect(plan.omittedFlags, ['--suppress-nst', '--max-context']);
     });
 
     test('an unknown runtime falls back to standard', () {
@@ -138,30 +162,35 @@ void main() {
       expect(plan.toMetadata()['effectiveProfile'], 'whisper-standard-v1');
     });
 
-    test('no hints still applies non-speech suppression only', () {
-      final plan = policy.plan(
-        profile: WhisperDecodingProfile.lyrics,
-        hints: RecognitionHints.none,
-        language: 'auto',
-        capabilities: full,
-      );
-      expect(plan.extraArguments, ['--suppress-nst']);
-      expect(plan.prompt, isNull);
+    test('hints do not change the arguments', () {
+      List<String> arguments(RecognitionHints value) => policy
+          .plan(
+            profile: WhisperDecodingProfile.lyrics,
+            hints: value,
+            language: 'auto',
+            capabilities: full,
+          )
+          .extraArguments;
+      expect(arguments(RecognitionHints.none), arguments(hints));
     });
 
-    test('metadata redacts the prompt text and reports its size', () {
-      final plan = policy.plan(
-        profile: WhisperDecodingProfile.lyrics,
-        hints: const RecognitionHints(songTitle: '夜航'),
-        language: 'zh',
-        capabilities: full,
+    test('metadata redacts a prompt text and reports its size', () {
+      const prompt = '歌曲《夜航》';
+      const plan = WhisperDecodingPlan(
+        requestedProfile: WhisperDecodingProfile.lyrics,
+        effectiveProfile: WhisperDecodingProfile.lyrics,
+        extraArguments: ['--prompt', prompt, '--suppress-nst'],
+        prompt: prompt,
+        promptSources: ['title'],
+        omittedFlags: [],
       );
       final metadata = plan.toMetadata(fallbackReason: 'x');
       expect(metadata['arguments'], ['--prompt', '<prompt>', '--suppress-nst']);
       expect(jsonEncode(metadata), isNot(contains('夜航')));
-      expect(metadata['promptRunes'], plan.prompt!.runes.length);
-      expect(metadata['promptUtf8Bytes'], utf8.encode(plan.prompt!).length);
+      expect(metadata['promptRunes'], prompt.runes.length);
+      expect(metadata['promptUtf8Bytes'], utf8.encode(prompt).length);
       expect(metadata['fallbackReason'], 'x');
+      expect(plan.disablesTextHistory, isFalse);
     });
   });
 

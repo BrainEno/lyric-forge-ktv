@@ -1,0 +1,23 @@
+# [2026-11-23 12:00] Stop Whisper's history loops; re-decode and arbitrate cross-segment loops
+
+- Scope: User report after #467/#468: the second half of a song still repeats one or two lines to the end. Find the cause and fix it there (D-027).
+  - **Cause.** whisper.cpp conditions every 30 s window on up to 224 tokens of the text it already decoded (and v1 put the title/artist prompt into the same history). Once a window repeats a couplet, every later window sees it in its context and repeats it again, on a collapsed one-second timestamp grid. Each looped row looks like a normal line, so the per-line checks and the row-by-row fusion kept it (Whisper primary) or inserted it row by row as suggestions (Qwen primary). Qwen, which decodes 30 s chunks independently, transcribed the same second half correctly.
+  - **Evidence.** A temporary GitHub Actions experiment ran large-v3 at the pinned whisper.cpp `927cfce` on six JamendoLyrics CC songs with three configurations. Mean WER: v1 prompt + history 0.815 (loops or hallucination on 4 of 6, up to a 29× two-row block), standard (history only) 0.687 (60× and 27× blocks), `--suppress-nst --max-context 0` 0.354 with no block loop.
+  - **Prevention.** The lyrics profile becomes `whisper-lyrics-v2`: `--suppress-nst --max-context 0`, no prompt. Runtimes without `--max-context` keep `--suppress-nst`; neither flag falls back to standard as before.
+  - **Detection.** `AsrSegmentLoopDetector` (transcription domain): repeated rows (≥3) and 2–4 row blocks (≥3), strong at 6 rows / 4 blocks or when most looped rows exceed 7 words (CJK characters) per second; compressed lead-in rows are included in the span.
+  - **Recovery.** `WhisperLoopRecoveryPolicy` (`whisper-loop-redecode-v1`): when the first pass kept the history and loops strongly, only the looped stretch is decoded again with `--offset-t/--duration --max-context 0` (8 s–4 min, at most 3 regions, first-pass language) and spliced in unless it loops too. Never fails the recognition. Skipped when the first pass already ran without history.
+  - **Arbitration.** `WhisperLoopArbiter`, wired into all four fusion paths: Qwen hears distinct lines → its rows replace the loop and are queued for review (confidence ≤ 60); Qwen hears the same repetition → kept; no usable Qwen rows → a strong loop is cut to one repetition and flagged, weak loops and short chants are only flagged. Loop review candidates rank above ordinary disagreements.
+  - UI text: the recognition settings switch describes the history switch; the summary card labels old v1 drafts 歌词增强（旧版）.
+- Files:
+  - New: `lib/features/transcription/domain/services/asr_segment_loop_detector.dart`, `whisper_loop_recovery.dart`, `whisper_loop_arbiter.dart`.
+  - Changed: `whisper_decoding_policy.dart`, `whisper_cpp_transcription_service.dart`, `high_quality_transcription_service.dart`, `resumable_chunked_transcription_service.dart` (checkpoint fingerprint), `lyric_recognition_summary_card.dart`, `recognition_review_summary.dart`, `transcription_config_dialog.dart`.
+  - Tests: new `asr_segment_loop_detector_test.dart`, `whisper_loop_recovery_test.dart`, `whisper_loop_arbiter_test.dart`, `whisper_loop_fixtures.dart`, `whisper_loop_recovery_service_test.dart`, `whisper_loop_fusion_test.dart`; updated `whisper_decoding_policy_test.dart`, `whisper_cpp_decoding_profile_test.dart` and the profile ids in three lyrics/fusion tests.
+  - Docs: `decisions.md` (D-027), `high_quality_asr.md`, `local_transcription.md`, handoff.
+- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions, and was deleted before the PR. The experiment workflow and its results were deleted as well.
+  - Run 44056944598: `flutter analyze` 0 errors/warnings, 186 infos (same as main).
+  - Targeted tests: 220 passed. Full suite: 2758 passed, 2 skipped, 0 failed (before this change: 2712).
+  - Work-log `write` + `check` passed.
+- Notes:
+  - Without history Whisper still hallucinates caption and credit lines over long instrumentals (seen on Avercage); the clean-up tool and proofreading handle those.
+  - Thresholds come from six songs and synthetic fixtures; #413's corpus should recalibrate them.
+- Commit: `Stop Whisper history loops; re-decode and arbitrate cross-segment loops`

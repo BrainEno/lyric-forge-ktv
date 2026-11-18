@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/models/qwen_decode_budget.dart'
+    show normalizedPcmWavDuration;
 import '../../domain/models/transcription_models.dart';
 import '../../domain/models/whisper_decoding_policy.dart';
 import '../../domain/services/transcription_service.dart';
+import '../../domain/services/whisper_loop_recovery.dart';
 import 'asr_audio_normalization.dart';
 import 'asr_process_supervisor.dart';
 import 'whisper_json_transcript_parser.dart';
@@ -12,17 +15,23 @@ import 'whisper_json_transcript_parser.dart';
 /// Metadata key holding the decoding profile a Whisper run actually used.
 const String kWhisperDecodingMetadataKey = 'whisperDecoding';
 
+/// Metadata key holding what the cross-segment loop check found and did.
+const String kWhisperLoopRecoveryMetadataKey = 'whisperLoopRecovery';
+
 class WhisperCppTranscriptionService implements TranscriptionService {
   WhisperCppTranscriptionService({
     AsrProcessSupervisor? processSupervisor,
     bool? isWindows,
     WhisperDecodingPolicy decodingPolicy = const WhisperDecodingPolicy(),
+    WhisperLoopRecoveryPolicy loopRecovery = const WhisperLoopRecoveryPolicy(),
   }) : _processSupervisor = processSupervisor ?? AsrProcessSupervisor(),
        _isWindows = isWindows ?? Platform.isWindows,
-       _decodingPolicy = decodingPolicy;
+       _decodingPolicy = decodingPolicy,
+       _loopRecovery = loopRecovery;
 
   final bool _isWindows;
   final WhisperDecodingPolicy _decodingPolicy;
+  final WhisperLoopRecoveryPolicy _loopRecovery;
 
   /// Help-text probes are cached per binary identity (path, size, mtime), so a
   /// replaced runtime is probed again while a batch probes each binary once.
@@ -94,10 +103,19 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       _throwIfCancelled();
 
       _emit(TranscriptionStage.parsing, 0.94, '正在整理时间轴和置信度');
-      final result = await _parseResult(
+      final firstPass = await _parseResult(
         rawJsonPath: rawJsonPath,
         normalizedAudioPath: normalizedPath,
         outcome: outcome,
+      );
+      _throwIfCancelled();
+
+      final result = await _recoverLoopedSpans(
+        config: request.config,
+        inputPath: normalizedPath,
+        outputBase: outputBase,
+        firstPass: firstPass,
+        mainPlan: outcome.plan,
       );
 
       _emit(TranscriptionStage.completed, 1.0, '歌词草稿已生成');
@@ -318,7 +336,11 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       return _WhisperRunOutcome(
         plan: effectivePlan,
         fallbackReason: transportNote,
-        promptTransport: transport.useResponseFile ? 'response-file' : 'argv',
+        promptTransport: effectivePlan.prompt == null
+            ? null
+            : transport.useResponseFile
+            ? 'response-file'
+            : 'argv',
       );
     } on _UnsupportedWhisperArgumentsException catch (error) {
       _throwIfCancelled();
@@ -415,6 +437,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     required String outputBase,
     required WhisperDecodingPlan plan,
     required bool useResponseFile,
+    bool reportProgress = true,
   }) async {
     final jsonFile = File('$outputBase.json');
     if (await jsonFile.exists()) await jsonFile.delete();
@@ -456,6 +479,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
             sawUnknownArgument = true;
             unknownArgumentLine ??= line.trim();
           }
+          if (!reportProgress) return;
           final match = RegExp(
             r'progress\s*=\s*(\d+)%',
             caseSensitive: false,
@@ -515,6 +539,204 @@ class WhisperCppTranscriptionService implements TranscriptionService {
         }
       }
     }
+  }
+
+  /// Decodes every strongly looped stretch of the first pass again with the
+  /// rolling text history off and splices the result in when it no longer
+  /// loops. See [WhisperLoopRecoveryPolicy] for why only those stretches.
+  ///
+  /// Never fails the run: a runtime without the flags, a failed process or a
+  /// re-decode that loops again all keep the first-pass rows, and the report
+  /// tells the fusion step and diagnostics what is still unresolved.
+  Future<TranscriptionResult> _recoverLoopedSpans({
+    required TranscriptionConfig config,
+    required String inputPath,
+    required String outputBase,
+    required TranscriptionResult firstPass,
+    required WhisperDecodingPlan mainPlan,
+  }) async {
+    final firstLines = firstPass.lyrics.lines;
+    final detected = _loopRecovery.detector.detect(firstLines);
+    if (detected.isEmpty) return firstPass;
+
+    Duration? audioDuration;
+    try {
+      audioDuration = normalizedPcmWavDuration(await File(inputPath).length());
+    } on FileSystemException {
+      audioDuration = null;
+    }
+    final regions = _loopRecovery.plan(
+      firstLines,
+      audioDuration: audioDuration,
+    );
+    final report = <String, dynamic>{
+      'policy': WhisperLoopRecoveryPolicy.id,
+      'detectedLoops': [for (final loop in detected) loop.toMetadata()],
+    };
+    if (regions.isEmpty) {
+      report['status'] = 'weak_loops_left_for_fusion';
+      return _withLoopReport(firstPass, firstLines, report);
+    }
+    if (mainPlan.disablesTextHistory) {
+      // The first pass already ran without history, so decoding the same
+      // audio again the same way would only repeat it. Qwen decides instead.
+      report['status'] = 'history_already_off_left_for_fusion';
+      report['regions'] = [for (final region in regions) region.toMetadata()];
+      return _withLoopReport(firstPass, firstLines, report);
+    }
+
+    final capabilities = await _probeCapabilities(config.whisperExecutable);
+    _throwIfCancelled();
+    if (!capabilities.supportsLoopRecovery) {
+      report['status'] = 'runtime_lacks_loop_recovery_flags';
+      report['regions'] = [for (final region in regions) region.toMetadata()];
+      return _withLoopReport(firstPass, firstLines, report);
+    }
+
+    final language = _redecodeLanguage(
+      config.language,
+      firstPass.detectedLanguage,
+    );
+    final suppressNonSpeech = mainPlan.extraArguments.contains(
+      WhisperRuntimeCapabilities.suppressNonSpeechFlag,
+    );
+    var lines = firstLines;
+    final regionReports = <Map<String, dynamic>>[];
+    // Last region first: a splice only shifts the indices after it, so the
+    // earlier regions' indices stay valid.
+    for (var index = regions.length - 1; index >= 0; index--) {
+      final region = regions[index];
+      _emit(
+        TranscriptionStage.parsing,
+        0.95,
+        'Whisper 正在关闭上下文重新识别循环片段'
+        '（${regions.length - index}/${regions.length}）',
+      );
+      var outcome = WhisperLoopRegionOutcome.failed;
+      var inserted = 0;
+      String? error;
+      try {
+        final redecoded = await _redecodeRegion(
+          config: config.copyWith(language: language),
+          inputPath: inputPath,
+          outputBase: '$outputBase.loop$index',
+          region: region,
+          mainPlan: mainPlan,
+          suppressNonSpeech: suppressNonSpeech,
+        );
+        final splice = _loopRecovery.splice(
+          lines: lines,
+          region: region,
+          redecoded: redecoded,
+        );
+        outcome = splice.outcome;
+        inserted = splice.insertedCount;
+        lines = splice.lines;
+      } on TranscriptionException catch (exception) {
+        if (exception.kind == TranscriptionFailureKind.cancelled) rethrow;
+        _throwIfCancelled();
+        error = exception.toString();
+      } on _UnsupportedWhisperArgumentsException catch (exception) {
+        error = exception.detail;
+      } on FileSystemException catch (exception) {
+        error = exception.message;
+      } on FormatException catch (exception) {
+        error = exception.message;
+      }
+      _throwIfCancelled();
+      regionReports.insert(0, {
+        ...region.toMetadata(),
+        'outcome': outcome.name,
+        'insertedCount': inserted,
+        'error': ?error,
+      });
+    }
+
+    final replacedCount = regionReports
+        .where((entry) => entry['outcome'] == 'replaced')
+        .length;
+    report['status'] = replacedCount == regions.length
+        ? 'all_regions_replaced'
+        : replacedCount == 0
+        ? 'no_region_replaced'
+        : 'some_regions_replaced';
+    report['language'] = language;
+    report['regions'] = regionReports;
+    return _withLoopReport(firstPass, lines, report);
+  }
+
+  /// Decodes [region] alone with `--max-context 0`. Segment timestamps from
+  /// whisper-cli stay on the file's timeline when `--offset-t` is used.
+  Future<List<LyricLine>> _redecodeRegion({
+    required TranscriptionConfig config,
+    required String inputPath,
+    required String outputBase,
+    required WhisperLoopRegion region,
+    required WhisperDecodingPlan mainPlan,
+    required bool suppressNonSpeech,
+  }) async {
+    final plan = WhisperDecodingPlan(
+      requestedProfile: mainPlan.requestedProfile,
+      effectiveProfile: mainPlan.effectiveProfile,
+      extraArguments: List.unmodifiable([
+        WhisperRuntimeCapabilities.offsetFlag,
+        '${region.start.inMilliseconds}',
+        WhisperRuntimeCapabilities.durationFlag,
+        '${region.duration.inMilliseconds}',
+        WhisperRuntimeCapabilities.maxContextFlag,
+        '0',
+        if (suppressNonSpeech) WhisperRuntimeCapabilities.suppressNonSpeechFlag,
+      ]),
+      prompt: null,
+      promptSources: const <String>[],
+      omittedFlags: const <String>[],
+    );
+    await _runWhisper(
+      config: config,
+      inputPath: inputPath,
+      outputBase: outputBase,
+      plan: plan,
+      useResponseFile: false,
+      reportProgress: false,
+    );
+    final rawJsonPath = '$outputBase.json';
+    final source = await File(rawJsonPath).readAsString();
+    return const WhisperJsonTranscriptParser()
+        .parse(source, rawJsonPath: rawJsonPath)
+        .document
+        .lines;
+  }
+
+  /// A short clip is a poor basis for language detection, so the re-decode
+  /// reuses the language the full-song pass settled on.
+  static String _redecodeLanguage(String configured, String detected) {
+    if (configured.trim().isNotEmpty && configured != 'auto') {
+      return configured;
+    }
+    final value = detected.trim().toLowerCase();
+    if (RegExp(r'^[a-z]{2,3}$').hasMatch(value)) return value;
+    return 'auto';
+  }
+
+  static TranscriptionResult _withLoopReport(
+    TranscriptionResult result,
+    List<LyricLine> lines,
+    Map<String, dynamic> report,
+  ) {
+    final changed = !identical(lines, result.lyrics.lines);
+    return TranscriptionResult(
+      lyrics: result.lyrics.copyWith(
+        lines: lines,
+        metadata: {
+          ...result.lyrics.metadata,
+          if (changed) 'segmentCount': lines.length,
+          kWhisperLoopRecoveryMetadataKey: report,
+        },
+      ),
+      normalizedAudioPath: result.normalizedAudioPath,
+      rawJsonPath: result.rawJsonPath,
+      detectedLanguage: result.detectedLanguage,
+    );
   }
 
   Future<TranscriptionResult> _parseResult({

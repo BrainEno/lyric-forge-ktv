@@ -12,6 +12,7 @@ import '../../domain/models/fusion_timing_evidence.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/models/whisper_decoding_policy.dart';
 import '../../domain/services/transcription_service.dart';
+import '../../domain/services/whisper_loop_recovery.dart';
 import 'asr_audio_normalization.dart';
 import 'asr_evidence_audio_verifier.dart';
 import 'asr_process_supervisor.dart';
@@ -98,6 +99,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       'fallbackConfidenceThreshold=${config.fallbackConfidenceThreshold}',
       'maxFallbackSegments=${config.maxFallbackSegments}',
       'whisperDecoding=${const WhisperDecodingPolicy().fingerprintMaterial(profile: config.whisperDecodingProfile, hints: hints, language: config.language, chineseScript: config.chineseScriptOutputTarget)}',
+      // Chunks recognised before loop recovery may hold looped rows.
+      'whisperLoopRecovery=${WhisperLoopRecoveryPolicy.id}',
     ].join('\u0000');
     return sha256.convert(utf8.encode(material)).toString();
   }

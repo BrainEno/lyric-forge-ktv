@@ -323,8 +323,8 @@ void main() {
       'Whisper decoding metadata is carried into the fused document',
       () async {
         final decoding = {
-          'requestedProfile': 'whisper-lyrics-v1',
-          'effectiveProfile': 'whisper-lyrics-v1',
+          'requestedProfile': 'whisper-lyrics-v2',
+          'effectiveProfile': 'whisper-lyrics-v2',
         };
         final fused = await _fuse(
           directory,

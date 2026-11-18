@@ -62,8 +62,8 @@ LyricDocument _document() => LyricDocument(
       _suggestion,
     ]),
     'whisperDecoding': {
-      'requestedProfile': 'whisper-lyrics-v1',
-      'effectiveProfile': 'whisper-lyrics-v1',
+      'requestedProfile': 'whisper-lyrics-v2',
+      'effectiveProfile': 'whisper-lyrics-v2',
     },
   },
 );
@@ -315,7 +315,7 @@ void main() {
         metadata: {
           ...base.metadata,
           'whisperDecoding': {
-            'requestedProfile': 'whisper-lyrics-v1',
+            'requestedProfile': 'whisper-lyrics-v2',
             'effectiveProfile': 'whisper-standard-v1',
           },
         },
