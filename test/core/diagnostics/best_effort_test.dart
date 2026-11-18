@@ -73,10 +73,7 @@ void main() {
   });
 
   test('bestEffortValue returns the value or the fallback', () async {
-    expect(
-      await bestEffortValue('test', '读取', () async => 7, fallback: 0),
-      7,
-    );
+    expect(await bestEffortValue('test', '读取', () async => 7, fallback: 0), 7);
     expect(
       await bestEffortValue(
         'test',

@@ -190,29 +190,37 @@ void main() {
   test('without resume a kept part file is replaced', () async {
     await part.writeAsBytes(payload.sublist(0, 20));
 
-    await download.fetch(uri(), part, cancellation: cancellation, resume: false);
+    await download.fetch(
+      uri(),
+      part,
+      cancellation: cancellation,
+      resume: false,
+    );
 
     expect(ranges, [null]);
     expect(await part.readAsBytes(), payload);
   });
 
-  test('a cancel during the transfer throws the install cancellation', () async {
-    await expectLater(
-      download.fetch(
-        uri(),
-        part,
-        cancellation: cancellation,
-        onProgress: (_) => cancellation.cancel(),
-      ),
-      throwsA(
-        isA<TranscriptionException>().having(
-          (error) => error.kind,
-          'kind',
-          TranscriptionFailureKind.cancelled,
+  test(
+    'a cancel during the transfer throws the install cancellation',
+    () async {
+      await expectLater(
+        download.fetch(
+          uri(),
+          part,
+          cancellation: cancellation,
+          onProgress: (_) => cancellation.cancel(),
         ),
-      ),
-    );
-  });
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+    },
+  );
 
   test('promote replaces the target with the finished part file', () async {
     final target = File('${temp.path}${Platform.pathSeparator}model.bin');
@@ -228,7 +236,10 @@ void main() {
 
   test('reset clears an earlier cancel', () {
     cancellation.cancel();
-    expect(cancellation.throwIfRequested, throwsA(isA<TranscriptionException>()));
+    expect(
+      cancellation.throwIfRequested,
+      throwsA(isA<TranscriptionException>()),
+    );
 
     cancellation.reset();
     expect(cancellation.isRequested, isFalse);

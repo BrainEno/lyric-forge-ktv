@@ -862,14 +862,9 @@ class HttpMediaHubService implements MediaHubService {
     }
     if (partial != null) {
       // A leftover partial file wastes space in the import folder.
-      await bestEffort(
-        _logTag,
-        '删除未完成的上传文件',
-        () async {
-          if (await partial.exists()) await partial.delete();
-        },
-        impact: BestEffortImpact.degraded,
-      );
+      await bestEffort(_logTag, '删除未完成的上传文件', () async {
+        if (await partial.exists()) await partial.delete();
+      }, impact: BestEffortImpact.degraded);
     }
   }
 

@@ -411,11 +411,7 @@ class LocalKtvRecordingService implements KtvRecordingService {
     // runs regardless of the others and only logs its own failure.
     final pcmSubscription = _pcmSubscription;
     _pcmSubscription = null;
-    await bestEffort(
-      _logTag,
-      '回滚录音：取消麦克风订阅',
-      () => pcmSubscription?.cancel(),
-    );
+    await bestEffort(_logTag, '回滚录音：取消麦克风订阅', () => pcmSubscription?.cancel());
 
     final playbackSubscription = _playbackSubscription;
     _playbackSubscription = null;

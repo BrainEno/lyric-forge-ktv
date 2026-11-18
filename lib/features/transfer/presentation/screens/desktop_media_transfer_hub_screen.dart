@@ -22,10 +22,7 @@ import '../../domain/services/media_share_catalog.dart';
 class DesktopMediaTransferHubScreen extends StatefulWidget {
   final DesktopMediaHubDependencies dependencies;
 
-  const DesktopMediaTransferHubScreen({
-    super.key,
-    required this.dependencies,
-  });
+  const DesktopMediaTransferHubScreen({super.key, required this.dependencies});
 
   @override
   State<DesktopMediaTransferHubScreen> createState() =>

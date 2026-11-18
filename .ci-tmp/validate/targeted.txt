@@ -1,0 +1,601 @@
+Resolving dependencies...
+Downloading packages...
+  archive 4.5.2 (4.7.1 available)
+  code_assets 2.1.0 (2.2.0 available)
+  cross_file 0.3.5+5 (0.4.0 available)
+  cupertino_icons 1.0.9 (2.0.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  file_picker 10.3.10 (13.4.0 available)
+  flutter_cache_manager 3.4.6 (3.5.0 available)
+  flutter_soloud 4.1.7 (5.3.0 available)
+  image 4.12.0 (4.13.1 available)
+  jni 1.1.1 (1.1.2 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  mobile_scanner 7.4.2 (7.5.0 available)
+  objective_c 9.6.2 (9.6.4 available)
+  qr 3.0.2 (4.0.1 available)
+  record 6.2.1 (7.2.0 available)
+  record_android 1.5.2 (2.3.0 available)
+  record_ios 1.2.1 (2.1.1 available)
+  record_linux 1.3.1 (2.2.0 available)
+  record_macos 1.2.2 (2.1.1 available)
+  record_platform_interface 1.6.0 (2.2.0 available)
+  record_web 1.3.0 (2.2.0 available)
+  record_windows 1.0.7 (2.4.0 available)
+  sqflite 2.4.5 (2.4.6 available)
+  sqflite_android 2.4.5 (2.4.6 available)
+  sqflite_common 2.5.14 (2.5.17 available)
+  sqflite_darwin 2.4.4+1 (2.4.6 available)
+  sqflite_platform_interface 2.4.3 (2.4.4 available)
+  synchronized 3.5.0 (3.6.1+1 available)
+  test_api 0.7.12 (0.7.15 available)
+  win32 5.15.0 (6.4.0 available)
+Got dependencies!
+30 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/retryable_load_test.dart
+00:00 +0: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/retryable_load_test.dart: concurrent callers share a single attempt
+00:00 +1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/retryable_load_test.dart: a failed attempt is not cached and the next call retries
+00:00 +2: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/retryable_load_test.dart: callers waiting on a failing attempt all see that failure
+00:00 +3: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/retryable_load_test.dart: a loader that throws synchronously is still retried
+00:00 +4: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/serial_write_queue_test.dart: runs writes one after another in the order queued
+00:00 +5: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/serial_write_queue_test.dart: a failed write fails only its own caller
+00:00 +6: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/serial_write_queue_test.dart: a write that throws synchronously still fails only its caller
+00:00 +7: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/serial_write_queue_test.dart: idle waits for queued writes and never throws
+00:00 +8: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/serial_write_queue_test.dart: idle on an empty queue completes immediately
+00:00 +9: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile keeps the previous valid document when replacement fails
+00:01 +10: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile failure after the temp flush keeps the previous document
+00:01 +11: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile failure after replacement leaves the new document and valid backup
+00:01 +12: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile restores a flushed temporary document when canonical is missing
+00:01 +13: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile restores the last valid backup when canonical and temp are invalid
+00:01 +14: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile does not overwrite an invalid store without a valid recovery copy
+00:01 +15: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile keeps the previous document as a backup after a successful update
+00:01 +16: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning schemaVersionOf reads stamps, rejects malformed ones
+00:01 +17: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning stampSchemaVersion copies without mutating its input
+00:01 +18: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning versioned validator gates newer schema versions
+00:01 +19: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning write refuses to overwrite a newer-schema document
+00:01 +20: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning recovery falls back to a readable backup on downgrade
+00:01 +21: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning legacy unstamped documents stay writable and readable
+00:01 +22: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: drops records below the minimum level
+00:01 +23: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: redacts message, error and stack trace
+00:01 +24: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: a throwing sink never breaks logging or the caller
+00:01 +25: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: memory sink keeps only the most recent records
+00:01 +26: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: addSink ignores duplicates and removeSink detaches
+00:01 +27: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: normalizes tags
+00:01 +28: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: describeError caps long errors and adds the type once
+00:01 +29: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: trimStackTrace keeps the first frames
+00:01 +30: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: LogRecord round-trips through JSON
+00:01 +31: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: LogRecord rejects malformed input
+00:01 +32: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_logger_test.dart: LogRecord formats a readable line
+00:01 +33: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_build_info_test.dart: appVersion matches pubspec.yaml
+00:01 +34: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_build_info_test.dart: current() describes the platform without identifying the user
+00:02 +35: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_diagnostics_test.dart: start attaches the file sink so records reach disk
+00:02 +36: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_diagnostics_test.dart: preferences persist and are restored on the next start
+00:02 +37: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_diagnostics_test.dart: a corrupt preferences file falls back to defaults
+00:02 +38: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_diagnostics_test.dart: summary, report and clearAll
+00:02 +39: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/app_diagnostics_test.dart: the report falls back to memory when the file has nothing
+00:02 +40: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor secrets replaces values of secret query parameters and keeps the key
+00:02 +41: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor secrets replaces header values including the KTV query token
+00:02 +42: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor secrets replaces quoted JSON secret values
+00:02 +43: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor secrets replaces URL user info
+00:02 +44: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor secrets does not touch words that merely end in a secret key
+00:02 +45: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor secrets is idempotent
+00:02 +46: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor personal data replaces e-mail addresses
+00:02 +47: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor personal data replaces the known home directory, longest first
+00:02 +48: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor personal data matches Windows homes case-insensitively with either separator
+00:02 +49: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor personal data replaces other users' homes generically
+00:02 +50: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor personal data leaves URL paths that contain /home/ alone
+00:02 +51: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: LogRedactor personal data ignores unusable home directories
+00:02 +52: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/log_redactor_test.dart: redactValue redacts nested strings and secret-keyed values
+00:02 +53: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/diagnostics_report_test.dart: collects sections and redacts their values
+00:02 +54: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/diagnostics_report_test.dart: a failing or slow section does not fail the report
+00:02 +55: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/diagnostics_report_test.dart: re-redacts logs and crashes loaded from disk
+00:02 +56: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/diagnostics_report_test.dart: log and crash loading failures leave those parts empty
+00:02 +57: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/diagnostics_report_test.dart: text output has every part, the privacy notice and valid JSON
+00:02 +58: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/diagnostics_report_test.dart: suggests a timestamped file name
+00:02 +59: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/diagnostics_report_test.dart: an empty report says so instead of printing nothing
+00:03 +60: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/best_effort_test.dart: a successful step logs nothing
+00:03 +61: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/best_effort_test.dart: a failed housekeeping step is logged at debug without stack
+00:03 +62: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/best_effort_test.dart: a failed degraded step is a warning with its stack
+00:03 +63: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/best_effort_test.dart: housekeeping failures stay out of a non-verbose log
+00:03 +64: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/best_effort_test.dart: bestEffortSync runs synchronously and reports failures
+00:03 +65: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/best_effort_test.dart: bestEffortValue returns the value or the fallback
+00:03 +66: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: writes JSON lines and reads them back in order
+00:03 +67: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: flushes on the timer without an explicit flush
+00:03 +68: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: rotates once the file passes maxBytes and keeps both files
+00:05 +69: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: rotates once the file passes maxBytes and keeps both files
+00:05 +70: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: rotates once the file passes maxBytes and keeps both files
+00:05 +71: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: rotates once the file passes maxBytes and keeps both files
+00:05 +72: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: rotates once the file passes maxBytes and keeps both files
+00:05 +73: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: rotates once the file passes maxBytes and keeps both files
+00:05 +74: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: rotates once the file passes maxBytes and keeps both files
+00:05 +75: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: rotates once the file passes maxBytes and keeps both files
+00:05 +76: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: rotates once the file passes maxBytes and keeps both files
+00:05 +77: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: skips malformed and torn lines
+00:05 +78: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: clear removes both files and resets the size
+00:05 +79: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: clear removes both files and resets the size
+00:05 +80: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: clear removes both files and resets the size
+00:05 +81: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: clear removes both files and resets the size
+00:05 +82: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: clear removes both files and resets the size
+00:05 +83: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: clear removes both files and resets the size
+00:05 +84: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: clear removes both files and resets the size
+00:05 +85: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: clear removes both files and resets the size
+00:05 +86: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: clear removes both files and resets the size
+00:05 +87: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/file_log_sink_test.dart: an unwritable directory is swallowed
+00:06 +88: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: downloads into the part file and reports the full size
+00:06 +89: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: continues a kept part file with a byte range
+00:06 +90: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: restarts when the server ignores the range
+00:06 +91: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: rejects a 206 that does not continue the part file
+00:06 +92: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: keeps the part file on an HTTP error
+00:06 +93: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: a body shorter than the expected size stays resumable
+00:06 +94: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: a body longer than the expected size is discarded
+00:06 +95: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: a part file longer than the expected size is not resumed
+00:06 +96: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: without resume a kept part file is replaced
+00:06 +97: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: a cancel during the transfer throws the install cancellation
+00:06 +98: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: promote replaces the target with the finished part file
+00:06 +99: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: reset clears an earlier cancel
+00:07 +100: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_endpoints_test.dart: model files resolve on Hugging Face and ModelScope
+00:07 +101: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_endpoints_test.dart: runtime releases come from the configured repository
+00:07 +102: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_endpoints_test.dart: pinned FFmpeg assets keep their release download roots
+00:07 +103: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_runtime_resume_contract_test.dart: every installer downloads through ResumableFileDownload
+00:07 +104: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_runtime_resume_contract_test.dart: runtime and whisper downloads opt into resumable part files
+00:07 +105: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_runtime_resume_contract_test.dart: Whisper model download times out and preserves resumable failures
+00:07 +106: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_runtime_resume_contract_test.dart: macOS custom storage persists and restores security-scoped bookmarks
+00:07 +107: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: fetches Hugging Face metadata before trusting an existing model file
+00:07 +108: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: uses HEAD without redirects so linked ETag and size remain available
+00:07 +109: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: redacts signed redirect queries but reports host and HTTP response details
+00:07 +110: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: validates resumed ranges and final size before accepting the part file
+00:07 +111: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: keeps short partial files for resume but deletes corrupt full files
+00:07 +112: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: managed model reuse requires the v2 integrity marker
+00:07 +113: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: managed model reuse verifies every SHA-256 stored in the marker
+00:07 +114: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: Whisper reuse requires the pinned SHA-256 before skipping download
+00:07 +115: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: awaits post-install repair before finally cleanup
+00:08 +116: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: install progress carries real transfer metrics without breaking old events
+00:08 +117: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: runtime and Qwen downloaders emit bytes, speed and ETA
+00:08 +118: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: setup and settings use resumable pause, continue and failed-component retry
+00:08 +119: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: advanced setup settings persist before the install dialog can retry
+00:08 +120: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: advanced settings can save proxy without a complete model configuration
+00:08 +121: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: Qwen failures stay visible and model settings are accessible from the dashboard
+00:08 +122: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: rich progress card exposes component, bytes, speed and ETA copy
+00:08 +123: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
+00:08 +124: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
+00:08 +125: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
+00:08 +126: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
+00:08 +127: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: existing-file verification is not presented as a download
+00:08 +128: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: failed installs cannot display a completed progress state
+00:08 +129: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: diagnostic card keeps long details selectable and offers copy
+00:09 +130: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior falls back to ModelScope and resumes a matching partial file
+00:09 +131: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior reuses marker-verified existing Qwen files without downloading them
+00:09 +132: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior reuses marker-verified existing Qwen files without downloading them
+00:09 +133: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior reuses marker-verified existing Qwen files without downloading them
+00:09 +134: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior reuses marker-verified existing Qwen files without downloading them
+00:09 +135: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior reuses marker-verified existing Qwen files without downloading them
+00:09 +136: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior redownloads only the Qwen file whose marker SHA-256 does not match
+00:10 +137: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:10 +138: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:10 +139: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:10 +140: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:10 +141: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:10 +142: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:10 +143: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:10 +144: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior restarts from ModelScope when Hugging Face size metadata is stale
+00:10 +145: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior does not reuse a partial file when source SHA-256 metadata differs
+00:11 +146: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/runtime_integrity_install_contract_test.dart: managed runtime install verifies release metadata before extraction
+00:11 +147: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/runtime_integrity_install_contract_test.dart: managed Qwen runtime upgrades outdated bundles and validates patch revision
+00:11 +148: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/runtime_integrity_install_contract_test.dart: managed FFmpeg assets are pinned and verified before staging or activation
+00:12 +149: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog opens before the first row, taps rows in order and applies
+00:12 +150: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart: LyricWordTapDialog times every character and applies word timing
+00:13 +150: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog a player that refuses to play says so until it recovers
+2026-11-18T12:49:16.301671Z WARN  [lyrics.tap] Tap-sync player command failed: 播放 — StateError: Bad state: no audio source
+    #0      _FakePlayer.transport.<anonymous closure> (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart:88:28)
+    #1      LyricTapTransportFeedback.runTransport (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_controls.dart:158:20)
+    #2      _LyricTapSyncDialogState._togglePlay (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart:195:9)
+    #3      _LyricTapSyncDialogState._press (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart:200:17)
+    #4      _LyricTapSyncDialogState._onKey (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart:243:9)
+    #5      _HighlightModeManager.handleKeyMessage (package:flutter/src/widgets/focus_manager.dart:2284:72)
+    #6      KeyEventManager._dispatchKeyMessage (package:flutter/src/services/hardware_keyboard.dart:1134:34)
+    #7      KeyEventManager.handleRawKeyMessage (package:flutter/src/services/hardware_keyboard.dart:1210:17)
+    #8      BasicMessageChannel.setMessageHandler.<anonymous closure> (package:flutter/src/services/platform_channel.dart:258:49)
+    #9      TestDefaultBinaryMessenger.handlePlatformMessage (package:flutter_test/src/test_default_binary_messenger.dart:99:42)
+    #10     KeyEventSimulator._simulateKeyEventByRawEvent.<anonymous closure> (package:flutter_test/src/event_simulation.dart:662:79)
+    #11     _rootRun (dart:async/zone_root.dart:35:13)
+    #12     _CustomZone.run (dart:async/zone.dart:810:35)
+    #13     TestAsyncUtils.guard (package:flutter_test/src/test_async_utils.dart:74:41)
+    #14     KeyEventSimulator._simulateKeyEventByRawEvent (package:flutter_test/src/event_simulation.dart:660:27)
+    #15     KeyEventSimulator.simulateKeyDownEvent.simulateByRawEvent (package:flutter_test/src/event_simulation.dart:748:14)
+    #16     KeyEventSimulator.simulateKeyDownEvent (package:flutter_test/src/event_simulation.dart:769:23)
+    #17     simulateKeyDownEvent (package:flutter_test/src/event_simulation.dart:894:48)
+    #18     WidgetController.sendKeyEvent (package:flutter_test/src/controller.dart:2219:32)
+    #19     main.<anonymous closure>.space (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart:135:20)
+    #20     main.<anonymous closure>.<anonymous closure> (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart:195:13)
+    <asynchronous suspension>
+    #21     testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+    <asynchronous suspension>
+    …（另有 4 帧）
+00:13 +151: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart: LyricWordTapDialog times every character and applies word timing
+00:13 +152: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart: LyricWordTapDialog times every character and applies word timing
+00:13 +153: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart: LyricWordTapDialog times every character and applies word timing
+00:13 +154: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog reaction compensation and speed are applied
+00:13 +155: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart: LyricWordTapDialog redo row drops its presses and seeks before it
+00:13 +156: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog the pad times rows on pointer down
+00:13 +157: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog the pad times rows on pointer down
+00:13 +158: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog the pad times rows on pointer down
+00:13 +159: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart: the proofread menu offers word tap-to-sync
+00:14 +160: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricPaceCheckDialog lists both kinds, pre-selects proposals and applies them
+00:14 +161: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricPaceCheckDialog lists both kinds, pre-selects proposals and applies them
+00:14 +162: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricPaceCheckDialog a steady song has nothing to adjust
+00:14 +163: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: the proofread menu offers the pace check and tap-to-sync
+00:14 +164: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: the summary card hints at pace issues last
+00:14 +165: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: the export dialog previews ASS karaoke with a lead-in switch
+00:15 +166: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingCheckDialog lists findings, selects fixes and clears stale words
+00:15 +167: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingCheckDialog a project without word timing points to the tools
+00:15 +168: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog nudges a boundary with buttons and keys, then applies
+00:16 +169: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog a row without word timing starts from the estimate
+00:16 +170: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog auditions the word and sets its start at the playhead
+00:16 +171: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog auditions the word and sets its start at the playhead
+00:16 +172: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog auditions the word and sets its start at the playhead
+00:16 +173: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog auditions the word and sets its start at the playhead
+00:16 +174: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_discovery_reconnect_test.dart: stale token is recovered over pinned TLS using authenticated discovery
+00:16 +175: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: the strip opens fine-tuning
+00:16 +176: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: the strip opens fine-tuning
+00:16 +177: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: the proofread menu offers the word timing check
+00:16 +178: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: the summary card hints at stale word timing
+00:17 +179: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: restart recovers transferring item back to queued
+00:17 +180: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: disconnected queue pauses without failing queued items
+00:17 +181: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: same remote download is kept as one logical queue item
+00:17 +182: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: failed upload can be retried and completed
+00:17 +183: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: completed queue state persists across service recreation
+00:17 +184: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts (setUpAll)
+00:17 +184: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts opening the transfer screen does not start a listener
+00:17 +185: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts Media Hub does not bind wildcard/public interfaces
+00:17 +186: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts native Media Hub does not expose wildcard CORS headers
+00:17 +187: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts Media Hub traffic requires pinned HTTPS and bearer headers
+00:17 +188: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts Android only permits cleartext for the loopback playback proxy
+00:17 +189: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts audio and artwork metadata never carry session tokens in URLs
+00:17 +190: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts starting sharing requires explicit scope consent
+00:17 +191: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts HTTPS notice explains pinning and sharing scope
+00:17 +192: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts refreshing while stopped does not open the listener
+00:17 +193: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts (tearDownAll)
+00:17 +193: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/remote_catalog_utils_test.dart: groups remote catalog by artist with unknown fallback
+00:17 +194: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/remote_catalog_utils_test.dart: groups remote catalog by album
+00:17 +195: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/remote_catalog_utils_test.dart: recognises app-managed download paths on iOS and Windows
+00:17 +196: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/remote_catalog_utils_test.dart: matches downloaded entry by stable remote id suffix
+00:18 +197: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: TLS identity persists and its private key matches the certificate
+00:18 +198: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
+00:18 +199: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
+00:18 +200: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
+00:18 +201: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
+00:18 +202: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
+00:18 +203: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
+00:21 +204: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
+00:21 +205: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
+00:21 +206: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
+00:21 +207: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
+00:21 +208: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: real client uploads a local file to receive-only hub
+00:22 +209: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects unsupported final extensions before allocating upload storage
+00:22 +210: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects unsupported final extensions before allocating upload storage
+00:22 +211: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: accepts every local import extension including uppercase and Unicode names
+00:22 +212: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: query token cannot authorize an upload
+00:22 +213: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: browser preflight is not granted cross-origin access
+00:22 +214: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/local_library_media_share_catalog_test.dart: build exposes playable desktop library entries and filters missing files
+00:22 +215: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: concurrent same-name uploads preserve both complete file hashes
+00:22 +216: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: concurrent same-name uploads preserve both complete file hashes
+00:22 +217: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: concurrent same-name uploads preserve both complete file hashes
+00:23 +218: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
+00:23 +219: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
+00:23 +220: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
+00:23 +221: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
+00:23 +222: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
+00:23 +223: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects declared uploads above the configured cap before creating storage
+00:24 +224: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects declared uploads above the configured cap before creating storage
+00:24 +225: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects declared uploads above the configured cap before creating storage
+00:24 +226: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_disk_space_probe_contract_test.dart: Media Hub Windows disk-space probe script media hub service defines each helper class once
+00:24 +227: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:24 +227: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_disk_space_probe_contract_test.dart: Media Hub Windows disk-space probe script prints a non-negative byte count under real PowerShell
+  Skip: Requires Windows PowerShell
+00:24 +227 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:24 +228 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects upload when disk space cannot preserve the reserve
+00:24 +229 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects uploads when disk-space information is unavailable
+00:24 +230 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +231 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +232 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +233 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +234 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +235 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +236 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +237 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +238 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +239 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +240 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +241 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:25 +242 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:26 +243 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:26 +244 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:26 +245 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:26 +246 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:26 +247 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:26 +248 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:26 +249 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:26 +250 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:26 +251 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:26 +252 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:27 +253 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:27 +254 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:27 +255 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:27 +256 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:27 +257 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +257 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph contracts (#327) scans the repository and reports SCC edges and source paths
+SCC: lyrics, player, project, transcription
+  lyrics -> player
+    lib/features/lyrics/presentation/controllers/line_audition_controller.dart -> lib/features/player/domain/services/audio_player_service.dart
+    lib/features/lyrics/presentation/controllers/line_audition_controller.dart -> lib/features/player/domain/services/playback_session_service.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart -> lib/features/player/domain/services/audio_player_service.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart -> lib/features/player/domain/services/playback_session_service.dart
+    lib/features/lyrics/presentation/lyric_editor_dependencies.dart -> lib/features/player/domain/services/audio_player_service.dart
+    lib/features/lyrics/presentation/lyric_editor_dependencies.dart -> lib/features/player/domain/services/playback_session_service.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/player/domain/services/audio_player_service.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/player/domain/services/playback_session_service.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_content.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart -> lib/features/player/presentation/widgets/seekable_progress_bar.dart
+    lib/features/lyrics/presentation/widgets/lyric_inspector_pane.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_tap_controls.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart -> lib/features/player/domain/services/audio_player_service.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_tap_dialog.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_timing_edit_dialog.dart -> lib/features/player/domain/models/playback_state.dart
+  lyrics -> project
+    lib/features/lyrics/data/services/local_lyric_file_export_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/data/services/local_lyric_file_import_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/models/lyric_edit_history.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/models/lyric_review_queue.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/models/recognition_review_summary.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/models/secondary_only_suggestion.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/apply_reference_alignment_use_case.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/asr_consensus_analyzer.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/asr_first_pipeline.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/asr_hallucination_filter.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/asr_reference_correction_suggester.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/asr_retiming_planner.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/independent_snapshot_comparison.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/project_proofread_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/proofread_result.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/proofread_review_proposal.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/proofread_v2_document_composer.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/proofread_v2_review_assembler.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/reference_alignment_timing_applier.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/reference_first_pipeline.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/reference_proofread_change_set.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/reference_proofread_review_builder.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/run_proofread_v2_use_case.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/lyrics/domain/proofreading/run_proofread_v2_use_case.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/run_reference_proofread_use_case.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/timing_evidence_json_parser.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/chinese_script_unification_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_alignment_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_asr_loop_detector.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_draft_health_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_export_encoder.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_file_export_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_file_import_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_find_replace_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_karaoke_tag_parser.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_line_structure_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_manual_edit_marker_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_missed_repeat_detector.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_pace_analyzer.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_repetition_consistency_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_review_decision_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_review_priority_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_span_rerecognition.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_structure_advisor.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_tap_sync_session.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_text_cleanup_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_timeline_auto_repair_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_timeline_insertion_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_timeline_repair_planner.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_timeline_validator.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_timing_shift_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_word_tap_session.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_word_timing_auditor.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_word_timing_editor.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_word_timing_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/reference_alignment_applier.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/reference_alignment_provenance_builder.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/reference_alignment_restore_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/reference_lyric_text_parser.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/reference_timeline_completion_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/line_audition_controller.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/lyric_batch_text_tools_coordinator.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/lyric_batch_text_tools_coordinator.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/controllers/lyric_export_coordinator.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/lyric_export_coordinator.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/lyric_editor_dependencies.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/lyrics/presentation/screens/review_inbox_screen.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/screens/review_inbox_screen.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/lyrics/presentation/widgets/chinese_script_unification_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_asr_loop_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_content.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_content.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_export_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_find_replace_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_inspector_pane.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_list_pane.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_pace_check_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_repetition_consistency_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_span_recognition_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_structure_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_text_cleanup_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_timeline_repair_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_timing_shift_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_tap_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_timing_check_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_timing_edit_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_timing_strip.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/project_asr_snapshot_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/reference_alignment_backup_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/reference_alignment_result_comparison.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/reference_alignment_review.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/reference_proofread_review_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/reference_proofread_timing_review_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/timing_evidence_import_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+  player -> lyrics
+    lib/features/player/presentation/local_library_dependencies.dart -> lib/features/lyrics/domain/services/lyric_file_import_service.dart
+    lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart -> lib/features/lyrics/domain/services/lyric_file_import_service.dart
+  player -> project
+    lib/features/player/data/repositories/file_playback_session_store.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/default_playback_session_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/file_ktv_take_history_store.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/data/services/just_audio_player_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/ktv_project_storage.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/data/services/library_metadata_playback_session_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/local_ktv_recording_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/local_ktv_recording_service.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/data/services/remote_rebinding_playback_session_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/timed_ktv_recording_service.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/domain/models/ktv_backing_mode.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/models/ktv_recording_session.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/models/play_history.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/models/playback_state.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/services/audio_player_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/services/ktv_recording_service.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/domain/services/ktv_take_history_store.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/domain/services/playback_lyrics_availability.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/player/domain/services/playback_lyrics_project_resolver.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/player/domain/services/playback_session_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/services/project_audio_source_update.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/playback_screen_dependencies.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/player/presentation/screens/immersive_ktv_screen.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/presentation/screens/immersive_ktv_screen.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/player/presentation/screens/local_artist_album_browser_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/screens/local_collections_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/screens/local_library_explorer_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/screens/player_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/screens/player_screen.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/player/presentation/screens/player_screen.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/presentation/screens/player_screen.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/player/presentation/screens/quick_play_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/widgets/fullscreen_ktv_lyric_stage.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/player/presentation/widgets/ktv_entry_sheet.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/widgets/ktv_take_history_sheet.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart -> lib/features/project/domain/repositories/project_repository.dart
+  project -> player
+    lib/features/project/data/repositories/file_project_repository.dart -> lib/features/player/domain/repositories/local_media_metadata_repository.dart
+    lib/features/project/data/repositories/file_project_repository.dart -> lib/features/player/domain/services/audio_path_canonicalizer.dart
+    lib/features/project/data/repositories/file_project_repository.dart -> lib/features/player/domain/services/playback_lyrics_project_linker.dart
+    lib/features/project/data/repositories/file_project_repository.dart -> lib/features/player/domain/services/playback_session_service.dart
+    lib/features/project/data/services/file_project_accompaniment_importer.dart -> lib/features/player/domain/services/audio_library_import_service.dart
+    lib/features/project/presentation/project_detail_dependencies.dart -> lib/features/player/domain/services/playback_session_service.dart
+  project -> transcription
+    lib/features/project/presentation/project_detail_dependencies.dart -> lib/features/transcription/domain/services/asr_runtime_manager.dart
+    lib/features/project/presentation/project_detail_dependencies.dart -> lib/features/transcription/domain/services/project_transcription_workflow.dart
+    lib/features/project/presentation/project_detail_dependencies.dart -> lib/features/transcription/domain/services/transcription_settings_store.dart
+    lib/features/project/presentation/project_detail_dependencies.dart -> lib/features/transcription/presentation/transcription_screen_dependencies.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/domain/models/transcription_degradation.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/domain/models/transcription_models.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/domain/services/asr_runtime_manager.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/domain/services/project_transcription_workflow.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/domain/services/transcription_settings_store.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart
+  transcription -> lyrics
+    lib/features/transcription/data/services/asr_text_comparison.dart -> lib/features/lyrics/domain/proofreading/lyric_tokenizer.dart
+    lib/features/transcription/data/services/forced_alignment_http_client.dart -> lib/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart
+    lib/features/transcription/data/services/high_quality_transcription_service.dart -> lib/features/lyrics/domain/models/secondary_only_suggestion.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/lyrics/domain/services/chinese_script_unification_service.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/lyrics/domain/proofreading/project_proofread_evidence.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/lyrics/domain/services/chinese_script_unification_service.dart
+    lib/features/transcription/data/services/project_span_recognition_service.dart -> lib/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart
+    lib/features/transcription/data/services/project_span_recognition_service.dart -> lib/features/lyrics/domain/services/lyric_span_rerecognition.dart
+    lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart -> lib/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart
+    lib/features/transcription/data/services/reference_alignment_audio_guard.dart -> lib/features/lyrics/domain/proofreading/reference_alignment_audio_guard.dart
+    lib/features/transcription/data/services/resumable_chunked_transcription_service.dart -> lib/features/lyrics/domain/models/secondary_only_suggestion.dart
+    lib/features/transcription/data/services/whisper_json_transcript_parser.dart -> lib/features/lyrics/domain/services/lyric_line_structure_service.dart
+    lib/features/transcription/data/services/whisper_json_transcript_parser.dart -> lib/features/lyrics/domain/services/lyric_word_timing_service.dart
+    lib/features/transcription/domain/models/transcription_models.dart -> lib/features/lyrics/domain/models/chinese_script_preference.dart
+    lib/features/transcription/domain/models/transcription_models.dart -> lib/features/lyrics/domain/text/chinese_script_converter.dart
+    lib/features/transcription/domain/models/whisper_decoding_policy.dart -> lib/features/lyrics/domain/text/chinese_script_converter.dart
+    lib/features/transcription/presentation/widgets/transcription_config_dialog.dart -> lib/features/lyrics/domain/models/chinese_script_preference.dart
+  transcription -> player
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/player/domain/repositories/local_media_metadata_repository.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/player/domain/services/audio_path_canonicalizer.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/player/domain/services/playback_lyrics_project_linker.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/player/domain/services/playback_session_service.dart
+  transcription -> project
+    lib/features/transcription/data/services/file_batch_transcription_queue.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/transcription/data/services/file_batch_transcription_queue.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/file_batch_transcription_queue.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/high_quality_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/independent_project_rerun_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/independent_project_rerun_service.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/independent_project_rerun_workflow.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_recognition_hints.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/project_rerun_candidate_assessor.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_rerun_candidate_store.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/project_rerun_candidate_store.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/project_rerun_candidate_store.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_span_recognition_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/project_span_recognition_service.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_transcription_input.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/reference_alignment_audio_guard.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/reference_alignment_audio_guard.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/resumable_chunked_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/whisper_cpp_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/whisper_json_transcript_parser.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/asr_confidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/fusion_timing_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/independent_asr_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/transcription_models.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/services/asr_segment_loop_detector.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/services/whisper_loop_arbiter.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/services/whisper_loop_recovery.dart -> lib/features/project/domain/models/lyric_document.dart
+00:28 +258 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +259 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +260 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +261 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +262 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +263 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +264 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +265 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +266 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +267 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +268 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +269 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +270 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +271 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +272 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +273 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +274 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +275 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +276 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +277 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:32 +278 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: a rejection reaches a client that keeps streaming, after cleanup (#441)
+00:35 +279 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: upload slot is free as soon as a successful upload is answered
+00:36 +280 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a negative rejection drain grace
+00:36 +281 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a second simultaneous upload for the same session
+00:36 +282 ~1: All tests passed!

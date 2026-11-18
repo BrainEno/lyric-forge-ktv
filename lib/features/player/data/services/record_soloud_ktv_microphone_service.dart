@@ -44,9 +44,9 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
     AudioRecorder? recorder,
     SoLoud? soloud,
     KtvMicrophonePreferenceStore? preferenceStore,
-  })  : _recorder = recorder ?? AudioRecorder(),
-        _soloud = soloud ?? SoLoud.instance,
-        _preferenceStore = preferenceStore {
+  }) : _recorder = recorder ?? AudioRecorder(),
+       _soloud = soloud ?? SoLoud.instance,
+       _preferenceStore = preferenceStore {
     _delayLine = PcmDelayLine(
       sampleRate: _sampleRate,
       gain: _state.micGain,
@@ -82,20 +82,21 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
               .map((device) => MapEntry(device.id, device)),
         );
 
-      final mapped = _recordInputDevices.values
-          .map(
-            (device) => KtvAudioInputDevice(
-              id: device.id,
-              label: device.label.trim().isEmpty
-                  ? '未命名输入设备'
-                  : device.label.trim(),
-            ),
-          )
-          .toList(growable: false)
-        ..sort((left, right) => left.label.compareTo(right.label));
+      final mapped =
+          _recordInputDevices.values
+              .map(
+                (device) => KtvAudioInputDevice(
+                  id: device.id,
+                  label: device.label.trim().isEmpty
+                      ? '未命名输入设备'
+                      : device.label.trim(),
+                ),
+              )
+              .toList(growable: false)
+            ..sort((left, right) => left.label.compareTo(right.label));
       final selectedId = _state.selectedInputDeviceId;
-      final selectedStillAvailable = selectedId == null ||
-          _recordInputDevices.containsKey(selectedId);
+      final selectedStillAvailable =
+          selectedId == null || _recordInputDevices.containsKey(selectedId);
       if (!selectedStillAvailable) {
         await _persistPreferredInputDevice(null);
       }
@@ -194,8 +195,9 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
 
       await _refreshInputDevices(surfaceErrors: false);
 
-      final pcmSupported =
-          await _recorder.isEncoderSupported(AudioEncoder.pcm16bits);
+      final pcmSupported = await _recorder.isEncoderSupported(
+        AudioEncoder.pcm16bits,
+      );
       if (!pcmSupported) {
         throw StateError('当前设备不支持 PCM16 麦克风流');
       }
@@ -377,10 +379,7 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
       final preferredId = (await store.loadPreferredInputDeviceId())?.trim();
       if (preferredId == null || preferredId.isEmpty) return;
       _emit(
-        _state.copyWith(
-          selectedInputDeviceId: preferredId,
-          clearError: true,
-        ),
+        _state.copyWith(selectedInputDeviceId: preferredId, clearError: true),
       );
     } catch (_) {
       // Preference persistence must never block microphone availability.
@@ -406,14 +405,9 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
 
     // A recorder that does not stop keeps the microphone busy for the next
     // session, which the user notices; the monitor steps only free memory.
-    await bestEffort(
-      _logTag,
-      '停止麦克风录音',
-      () async {
-        if (await _recorder.isRecording()) await _recorder.stop();
-      },
-      impact: BestEffortImpact.degraded,
-    );
+    await bestEffort(_logTag, '停止麦克风录音', () async {
+      if (await _recorder.isRecording()) await _recorder.stop();
+    }, impact: BestEffortImpact.degraded);
 
     final source = _monitorSource;
     final handle = _monitorHandle;
@@ -421,21 +415,13 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
     _monitorHandle = null;
 
     if (source != null) {
-      bestEffortSync(
-        _logTag,
-        '结束返听数据流',
-        () => _soloud.setDataIsEnded(source),
-      );
+      bestEffortSync(_logTag, '结束返听数据流', () => _soloud.setDataIsEnded(source));
     }
     if (handle != null) {
       await bestEffort(_logTag, '停止返听播放', () => _soloud.stop(handle));
     }
     if (source != null) {
-      await bestEffort(
-        _logTag,
-        '释放返听音源',
-        () => _soloud.disposeSource(source),
-      );
+      await bestEffort(_logTag, '释放返听音源', () => _soloud.disposeSource(source));
     }
   }
 

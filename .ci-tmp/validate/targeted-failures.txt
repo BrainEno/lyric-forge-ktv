@@ -1,0 +1,13 @@
+2026-11-18T12:49:16.301671Z WARN  [lyrics.tap] Tap-sync player command failed: 播放 — StateError: Bad state: no audio source
+    #0      _FakePlayer.transport.<anonymous closure> (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart:88:28)
+    #1      LyricTapTransportFeedback.runTransport (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_controls.dart:158:20)
+    #2      _LyricTapSyncDialogState._togglePlay (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart:195:9)
+    #3      _LyricTapSyncDialogState._press (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart:200:17)
+    #4      _LyricTapSyncDialogState._onKey (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart:243:9)
+    #5      _HighlightModeManager.handleKeyMessage (package:flutter/src/widgets/focus_manager.dart:2284:72)
+    #6      KeyEventManager._dispatchKeyMessage (package:flutter/src/services/hardware_keyboard.dart:1134:34)
+    #7      KeyEventManager.handleRawKeyMessage (package:flutter/src/services/hardware_keyboard.dart:1210:17)
+    #8      BasicMessageChannel.setMessageHandler.<anonymous closure> (package:flutter/src/services/platform_channel.dart:258:49)
+    #9      TestDefaultBinaryMessenger.handlePlatformMessage (package:flutter_test/src/test_default_binary_messenger.dart:99:42)
+    #10     KeyEventSimulator._simulateKeyEventByRawEvent.<anonymous closure> (package:flutter_test/src/event_simulation.dart:662:79)
+    #11     _rootRun (dart:async/zone_root.dart:35:13)

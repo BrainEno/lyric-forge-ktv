@@ -171,9 +171,7 @@ class ResumableFileDownload {
   /// produce absurd estimates.
   static const Duration _speedWarmUp = Duration(milliseconds: 500);
 
-  static final RegExp _contentRange = RegExp(
-    r'^bytes (\d+)-(\d+)/(\d+|\*)$',
-  );
+  static final RegExp _contentRange = RegExp(r'^bytes (\d+)-(\d+)/(\d+|\*)$');
 
   /// The sidecar a download into [target] writes to.
   static File partFileFor(File target) => File('${target.path}.part');

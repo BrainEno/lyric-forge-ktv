@@ -5,8 +5,10 @@ import 'package:lyric_forge_ktv/features/transcription/data/services/ffmpeg_runt
 void main() {
   test('model files resolve on Hugging Face and ModelScope', () {
     expect(
-      AsrEndpoints.huggingFaceFile('Qwen/Qwen3-ASR-1.7B', 'config.json')
-          .toString(),
+      AsrEndpoints.huggingFaceFile(
+        'Qwen/Qwen3-ASR-1.7B',
+        'config.json',
+      ).toString(),
       'https://huggingface.co/Qwen/Qwen3-ASR-1.7B/resolve/main/'
       'config.json?download=true',
     );
@@ -16,8 +18,10 @@ void main() {
       'ggml-large-v3.bin?download=true',
     );
     expect(
-      AsrEndpoints.modelScopeFile('Qwen/Qwen3-ASR-0.6B', 'vocab.json')
-          .toString(),
+      AsrEndpoints.modelScopeFile(
+        'Qwen/Qwen3-ASR-0.6B',
+        'vocab.json',
+      ).toString(),
       'https://modelscope.cn/models/Qwen/Qwen3-ASR-0.6B/resolve/master/'
       'vocab.json',
     );
@@ -33,8 +37,10 @@ void main() {
   test('runtime releases come from the configured repository', () {
     expect(AsrEndpoints.releaseRepository, 'BrainEno/lyric-forge-ktv');
     expect(
-      AsrEndpoints.runtimeReleaseAsset('asr-runtime-v3', 'bundle.zip')
-          .toString(),
+      AsrEndpoints.runtimeReleaseAsset(
+        'asr-runtime-v3',
+        'bundle.zip',
+      ).toString(),
       'https://github.com/BrainEno/lyric-forge-ktv/releases/download/'
       'asr-runtime-v3/bundle.zip',
     );
@@ -44,8 +50,10 @@ void main() {
       'asr-runtime-v3',
     );
     expect(
-      AsrEndpoints.whisperCppReleaseAsset('v1.8.2', 'whisper-bin-x64.zip')
-          .toString(),
+      AsrEndpoints.whisperCppReleaseAsset(
+        'v1.8.2',
+        'whisper-bin-x64.zip',
+      ).toString(),
       'https://github.com/ggml-org/whisper.cpp/releases/download/'
       'v1.8.2/whisper-bin-x64.zip',
     );
@@ -57,7 +65,9 @@ void main() {
       expect(release.downloadUri.scheme, 'https');
       expect(release.downloadUri.host, 'github.com');
       expect(
-        release.downloadUrl.startsWith(AsrEndpoints.btbnFfmpegReleaseDownloads) ||
+        release.downloadUrl.startsWith(
+              AsrEndpoints.btbnFfmpegReleaseDownloads,
+            ) ||
             release.downloadUrl.startsWith(
               AsrEndpoints.boul2gomFfmpegReleaseDownloads,
             ),

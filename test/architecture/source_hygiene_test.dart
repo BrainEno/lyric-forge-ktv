@@ -41,13 +41,16 @@ void main() {
       expect(_matches(files, emptyCatchError), isEmpty);
     });
 
-    test('file stores share SerialWriteQueue instead of hand-rolled chains', () {
-      final offenders = _matches(
-        _dartFiles('lib/features'),
-        RegExp(r'_writeChain\b'),
-      );
-      expect(offenders, isEmpty);
-    });
+    test(
+      'file stores share SerialWriteQueue instead of hand-rolled chains',
+      () {
+        final offenders = _matches(
+          _dartFiles('lib/features'),
+          RegExp(r'_writeChain\b'),
+        );
+        expect(offenders, isEmpty);
+      },
+    );
   });
 
   test('colours come from AppColors outside the theme', () {

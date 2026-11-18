@@ -489,14 +489,9 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       } catch (_) {
         // The move failure is what the caller sees; a staging directory left
         // behind takes disk space until the next migration replaces it.
-        await bestEffort(
-          _logTag,
-          '删除迁移暂存目录',
-          () async {
-            if (await staging.exists()) await staging.delete(recursive: true);
-          },
-          impact: BestEffortImpact.degraded,
-        );
+        await bestEffort(_logTag, '删除迁移暂存目录', () async {
+          if (await staging.exists()) await staging.delete(recursive: true);
+        }, impact: BestEffortImpact.degraded);
         rethrow;
       }
     } finally {

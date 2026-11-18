@@ -312,32 +312,24 @@ class LibraryMetadataPlaybackSessionService
   }
 
   /// A cache that cannot be pruned keeps growing, so failures are warnings.
-  Future<void> _pruneArtworkCache(Directory directory) => bestEffort(
-    'player.artwork',
-    '清理封面缓存',
-    () async {
-      final files = await directory
-          .list(followLinks: false)
-          .where((entity) => entity is File && !entity.path.endsWith('.part'))
-          .cast<File>()
-          .toList();
-      if (files.length <= _maxCachedArtworkFiles) return;
+  Future<void> _pruneArtworkCache(Directory directory) =>
+      bestEffort('player.artwork', '清理封面缓存', () async {
+        final files = await directory
+            .list(followLinks: false)
+            .where((entity) => entity is File && !entity.path.endsWith('.part'))
+            .cast<File>()
+            .toList();
+        if (files.length <= _maxCachedArtworkFiles) return;
 
-      final dated = <({File file, DateTime modified})>[];
-      for (final file in files) {
-        dated.add((file: file, modified: await file.lastModified()));
-      }
-      dated.sort((a, b) => b.modified.compareTo(a.modified));
-      for (final entry in dated.skip(_maxCachedArtworkFiles)) {
-        await bestEffort(
-          'player.artwork',
-          '删除过期的封面缓存',
-          entry.file.delete,
-        );
-      }
-    },
-    impact: BestEffortImpact.degraded,
-  );
+        final dated = <({File file, DateTime modified})>[];
+        for (final file in files) {
+          dated.add((file: file, modified: await file.lastModified()));
+        }
+        dated.sort((a, b) => b.modified.compareTo(a.modified));
+        for (final entry in dated.skip(_maxCachedArtworkFiles)) {
+          await bestEffort('player.artwork', '删除过期的封面缓存', entry.file.delete);
+        }
+      }, impact: BestEffortImpact.degraded);
 
   void _prioritizeCurrentArtwork() {
     final current = delegate.currentState.currentItem;

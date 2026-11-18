@@ -53,11 +53,13 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
     final alignerLabel = 'ForcedAligner ($alignerModelId)';
 
     final outcomes = <_ProbeResult>[];
-    outcomes.add(await _probeRange(
-      name: 'Whisper large-v3',
-      uri: endpoints.whisperFileUri(),
-      proxyOverride: proxyOverride,
-    ));
+    outcomes.add(
+      await _probeRange(
+        name: 'Whisper large-v3',
+        uri: endpoints.whisperFileUri(),
+        proxyOverride: proxyOverride,
+      ),
+    );
 
     final modelProbes = await Future.wait<List<_ProbeResult>>([
       _probeHuggingFaceModel(
@@ -101,15 +103,19 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
     final report = AsrDownloadConnectionReport(
       whisperAvailable: reachable.contains('Whisper large-v3'),
       huggingFaceQwenAvailable: reachable.contains('$qwenLabel (Hugging Face)'),
-      huggingFaceAlignerAvailable:
-          reachable.contains('$alignerLabel (Hugging Face)'),
-      modelScopeManifestAvailable:
-          reachable.contains('$qwenLabel (ModelScope 文件清单)'),
+      huggingFaceAlignerAvailable: reachable.contains(
+        '$alignerLabel (Hugging Face)',
+      ),
+      modelScopeManifestAvailable: reachable.contains(
+        '$qwenLabel (ModelScope 文件清单)',
+      ),
       modelScopeFileAvailable: reachable.contains('$qwenLabel (ModelScope)'),
-      modelScopeAlignerManifestAvailable:
-          reachable.contains('$alignerLabel (ModelScope 文件清单)'),
-      modelScopeAlignerFileAvailable:
-          reachable.contains('$alignerLabel (ModelScope)'),
+      modelScopeAlignerManifestAvailable: reachable.contains(
+        '$alignerLabel (ModelScope 文件清单)',
+      ),
+      modelScopeAlignerFileAvailable: reachable.contains(
+        '$alignerLabel (ModelScope)',
+      ),
       diagnostics: failures,
     );
 
@@ -135,10 +141,10 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
       'Qwen/Qwen3-ASR-1.7B' => 'model-00001-of-00002.safetensors',
       'Qwen/Qwen3-ASR-0.6B' => 'model.safetensors',
       _ => throw ArgumentError.value(
-          modelId,
-          'qwenModelId',
-          '只支持已验证的官方 Qwen3-ASR 模型 ID',
-        ),
+        modelId,
+        'qwenModelId',
+        '只支持已验证的官方 Qwen3-ASR 模型 ID',
+      ),
     };
   }
 
@@ -196,13 +202,11 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
       request.followRedirects = false;
       request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
       final response = await request.close().timeout(
-            const Duration(seconds: 20),
-          );
+        const Duration(seconds: 20),
+      );
       if (response.statusCode < 200 || response.statusCode >= 400) {
         await response.drain<void>().timeout(const Duration(seconds: 20));
-        throw HttpException(
-          '$name HEAD 元数据端点返回 HTTP ${response.statusCode}',
-        );
+        throw HttpException('$name HEAD 元数据端点返回 HTTP ${response.statusCode}');
       }
 
       final headers = <String, String>{};
@@ -256,20 +260,22 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
       final response = await request.close().timeout(
-            const Duration(seconds: 20),
-          );
+        const Duration(seconds: 20),
+      );
       if (response.statusCode != HttpStatus.ok) {
-        final body = await utf8.decoder.bind(response).join().timeout(
-              const Duration(seconds: 20),
-            );
+        final body = await utf8.decoder
+            .bind(response)
+            .join()
+            .timeout(const Duration(seconds: 20));
         throw HttpException(
           'ModelScope 文件清单 API 返回 HTTP ${response.statusCode}: $body',
         );
       }
 
-      final body = await utf8.decoder.bind(response).join().timeout(
-            const Duration(seconds: 20),
-          );
+      final body = await utf8.decoder
+          .bind(response)
+          .join()
+          .timeout(const Duration(seconds: 20));
       final files = HuggingFaceFileMetadata.fromModelScopeManifest(
         jsonDecode(body),
       );
@@ -277,9 +283,7 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
       if (requiredFile == null ||
           requiredFile.sizeBytes <= 0 ||
           requiredFile.sha256 == null) {
-        throw FormatException(
-          'ModelScope 清单缺少 $fileName 或可信 SHA-256',
-        );
+        throw FormatException('ModelScope 清单缺少 $fileName 或可信 SHA-256');
       }
       return _ProbeResult.success(name);
     } catch (error) {
@@ -305,8 +309,8 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
       request.headers.set(HttpHeaders.rangeHeader, 'bytes=0-0');
       request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
       final response = await request.close().timeout(
-            const Duration(seconds: 20),
-          );
+        const Duration(seconds: 20),
+      );
       if (response.statusCode != HttpStatus.partialContent) {
         await response.listen((_) {}).cancel();
         throw HttpException(
@@ -319,9 +323,7 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
           ?.toLowerCase();
       if (contentRange == null || !contentRange.startsWith('bytes 0-0/')) {
         await response.listen((_) {}).cancel();
-        throw HttpException(
-          '$name 文件范围下载测试返回无效的 Content-Range：$contentRange',
-        );
+        throw HttpException('$name 文件范围下载测试返回无效的 Content-Range：$contentRange');
       }
       final firstChunk = await response.first.timeout(
         const Duration(seconds: 15),

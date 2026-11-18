@@ -1,0 +1,60 @@
+    lib/features/transcription/data/services/file_batch_transcription_queue.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/high_quality_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/independent_project_rerun_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/independent_project_rerun_service.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/independent_project_rerun_workflow.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_recognition_hints.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/project_rerun_candidate_assessor.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_rerun_candidate_store.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/project_rerun_candidate_store.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/project_rerun_candidate_store.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_span_recognition_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/project_span_recognition_service.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_transcription_input.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/reference_alignment_audio_guard.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/reference_alignment_audio_guard.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/resumable_chunked_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/whisper_cpp_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/whisper_json_transcript_parser.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/asr_confidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/fusion_timing_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/independent_asr_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/transcription_models.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/services/asr_segment_loop_detector.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/services/whisper_loop_arbiter.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/services/whisper_loop_recovery.dart -> lib/features/project/domain/models/lyric_document.dart
+00:28 +258 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +259 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +260 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +261 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +262 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +263 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +264 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +265 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +266 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +267 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +268 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +269 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +270 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +271 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +272 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +273 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +274 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +275 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +276 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:28 +277 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:32 +278 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: a rejection reaches a client that keeps streaming, after cleanup (#441)
+00:35 +279 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: upload slot is free as soon as a successful upload is answered
+00:36 +280 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a negative rejection drain grace
+00:36 +281 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a second simultaneous upload for the same session
+00:36 +282 ~1: All tests passed!

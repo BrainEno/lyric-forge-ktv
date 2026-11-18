@@ -36,16 +36,19 @@ void main() {
     expect(await next, 'saved');
   });
 
-  test('a write that throws synchronously still fails only its caller', () async {
-    final queue = SerialWriteQueue();
+  test(
+    'a write that throws synchronously still fails only its caller',
+    () async {
+      final queue = SerialWriteQueue();
 
-    final failing = queue.run<void>(() => throw ArgumentError('bad payload'));
-    final next = queue.run(() async => 1);
+      final failing = queue.run<void>(() => throw ArgumentError('bad payload'));
+      final next = queue.run(() async => 1);
 
-    await expectLater(failing, throwsArgumentError);
-    expect(await next, 1);
-    expect(queue.pending, 0);
-  });
+      await expectLater(failing, throwsArgumentError);
+      expect(await next, 1);
+      expect(queue.pending, 0);
+    },
+  );
 
   test('idle waits for queued writes and never throws', () async {
     final queue = SerialWriteQueue();

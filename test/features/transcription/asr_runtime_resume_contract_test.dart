@@ -33,51 +33,63 @@ void main() {
     );
     expect(source, contains('ResumableFileDownload.partFileFor(target)'));
     expect(source, contains('resume: resumable'));
-    expect(source, contains('await ResumableFileDownload.promote(part, target)'));
-  });
-
-  test('Whisper model download times out and preserves resumable failures', () async {
-    final source = await File(installers.first).readAsString();
-    final downloader = await File(
-      'lib/features/transcription/data/services/resumable_file_download.dart',
-    ).readAsString();
-
-    expect(downloader, contains('response.timeout(timeout)'));
-    expect(downloader, contains('request.close().timeout(timeout)'));
-    expect(downloader, contains('clientFactory.create('));
-    expect(source, contains('timeout: _downloadTimeout'));
-    final clientFactory = await File(
-      'lib/features/transcription/data/services/asr_download_http_client_factory.dart',
-    ).readAsString();
-    expect(
-      clientFactory,
-      contains('..connectionTimeout = const Duration(seconds: 30)'),
-    );
-    expect(source, contains("AsrRuntimeComponent.whisperModel => 'Whisper large-v3'"));
-    expect(source, contains(r"'下载 $label 失败，已保留断点文件'"));
-    expect(source, contains('下载未完成，已保留断点并将自动续传'));
     expect(
       source,
-      contains('component == AsrRuntimeComponent.qwenRuntime && resumable'),
+      contains('await ResumableFileDownload.promote(part, target)'),
     );
   });
 
-  test('macOS custom storage persists and restores security-scoped bookmarks',
-      () async {
-    final storage = await File(
-      'lib/features/transcription/data/services/local_asr_managed_storage_service.dart',
-    ).readAsString();
-    final swift = await File('macos/Runner/MainFlutterWindow.swift').readAsString();
-    final release = await File('macos/Runner/Release.entitlements').readAsString();
+  test(
+    'Whisper model download times out and preserves resumable failures',
+    () async {
+      final source = await File(installers.first).readAsString();
+      final downloader = await File(
+        'lib/features/transcription/data/services/resumable_file_download.dart',
+      ).readAsString();
 
-    expect(storage, contains("'schemaVersion': 2"));
-    expect(storage, contains("'securityScopedBookmark'"));
-    expect(storage, contains('restoreAndStartBookmark'));
-    expect(swift, contains('.withSecurityScope'));
-    expect(swift, contains('startAccessingSecurityScopedResource'));
-    expect(
-      release,
-      contains('com.apple.security.files.bookmarks.app-scope'),
-    );
-  });
+      expect(downloader, contains('response.timeout(timeout)'));
+      expect(downloader, contains('request.close().timeout(timeout)'));
+      expect(downloader, contains('clientFactory.create('));
+      expect(source, contains('timeout: _downloadTimeout'));
+      final clientFactory = await File(
+        'lib/features/transcription/data/services/asr_download_http_client_factory.dart',
+      ).readAsString();
+      expect(
+        clientFactory,
+        contains('..connectionTimeout = const Duration(seconds: 30)'),
+      );
+      expect(
+        source,
+        contains("AsrRuntimeComponent.whisperModel => 'Whisper large-v3'"),
+      );
+      expect(source, contains(r"'下载 $label 失败，已保留断点文件'"));
+      expect(source, contains('下载未完成，已保留断点并将自动续传'));
+      expect(
+        source,
+        contains('component == AsrRuntimeComponent.qwenRuntime && resumable'),
+      );
+    },
+  );
+
+  test(
+    'macOS custom storage persists and restores security-scoped bookmarks',
+    () async {
+      final storage = await File(
+        'lib/features/transcription/data/services/local_asr_managed_storage_service.dart',
+      ).readAsString();
+      final swift = await File(
+        'macos/Runner/MainFlutterWindow.swift',
+      ).readAsString();
+      final release = await File(
+        'macos/Runner/Release.entitlements',
+      ).readAsString();
+
+      expect(storage, contains("'schemaVersion': 2"));
+      expect(storage, contains("'securityScopedBookmark'"));
+      expect(storage, contains('restoreAndStartBookmark'));
+      expect(swift, contains('.withSecurityScope'));
+      expect(swift, contains('startAccessingSecurityScopedResource'));
+      expect(release, contains('com.apple.security.files.bookmarks.app-scope'));
+    },
+  );
 }

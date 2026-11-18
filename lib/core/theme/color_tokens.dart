@@ -49,18 +49,12 @@ abstract class AppColors {
   static const LinearGradient playerGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [
-      Color(0xFF282828),
-      Color(0xFF121212),
-    ],
+    colors: [Color(0xFF282828), Color(0xFF121212)],
   );
 
   static const LinearGradient cardGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [
-      Color(0xFF282828),
-      Color(0xFF181818),
-    ],
+    colors: [Color(0xFF282828), Color(0xFF181818)],
   );
 }

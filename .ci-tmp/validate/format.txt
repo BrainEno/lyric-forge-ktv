@@ -1,0 +1,20 @@
+Formatted lib/core/theme/color_tokens.dart
+Formatted lib/features/lyrics/presentation/widgets/lyric_tap_controls.dart
+Formatted lib/features/player/data/services/library_metadata_playback_session_service.dart
+Formatted lib/features/player/data/services/local_ktv_recording_service.dart
+Formatted lib/features/player/data/services/record_soloud_ktv_microphone_service.dart
+Formatted lib/features/transcription/data/services/asr_download_connection_checker.dart
+Formatted lib/features/transcription/data/services/asr_endpoints.dart
+Formatted lib/features/transcription/data/services/local_asr_managed_storage_service.dart
+Formatted lib/features/transcription/data/services/resumable_file_download.dart
+Formatted lib/features/transfer/data/services/http_media_hub_service.dart
+Formatted lib/features/transfer/presentation/screens/desktop_media_transfer_hub_screen.dart
+Formatted lib/features/transfer/presentation/screens/media_hub_qr_scanner_screen.dart
+Formatted test/architecture/source_hygiene_test.dart
+Formatted test/core/diagnostics/best_effort_test.dart
+Formatted test/core/persistence/serial_write_queue_test.dart
+Formatted test/features/transcription/asr_endpoints_test.dart
+Formatted test/features/transcription/asr_runtime_resume_contract_test.dart
+Formatted test/features/transcription/qwen_model_integrity_contract_test.dart
+Formatted test/features/transcription/resumable_file_download_test.dart
+Formatted 60 files (19 changed) in 0.27 seconds.

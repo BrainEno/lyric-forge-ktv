@@ -54,10 +54,8 @@ abstract final class AsrEndpoints {
   );
 
   /// [fileName] of the `master` revision of ModelScope repository [modelId].
-  static Uri modelScopeFile(String modelId, String fileName) => Uri.https(
-    modelScopeHost,
-    '/models/$modelId/resolve/master/$fileName',
-  );
+  static Uri modelScopeFile(String modelId, String fileName) =>
+      Uri.https(modelScopeHost, '/models/$modelId/resolve/master/$fileName');
 
   /// Asset [assetName] of release [tag] of [releaseRepository].
   static Uri runtimeReleaseAsset(String tag, String assetName) =>
