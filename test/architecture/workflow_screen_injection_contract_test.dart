@@ -46,19 +46,6 @@ void main() {
     );
   });
 
-  test('remote media library receives explicit dependencies', () {
-    final screen = File(
-      'lib/features/transfer/presentation/screens/'
-      'remote_media_library_screen.dart',
-    ).readAsStringSync();
-    final assembly = File('lib/app/screen_assembly.dart').readAsStringSync();
-
-    expect(screen, isNot(contains('AppServices')));
-    expect(screen, contains('required this.dependencies'));
-    expect(assembly, contains('services.mediaHubClientService'));
-    expect(assembly, contains('services.mediaHubConnectionStore'));
-  });
-
   test(
     'dashboard dependencies are assembled and the retired sharing screen stays unreachable',
     () {
@@ -77,7 +64,7 @@ void main() {
       expect(router, contains('assembleDashboardDependencies(services)'));
       expect(assembly, contains('services.transcriptionSettingsStore'));
       expect(legacySharing.existsSync(), isFalse);
-      expect(router, contains('DesktopMediaTransferHubV2Screen('));
+      expect(router, contains('DesktopMediaTransferHubScreen('));
       expect(router, isNot(contains('DesktopMediaSharingScreen')));
     },
   );
@@ -94,7 +81,7 @@ void main() {
       ).readAsStringSync();
       const screens = <String>[
         'lib/features/transfer/presentation/screens/'
-            'desktop_media_transfer_hub_v2_screen.dart',
+            'desktop_media_transfer_hub_screen.dart',
         'lib/features/transfer/presentation/screens/'
             'mobile_media_transfer_hub_screen.dart',
         'lib/features/transfer/presentation/screens/'
@@ -124,19 +111,25 @@ void main() {
       expect(shell, contains('dependencies: widget.dependencies'));
       expect(assembly, contains('services.mediaShareCatalog'));
       expect(assembly, contains('services.mediaTransferQueueService'));
+      // Retired screens, and the bundle only the remote library screen
+      // used. The desktop hub lost its `v2` suffix once the first version
+      // was gone.
+      const retired = <String>[
+        'lib/features/transfer/presentation/screens/'
+            'cross_device_media_library_screen.dart',
+        'lib/features/transfer/presentation/screens/'
+            'remote_media_library_screen.dart',
+        'lib/features/transfer/presentation/screens/'
+            'desktop_media_transfer_hub_v2_screen.dart',
+        'lib/features/transfer/presentation/'
+            'remote_media_library_dependencies.dart',
+      ];
+      for (final path in retired) {
+        expect(File(path).existsSync(), isFalse, reason: path);
+      }
       expect(
-        File(
-          'lib/features/transfer/presentation/screens/'
-          'cross_device_media_library_screen.dart',
-        ).existsSync(),
-        isFalse,
-      );
-      expect(
-        File(
-          'lib/features/transfer/presentation/screens/'
-          'desktop_media_transfer_hub_screen.dart',
-        ).existsSync(),
-        isFalse,
+        File('lib/app/screen_assembly.dart').readAsStringSync(),
+        isNot(contains('RemoteMediaLibrary')),
       );
     },
   );

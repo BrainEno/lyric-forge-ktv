@@ -126,7 +126,8 @@ class LyricTapSyncDialog extends StatefulWidget {
   State<LyricTapSyncDialog> createState() => _LyricTapSyncDialogState();
 }
 
-class _LyricTapSyncDialogState extends State<LyricTapSyncDialog> {
+class _LyricTapSyncDialogState extends State<LyricTapSyncDialog>
+    with LyricTapTransportFeedback<LyricTapSyncDialog> {
   late final LyricTapSyncSession _session = LyricTapSyncSession(
     lineCount: widget.document.lines.length,
     startIndex: widget.startIndex < 0
@@ -172,40 +173,26 @@ class _LyricTapSyncDialogState extends State<LyricTapSyncDialog> {
   @override
   void dispose() {
     unawaited(_subscription?.cancel());
-    if (_state.isPlaying) unawaited(_ignoreErrors(widget.transport.pause()));
+    if (_state.isPlaying) restoreTransport('暂停', widget.transport.pause);
     final setSpeed = widget.transport.setSpeed;
     if (setSpeed != null && _state.speed != _initialSpeed) {
-      unawaited(_ignoreErrors(setSpeed(_initialSpeed)));
+      restoreTransport('恢复播放速度', () => setSpeed(_initialSpeed));
     }
     _focus.dispose();
     super.dispose();
   }
-
-  static Future<void> _ignoreErrors(Future<void> future) =>
-      future.catchError((Object _) {});
 
   Duration _audioNow() => _clock.audioNow();
 
   /// The press time on the document timeline, reaction time removed.
   Duration _pressTime() => _clock.pressTime(latencyMs: _latencyMs);
 
-  Future<void> _seek(Duration audioPosition) async {
-    try {
-      await widget.transport.seek(audioPosition);
-    } catch (_) {
-      // The player reports its own errors; tap-sync keeps its state.
-    }
-  }
+  Future<void> _seek(Duration audioPosition) =>
+      runTransport('跳转', () => widget.transport.seek(audioPosition));
 
-  Future<void> _togglePlay() async {
-    try {
-      if (_state.isPlaying) {
-        await widget.transport.pause();
-      } else {
-        await widget.transport.play();
-      }
-    } catch (_) {}
-  }
+  Future<void> _togglePlay() => _state.isPlaying
+      ? runTransport('暂停', widget.transport.pause)
+      : runTransport('播放', widget.transport.play);
 
   void _press() {
     _pressMarked = false;
@@ -244,9 +231,7 @@ class _LyricTapSyncDialogState extends State<LyricTapSyncDialog> {
   Future<void> _setSpeed(double speed) async {
     final setSpeed = widget.transport.setSpeed;
     if (setSpeed == null) return;
-    try {
-      await setSpeed(speed);
-    } catch (_) {}
+    await runTransport('切换播放速度', () => setSpeed(speed));
     if (mounted) _focus.requestFocus();
   }
 
@@ -380,6 +365,7 @@ class _LyricTapSyncDialogState extends State<LyricTapSyncDialog> {
               ),
             ],
           ),
+          LyricTapTransportError(message: transportError),
           const SizedBox(height: AppSpacing.sm),
           _RowPreview(
             previous: lastMark == null

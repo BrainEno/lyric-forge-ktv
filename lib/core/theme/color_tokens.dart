@@ -36,6 +36,11 @@ abstract class AppColors {
   static const Color pressedOverlay = Color(0x33FFFFFF);
   static const Color focusRing = Color(0x80FFFFFF);
 
+  // Elevation shadows: a floating label close to its anchor, and a card
+  // lifted well above the page.
+  static const Color shadowNear = Color(0x66000000);
+  static const Color shadowFar = Color(0x52000000);
+
   // Borders (subtle, used sparingly)
   static const Color borderSubtle = Color(0x1AFFFFFF);
   static const Color borderMuted = Color(0x0DFFFFFF);
@@ -44,18 +49,12 @@ abstract class AppColors {
   static const LinearGradient playerGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [
-      Color(0xFF282828),
-      Color(0xFF121212),
-    ],
+    colors: [Color(0xFF282828), Color(0xFF121212)],
   );
 
   static const LinearGradient cardGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [
-      Color(0xFF282828),
-      Color(0xFF181818),
-    ],
+    colors: [Color(0xFF282828), Color(0xFF181818)],
   );
 }

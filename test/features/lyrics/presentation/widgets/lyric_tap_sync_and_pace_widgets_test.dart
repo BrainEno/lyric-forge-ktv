@@ -69,6 +69,9 @@ class _FakePlayer {
   int pauses = 0;
   Duration now = Duration.zero;
 
+  /// While set, play fails the way a player without a source does.
+  Object? playFailure;
+
   void report(PlaybackState next) {
     state = next;
     _states.add(next);
@@ -80,7 +83,11 @@ class _FakePlayer {
   LyricTapSyncTransport get transport => LyricTapSyncTransport(
     currentState: () => state,
     states: _states.stream,
-    play: () async => report(state.copyWith(isPlaying: true)),
+    play: () async {
+      final failure = playFailure;
+      if (failure != null) throw failure;
+      report(state.copyWith(isPlaying: true));
+    },
     pause: () async {
       pauses++;
       report(state.copyWith(isPlaying: false));
@@ -177,6 +184,25 @@ void main() {
       expect(edit.message, LyricTapSyncStrings.applied(2, 0));
       // Closing the dialog stops the song.
       expect(player.pauses, greaterThan(0));
+    });
+
+    testWidgets('a player that refuses to play says so until it recovers', (
+      tester,
+    ) async {
+      final (_, player) = await open(tester);
+      player.playFailure = StateError('no audio source');
+
+      await space(tester);
+      await tester.pump();
+      expect(player.state.isPlaying, isFalse);
+      expect(find.textContaining('播放失败'), findsOneWidget);
+      expect(progress(tester), '已打 0 行 · 还剩 3 行');
+
+      player.playFailure = null;
+      await space(tester);
+      await tester.pump();
+      expect(player.state.isPlaying, isTrue);
+      expect(find.textContaining('播放失败'), findsNothing);
     });
 
     testWidgets('extrapolates the position between player reports', (

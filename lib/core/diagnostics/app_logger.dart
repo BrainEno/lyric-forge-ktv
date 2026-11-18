@@ -167,7 +167,10 @@ class AppLogger {
     for (final sink in List<LogSink>.of(_sinks)) {
       try {
         await sink.flush();
-      } catch (_) {}
+      } catch (_) {
+        // The logger cannot log its own sink failures without recursing into
+        // the sink that just failed; the other sinks still get flushed.
+      }
     }
   }
 

@@ -6,6 +6,11 @@ import 'mobile_download_manager_screen.dart';
 import 'mobile_remote_grouped_library_screen.dart';
 import 'mobile_remote_music_library_screen.dart';
 
+/// Bottom-navigation shell of the desktop library on the phone
+/// (`Routes.remoteBrowse`). Each tab is its own screen over the same
+/// dependencies: songs ([MobileRemoteMusicLibraryScreen]), artists and
+/// albums ([MobileRemoteGroupedLibraryScreen]), downloads
+/// ([MobileDownloadManagerScreen]).
 class MobileRemoteLibraryShell extends StatefulWidget {
   final MobileRemoteLibraryDependencies dependencies;
 

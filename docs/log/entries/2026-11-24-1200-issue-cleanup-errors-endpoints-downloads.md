@@ -1,0 +1,25 @@
+# [2026-11-24 12:00] Issue cleanup: logged best-effort steps, ASR endpoints, one resumable downloader
+
+- Scope: Review the open issues, confirm which describe real and reasonable problems, and fix those (D-028).
+  - **Verdicts.** Real: #460 (39 silent `catch (_) {}`), #461 (download hosts and the release owner scattered over five files), #462 (three diverging resumable download loops), #464 (one dead remote library screen and a `v2` file name). Mostly stale: #458 (one colour literal left), #442, #319 (`VerifiedProjectProofreadEvidenceLoader` already ships). #416 is largely fixed by earlier layout work. #413, #260, #258 and #226 are larger feature requests and were left open.
+  - **#460.** `SerialWriteQueue` (core/persistence) replaces the hand-written write chain in nine file stores: writes stay strictly ordered, a failed write only fails its own caller. `bestEffort` / `bestEffortSync` / `bestEffortValue` (core/diagnostics) replace the remaining empty catches; every call site names the step and its impact (`housekeeping` → debug without stack, `degraded` → warning with stack). The tap-sync and word-tap dialogs show `…失败：播放器没有响应` when a play/pause/seek/speed command throws, through the shared `LyricTapTransportFeedback` mixin. The logger's own sinks keep their intentional ignores.
+  - **#458.** `AppColors.shadowNear` / `shadowFar`; the progress bar, quick play and proofread dialog use theme tokens only.
+  - **#461.** `AsrEndpoints` is the only place in the transcription feature allowed to spell a remote address. The release repository can be overridden with `--dart-define=LYRICFORGE_RELEASE_REPOSITORY`.
+  - **#462.** `ResumableFileDownload` + `AsrTransferCancellation` serve all three installers: resume only on a 206 whose `Content-Range` starts at the part length, restart on 200, delete the part on an inconsistent 206 or an oversized body, keep it on a short body, check cancellation on every chunk and abort the live request. The installers translate `DownloadFailure` into their own messages and promote the part only after their digest check. Runtime/FFmpeg failures now name the actual component instead of "Whisper large-v3"; the resilient installer gains the range and size checks it lacked.
+  - **#464.** Deleted `RemoteMediaLibraryScreen` and `RemoteMediaLibraryDependencies` (no route used them), renamed `desktop_media_transfer_hub_v2_screen.dart` to `desktop_media_transfer_hub_screen.dart`, removed the `remoteTrackMatchesLocalEntry` alias, documented the page responsibilities in `media_hub_plan.md`.
+  - **Guard rails.** `test/architecture/source_hygiene_test.dart` fails on empty catch blocks, empty `catchError` outside the logger, `_writeChain` in features, colour literals outside the theme and remote URLs outside `AsrEndpoints`.
+- Files:
+  - New: `lib/core/persistence/serial_write_queue.dart`, `lib/core/diagnostics/best_effort.dart`, `lib/features/transcription/data/services/asr_endpoints.dart`, `resumable_file_download.dart`, `lib/features/transfer/presentation/screens/desktop_media_transfer_hub_screen.dart` (renamed).
+  - Deleted: `remote_media_library_screen.dart`, `remote_media_library_dependencies.dart`.
+  - Changed: nine file stores, diagnostics, KTV recording and microphone services, ASR process supervisor and storage, transfer services and mobile screens, tap dialogs and controls, the three ASR runtime managers, connection checker, HTTP client factory, FFmpeg release table, colour tokens, router and screen assembly.
+  - Tests: new `serial_write_queue_test.dart`, `best_effort_test.dart`, `resumable_file_download_test.dart` (local `HttpServer`), `asr_endpoints_test.dart`, `source_hygiene_test.dart`, a failing-player case in `lyric_tap_sync_and_pace_widgets_test.dart`; the resume, Qwen integrity, install experience and ModelScope contracts now pin delegation to the shared downloader; the transfer and screen-injection contracts follow the rename.
+  - Docs: `decisions.md` (D-028), `media_hub_plan.md`, handoff.
+- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions, and was deleted before the PR.
+  - Run 44309849609: `dart format` clean, `flutter analyze` 0 errors/warnings, 186 infos (same as main).
+  - Targeted tests: 282 passed. Full suite: 2789 passed, 2 skipped, 0 failed (before this change: 2758).
+  - Work-log `write` + `check` passed.
+  - An earlier run caught one English log sentence in lyrics presentation (`lyric_review_language_contract_test`); it is now Chinese.
+- Notes:
+  - Silent failures now reach the log; debug lines appear only with verbose diagnostics.
+  - Pinned release tags, file names and SHA-256 digests stay next to the code that verifies them; only hosts and repositories moved to `AsrEndpoints`.
+- Commit: `Clean up issues #458 #460 #461 #462 #464: shared write queue, best-effort logging, ASR endpoints, resumable download`

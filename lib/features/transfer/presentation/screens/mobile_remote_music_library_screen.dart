@@ -23,6 +23,9 @@ import '../../domain/services/media_transfer_queue_service.dart';
 import '../widgets/remote_media_artwork.dart';
 import 'remote_catalog_utils.dart';
 
+/// Songs tab of [MobileRemoteLibraryShell]: the flat desktop track list
+/// with search and filters (all, downloaded, with lyrics), streaming and
+/// download actions. Also owns connecting when no hub is connected yet.
 class MobileRemoteMusicLibraryScreen extends StatefulWidget {
   final MobileRemoteLibraryDependencies dependencies;
 
@@ -795,9 +798,3 @@ class _RemoteTrackTile extends StatelessWidget {
     );
   }
 }
-
-/// Backward-compatible helper kept for older tests and callers.
-bool remoteTrackMatchesLocalEntry(
-  RemoteAudioTrack track,
-  LocalMediaLibraryEntry entry,
-) => remoteTrackMatchesDownloadedEntry(track, entry);

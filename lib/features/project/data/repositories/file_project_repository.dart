@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/diagnostics/app_logger.dart';
 import '../../../../core/persistence/atomic_json_file.dart';
+import '../../../../core/persistence/serial_write_queue.dart';
 import '../../../player/domain/repositories/local_media_metadata_repository.dart';
 import '../../../player/domain/services/audio_path_canonicalizer.dart';
 import '../../../player/domain/services/playback_lyrics_project_linker.dart';
@@ -37,7 +38,7 @@ class FileProjectRepository implements ProjectRepository {
 
   final Map<String, ProjectManifest> _projects = <String, ProjectManifest>{};
   Future<void>? _loadFuture;
-  Future<void> _writeChain = Future<void>.value();
+  final SerialWriteQueue _writes = SerialWriteQueue();
 
   /// [onAutoLinkError] observes a best-effort background association failure
   /// after the project has been saved. It does not change the save result.
@@ -141,19 +142,10 @@ class FileProjectRepository implements ProjectRepository {
           .map((project) => project.toJson())
           .toList(growable: false),
     });
-    final previous = _writeChain;
-    final operation = () async {
-      // Surface a failed write to the caller that initiated it, but allow later
-      // mutations to retry instead of inheriting a permanently failed chain.
-      try {
-        await previous;
-      } catch (_) {}
-
+    return _writes.run(() async {
       final file = await _storeFile();
       await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 
   @override

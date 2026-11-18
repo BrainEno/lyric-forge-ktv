@@ -221,7 +221,10 @@ abstract final class AtomicJsonFile {
     } finally {
       try {
         if (await backupTemporary.exists()) await backupTemporary.delete();
-      } catch (_) {}
+      } catch (_) {
+        // A leftover backup sidecar is removed by startup recovery; failing
+        // here would replace the write's own result with a cleanup error.
+      }
     }
   }
 

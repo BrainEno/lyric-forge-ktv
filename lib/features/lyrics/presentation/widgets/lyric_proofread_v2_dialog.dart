@@ -689,7 +689,7 @@ class _LyricProofreadV2ReviewDialogState
         border: Border.all(
           color: diagnostics.isComplete
               ? AppColors.textTertiary
-              : Colors.amber.shade400,
+              : AppColors.warning,
         ),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -799,8 +799,8 @@ class _LyricProofreadV2ReviewDialogState
     ].join('、');
     final verdictColor = switch (item.verdict) {
       LyricProofreadReviewVerdict.locked => AppColors.textTertiary,
-      LyricProofreadReviewVerdict.green => Colors.green.shade400,
-      LyricProofreadReviewVerdict.amber => Colors.amber.shade300,
+      LyricProofreadReviewVerdict.green => AppColors.success,
+      LyricProofreadReviewVerdict.amber => AppColors.warning,
     };
     return Card(
       key: ValueKey('proofread_proposal_${item.proposalIndex}'),

@@ -13,6 +13,9 @@ import '../../domain/models/media_transfer_queue.dart';
 import '../../domain/services/media_hub_client_service.dart';
 import '../../domain/services/media_transfer_queue_service.dart';
 
+/// Phone entry point of Media Hub ([Routes.remoteLibrary]): connection
+/// status, sending local music to the desktop, and the persistent transfer
+/// queue. Browsing the desktop library happens in [Routes.remoteBrowse].
 class MobileMediaTransferHubScreen extends StatefulWidget {
   final MobileMediaTransferDependencies dependencies;
 

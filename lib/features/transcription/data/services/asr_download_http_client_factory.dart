@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'asr_endpoints.dart';
+
 class AsrDownloadHttpClientFactory {
   final Map<String, String> Function() _environment;
   final Future<String?> Function()? _systemProxyLookup;
@@ -24,7 +26,7 @@ class AsrDownloadHttpClientFactory {
     }
 
     final environmentDirective = HttpClient.findProxyFromEnvironment(
-      Uri.https('huggingface.co', '/'),
+      AsrEndpoints.proxyProbe,
       environment: _environment(),
     );
     if (environmentDirective.toUpperCase() != 'DIRECT') {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../../core/diagnostics/best_effort.dart';
 import '../../domain/models/media_hub_device_identity.dart';
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
@@ -70,9 +71,14 @@ class DiscoverableMediaHubService implements MediaHubService {
       return session;
     } catch (error) {
       await _stopDiscoveryResponder();
-      try {
-        await delegate.stopSharing();
-      } catch (_) {}
+      // The start failure is reported below; a server that refuses to stop
+      // may keep its port, which the next start will surface.
+      await bestEffort(
+        'transfer.hub',
+        '启动失败后停止共享',
+        delegate.stopSharing,
+        impact: BestEffortImpact.degraded,
+      );
       _emit(
         MediaHubState(status: MediaHubStatus.failed, error: error.toString()),
       );

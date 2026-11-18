@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import 'asr_download_http_client_factory.dart';
+import 'asr_endpoints.dart';
+import 'resumable_file_download.dart';
 
 /// Keeps local transcription usable even when the optional Qwen runtime is
 /// temporarily unavailable.
@@ -30,9 +32,11 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
 
   StreamSubscription<AsrRuntimeInstallProgress>? _delegateSubscription;
   bool _installing = false;
-  bool _cancelRequested = false;
-  HttpClientRequest? _activeRequest;
-  HttpClient? _activeClient;
+  final AsrTransferCancellation _transfer = AsrTransferCancellation();
+  late final ResumableFileDownload _downloader = ResumableFileDownload(
+    clientFactory: httpClientFactory,
+    timeout: _downloadTimeout,
+  );
   double _delegatePhaseStart = 0;
   double _delegatePhaseEnd = 1;
 
@@ -73,7 +77,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     }
 
     _installing = true;
-    _cancelRequested = false;
+    _transfer.reset();
     _delegatePhaseStart = 0;
     _delegatePhaseEnd = 1;
 
@@ -141,13 +145,10 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
         );
       }
     } finally {
-      _activeRequest = null;
-      _activeClient?.close(force: true);
-      _activeClient = null;
       _delegatePhaseStart = 0;
       _delegatePhaseEnd = 1;
       _installing = false;
-      _cancelRequested = false;
+      _transfer.reset();
     }
   }
 
@@ -198,9 +199,9 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
       _join(downloads.path, ['whisper-$_whisperCppReleaseTag-x64.zip']),
     );
 
-    final uri = Uri.parse(
-      'https://github.com/ggml-org/whisper.cpp/releases/download/'
-      '$_whisperCppReleaseTag/$_whisperWindowsX64Asset',
+    final uri = AsrEndpoints.whisperCppReleaseAsset(
+      _whisperCppReleaseTag,
+      _whisperWindowsX64Asset,
     );
 
     _emit(
@@ -246,83 +247,56 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     required double endProgress,
     required String proxyOverride,
   }) async {
-    await target.parent.create(recursive: true);
-    final part = File('${target.path}.part');
-    var existing = await part.exists() ? await part.length() : 0;
-
-    final client = await httpClientFactory.create(manualProxy: proxyOverride);
-    client.userAgent = 'LyricForge/1.0';
-    _activeClient = client;
-
+    final part = ResumableFileDownload.partFileFor(target);
     try {
-      final request = await client.getUrl(uri);
-      _activeRequest = request;
-      request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
-      if (existing > 0) {
-        request.headers.set(HttpHeaders.rangeHeader, 'bytes=$existing-');
-      }
-
-      final response = await request.close().timeout(_downloadTimeout);
-      _activeRequest = null;
-      if (response.statusCode != HttpStatus.ok &&
-          response.statusCode != HttpStatus.partialContent) {
-        await response.drain<void>().timeout(_downloadTimeout);
-        throw TranscriptionException(
-          '无法下载 Whisper runtime',
-          details: 'HTTP ${response.statusCode}: $uri',
-        );
-      }
-
-      final append =
-          existing > 0 && response.statusCode == HttpStatus.partialContent;
-      if (!append) existing = 0;
-
-      final total = response.contentLength > 0
-          ? existing + response.contentLength
-          : -1;
-      var received = existing;
-      final sink = part.openWrite(
-        mode: append ? FileMode.append : FileMode.write,
-      );
-
-      try {
-        await for (final chunk in response.timeout(_downloadTimeout)) {
-          _throwIfCancelled();
-          sink.add(chunk);
-          received += chunk.length;
-
-          final fraction = total > 0
-              ? (received / total).clamp(0.0, 1.0).toDouble()
-              : 0.0;
+      await _downloader.fetch(
+        uri,
+        part,
+        cancellation: _transfer,
+        proxy: proxyOverride,
+        onProgress: (progress) {
+          final fraction = progress.fraction;
           _emit(
             AsrRuntimeComponent.whisperRuntime,
-            startProgress + (endProgress - startProgress) * fraction,
-            total > 0
-                ? '正在下载 Whisper runtime · ${_percent(fraction)}'
-                : '正在下载 Whisper runtime…',
+            startProgress + (endProgress - startProgress) * (fraction ?? 0),
+            fraction == null
+                ? '正在下载 Whisper runtime…'
+                : '正在下载 Whisper runtime · ${_percent(fraction)}',
+            phase: AsrRuntimeInstallPhase.downloading,
+            downloadedBytes: progress.receivedBytes,
+            totalBytes: progress.totalBytes,
+            bytesPerSecond: progress.bytesPerSecond,
+            estimatedRemaining: progress.estimatedRemaining,
           );
-        }
-      } finally {
-        await sink.close();
-      }
-
-      _throwIfCancelled();
-      if (await target.exists()) await target.delete();
-      await part.rename(target.path);
+        },
+      );
+      await ResumableFileDownload.promote(part, target);
+    } on ResumableDownloadException catch (error) {
+      throw switch (error.failure) {
+        DownloadFailure.httpStatus => TranscriptionException(
+          '无法下载 Whisper runtime',
+          details: 'HTTP ${error.statusCode}: $uri',
+        ),
+        DownloadFailure.inconsistentResume => TranscriptionException(
+          'Whisper runtime 断点续传响应无效，已清理临时文件',
+          details: 'Content-Range: ${error.contentRange}',
+        ),
+        DownloadFailure.incomplete => TranscriptionException(
+          'Whisper runtime 下载未完成，已保留断点并将自动续传',
+          details: error.sizeDetails,
+        ),
+        DownloadFailure.oversized => TranscriptionException(
+          'Whisper runtime 下载大小异常，已清理损坏的临时文件',
+          details: error.sizeDetails,
+        ),
+      };
     } on TranscriptionException {
       rethrow;
     } catch (error) {
-      if (_cancelRequested) {
-        throw const TranscriptionException.cancelled('识别环境安装已取消');
-      }
       throw TranscriptionException(
         '下载 Whisper runtime 失败，已保留断点文件',
         details: error.toString(),
       );
-    } finally {
-      _activeRequest = null;
-      client.close(force: true);
-      if (identical(_activeClient, client)) _activeClient = null;
     }
   }
 
@@ -393,11 +367,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     );
   }
 
-  void _throwIfCancelled() {
-    if (_cancelRequested) {
-      throw const TranscriptionException.cancelled('识别环境安装已取消');
-    }
-  }
+  void _throwIfCancelled() => _transfer.throwIfRequested();
 
   void _emit(
     AsrRuntimeComponent? component,
@@ -450,18 +420,12 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
   @override
   Future<void> cancel() async {
     if (!isInstalling) return;
-    _cancelRequested = true;
-    _activeRequest?.abort();
-    _activeClient?.close(force: true);
-    _activeRequest = null;
-    _activeClient = null;
+    _transfer.cancel();
     await delegate.cancel();
   }
 
   Future<void> dispose() async {
-    _cancelRequested = true;
-    _activeRequest?.abort();
-    _activeClient?.close(force: true);
+    _transfer.cancel();
     await _delegateSubscription?.cancel();
     await _progressController.close();
   }

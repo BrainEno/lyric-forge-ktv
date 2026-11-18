@@ -4,6 +4,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 
+/// Reads the pairing QR code shown by the desktop hub and pops with its
+/// payload; connecting is left to the screen that opened it.
 class MediaHubQrScannerScreen extends StatefulWidget {
   const MediaHubQrScannerScreen({super.key});
 
@@ -31,9 +33,7 @@ class _MediaHubQrScannerScreenState extends State<MediaHubQrScannerScreen> {
     if (value == null || value.isEmpty) return;
 
     final uri = Uri.tryParse(value);
-    if (uri == null ||
-        uri.scheme != 'lyricforge' ||
-        uri.host != 'media-hub') {
+    if (uri == null || uri.scheme != 'lyricforge' || uri.host != 'media-hub') {
       return;
     }
 
@@ -59,22 +59,15 @@ class _MediaHubQrScannerScreenState extends State<MediaHubQrScannerScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-          ),
+          MobileScanner(controller: _controller, onDetect: _onDetect),
           IgnorePointer(
             child: Center(
               child: Container(
                 width: 260,
                 height: 260,
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: AppColors.accent,
-                    width: 3,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusLarge),
+                  border: Border.all(color: AppColors.accent, width: 3),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
                 ),
               ),
             ),

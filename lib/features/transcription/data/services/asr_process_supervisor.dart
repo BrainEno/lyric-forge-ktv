@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../../core/diagnostics/best_effort.dart';
 import '../../domain/models/qwen_decode_budget.dart';
 
 typedef AsrProcessStarter =
@@ -39,6 +40,8 @@ class AsrProcessTimeoutException implements Exception {
 
 /// Runs a child process with bounded execution, termination, and diagnostics.
 class AsrProcessSupervisor {
+  static const String _logTag = 'asr.process';
+
   final AsrProcessStarter _startProcess;
   final Duration terminationGrace;
   final Duration streamDrainGrace;
@@ -150,12 +153,8 @@ class AsrProcessSupervisor {
         stderrTail: List<String>.unmodifiable(stderrLines),
       );
     } finally {
-      try {
-        await stdoutSubscription.cancel();
-      } catch (_) {}
-      try {
-        await stderrSubscription.cancel();
-      } catch (_) {}
+      await bestEffort(_logTag, '取消 stdout 订阅', stdoutSubscription.cancel);
+      await bestEffort(_logTag, '取消 stderr 订阅', stderrSubscription.cancel);
       _notifyProcessChanged(onProcessChanged, null);
     }
   }
@@ -165,9 +164,9 @@ class AsrProcessSupervisor {
       _terminate(process, process.exitCode);
 
   Future<void> _terminate(Process process, Future<int> exitCode) async {
-    try {
-      process.kill();
-    } catch (_) {}
+    // A process that already exited cannot be signalled; the waits below
+    // decide whether escalation is needed.
+    bestEffortSync(_logTag, '发送终止信号', process.kill);
 
     try {
       await exitCode.timeout(terminationGrace);

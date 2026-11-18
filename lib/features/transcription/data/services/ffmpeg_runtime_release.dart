@@ -1,3 +1,5 @@
+import 'asr_endpoints.dart';
+
 /// Pinned managed FFmpeg assets.
 ///
 /// URLs point to immutable, versioned release assets rather than a floating
@@ -24,7 +26,7 @@ class FfmpegRuntimeRelease {
     architecture: 'x64',
     version: '9.0.2-36-g6882969ce9 (LGPL)',
     downloadUrl:
-        'https://github.com/BtbN/FFmpeg-Builds/releases/download/'
+        '${AsrEndpoints.btbnFfmpegReleaseDownloads}/'
         'autobuild-2026-10-27-18-38/'
         'ffmpeg-n9.0.2-36-g6882969ce9-win64-lgpl-9.0.zip',
     sha256: '79e8ff30c01ac58a2bc4e820c86be81d426ea0bee10df8030fc6ac3c72fe785c',
@@ -35,7 +37,7 @@ class FfmpegRuntimeRelease {
     architecture: 'x64',
     version: '9.0.2',
     downloadUrl:
-        'https://github.com/boul2gom/ffmpeg-builds/releases/download/'
+        '${AsrEndpoints.boul2gomFfmpegReleaseDownloads}/'
         'v9.0.2/ffmpeg-osx-x64.zip',
     sha256: 'bc6a726fcd237ecae0a3303acb747fe782075dcc069a0f889586821403f9e788',
   );
@@ -45,7 +47,7 @@ class FfmpegRuntimeRelease {
     architecture: 'arm64',
     version: '9.0.2',
     downloadUrl:
-        'https://github.com/boul2gom/ffmpeg-builds/releases/download/'
+        '${AsrEndpoints.boul2gomFfmpegReleaseDownloads}/'
         'v9.0.2/ffmpeg-osx-arm64.zip',
     sha256: '1e935c8d5231c75907347ba7b860ff35018466ce1f9f5d44509f5e82bc504e77',
   );
@@ -55,7 +57,7 @@ class FfmpegRuntimeRelease {
     architecture: 'x64',
     version: '9.0.2',
     downloadUrl:
-        'https://github.com/boul2gom/ffmpeg-builds/releases/download/'
+        '${AsrEndpoints.boul2gomFfmpegReleaseDownloads}/'
         'v9.0.2/ffmpeg-linux-x64.zip',
     sha256: 'b792b04f4f159f886a368a3e7f40178d5af8367742caedda68c0dbc9204384fa',
   );
@@ -65,7 +67,7 @@ class FfmpegRuntimeRelease {
     architecture: 'arm64',
     version: '9.0.2',
     downloadUrl:
-        'https://github.com/boul2gom/ffmpeg-builds/releases/download/'
+        '${AsrEndpoints.boul2gomFfmpegReleaseDownloads}/'
         'v9.0.2/ffmpeg-linux-arm64.zip',
     sha256: 'f27274e3859cc53a072d1564be98ff83fbed11da72fabdacc54740fb50f904cc',
   );

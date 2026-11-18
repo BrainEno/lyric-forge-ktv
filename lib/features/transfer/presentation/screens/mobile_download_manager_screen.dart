@@ -16,6 +16,8 @@ import '../../domain/models/media_transfer_queue.dart';
 import '../../domain/services/media_transfer_queue_service.dart';
 import 'remote_catalog_utils.dart';
 
+/// Downloads tab of [MobileRemoteLibraryShell]: active and failed transfer
+/// tasks, and the desktop tracks already saved on the phone.
 class MobileDownloadManagerScreen extends StatefulWidget {
   final MobileRemoteLibraryDependencies dependencies;
 

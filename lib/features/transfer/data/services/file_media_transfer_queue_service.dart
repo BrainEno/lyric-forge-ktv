@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
+import '../../../../core/persistence/serial_write_queue.dart';
 import '../../domain/models/media_transfer_batch.dart';
 import '../../domain/models/media_transfer_queue.dart';
 import '../../domain/models/remote_audio_track.dart';
@@ -32,7 +33,7 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
   final StreamController<MediaTransferQueueSnapshot> _controller =
       StreamController<MediaTransferQueueSnapshot>.broadcast();
   final List<MediaTransferQueueItem> _items = <MediaTransferQueueItem>[];
-  Future<void> _writeChain = Future<void>.value();
+  final SerialWriteQueue _writes = SerialWriteQueue();
 
   MediaTransferQueueSnapshot _state = const MediaTransferQueueSnapshot();
   bool _initialized = false;
@@ -452,16 +453,10 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
       'pauseReason': _state.pauseReason,
       'items': _items.map((item) => item.toJson()).toList(growable: false),
     });
-    final previous = _writeChain;
-    final operation = () async {
-      try {
-        await previous;
-      } catch (_) {}
+    return _writes.run(() async {
       final file = await _storeFile();
       await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 
   void _emit() {
@@ -474,7 +469,7 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
 
   @override
   Future<void> dispose() async {
-    await _writeChain;
+    await _writes.idle;
     await _controller.close();
   }
 }

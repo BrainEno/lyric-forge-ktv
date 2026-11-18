@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import 'app_build_info.dart';
 import 'app_logger.dart';
+import 'best_effort.dart';
 import 'crash_capture.dart';
 import 'diagnostics_report.dart';
 import 'file_log_sink.dart';
@@ -148,10 +149,13 @@ class AppDiagnostics {
 
   Future<DiagnosticsSummary> summary() async {
     final crashes = await crashStore.load();
-    var bytes = 0;
-    try {
-      bytes = await fileSink.sizeInBytes();
-    } catch (_) {}
+    final bytes = await bestEffortValue(
+      'diagnostics',
+      '读取日志文件大小',
+      fileSink.sizeInBytes,
+      fallback: 0,
+      logger: logger,
+    );
     return DiagnosticsSummary(
       logFileBytes: bytes,
       crashCount: crashes.length,
@@ -184,10 +188,14 @@ class AppDiagnostics {
   }
 
   Future<List<LogRecord>> _recentLogs() async {
-    try {
-      final records = await fileSink.readRecent(limit: reportLogLimit);
-      if (records.isNotEmpty) return records;
-    } catch (_) {}
+    final records = await bestEffortValue(
+      'diagnostics',
+      '读取日志文件',
+      () => fileSink.readRecent(limit: reportLogLimit),
+      fallback: const <LogRecord>[],
+      logger: logger,
+    );
+    if (records.isNotEmpty) return records;
     // No readable file (sandboxed, read-only disk): fall back to memory.
     final memory = logger.memory?.records ?? const <LogRecord>[];
     return memory.length <= reportLogLimit

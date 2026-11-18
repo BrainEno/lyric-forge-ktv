@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
+import '../../../../core/persistence/serial_write_queue.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/playback_session_snapshot.dart';
 import '../../domain/repositories/playback_session_store.dart';
@@ -25,7 +26,7 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
 
   final Directory? rootDirectory;
 
-  Future<void> _writeChain = Future<void>.value();
+  final SerialWriteQueue _writes = SerialWriteQueue();
 
   FilePlaybackSessionStore({this.rootDirectory});
 
@@ -143,26 +144,15 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
       'queue': snapshot.state.queue.map(_itemToJson).toList(growable: false),
     });
 
-    final previous = _writeChain;
-    final operation = () async {
-      try {
-        await previous;
-      } catch (_) {}
-
+    return _writes.run(() async {
       final file = await _storeFile();
       await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 
   @override
   Future<void> clear() {
-    final previous = _writeChain;
-    final operation = () async {
-      try {
-        await previous;
-      } catch (_) {}
+    return _writes.run(() async {
       final file = await _storeFile();
       for (final sidecar in <File>[
         AtomicJsonFile.temporaryFor(file),
@@ -173,9 +163,7 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
       ]) {
         if (await sidecar.exists()) await sidecar.delete();
       }
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 
   Map<String, dynamic> _itemToJson(PlaybackItem item) {

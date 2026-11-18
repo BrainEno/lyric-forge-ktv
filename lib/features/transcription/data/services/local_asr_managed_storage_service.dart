@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/diagnostics/best_effort.dart';
 import '../../domain/services/asr_managed_storage_service.dart';
 
 class AsrSecurityScopedBookmarkAccess {
@@ -77,6 +78,8 @@ class MethodChannelAsrSecurityScopedBookmarkBridge
 /// staging copy has the same file count and byte total and the new location
 /// pointer has been persisted successfully.
 class LocalAsrManagedStorageService implements AsrManagedStorageService {
+  static const String _logTag = 'asr.storage';
+
   final Future<Directory> Function()? supportDirectoryResolver;
   final AsrSecurityScopedBookmarkBridge? securityScopedBookmarkBridge;
   final bool Function()? isMacOSResolver;
@@ -484,11 +487,11 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
           oldRootRetained: oldRootRetained,
         );
       } catch (_) {
-        if (await staging.exists()) {
-          try {
-            await staging.delete(recursive: true);
-          } catch (_) {}
-        }
+        // The move failure is what the caller sees; a staging directory left
+        // behind takes disk space until the next migration replaces it.
+        await bestEffort(_logTag, '删除迁移暂存目录', () async {
+          if (await staging.exists()) await staging.delete(recursive: true);
+        }, impact: BestEffortImpact.degraded);
         rethrow;
       }
     } finally {
@@ -972,10 +975,13 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
         );
       } else if (entity is File) {
         final copied = await entity.copy(destination);
-        try {
-          final modified = await entity.lastModified();
-          await copied.setLastModified(modified);
-        } catch (_) {}
+        // Modification times are informative only; some file systems refuse
+        // to set them.
+        await bestEffort(
+          _logTag,
+          '保留文件修改时间',
+          () async => copied.setLastModified(await entity.lastModified()),
+        );
         onFileCopied(await copied.length());
       } else if (entity is Link) {
         await Link(destination).create(await entity.target());

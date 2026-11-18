@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
+import '../../../../core/persistence/serial_write_queue.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
@@ -48,7 +49,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
   TranscriptionQueuePauseReason? _pauseReason;
   String? _pauseMessage;
   StreamSubscription<TranscriptionProgress>? _progressSubscription;
-  Future<void> _writeChain = Future<void>.value();
+  final SerialWriteQueue _writes = SerialWriteQueue();
 
   FileBatchTranscriptionQueue({
     required this.projectRepository,
@@ -513,19 +514,10 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
       'pauseMessage': _pauseMessage,
       'items': _items.map((item) => item.toJson()).toList(growable: false),
     });
-    final previous = _writeChain;
-    final operation = () async {
-      // A failed previous write should be surfaced to its caller without
-      // permanently poisoning all future queue persistence attempts.
-      try {
-        await previous;
-      } catch (_) {}
-
+    return _writes.run(() async {
       final file = await _storeFile();
       await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
-    }();
-    _writeChain = operation;
-    return operation;
+    });
   }
 
   void _emit() {

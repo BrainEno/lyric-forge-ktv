@@ -12,7 +12,7 @@ import '../features/player/presentation/screens/player_screen.dart';
 import '../features/player/presentation/screens/quick_play_screen.dart';
 import '../features/project/presentation/screens/project_detail_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
-import '../features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart';
+import '../features/transfer/presentation/screens/desktop_media_transfer_hub_screen.dart';
 import '../features/transfer/presentation/screens/media_hub_qr_scanner_screen.dart';
 import '../features/transfer/presentation/screens/mobile_media_transfer_hub_screen.dart';
 import '../features/transfer/presentation/screens/mobile_remote_library_shell.dart';
@@ -137,7 +137,7 @@ class AppRouter {
 
       case Routes.mediaSharing:
         return _fadeRoute(
-          DesktopMediaTransferHubV2Screen(
+          DesktopMediaTransferHubScreen(
             dependencies: assembleDesktopMediaHubDependencies(services),
           ),
           settings,

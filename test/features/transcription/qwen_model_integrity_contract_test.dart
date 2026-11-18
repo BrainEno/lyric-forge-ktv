@@ -38,7 +38,10 @@ void main() {
   test(
     'redacts signed redirect queries but reports host and HTTP response details',
     () {
-      expect(source, contains('_downloadResponseDiagnostics(uri, response)'));
+      expect(
+        source,
+        contains('_downloadResponseDiagnostics(uri, error.response)'),
+      );
       expect(source, contains('_redactDownloadUri(redirect.location)'));
       expect(source, contains("response.headers.value('content-range')"));
       expect(source, contains('redirects='));
@@ -49,21 +52,17 @@ void main() {
   test(
     'validates resumed ranges and final size before accepting the part file',
     () {
+      // The range and size rules live in ResumableFileDownload; the model
+      // installer hands it the expected size and verifies before promoting.
       final downloadStart = source.indexOf('Future<void> _downloadModelFile');
-      final rangeCheck = source.indexOf(
-        r"contentRange.startsWith('bytes $existing-')",
-        downloadStart,
-      );
-      final sizeCheck = source.indexOf(
-        'final actualSize = await part.length();',
-        downloadStart,
-      );
+      final rangeCheck = source.indexOf('_downloader.fetch(', downloadStart);
+      final sizeCheck = source.indexOf('expectedBytes: size', downloadStart);
       final integrityCheck = source.indexOf(
         '_verifyLocalModelFile(part, metadata)',
         sizeCheck,
       );
       final rename = source.indexOf(
-        'await part.rename(target.path);',
+        'await ResumableFileDownload.promote(part, target);',
         integrityCheck,
       );
 

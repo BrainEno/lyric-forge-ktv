@@ -45,12 +45,19 @@ void main() {
       'lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart',
     ).readAsStringSync();
 
+    final downloader = File(
+      'lib/features/transcription/data/services/resumable_file_download.dart',
+    ).readAsStringSync();
+    expect(downloader, contains('bytesPerSecond: speed'));
+    expect(downloader, contains('estimatedRemaining:'));
     for (final source in [runtime, qwen]) {
-      expect(source, contains('downloadedBytes:'));
-      expect(source, contains('totalBytes:'));
-      expect(source, contains('bytesPerSecond:'));
-      expect(source, contains('estimatedRemaining:'));
-      expect(source, contains('Stopwatch()..start()'));
+      expect(source, contains('downloadedBytes: progress.receivedBytes'));
+      expect(source, contains('totalBytes: progress.totalBytes'));
+      expect(source, contains('bytesPerSecond: progress.bytesPerSecond'));
+      expect(
+        source,
+        contains('estimatedRemaining: progress.estimatedRemaining'),
+      );
     }
     expect(qwen, contains('progress.downloadedBytes'));
     expect(qwen, contains('progress.estimatedRemaining'));

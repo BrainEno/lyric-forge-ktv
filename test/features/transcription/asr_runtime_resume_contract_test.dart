@@ -3,104 +3,93 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('managed runtime resumes a retained part file with an HTTP byte range',
-      () async {
-    final source = await File(
-      'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
-    ).readAsString();
+  // The resume rules themselves are exercised against a real server in
+  // resumable_file_download_test.dart; these checks keep every installer on
+  // that one implementation.
+  const installers = <String>[
+    'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
+    'lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart',
+    'lib/features/transcription/data/services/resilient_asr_runtime_manager.dart',
+  ];
 
-    final partFile = source.indexOf(
-      r"final part = File('${target.path}.part');",
-    );
-    final partLength = source.indexOf('existing = await part.length();', partFile);
-    final range = source.indexOf(
-      "request.headers.set(HttpHeaders.rangeHeader, 'bytes=\$existing-');",
-      partLength,
-    );
-    final partial = source.indexOf(
-      'existing > 0 && response.statusCode == HttpStatus.partialContent',
-      range,
-    );
-    final append = source.indexOf(
-      'mode: append ? FileMode.append : FileMode.write',
-      partial,
-    );
-    final promote = source.indexOf('await part.rename(target.path);', append);
-
-    expect(partFile, greaterThanOrEqualTo(0));
-    expect(partLength, greaterThan(partFile));
-    expect(range, greaterThan(partLength));
-    expect(partial, greaterThan(range));
-    expect(append, greaterThan(partial));
-    expect(promote, greaterThan(append));
+  test('every installer downloads through ResumableFileDownload', () async {
+    for (final path in installers) {
+      final source = await File(path).readAsString();
+      expect(source, contains('_downloader.fetch('), reason: path);
+      expect(source, contains('cancellation: _transfer'), reason: path);
+      expect(source, contains('on ResumableDownloadException'), reason: path);
+      // No installer keeps a hand-rolled range request of its own.
+      expect(source, isNot(contains('HttpHeaders.rangeHeader')), reason: path);
+      expect(source, isNot(contains('_cancelRequested')), reason: path);
+    }
   });
 
   test('runtime and whisper downloads opt into resumable part files', () async {
-    final source = await File(
-      'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
-    ).readAsString();
+    final source = await File(installers.first).readAsString();
 
     expect(
       RegExp(r'resumable:\s*true').allMatches(source).length,
       greaterThanOrEqualTo(2),
     );
+    expect(source, contains('ResumableFileDownload.partFileFor(target)'));
+    expect(source, contains('resume: resumable'));
     expect(
       source,
-      contains(r"final part = File('${target.path}.part');"),
+      contains('await ResumableFileDownload.promote(part, target)'),
     );
   });
 
-  test('Whisper model download times out and preserves resumable failures', () async {
-    final source = await File(
-      'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
-    ).readAsString();
-    final managedModels = await File(
-      'lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart',
-    ).readAsString();
+  test(
+    'Whisper model download times out and preserves resumable failures',
+    () async {
+      final source = await File(installers.first).readAsString();
+      final downloader = await File(
+        'lib/features/transcription/data/services/resumable_file_download.dart',
+      ).readAsString();
 
-    expect(source, contains('response.timeout(_downloadTimeout)'));
-    expect(source, contains('request.close().timeout(_downloadTimeout)'));
-    expect(source, contains('httpClientFactory.create('));
-    final clientFactory = await File(
-      'lib/features/transcription/data/services/asr_download_http_client_factory.dart',
-    ).readAsString();
-    expect(
-      clientFactory,
-      contains('..connectionTimeout = const Duration(seconds: 30)'),
-    );
-    expect(source, contains('下载 Whisper large-v3 失败，已保留断点文件'));
-    expect(source, contains('下载未完成，已保留断点并将自动续传'));
-    expect(source, contains('HttpHeaders.contentRangeHeader'));
-    expect(
-      source,
-      contains('component == AsrRuntimeComponent.qwenRuntime && resumable'),
-    );
-    expect(managedModels, contains('response.timeout(_downloadTimeout)'));
-    expect(managedModels, contains('httpClientFactory.create('));
-    expect(
-      RegExp(
-        r'request.close\(\).timeout\(_downloadTimeout\)',
-      ).allMatches(managedModels).length,
-      greaterThanOrEqualTo(3),
-    );
-  });
+      expect(downloader, contains('response.timeout(timeout)'));
+      expect(downloader, contains('request.close().timeout(timeout)'));
+      expect(downloader, contains('clientFactory.create('));
+      expect(source, contains('timeout: _downloadTimeout'));
+      final clientFactory = await File(
+        'lib/features/transcription/data/services/asr_download_http_client_factory.dart',
+      ).readAsString();
+      expect(
+        clientFactory,
+        contains('..connectionTimeout = const Duration(seconds: 30)'),
+      );
+      expect(
+        source,
+        contains("AsrRuntimeComponent.whisperModel => 'Whisper large-v3'"),
+      );
+      expect(source, contains(r"'下载 $label 失败，已保留断点文件'"));
+      expect(source, contains('下载未完成，已保留断点并将自动续传'));
+      expect(
+        source,
+        contains('component == AsrRuntimeComponent.qwenRuntime && resumable'),
+      );
+    },
+  );
 
-  test('macOS custom storage persists and restores security-scoped bookmarks',
-      () async {
-    final storage = await File(
-      'lib/features/transcription/data/services/local_asr_managed_storage_service.dart',
-    ).readAsString();
-    final swift = await File('macos/Runner/MainFlutterWindow.swift').readAsString();
-    final release = await File('macos/Runner/Release.entitlements').readAsString();
+  test(
+    'macOS custom storage persists and restores security-scoped bookmarks',
+    () async {
+      final storage = await File(
+        'lib/features/transcription/data/services/local_asr_managed_storage_service.dart',
+      ).readAsString();
+      final swift = await File(
+        'macos/Runner/MainFlutterWindow.swift',
+      ).readAsString();
+      final release = await File(
+        'macos/Runner/Release.entitlements',
+      ).readAsString();
 
-    expect(storage, contains("'schemaVersion': 2"));
-    expect(storage, contains("'securityScopedBookmark'"));
-    expect(storage, contains('restoreAndStartBookmark'));
-    expect(swift, contains('.withSecurityScope'));
-    expect(swift, contains('startAccessingSecurityScopedResource'));
-    expect(
-      release,
-      contains('com.apple.security.files.bookmarks.app-scope'),
-    );
-  });
+      expect(storage, contains("'schemaVersion': 2"));
+      expect(storage, contains("'securityScopedBookmark'"));
+      expect(storage, contains('restoreAndStartBookmark'));
+      expect(swift, contains('.withSecurityScope'));
+      expect(swift, contains('startAccessingSecurityScopedResource'));
+      expect(release, contains('com.apple.security.files.bookmarks.app-scope'));
+    },
+  );
 }

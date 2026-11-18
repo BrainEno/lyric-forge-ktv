@@ -941,11 +941,11 @@ class _Artwork extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             gradient: AppColors.cardGradient,
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withAlpha(82),
+                color: AppColors.shadowFar,
                 blurRadius: 32,
-                offset: const Offset(0, 18),
+                offset: Offset(0, 18),
               ),
             ],
           ),
