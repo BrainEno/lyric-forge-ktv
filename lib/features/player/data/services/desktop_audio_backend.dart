@@ -28,7 +28,7 @@ void initializeDesktopAudioBackend() {
     return;
   }
 
-  JustAudioMediaKit.title = 'Elysium Player';
+  JustAudioMediaKit.title = 'LyricForge KTV';
   JustAudioMediaKit.ensureInitialized();
   _initialized = true;
 }

@@ -15,8 +15,9 @@ class AppTheme {
         surface: AppColors.bgSurface,
         surfaceContainerHighest: AppColors.bgBase,
         error: AppColors.error,
-        onPrimary: AppColors.pureWhite,
-        onSecondary: AppColors.pureWhite,
+        onPrimary: AppColors.onAccent,
+        onSecondary: AppColors.onAccent,
+        inversePrimary: AppColors.accentHover,
         onSurface: AppColors.textPrimary,
         onSurfaceVariant: AppColors.textPrimary,
         onError: AppColors.pureWhite,
@@ -49,7 +50,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.accent,
-          foregroundColor: AppColors.pureWhite,
+          foregroundColor: AppColors.onAccent,
           elevation: 0,
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.buttonPaddingHorizontal,
@@ -104,10 +105,7 @@ class AppTheme {
           horizontal: AppSpacing.md,
           vertical: AppSpacing.md,
         ),
-        hintStyle: const TextStyle(
-          color: AppColors.textTertiary,
-          fontSize: 14,
-        ),
+        hintStyle: const TextStyle(color: AppColors.textTertiary, fontSize: 14),
       ),
       // List Tiles
       listTileTheme: const ListTileThemeData(
@@ -162,11 +160,13 @@ class AppTheme {
       ),
       // Snackbar
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.accent,
+        backgroundColor: AppColors.bgHighlight,
         contentTextStyle: const TextStyle(
           color: AppColors.pureWhite,
           fontWeight: FontWeight.w600,
         ),
+        actionTextColor: AppColors.accentHover,
+        closeIconColor: AppColors.textSecondary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
         ),
@@ -191,10 +191,7 @@ class AppTheme {
   }
 
   static TextTheme _buildTextTheme() {
-    const baseTextStyle = TextStyle(
-      fontFamily: 'Inter',
-      color: AppColors.textPrimary,
-    );
+    const baseTextStyle = TextStyle(color: AppColors.textPrimary);
 
     return TextTheme(
       displayLarge: baseTextStyle.copyWith(

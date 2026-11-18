@@ -5,7 +5,7 @@ import 'package:lyric_forge_ktv/app/app.dart';
 import 'package:lyric_forge_ktv/core/navigation/routes.dart';
 
 void main() {
-  testWidgets('Elysium Player app root keeps production shell wiring', (
+  testWidgets('LyricForge KTV app root keeps production shell wiring', (
     WidgetTester tester,
   ) async {
     MaterialApp? builtApp;
@@ -24,7 +24,7 @@ void main() {
     );
 
     expect(builtApp, isNotNull);
-    expect(builtApp!.title, 'Elysium Player');
+    expect(builtApp!.title, 'LyricForge KTV');
     expect(builtApp!.initialRoute, Routes.home);
     expect(builtApp!.onGenerateRoute, isNotNull);
     expect(builtApp!.builder, isNotNull);

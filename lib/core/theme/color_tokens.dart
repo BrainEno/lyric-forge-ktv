@@ -17,13 +17,19 @@ abstract class AppColors {
   // Text hierarchy
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFFB3B3B3);
-  static const Color textTertiary = Color(0xFF6A6A6A);
+  // Lifted from #6A6A6A so 12px captions reach WCAG AA (>=4.5:1) on bgBase,
+  // bgElevated and bgSurface.
+  static const Color textTertiary = Color(0xFF8F8F8F);
   static const Color textDisabled = Color(0xFF535353);
 
   // Accent (Spotify green as reference, adjusted)
   static const Color accent = Color(0xFF1DB954);
   static const Color accentHover = Color(0xFF1ED760);
   static const Color accentPressed = Color(0xFF169C45);
+
+  // Text and icons on accent fills. White on #1DB954 is only 2.6:1; black is
+  // 8.1:1.
+  static const Color onAccent = pureBlack;
 
   // Semantic colors
   static const Color error = Color(0xFFE22134);

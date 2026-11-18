@@ -172,7 +172,7 @@ void main() {
       ).build();
 
       final text = report.toText();
-      expect(text, contains('Elysium Player 诊断包'));
+      expect(text, contains('LyricForge KTV 诊断包'));
       expect(text, contains(DiagnosticsReport.privacyNotice));
       expect(text, contains('== 应用与平台 =='));
       expect(text, contains('version: 1.0.0+1'));
