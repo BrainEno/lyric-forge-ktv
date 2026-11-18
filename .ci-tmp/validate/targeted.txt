@@ -34,7 +34,7 @@ Got dependencies!
 30 packages have newer versions incompatible with dependency constraints.
 Try `flutter pub outdated` for more information.
 00:00 +0: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/retryable_load_test.dart
-00:00 +0: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/retryable_load_test.dart: concurrent callers share a single attempt
+00:00 +0: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/serial_write_queue_test.dart: runs writes one after another in the order queued
 00:00 +1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/serial_write_queue_test.dart: runs writes one after another in the order queued
 00:00 +2: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/retryable_load_test.dart: a failed attempt is not cached and the next call retries
 00:00 +3: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/serial_write_queue_test.dart: a failed write fails only its own caller
@@ -43,6 +43,7 @@ Try `flutter pub outdated` for more information.
 00:00 +6: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/retryable_load_test.dart: a loader that throws synchronously is still retried
 00:00 +7: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/serial_write_queue_test.dart: idle waits for queued writes and never throws
 00:00 +8: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/serial_write_queue_test.dart: idle on an empty queue completes immediately
+00:00 +9: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart
 00:00 +9: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile keeps the previous valid document when replacement fails
 00:00 +10: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile failure after the temp flush keeps the previous document
 00:00 +11: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile failure after replacement leaves the new document and valid backup
@@ -115,13 +116,13 @@ Try `flutter pub outdated` for more information.
 00:03 +78: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/crash_capture_test.dart: installCrashCapture handles platform errors and restores previous handlers
 00:03 +79: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/crash_capture_test.dart: installCrashCapture shouldStore=false still logs but keeps no record
 00:03 +80: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: summarizes median, max, last, failures and real-time factor
-00:04 +81: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: median of an even number of samples is the mean of the middle
-00:04 +82: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: keeps only the most recent samples per operation
-00:04 +83: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: a span records exactly once
-00:04 +84: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: measure records success with media duration and attributes
-00:04 +85: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: measure records failures, classifies cancellations and rethrows
-00:04 +86: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: toJson includes summary and recent samples; clear empties
-00:04 +87: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: notifies listeners and logs each sample
+00:03 +81: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: median of an even number of samples is the mean of the middle
+00:03 +82: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: keeps only the most recent samples per operation
+00:03 +83: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: a span records exactly once
+00:03 +84: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: measure records success with media duration and attributes
+00:03 +85: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: measure records failures, classifies cancellations and rethrows
+00:03 +86: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: toJson includes summary and recent samples; clear empties
+00:03 +87: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/diagnostics/operation_timings_test.dart: notifies listeners and logs each sample
 00:04 +88: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: downloads into the part file and reports the full size
 00:04 +89: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: continues a kept part file with a byte range
 00:04 +90: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/resumable_file_download_test.dart: restarts when the server ignores the range
@@ -150,43 +151,43 @@ Try `flutter pub outdated` for more information.
 00:05 +113: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: managed model reuse verifies every SHA-256 stored in the marker
 00:05 +114: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: Whisper reuse requires the pinned SHA-256 before skipping download
 00:05 +115: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_model_integrity_contract_test.dart: awaits post-install repair before finally cleanup
-00:06 +116: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: install progress carries real transfer metrics without breaking old events
-00:06 +117: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: runtime and Qwen downloaders emit bytes, speed and ETA
-00:06 +118: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: setup and settings use resumable pause, continue and failed-component retry
-00:06 +119: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: advanced setup settings persist before the install dialog can retry
-00:06 +120: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: advanced settings can save proxy without a complete model configuration
-00:06 +121: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: Qwen failures stay visible and model settings are accessible from the dashboard
-00:06 +122: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: rich progress card exposes component, bytes, speed and ETA copy
-00:06 +123: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
-00:06 +124: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
-00:06 +125: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
-00:06 +126: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
+00:05 +116: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: install progress carries real transfer metrics without breaking old events
+00:05 +117: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: runtime and Qwen downloaders emit bytes, speed and ETA
+00:05 +118: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: setup and settings use resumable pause, continue and failed-component retry
+00:05 +119: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: advanced setup settings persist before the install dialog can retry
+00:05 +120: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: advanced settings can save proxy without a complete model configuration
+00:05 +121: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: Qwen failures stay visible and model settings are accessible from the dashboard
+00:05 +122: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/model_scope_model_download_contract_test.dart: uses the official ModelScope manifest and master download route
+00:05 +123: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/model_scope_model_download_contract_test.dart: uses the official ModelScope manifest and master download route
+00:05 +124: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
+00:05 +125: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
+00:05 +126: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: displays environment and current file progress separately
 00:06 +127: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: existing-file verification is not presented as a download
 00:06 +128: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: failed installs cannot display a completed progress state
-00:06 +129: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior falls back to ModelScope and resumes a matching partial file
-00:07 +130: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior falls back to ModelScope and resumes a matching partial file
+00:06 +129: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/asr_install_experience_contract_test.dart: diagnostic card keeps long details selectable and offers copy
+00:06 +130: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior falls back to ModelScope and resumes a matching partial file
 00:07 +131: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior reuses marker-verified existing Qwen files without downloading them
 00:07 +132: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior reuses marker-verified existing Qwen files without downloading them
 00:07 +133: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior reuses marker-verified existing Qwen files without downloading them
 00:07 +134: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior reuses marker-verified existing Qwen files without downloading them
 00:07 +135: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior reuses marker-verified existing Qwen files without downloading them
 00:07 +136: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior redownloads only the Qwen file whose marker SHA-256 does not match
-00:08 +137: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
-00:08 +138: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
-00:08 +139: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
-00:08 +140: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
-00:08 +141: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
-00:08 +142: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
-00:08 +143: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:07 +137: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:07 +138: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:07 +139: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:07 +140: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:07 +141: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:07 +142: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
+00:07 +143: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior copies verified files from a configured external Qwen directory
 00:08 +144: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior restarts from ModelScope when Hugging Face size metadata is stale
-00:09 +145: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior restarts from ModelScope when Hugging Face size metadata is stale
-00:09 +146: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior restarts from ModelScope when Hugging Face size metadata is stale
-00:09 +147: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior restarts from ModelScope when Hugging Face size metadata is stale
+00:08 +145: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior restarts from ModelScope when Hugging Face size metadata is stale
+00:08 +146: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior restarts from ModelScope when Hugging Face size metadata is stale
+00:08 +147: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior restarts from ModelScope when Hugging Face size metadata is stale
 00:09 +148: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/managed_model_asr_runtime_manager_http_test.dart: Managed Qwen model download HTTP behavior does not reuse a partial file when source SHA-256 metadata differs
 00:10 +149: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog opens before the first row, taps rows in order and applies
 00:11 +150: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart: LyricWordTapDialog times every character and applies word timing
-00:12 +151: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog a player that refuses to play says so until it recovers
-2026-11-18T12:58:22.588678Z WARN  [lyrics.tap] Tap-sync player command failed: 播放 — StateError: Bad state: no audio source
+00:11 +151: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog a player that refuses to play says so until it recovers
+2026-11-18T13:04:38.597224Z WARN  [lyrics.tap] 打点窗口的播放器命令失败：播放 — StateError: Bad state: no audio source
     #0      _FakePlayer.transport.<anonymous closure> (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart:88:28)
     #1      LyricTapTransportFeedback.runTransport (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_controls.dart:158:20)
     #2      _LyricTapSyncDialogState._togglePlay (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart:195:9)
@@ -213,8 +214,8 @@ Try `flutter pub outdated` for more information.
     <asynchronous suspension>
     …（另有 4 帧）
 00:12 +152: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart: LyricWordTapDialog redo row drops its presses and seeks before it
-00:12 +153: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart: LyricWordTapDialog redo row drops its presses and seeks before it
-00:12 +154: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog hold mode records the release as the end
+00:12 +153: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog extrapolates the position between player reports
+00:12 +154: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_tap_widgets_test.dart: LyricWordTapDialog a row of silence only has nothing to time
 00:12 +155: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog hold mode records the release as the end
 00:12 +156: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog hold mode records the release as the end
 00:12 +157: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog hold mode records the release as the end
@@ -226,104 +227,103 @@ Try `flutter pub outdated` for more information.
 00:13 +163: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingCheckDialog lists findings, selects fixes and clears stale words
 00:13 +164: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingCheckDialog lists findings, selects fixes and clears stale words
 00:13 +165: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingCheckDialog lists findings, selects fixes and clears stale words
-00:14 +166: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingCheckDialog lists findings, selects fixes and clears stale words
+00:13 +166: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingCheckDialog lists findings, selects fixes and clears stale words
 00:14 +167: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingCheckDialog a project without word timing points to the tools
 00:14 +168: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog nudges a boundary with buttons and keys, then applies
 00:15 +169: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog a row without word timing starts from the estimate
 00:15 +170: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog auditions the word and sets its start at the playhead
-00:15 +171: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog auditions the word and sets its start at the playhead
-00:15 +172: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog auditions the word and sets its start at the playhead
-00:15 +173: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: LyricWordTimingEditDialog auditions the word and sets its start at the playhead
-00:15 +174: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_discovery_reconnect_test.dart: stale token is recovered over pinned TLS using authenticated discovery
-00:16 +175: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_discovery_reconnect_test.dart: stale token is recovered over pinned TLS using authenticated discovery
-00:16 +176: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_discovery_reconnect_test.dart: stale token is recovered over pinned TLS using authenticated discovery
-00:16 +177: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_discovery_reconnect_test.dart: stale token is recovered over pinned TLS using authenticated discovery
+00:15 +171: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_discovery_reconnect_test.dart: device identity remains stable across store instances
+00:15 +172: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_discovery_reconnect_test.dart: device identity remains stable across store instances
+00:15 +173: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: the proofread menu offers the word timing check
+00:15 +174: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: the proofread menu offers the word timing check
+00:15 +175: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart: the proofread menu offers the word timing check
+00:15 +176: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_discovery_reconnect_test.dart: stale token is recovered over pinned TLS using authenticated discovery
+00:15 +177: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_discovery_reconnect_test.dart: stale token is recovered over pinned TLS using authenticated discovery
 00:16 +178: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_discovery_reconnect_test.dart: legacy connection without device identity does not invoke discovery
 00:16 +179: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: restart recovers transferring item back to queued
-00:17 +180: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: disconnected queue pauses without failing queued items
-00:17 +181: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: same remote download is kept as one logical queue item
-00:17 +182: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: failed upload can be retried and completed
-00:17 +183: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: completed queue state persists across service recreation
-00:17 +184: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts (setUpAll)
-00:17 +184: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts opening the transfer screen does not start a listener
-00:17 +185: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts Media Hub does not bind wildcard/public interfaces
-00:17 +186: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts native Media Hub does not expose wildcard CORS headers
-00:17 +187: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts Media Hub traffic requires pinned HTTPS and bearer headers
-00:17 +188: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts Android only permits cleartext for the loopback playback proxy
-00:17 +189: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts audio and artwork metadata never carry session tokens in URLs
-00:17 +190: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts starting sharing requires explicit scope consent
-00:17 +191: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts HTTPS notice explains pinning and sharing scope
-00:17 +192: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts refreshing while stopped does not open the listener
-00:17 +193: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts (tearDownAll)
+00:16 +180: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: disconnected queue pauses without failing queued items
+00:16 +181: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: same remote download is kept as one logical queue item
+00:16 +182: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: failed upload can be retried and completed
+00:16 +183: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts (setUpAll)
+00:16 +183: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/file_media_transfer_queue_service_test.dart: completed queue state persists across service recreation
+00:16 +184: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts opening the transfer screen does not start a listener
+00:16 +185: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts Media Hub does not bind wildcard/public interfaces
+00:16 +186: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts native Media Hub does not expose wildcard CORS headers
+00:16 +187: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts Media Hub traffic requires pinned HTTPS and bearer headers
+00:16 +188: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts Android only permits cleartext for the loopback playback proxy
+00:16 +189: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts audio and artwork metadata never carry session tokens in URLs
+00:16 +190: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts starting sharing requires explicit scope consent
+00:16 +191: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts HTTPS notice explains pinning and sharing scope
+00:16 +192: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts refreshing while stopped does not open the listener
+00:16 +193: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_security_consent_contract_test.dart: Media Hub transport security contracts (tearDownAll)
 00:17 +193: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/remote_catalog_utils_test.dart: groups remote catalog by artist with unknown fallback
 00:17 +194: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/remote_catalog_utils_test.dart: groups remote catalog by album
 00:17 +195: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/remote_catalog_utils_test.dart: recognises app-managed download paths on iOS and Windows
 00:17 +196: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/remote_catalog_utils_test.dart: matches downloaded entry by stable remote id suffix
 00:17 +197: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: TLS identity persists and its private key matches the certificate
-00:18 +198: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: TLS identity persists and its private key matches the certificate
-00:18 +199: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: TLS identity persists and its private key matches the certificate
-00:18 +200: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: TLS identity persists and its private key matches the certificate
-00:18 +201: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/local_media_transfer_service_test.dart: uploads multiple local files and isolates one failed upload
+00:18 +198: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
+00:18 +199: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
+00:18 +200: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
+00:18 +201: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
 00:18 +202: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
 00:18 +203: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_tls_identity_test.dart: incomplete persisted keypair is replaced rather than reused
-00:22 +204: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
-00:22 +205: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
-00:22 +206: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
-00:22 +207: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
-00:22 +208: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: real client uploads a local file to receive-only hub
+00:21 +204: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
+00:21 +205: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
+00:21 +206: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
+00:21 +207: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
+00:22 +208: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: empty share list starts receive-only hub and imports complete upload
 00:22 +209: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: real client uploads a local file to receive-only hub
-00:22 +210: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects unsupported final extensions before allocating upload storage
-00:23 +211: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects unsupported final extensions before allocating upload storage
-00:23 +212: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects unsupported final extensions before allocating upload storage
+00:23 +210: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: real client uploads a local file to receive-only hub
+00:23 +211: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: real client uploads a local file to receive-only hub
+00:23 +212: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: real client uploads a local file to receive-only hub
 00:23 +213: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects unsupported final extensions before allocating upload storage
-00:23 +214: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: accepts every local import extension including uppercase and Unicode names
-00:23 +215: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: query token cannot authorize an upload
-00:24 +216: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: browser preflight is not granted cross-origin access
-00:24 +217: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: browser preflight is not granted cross-origin access
-00:24 +218: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: browser preflight is not granted cross-origin access
-00:24 +219: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: browser preflight is not granted cross-origin access
+00:23 +214: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects unsupported final extensions before allocating upload storage
+00:23 +215: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects unsupported final extensions before allocating upload storage
+00:23 +216: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects unsupported final extensions before allocating upload storage
+00:23 +217: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects unsupported final extensions before allocating upload storage
+00:23 +218: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: accepts every local import extension including uppercase and Unicode names
+00:24 +219: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: query token cannot authorize an upload
 00:24 +220: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: browser preflight is not granted cross-origin access
-00:24 +221: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: concurrent same-name uploads preserve both complete file hashes
-00:24 +222: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
-00:24 +223: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
-00:24 +224: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
-00:24 +225: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
-00:24 +225: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_disk_space_probe_contract_test.dart: Media Hub Windows disk-space probe script prints a non-negative byte count under real PowerShell
+00:24 +221: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: browser preflight is not granted cross-origin access
+00:24 +222: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: browser preflight is not granted cross-origin access
+00:24 +223: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: browser preflight is not granted cross-origin access
+00:24 +223: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/media_hub_disk_space_probe_contract_test.dart: Media Hub Windows disk-space probe script prints a non-negative byte count under real PowerShell
   Skip: Requires Windows PowerShell
-00:24 +225 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
-00:24 +226 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects declared uploads above the configured cap before creating storage
-00:25 +227 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
-00:25 +228 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects upload when disk space cannot preserve the reserve
-00:25 +229 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_artwork_test.dart: track catalog exposes authenticated artwork endpoint
-00:25 +230 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_artwork_test.dart: track catalog exposes authenticated artwork endpoint
-00:25 +231 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:25 +232 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:26 +233 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:26 +234 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:26 +235 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:26 +236 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:26 +237 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:26 +238 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:26 +239 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:26 +240 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:26 +241 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:26 +242 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-00:27 +243 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:27 +244 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:27 +245 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:27 +246 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:27 +247 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:27 +248 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:27 +249 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:27 +250 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:27 +251 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:27 +252 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:28 +253 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:28 +254 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:28 +255 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:28 +256 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:28 +257 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +257 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph contracts (#327) scans the repository and reports SCC edges and source paths
+00:24 +223 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: browser preflight is not granted cross-origin access
+00:25 +224 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: concurrent same-name uploads preserve both complete file hashes
+00:25 +225 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_artwork_test.dart: track catalog exposes authenticated artwork endpoint
+00:25 +226 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: failed library import removes the completed incoming file
+00:25 +227 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_artwork_test.dart: artwork endpoint rejects missing token
+00:25 +228 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects declared uploads above the configured cap before creating storage
+00:26 +229 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:26 +230 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:26 +231 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:26 +232 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:26 +233 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:26 +234 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:26 +235 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:26 +236 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:26 +237 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:26 +238 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:26 +239 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects chunked uploads above the cap and deletes the partial file
+00:27 +240 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects upload when disk space cannot preserve the reserve
+00:27 +241 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects upload when disk space cannot preserve the reserve
+00:27 +242 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects upload when disk space cannot preserve the reserve
+00:27 +243 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects upload when disk space cannot preserve the reserve
+00:27 +244 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects upload when disk space cannot preserve the reserve
+00:27 +245 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects upload when disk space cannot preserve the reserve
+00:27 +246 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects uploads when disk-space information is unavailable
+00:28 +247 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects uploads when disk-space information is unavailable
+00:28 +248 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects uploads when disk-space information is unavailable
+00:28 +249 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects uploads when disk-space information is unavailable
+00:28 +250 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects uploads when disk-space information is unavailable
+00:28 +251 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:28 +252 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:28 +253 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:28 +254 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:28 +255 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:28 +256 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +256 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph contracts (#327) scans the repository and reports SCC edges and source paths
 SCC: lyrics, player, project, transcription
   lyrics -> player
     lib/features/lyrics/presentation/controllers/line_audition_controller.dart -> lib/features/player/domain/services/audio_player_service.dart
@@ -573,28 +573,29 @@ SCC: lyrics, player, project, transcription
     lib/features/transcription/domain/services/asr_segment_loop_detector.dart -> lib/features/project/domain/models/lyric_document.dart
     lib/features/transcription/domain/services/whisper_loop_arbiter.dart -> lib/features/project/domain/models/lyric_document.dart
     lib/features/transcription/domain/services/whisper_loop_recovery.dart -> lib/features/project/domain/models/lyric_document.dart
-00:29 +258 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +259 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +260 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +261 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +262 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +263 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +264 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +265 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +266 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +267 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +268 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +269 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +270 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +271 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +272 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +273 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +274 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +275 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:29 +276 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+00:29 +257 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +258 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +259 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +260 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +261 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +262 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +263 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +264 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +265 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +266 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +267 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +268 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +269 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +270 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +271 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +272 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +273 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +274 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +275 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+00:29 +276 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing backslash paths resolve consistently across hosts
 00:29 +277 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-00:33 +278 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: a rejection reaches a client that keeps streaming, after cleanup (#441)
-00:36 +279 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: upload slot is free as soon as a successful upload is answered
-00:37 +280 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a negative rejection drain grace
-00:37 +281 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a second simultaneous upload for the same session
-00:37 +282 ~1: All tests passed!
+00:35 +278 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: a rejection reaches a client that keeps streaming, after cleanup (#441)
+00:38 +279 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: upload slot is free as soon as a successful upload is answered
+00:39 +280 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a negative rejection drain grace
+00:39 +281 ~1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a second simultaneous upload for the same session
+00:39 +282 ~1: All tests passed!

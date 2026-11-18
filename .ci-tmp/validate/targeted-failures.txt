@@ -1,4 +1,4 @@
-2026-11-18T12:58:22.588678Z WARN  [lyrics.tap] Tap-sync player command failed: 播放 — StateError: Bad state: no audio source
+2026-11-18T13:04:38.597224Z WARN  [lyrics.tap] 打点窗口的播放器命令失败：播放 — StateError: Bad state: no audio source
     #0      _FakePlayer.transport.<anonymous closure> (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart:88:28)
     #1      LyricTapTransportFeedback.runTransport (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_controls.dart:158:20)
     #2      _LyricTapSyncDialogState._togglePlay (package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart:195:9)
