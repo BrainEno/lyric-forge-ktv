@@ -29,7 +29,7 @@
 
 ## 检查结果
 
-HANDOFF_VALIDATION_PLACEHOLDER
+临时 workflow（run 44309849609）：`dart format` 无改动；`flutter analyze` 0 个错误/警告，186 条 info（与 main 相同）；定向测试 282 个通过；全量 2789 个通过、2 个跳过、0 个失败（改动前 2758 个）；工作日志检查通过。
 
 ## 下一步
 

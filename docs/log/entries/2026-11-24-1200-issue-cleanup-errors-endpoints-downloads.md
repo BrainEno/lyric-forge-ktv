@@ -15,7 +15,10 @@
   - Tests: new `serial_write_queue_test.dart`, `best_effort_test.dart`, `resumable_file_download_test.dart` (local `HttpServer`), `asr_endpoints_test.dart`, `source_hygiene_test.dart`, a failing-player case in `lyric_tap_sync_and_pace_widgets_test.dart`; the resume, Qwen integrity, install experience and ModelScope contracts now pin delegation to the shared downloader; the transfer and screen-injection contracts follow the rename.
   - Docs: `decisions.md` (D-028), `media_hub_plan.md`, handoff.
 - Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions, and was deleted before the PR.
-  - VALIDATION_PLACEHOLDER
+  - Run 44309849609: `dart format` clean, `flutter analyze` 0 errors/warnings, 186 infos (same as main).
+  - Targeted tests: 282 passed. Full suite: 2789 passed, 2 skipped, 0 failed (before this change: 2758).
+  - Work-log `write` + `check` passed.
+  - An earlier run caught one English log sentence in lyrics presentation (`lyric_review_language_contract_test`); it is now Chinese.
 - Notes:
   - Silent failures now reach the log; debug lines appear only with verbose diagnostics.
   - Pinned release tags, file names and SHA-256 digests stay next to the code that verifies them; only hosts and repositories moved to `AsrEndpoints`.

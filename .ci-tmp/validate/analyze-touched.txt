@@ -1,4 +1,0 @@
-   info • Use an initializing formal to assign a parameter to a field. Try using an initialing formal ('this.message') to initialize the field • lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart:328:7 • prefer_initializing_formals
-   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart:769:7 • curly_braces_in_flow_control_structures
-   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/player/data/services/library_metadata_playback_session_service.dart:374:7 • curly_braces_in_flow_control_structures
-   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transfer/presentation/screens/mobile_remote_music_library_screen.dart:103:9 • curly_braces_in_flow_control_structures
