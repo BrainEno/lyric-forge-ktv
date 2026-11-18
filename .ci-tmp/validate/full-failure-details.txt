@@ -1,0 +1,41 @@
+::group::❌ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/lyric_review_language_contract_test.dart: lyric presentation has no English-only user-facing sentences (failed)
+Expected: empty
+  Actual: [
+            'lib/features/lyrics/presentation/widgets/lyric_tap_controls.dart:162: Tap-sync player command failed: $action'
+          ]
+lib/features/lyrics/presentation/widgets/lyric_tap_controls.dart:162: Tap-sync player command failed: $action
+
+package:matcher                                                                  expect
+package:flutter_test/src/widget_tester.dart 473:18                               expect
+test/features/lyrics/presentation/lyric_review_language_contract_test.dart 36:5  main.<fn>
+::endgroup::
+::group::✅ Passing tests
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/lyric_review_language_contract_test.dart: every allowlisted developer literal still exists
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/lyric_review_language_contract_test.dart: englishOnlySentences heuristic flags plain English sentences
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/lyric_review_language_contract_test.dart: englishOnlySentences heuristic accepts Chinese sentences that mention model identifiers
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/lyric_review_language_contract_test.dart: englishOnlySentences heuristic ignores keys, identifiers, interpolation and comments
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_runtime_status_test.dart: AsrRuntimeStatus is ready only when every required component is ready
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_runtime_status_test.dart: AsrRuntimeStatus missing component keeps environment not ready
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_runtime_status_test.dart: AsrRuntimeStatus a missing second engine degrades instead of blocking
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_runtime_status_test.dart: AsrRuntimeStatus a missing Whisper baseline blocks recognition
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_runtime_status_test.dart: AsrRuntimeStatus hasReadyComponents answers for an optional subset
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_runtime_status_test.dart: AsrRuntimeStatus hasReadyComponents is false when a required component is absent
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/playback_history_tracking_test.dart: DefaultPlaybackSessionService history tracking seek persists the current local track resume position
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/playback_history_tracking_test.dart: DefaultPlaybackSessionService history tracking position stream periodically updates local history
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/playback_history_tracking_test.dart: DefaultPlaybackSessionService history tracking completed tracks resume from the beginning instead of the end
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/playback_history_tracking_test.dart: DefaultPlaybackSessionService history tracking project-backed playback is excluded from local recent history
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/playback_history_tracking_test.dart: DefaultPlaybackSessionService history tracking switching tracks preserves the previous track progress
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/local_library_browse_item_test.dart: global search includes playlist names and Unicode metadata
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/local_library_browse_item_test.dart: recently added uses a 30-day window
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/local_library_browse_item_test.dart: smart lyric/edit/missing views are independent filters
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/local_library_browse_item_test.dart: recently played sorts newest first and null last
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/local_library_browse_item_test.dart: artist and album sorting place missing metadata last
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/local_lyric_file_export_service_test.dart: LocalLyricFileExportService encodes metadata and effective millisecond timestamps without offset tag
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/local_lyric_file_export_service_test.dart: LocalLyricFileExportService round-trips effective playback timing through LRC import
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/local_lyric_file_export_service_test.dart: LocalLyricFileExportService clamps negative effective timestamps to zero
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/local_lyric_file_export_service_test.dart: LocalLyricFileExportService omits empty lyric rows from LRC output
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/transcription_hardware_profile_test.dart: NativeTranscriptionProfileResolver selects RTX 5080 quality profile on Windows
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/transcription_hardware_profile_test.dart: NativeTranscriptionProfileResolver selects Intel Mac quality profile on x86_64 macOS
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/transcription_hardware_profile_test.dart: NativeTranscriptionProfileResolver custom profile preserves manual runtime choices
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app_responsive_test.dart: AppResponsive width classes classifies breakpoint boundaries deterministically
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app_responsive_test.dart: AppResponsive height classes short height is independent from width

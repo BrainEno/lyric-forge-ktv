@@ -136,7 +136,6 @@ Analyzing lyric-forge-ktv...
    info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/managed_model_asr_runtime_manager_http_test.dart:67:32 • unnecessary_brace_in_string_interps
    info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • test/features/transcription/project_proofread_evidence_loader_test.dart:81:13 • use_null_aware_elements
    info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/qwen3_asr_native_transcription_service_test.dart:43:29 • unnecessary_underscores
-   info • The import of 'dart:async' is unnecessary because all of the used elements are also provided by the import of 'package:flutter_test/flutter_test.dart'. Try removing the import directive • test/features/transcription/resumable_file_download_test.dart:1:8 • unnecessary_import
    info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/retrying_asr_runtime_manager_test.dart:145:24 • unnecessary_underscores
    info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/features/transcription/retrying_asr_runtime_manager_test.dart:174:13 • curly_braces_in_flow_control_structures
    info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • test/features/transcription/whisper_json_transcript_parser_test.dart:19:3 • use_null_aware_elements
@@ -223,4 +222,4 @@ Analyzing lyric-forge-ktv...
    info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/forced_alignment_eval.dart:1087:20 • prefer_interpolation_to_compose_strings
    info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/forced_alignment_eval.dart:1090:20 • prefer_interpolation_to_compose_strings
 
-187 issues found. (ran in 14.2s)
+186 issues found. (ran in 21.5s)
