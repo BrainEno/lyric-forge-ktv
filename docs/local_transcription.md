@@ -2,7 +2,7 @@
 
 ## Purpose
 
-LyricForge generates draft timed lyrics on desktop without requiring cloud ASR.
+Elysium Player generates draft timed lyrics on desktop without requiring cloud ASR.
 
 The production path is:
 
@@ -25,9 +25,9 @@ The default setup UI is intentionally path-free for ordinary users.
 
 1. Open the local lyric recognition setup dialog.
 2. Keep **Highest quality** unless disk space is the main constraint.
-3. LyricForge detects the current computer and selects a recommended profile.
+3. Elysium Player detects the current computer and selects a recommended profile.
 4. Press **Prepare recognition environment** once.
-5. LyricForge downloads and records managed runtimes/models in its own
+5. Elysium Player downloads and records managed runtimes/models in its own
    application-support directory.
 6. Advanced executable/model paths remain available behind **Advanced
    settings**, but they are not part of the normal first-run path.
@@ -57,7 +57,7 @@ Leaving the import page does not stop queue processing.
 ## Managed local models
 
 For managed high-quality profiles, Qwen model repositories are downloaded into
-LyricForge's application-support directory instead of relying on a hidden
+Elysium Player's application-support directory instead of relying on a hidden
 third-party cache location. Downloads use partial files and HTTP range requests
 so an interrupted large model download can continue instead of restarting from
 zero.
@@ -92,7 +92,7 @@ reused.
 
 The managed installer still requires the native ASR runtime bundle to be
 available for the current platform. Before downloading multi-gigabyte models,
-LyricForge checks that the expected runtime release asset exists. This avoids a
+Elysium Player checks that the expected runtime release asset exists. This avoids a
 user downloading all models only to discover afterward that the native runtime
 cannot be installed.
 

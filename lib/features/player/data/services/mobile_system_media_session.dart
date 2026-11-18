@@ -36,7 +36,7 @@ Future<void> initializeMobileSystemMediaSession({
     ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.braineno.lyricforge.playback',
-      androidNotificationChannelName: 'LyricForge KTV 播放',
+      androidNotificationChannelName: 'Elysium Player 播放',
       androidNotificationChannelDescription: '本地音乐播放、锁屏和耳机控制',
       androidNotificationIcon: 'drawable/ic_stat_lyricforge_music',
       androidShowNotificationBadge: false,

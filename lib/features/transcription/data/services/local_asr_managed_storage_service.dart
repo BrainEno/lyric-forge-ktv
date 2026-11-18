@@ -67,7 +67,7 @@ class MethodChannelAsrSecurityScopedBookmarkBridge
   }
 }
 
-/// Owns the single source of truth for LyricForge-managed ASR storage.
+/// Owns the single source of truth for Elysium Player-managed ASR storage.
 ///
 /// The pointer file deliberately lives beside the default ASRRuntime directory,
 /// never inside it, so changing drives cannot orphan the location preference.
@@ -376,7 +376,7 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
         );
       }
 
-      // A previous LyricForge install may already have downloaded the full
+      // A previous Elysium Player install may already have downloaded the full
       // runtime/models on another drive. Switching the pointer is enough:
       // the runtime managers resolve every component relative to this root,
       // so repair/inspect will rediscover those files without a second

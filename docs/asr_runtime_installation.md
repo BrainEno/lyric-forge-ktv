@@ -1,6 +1,6 @@
 # Managed ASR Runtime Installation
 
-LyricForge should not require normal users to understand executable paths,
+Elysium Player should not require normal users to understand executable paths,
 model directories, CUDA flags, Rust, Cargo, or FFmpeg installation.
 
 The normal desktop flow is:
@@ -21,7 +21,7 @@ Manual paths remain available only under Advanced Settings.
 
 ## Managed runtime directory
 
-LyricForge uses an application-support runtime root:
+Elysium Player uses an application-support runtime root:
 
 ```text
 LyricForge/ASRRuntime/
@@ -42,7 +42,7 @@ LyricForge/ASRRuntime/
 The exact operating-system application-support prefix is resolved by
 `path_provider`.
 
-Normal users never need to find or configure a Hugging Face cache. LyricForge
+Normal users never need to find or configure a Hugging Face cache. Elysium Player
 downloads the supported Qwen model files into its own application-support
 directory, validates that the required files are present, and passes those
 local directories directly to the native runtime.
@@ -54,10 +54,10 @@ local directories directly to the native runtime.
 The installer first detects an existing executable from:
 
 1. saved configuration;
-2. LyricForge managed directory;
+2. Elysium Player managed directory;
 3. system PATH.
 
-If missing, LyricForge installs a managed build.
+If missing, Elysium Player installs a managed build.
 
 Windows source:
 
@@ -72,11 +72,11 @@ Intel macOS source:
 evermeet.cx FFmpeg static Intel build
 ```
 
-After extraction LyricForge verifies `ffmpeg -version`.
+After extraction Elysium Player verifies `ffmpeg -version`.
 
 ### Whisper runtime
 
-Whisper is included in the LyricForge managed ASR runtime bundle. The bundle is
+Whisper is included in the Elysium Player managed ASR runtime bundle. The bundle is
 built by GitHub Actions from a pinned whisper.cpp revision.
 
 The application verifies `whisper-cli --help` after installation.
@@ -144,8 +144,8 @@ gigabytes. Hugging Face large files may redirect to separate `hf.co` storage/CDN
 hosts. The probe is not a full model download or runtime-load test.
 
 Managed Qwen downloads prefer Hugging Face. If its file metadata cannot be read,
-LyricForge tries the official ModelScope manifest API. If an actual Hugging Face
-file download fails, LyricForge checks the matching ModelScope manifest. When
+Elysium Player tries the official ModelScope manifest API. If an actual Hugging Face
+file download fails, Elysium Player checks the matching ModelScope manifest. When
 both sources agree on size and known SHA-256, a compatible partial can continue.
 When their metadata differs, the Hugging Face partial is discarded and the
 affected file is downloaded from byte zero using a ModelScope-specific partial
@@ -161,9 +161,9 @@ saving the proxy.
 ### Qwen3-ASR runtime
 
 The upstream Rust/Candle Qwen3-ASR project currently does not publish a normal
-end-user binary release suitable for the LyricForge setup wizard.
+end-user binary release suitable for the Elysium Player setup wizard.
 
-LyricForge therefore builds managed runtime bundles itself from a pinned source
+Elysium Player therefore builds managed runtime bundles itself from a pinned source
 revision.
 
 Runtime release tag:
@@ -207,7 +207,7 @@ this mode the runtime reads a per-launch secret from stdin, binds
 bound port with an HMAC proof on stdout, requires HMAC-signed requests on every
 route, signs every response, and exits when stdin closes. Both platform jobs
 run the patch's Rust unit tests and the `session_auth_integration` tests
-against `serve --mock` before packaging. LyricForge refuses to start a runtime
+against `serve --mock` before packaging. Elysium Player refuses to start a runtime
 that does not understand the flag, so `asr-runtime-v2` bundles are reported as
 outdated and must be repaired. See "Local ASR runtime trust boundary" in the
 README for the threat model.
@@ -222,7 +222,7 @@ skipped. Both platform jobs apply it after the session-auth patch, and the
 bundle manifest lists it under `behaviorPatches`.
 
 The patch is not part of `runtimePatchRevision`, the compatibility marker the
-installer compares. LyricForge does not depend on it: with a bundle built
+installer compares. Elysium Player does not depend on it: with a bundle built
 before the patch, it retries the request once with 180 s chunks. Existing
 installs therefore stay valid and do not need a repair. They pick up the patch
 the next time the runtime is installed or repaired.
@@ -249,18 +249,18 @@ Qwen/Qwen3-ForcedAligner-0.6B
 CPU / F32
 ```
 
-For the managed profiles, LyricForge downloads the model repository files
+For the managed profiles, Elysium Player downloads the model repository files
 itself. Large files are first written as `.part` files and use HTTP Range when
 the server supports it, so an interrupted download can continue instead of
 starting from zero.
 
-After all required files are present, LyricForge stores them under
+After all required files are present, Elysium Player stores them under
 `ASRRuntime/models/qwen/` and rewrites the machine-local transcription config
 to those local model directories. The native Qwen sidecar therefore receives a
 local `--model` path and a local `--forced-aligner` path instead of depending on
 a hidden user-level Hugging Face cache.
 
-During setup LyricForge then starts the native sidecar and waits for `/healthz`.
+During setup Elysium Player then starts the native sidecar and waits for `/healthz`.
 This verifies that both managed model directories can actually be loaded before
 the environment is marked ready.
 

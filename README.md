@@ -1,8 +1,8 @@
-# LyricForge KTV
+# Elysium Player
 
 **A local-first music player, lyric workspace, and KTV production toolkit built with Flutter.**
 
-LyricForge combines everyday local music playback with editable synchronized lyrics and desktop-first tools for transcription, alignment, and KTV recording. Your library and project files remain local; online access is needed only for tasks such as downloading runtimes or models.
+Elysium Player combines everyday local music playback with editable synchronized lyrics and desktop-first tools for transcription, alignment, and KTV recording. Your library and project files remain local; online access is needed only for tasks such as downloading runtimes or models.
 
 ## Features
 
@@ -97,18 +97,18 @@ Authenticated incoming uploads accept only the local library's audio filename ex
 
 The desktop app runs Qwen3-ASR and the ForcedAligner in a separate native process (`qwen3-asr serve`) and talks to it over loopback HTTP. The trust boundary is that process's HTTP listener. Before this change, any local process could reach it and ask it to read arbitrary file paths.
 
-- **Who is trusted.** Only the LyricForge process that started the runtime. Other local processes, browser pages, other users and the network are untrusted. Media Hub pairing and its Bearer token are unrelated and do not grant access to this API.
-- **Authentication.** For every launch, LyricForge generates a fresh 256-bit secret with `Random.secure()` and writes it to the child's **stdin** (`--lyricforge-session-stdin`). The secret is never put on the command line, in an environment variable, in a URL, in a log or on disk. Each request carries an HMAC-SHA256 signature over the method, path, timestamp, a random nonce and the SHA-256 of the body. The runtime checks the signature before any route handler runs, including `/healthz` and CORS preflights. It also rejects stale timestamps (±120 s) and replayed nonces, and answers everything else with `401` and `Connection: close`. Session mode removes the permissive CORS layer.
-- **Server identity.** The runtime signs every response (nonce, status and body hash) with the same secret. The client discards any body without a valid proof, so a plain `200 OK` from whatever owns the port is never trusted. If a running session returns an unproven response, LyricForge stops that runtime.
-- **Port ownership.** LyricForge no longer reserves a port and then releases it. The runtime binds `127.0.0.1:0` itself and reports the bound port, together with an HMAC proof, on its private stdout pipe. On Windows the listener sets `SO_EXCLUSIVEADDRUSE` before `bind`, so a same-user process cannot co-bind with `SO_REUSEADDR`. macOS and Linux never enable `SO_REUSEPORT` on the listener, so a second bind fails. The launcher refuses non-loopback `--host` values. All platforms use one launch interface (`QwenRuntimeLauncher`) with a small platform policy adapter.
-- **Credential lifecycle.** The secret lives only in the memory of the two processes. It is zeroed on the Dart side when the session closes, fails, is cancelled, idles out, changes configuration or is disposed, and when the runtime exits. A restarted runtime always gets a new secret, so the old one is useless. When LyricForge exits or closes the pipe, the runtime sees EOF on stdin and terminates.
+- **Who is trusted.** Only the Elysium Player process that started the runtime. Other local processes, browser pages, other users and the network are untrusted. Media Hub pairing and its Bearer token are unrelated and do not grant access to this API.
+- **Authentication.** For every launch, Elysium Player generates a fresh 256-bit secret with `Random.secure()` and writes it to the child's **stdin** (`--lyricforge-session-stdin`). The secret is never put on the command line, in an environment variable, in a URL, in a log or on disk. Each request carries an HMAC-SHA256 signature over the method, path, timestamp, a random nonce and the SHA-256 of the body. The runtime checks the signature before any route handler runs, including `/healthz` and CORS preflights. It also rejects stale timestamps (±120 s) and replayed nonces, and answers everything else with `401` and `Connection: close`. Session mode removes the permissive CORS layer.
+- **Server identity.** The runtime signs every response (nonce, status and body hash) with the same secret. The client discards any body without a valid proof, so a plain `200 OK` from whatever owns the port is never trusted. If a running session returns an unproven response, Elysium Player stops that runtime.
+- **Port ownership.** Elysium Player no longer reserves a port and then releases it. The runtime binds `127.0.0.1:0` itself and reports the bound port, together with an HMAC proof, on its private stdout pipe. On Windows the listener sets `SO_EXCLUSIVEADDRUSE` before `bind`, so a same-user process cannot co-bind with `SO_REUSEADDR`. macOS and Linux never enable `SO_REUSEPORT` on the listener, so a second bind fails. The launcher refuses non-loopback `--host` values. All platforms use one launch interface (`QwenRuntimeLauncher`) with a small platform policy adapter.
+- **Credential lifecycle.** The secret lives only in the memory of the two processes. It is zeroed on the Dart side when the session closes, fails, is cancelled, idles out, changes configuration or is disposed, and when the runtime exits. A restarted runtime always gets a new secret, so the old one is useless. When Elysium Player exits or closes the pipe, the runtime sees EOF on stdin and terminates.
 - **Fail closed.** If the runtime does not prove its identity, the launch fails with an environment error. This covers a missing proof, a squatted port, a forged ready line and an unpatched runtime. In every such case no audio path, lyrics or context is sent, and the child process is terminated.
 
 Threat model and known limits:
 
 - Mitigated: other local processes and users calling `/v1/transcribe`, `/v1/align` or other routes; port squatting and fake `/healthz` responders; replaying captured requests; drive-by requests from browser pages; reusing a secret from a previous session.
-- Not mitigated: any code running as the **same OS user** that can read LyricForge's or the runtime's memory, attach a debugger, inject into either process, or replace the runtime binary. Such code can obtain the secret, and the OS gives no isolation between same-user processes for this. Loopback HTTP is unencrypted, but it never leaves the machine, so this requires the same local privileges. Use OS account separation for untrusted software.
-- The protection requires a runtime built with `tool/patches/qwen3-asr-session-auth.patch` (release `asr-runtime-v3`). Older managed runtimes are detected as outdated and must be repaired or updated. LyricForge does not fall back to unauthenticated mode.
+- Not mitigated: any code running as the **same OS user** that can read Elysium Player's or the runtime's memory, attach a debugger, inject into either process, or replace the runtime binary. Such code can obtain the secret, and the OS gives no isolation between same-user processes for this. Loopback HTTP is unencrypted, but it never leaves the machine, so this requires the same local privileges. Use OS account separation for untrusted software.
+- The protection requires a runtime built with `tool/patches/qwen3-asr-session-auth.patch` (release `asr-runtime-v3`). Older managed runtimes are detected as outdated and must be repaired or updated. Elysium Player does not fall back to unauthenticated mode.
 
 ## Development and tests
 
@@ -132,11 +132,11 @@ The active Flutter version is recorded in [`.fvmrc`](.fvmrc). Read [`CONTRIBUTIN
 
 ## Scope and limitations
 
-LyricForge is an actively developed open-source project. Automatic transcription and alignment are review aids; they can omit words, select incorrect alternatives, or produce inaccurate timestamps. Native audio behavior, microphone latency, device pairing, and packaged ASR runtime availability should be verified on the target device before a long recording session.
+Elysium Player is an actively developed open-source project. Automatic transcription and alignment are review aids; they can omit words, select incorrect alternatives, or produce inaccurate timestamps. Native audio behavior, microphone latency, device pairing, and packaged ASR runtime availability should be verified on the target device before a long recording session.
 
 The current app cannot generate separated vocal/accompaniment tracks; source separation remains a planned desktop capability. On desktop, project details can import an existing accompaniment file or an existing vocal stem into app storage. The accompaniment can be used for KTV playback; the vocal stem is preferred for transcription and forced alignment. Choose tracks aligned with the original song: the app does not synchronize or verify their contents. The referenced file must be accessible for playback; otherwise use the original mix. If that project is already playing, switch to another song and reopen the project player to load the new track.
 
 ## License
 
-LyricForge is distributed under the [MIT License](LICENSE). Third-party dependencies and local plugin integrations retain their respective licenses.
+Elysium Player is distributed under the [MIT License](LICENSE). Third-party dependencies and local plugin integrations retain their respective licenses.
 

@@ -217,7 +217,7 @@ class _ReadinessOnboarding extends StatelessWidget {
         '检测到当前方案仍缺少 ${missing.length} 个组件。准备完成后，批量导入会自动进入后台队列。',
       TranscriptionEnvironmentReadinessState.failed =>
         '检测过程中出现问题。可以重新检测，或进入 AI 设置检查模型与运行时路径。',
-      _ => '这一步只需要完成一次。LyricForge KTV 会检测电脑并准备模型与运行时，之后导入歌曲时不会再重复询问。',
+      _ => '这一步只需要完成一次。Elysium Player 会检测电脑并准备模型与运行时，之后导入歌曲时不会再重复询问。',
     };
 
     return Center(

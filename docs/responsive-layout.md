@@ -1,6 +1,6 @@
-# LyricForge Responsive Layout Standard
+# Elysium Player Responsive Layout Standard
 
-LyricForge targets both desktop windows and mobile screens. Responsive behavior must be driven by the **available viewport**, not by device-name checks alone. A desktop window can become phone-sized when resized; a tablet can be wide enough for a desktop-like two-pane layout.
+Elysium Player targets both desktop windows and mobile screens. Responsive behavior must be driven by the **available viewport**, not by device-name checks alone. A desktop window can become phone-sized when resized; a tablet can be wide enough for a desktop-like two-pane layout.
 
 ## Width classes
 

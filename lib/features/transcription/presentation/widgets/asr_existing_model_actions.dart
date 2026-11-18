@@ -5,7 +5,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 
 /// A single low-friction entry point for reusing models that an older
-/// LyricForge install already downloaded somewhere else on this computer.
+/// Elysium Player install already downloaded somewhere else on this computer.
 ///
 /// The actions deliberately do not ask the user to understand the internal
 /// `LyricForge/ASRRuntime` layout. Automatic discovery is primary; pasting a
@@ -196,7 +196,7 @@ class _AsrExistingModelPathDialogState
           children: [
             Text(
               '可以粘贴整盘、Models 容器、LyricForge、ASRRuntime，或 ASRRuntime '
-              '内部的任意模型文件夹/文件；LyricForge KTV 会自动向上或向下找到已有环境。',
+              '内部的任意模型文件夹/文件；Elysium Player 会自动向上或向下找到已有环境。',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),

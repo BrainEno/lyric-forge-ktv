@@ -122,7 +122,7 @@ class FakeRuntimeProcess implements Process {
   bool stdinClosed = false;
   bool _shuttingDown = false;
 
-  /// Everything LyricForge wrote to the runtime's stdin.
+  /// Everything Elysium Player wrote to the runtime's stdin.
   String get stdinText => utf8.decode(_stdinBytes);
 
   /// The secret line received over stdin, if any.

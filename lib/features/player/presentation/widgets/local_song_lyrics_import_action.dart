@@ -380,7 +380,7 @@ class _LyricImportOptionsDialogState extends State<_LyricImportOptionsDialog> {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                '导入只会在 LyricForge 中建立或更新歌词工程，不会修改原音频文件，也不会覆盖音频标签。',
+                '导入只会在 Elysium Player 中建立或更新歌词工程，不会修改原音频文件，也不会覆盖音频标签。',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),

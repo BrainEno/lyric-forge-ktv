@@ -21,7 +21,7 @@ void main() {
       expect(source, contains('actualSize != metadata.sizeBytes'));
       expect(source, contains('metadata.sha256'));
       expect(source, contains("await archive.delete();"));
-      expect(source, contains('正在校验 LyricForge 识别引擎完整性'));
+      expect(source, contains('正在校验 Elysium Player 识别引擎完整性'));
 
       final checksumIndex = source.indexOf('metadata.sha256');
       final extractionIndex = source.indexOf(

@@ -100,7 +100,7 @@ because it did not overlap a primary row.
 
 ## Qwen native runtime contract
 
-LyricForge does not call Python from the Flutter UI and does not make Python a
+Elysium Player does not call Python from the Flutter UI and does not make Python a
 required application runtime.
 
 The current Qwen provider expects a local native executable compatible with this
@@ -132,19 +132,19 @@ back to the original song timeline. Two limits in
 
 - `MAX_ASR_INPUT_SECONDS = 1200` applies only to requests **without**
   timestamps.
-- LyricForge always asks for timestamps. That path
+- Elysium Player always asks for timestamps. That path
   (`transcribe_with_forced_aligner`) cuts the audio into chunks of
   `chunk_max_sec`, at most `MAX_FORCE_ALIGN_INPUT_SECONDS = 180`, choosing a
   quiet 100 ms window near each cut. It decodes every chunk on its own and
   aligns each chunk's text with the forced aligner.
 
 An earlier revision of this document said the runtime used 1200 s chunks for
-LyricForge's requests. That was wrong, and the token budget built on it let a
+Elysium Player's requests. That was wrong, and the token budget built on it let a
 looping chunk fill most of a song (D-024).
 
 ### Chunk length, token budget and context (D-024)
 
-LyricForge sends `chunk_max_sec = 30`. Decoding is greedy with no repetition
+Elysium Player sends `chunk_max_sec = 30`. Decoding is greedy with no repetition
 penalty. The runtime's own guard only catches a pattern of up to 20 characters
 repeated 20 times or more, so a decoder that starts cycling through a couplet
 keeps going until the chunk's budget runs out. The forced aligner then spreads
@@ -184,7 +184,7 @@ sub-second tail, or a lone "." over an instrumental. The pinned runtime's
 aligner then fails the whole request with HTTP 500 "tokenized word_list is
 empty". Runtimes from `asr-runtime-v4` apply
 `tool/patches/qwen3-asr-skip-unalignable-chunks.patch`, which skips such
-chunks the same way empty ones are skipped. With older runtimes, LyricForge
+chunks the same way empty ones are skipped. With older runtimes, Elysium Player
 retries once with 180 s chunks, which cut the song at different points.
 
 Measured on CC-licensed songs from JamendoLyrics with reference line timing,
@@ -254,7 +254,7 @@ Request body:
 The language field is omitted for automatic language detection, and `context`
 is omitted when the project has no recognition terms.
 
-The reference server returns `{"results":[...]}`. LyricForge unwraps the
+The reference server returns `{"results":[...]}`. Elysium Player unwraps the
 first result and accepts timestamp layouts including:
 
 - `timestamps.items` (the current Rust/Candle forced-aligner shape)
@@ -278,16 +278,16 @@ The Qwen model and aligner stay loaded after a successful transcription so that
 multiple songs can be processed without repeatedly reloading several gigabytes
 of weights.
 
-To avoid permanently reserving GPU memory, LyricForge automatically shuts down
+To avoid permanently reserving GPU memory, Elysium Player automatically shuts down
 the Qwen sidecar after 10 minutes of inactivity. Cancellation also terminates
 the sidecar immediately.
 
 ## Qwen line construction
 
-When the forced aligner returns segment timestamps, LyricForge uses them
+When the forced aligner returns segment timestamps, Elysium Player uses them
 directly.
 
-When only word/character timestamps are returned, LyricForge groups them into
+When only word/character timestamps are returned, Elysium Player groups them into
 editable lyric lines using:
 
 - punctuation boundaries
@@ -453,7 +453,7 @@ The next quality-critical pipeline stage is therefore local source separation.
 
 The official Qwen3-ASR Python API exposes `Qwen3ForcedAligner.align(audio, text, language)`, returning item-level text and start/end seconds. That is a real arbitrary-text alignment API, but it is a Python library call, not evidence that every server wrapping the model exposes the same request contract.
 
-LyricForge's currently pinned Rust/Candle sidecar is launched with `--forced-aligner` and the app calls `POST /v1/transcribe`. That request accepts audio and transcription options; it does not send the supplied lyric text as an alignment target. The existing timestamps therefore describe ASR output, not an arbitrary reference lyric aligned on demand. Do not use the `context` field as a substitute.
+Elysium Player's currently pinned Rust/Candle sidecar is launched with `--forced-aligner` and the app calls `POST /v1/transcribe`. That request accepts audio and transcription options; it does not send the supplied lyric text as an alignment target. The existing timestamps therefore describe ASR output, not an arbitrary reference lyric aligned on demand. Do not use the `context` field as a substitute.
 
 The repository now carries a patch against the pinned Rust/Candle source that adds `POST /v1/align` with explicit `audio`, `text`, and `language` inputs. It calls the loaded `Qwen3ForcedAligner.align` API directly and returns `results[0].items` with `text`, `start_time`, and `end_time` in seconds; it does not route through ASR `context`. The native build workflow applies the patch for Windows CUDA and macOS Intel bundles and runs an endpoint contract integration test. Until that native CI passes and a rebuilt bundle is installed, existing downloaded runtime binaries must still be treated as lacking this endpoint.
 

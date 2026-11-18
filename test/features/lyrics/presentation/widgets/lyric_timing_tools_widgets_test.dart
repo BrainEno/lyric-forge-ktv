@@ -287,7 +287,7 @@ void main() {
       tester,
     ) async {
       await open(tester);
-      expect(preview(tester), contains('[re:LyricForge]'));
+      expect(preview(tester), contains('[re:Elysium Player]'));
       expect(
         preview(tester),
         endsWith('[00:05.000]\n[00:10.000]第三句\n[00:12.000]'),

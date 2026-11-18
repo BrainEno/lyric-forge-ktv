@@ -6,6 +6,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_lyrics_availability.dart';
@@ -144,34 +145,24 @@ class _EmptyNowPlaying extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.music_off_rounded,
-              size: 56,
-              color: AppColors.textTertiary,
+    final layout = AppResponsive.of(context);
+    return AppEmptyState(
+      icon: Icons.music_off_rounded,
+      title: '当前没有正在播放的音乐',
+      actions: [
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            minimumSize: Size(
+              layout.minimumInteractiveExtent,
+              layout.minimumInteractiveExtent,
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              '当前没有正在播放的音乐',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: () =>
-                  Navigator.pushReplacementNamed(context, Routes.library),
-              icon: const Icon(Icons.library_music_rounded),
-              label: const Text('打开音乐库'),
-            ),
-          ],
+          ),
+          onPressed: () =>
+              Navigator.pushReplacementNamed(context, Routes.library),
+          icon: const Icon(Icons.library_music_rounded),
+          label: const Text('打开音乐库'),
         ),
-      ),
+      ],
     );
   }
 }

@@ -13,7 +13,7 @@ import 'forced_alignment_http_client.dart';
 /// Wire contract shared with the patched Qwen runtime
 /// (`tool/patches/qwen3-asr-session-auth.patch`, `session_auth.rs`).
 ///
-/// The runtime is launched with [sessionFlag]. LyricForge writes a fresh
+/// The runtime is launched with [sessionFlag]. Elysium Player writes a fresh
 /// 32-byte secret to its stdin, the runtime binds `127.0.0.1:0` itself and
 /// announces the bound port on its private stdout pipe, and every HTTP
 /// exchange is HMAC-SHA256 signed in both directions. The secret never appears

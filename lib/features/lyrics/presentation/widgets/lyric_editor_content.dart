@@ -6,6 +6,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -778,45 +779,23 @@ class _EmptyLyricsState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 420),
-        padding: EdgeInsets.all(spec.isCompact ? AppSpacing.lg : AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.lyrics_outlined,
-              size: 56,
-              color: AppColors.textTertiary,
+    return AppEmptyState(
+      icon: Icons.lyrics_outlined,
+      title: '这个工程还没有歌词',
+      message: '可以先返回工程页运行自动识别，也可以从这里手动建立第一行歌词。',
+      actions: [
+        FilledButton.icon(
+          onPressed: onAddLine,
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('添加第一行'),
+          style: FilledButton.styleFrom(
+            minimumSize: Size(
+              spec.minimumInteractiveExtent,
+              spec.minimumInteractiveExtent,
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              '这个工程还没有歌词',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '可以先返回工程页运行自动识别，也可以从这里手动建立第一行歌词。',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton.icon(
-              onPressed: onAddLine,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('添加第一行'),
-              style: FilledButton.styleFrom(
-                minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

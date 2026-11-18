@@ -187,7 +187,7 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
             isStarting: false,
             isMonitoring: false,
             permissionDenied: true,
-            error: '没有麦克风权限。请在系统设置中允许 LyricForge KTV 使用麦克风。',
+            error: '没有麦克风权限。请在系统设置中允许 Elysium Player 使用麦克风。',
           ),
         );
         return;

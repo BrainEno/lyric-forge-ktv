@@ -422,7 +422,7 @@ class _EmptyQueueState extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '从上方选择音频或音乐文件夹。加入后可以离开此页面，LyricForge 会继续逐首生成歌词。',
+            '从上方选择音频或音乐文件夹。加入后可以离开此页面，Elysium Player 会继续逐首生成歌词。',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppColors.textTertiary,

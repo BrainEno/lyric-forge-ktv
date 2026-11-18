@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>LyricForge KTV</string>
+	<string>Elysium Player</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>LyricForge KTV</string>
+	<string>Elysium Player</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -31,9 +31,9 @@
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>用于连接你自己的 LyricForge KTV 桌面端音乐库并播放或下载音频。</string>
+	<string>用于连接你自己的 Elysium Player 桌面端音乐库并播放或下载音频。</string>
 	<key>NSCameraUsageDescription</key>
-	<string>用于扫描 LyricForge KTV 桌面端生成的配对二维码。</string>
+	<string>用于扫描 Elysium Player 桌面端生成的配对二维码。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>用于 KTV 演唱时实时监听你的麦克风输入。</string>
 	<key>NSAppTransportSecurity</key>

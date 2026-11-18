@@ -562,7 +562,7 @@ Future<LyricEditorDocumentController> _mountEditor(
 Future<void> _requestProjectEvidenceInEditor(WidgetTester tester) async {
   await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
   await tester.pumpAndSettle();
-  await tester.tap(find.text('智能校对 V2'));
+  await tester.tap(find.text('智能校对'));
   await tester.pumpAndSettle();
   final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
   await tester.ensureVisible(toggle);

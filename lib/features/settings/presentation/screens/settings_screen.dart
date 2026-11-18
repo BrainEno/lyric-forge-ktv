@@ -46,7 +46,7 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    '管理 LyricForge KTV 的本地运行环境与工作流。',
+                    '管理 Elysium Player 的本地运行环境与工作流。',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
                     ),

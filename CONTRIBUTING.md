@@ -1,6 +1,6 @@
-# Contributing to LyricForge KTV
+# Contributing to Elysium Player
 
-Thanks for helping improve LyricForge. The project is local-first music playback and KTV production software; playback should remain useful without requiring the transcription or production toolchain.
+Thanks for helping improve Elysium Player. The project is local-first music playback and KTV production software; playback should remain useful without requiring the transcription or production toolchain.
 
 ## Before opening an issue
 

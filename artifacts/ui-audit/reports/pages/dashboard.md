@@ -22,7 +22,7 @@ _Header（标题+4 操作）→ _NowPlayingArea（_IdleHero/_PlayingHero + _Play
 ## 发现的问题
 | ID | 问题 | 证据 | 级别 |
 |---|---|---|---|
-| D-01 | 页头显示 `'Elysium Player'`、空工程文案亦用旧名——**产品改名未完成**，用户看到的品牌名与 LyricForge KTV / 应用图标完全无关 | dashboard_screen.dart:333,291；app.dart:67 `MaterialApp(title:'Elysium Player')` | P1 |
+| D-01 | **更正（2026-11-18）：**页头显示的 `'Elysium Player'` 就是正确的产品名，原结论（“旧名残留”）判反；名称问题出在文档（见 B-02、D-030）。页头字样与应用图标的视觉关联不足仍属 B-01 | dashboard_screen.dart:333,291；app.dart:67 `MaterialApp(title:'Elysium Player')` | P1 |
 | D-02 | Hero/卡片渐变与绿色 accent 整体为 Spotify 视觉克隆，与应用图标（红/黑/米白）无联系 | dashboard _heroDecoration + color_tokens.dart | P1（品牌） |
 | D-03 | 「打开音乐」入口 ×3，稀释主操作 | _Header/_IdleHero/_SectionHeader | P2 |
 | D-04 | `_ListeningCard` 封面区永远显示渐变+音符图标（不读 history 封面路径？——`PlayHistory` 有 artworkPath 但卡片未使用，只用了 _Artwork 的默认分支） | dashboard_screen.dart:1382 `_Artwork(path: null…)` 调用处未传 path | P2 |
@@ -30,7 +30,7 @@ _Header（标题+4 操作）→ _NowPlayingArea（_IdleHero/_PlayingHero + _Play
 | D-06 | 21 个私有 widget 挤在 1623 行单文件，维护性差（非视觉问题，记为工程债） | 全文 | P3 |
 
 ## 改进建议
-1. 品牌正名：全局替换 Elysium Player → LyricForge KTV（title、页头、空态文案）。
+1. ~~品牌正名为 LyricForge KTV~~ —— 更正：产品名为 Elysium Player，界面无需改名（D-030）。
 2. Hero 区引入图标红色作为唯一强调（例如 _Eyebrow 或主按钮），建立图标↔UI 的锚点。
 3. 「打开音乐」收敛为 1 个主入口。
 4. _ListeningCard 改用真实封面路径。

@@ -10,7 +10,7 @@ This setup targets the current high-end development profile:
 
 ## Components
 
-LyricForge Highest Quality mode expects:
+Elysium Player Highest Quality mode expects:
 
 1. CUDA-enabled native `qwen3-asr.exe`
 2. Qwen3-ASR 1.7B
@@ -48,10 +48,10 @@ target/release/qwen3-asr.exe
 
 The CUDA build requires a compatible Rust toolchain, MSVC build environment,
 NVIDIA driver and CUDA development environment. This is a developer-oriented
-setup for the current phase; a later LyricForge runtime installer should hide
+setup for the current phase; a later Elysium Player runtime installer should hide
 these steps from normal users.
 
-## Recommended LyricForge settings
+## Recommended Elysium Player settings
 
 ### Mode
 
@@ -97,7 +97,7 @@ Maximum highlighted disagreement lines: 20
 ```
 
 Whisper is run once on the complete song as an independent second opinion.
-LyricForge compares its timed segments with the Qwen/ForcedAligner timeline.
+Elysium Player compares its timed segments with the Qwen/ForcedAligner timeline.
 
 ## First-run behavior
 
@@ -129,7 +129,7 @@ alignment is enabled:
 - global timestamp offset correction
 - merged timestamp repair
 
-A normal 4–6 minute song is therefore still submitted by LyricForge as one
+A normal 4–6 minute song is therefore still submitted by Elysium Player as one
 logical transcription job.
 
 ## Arbitrary-text forced alignment endpoint
@@ -169,7 +169,7 @@ as `not measured` when a step was skipped.
 
 1. Use the managed runtime, or a self-built `whisper-cli.exe`. In PowerShell,
    run `whisper-cli.exe -h 2>&1 | Select-String -Pattern "prompt|suppress-nst"`
-   and record whether both flags are listed. If either is missing, LyricForge
+   and record whether both flags are listed. If either is missing, Elysium Player
    falls back to the standard arguments. That is expected, and the diagnostics
    show `已安全回退`.
 2. Choose 3 songs you are allowed to use locally (one each in zh, en and ja,

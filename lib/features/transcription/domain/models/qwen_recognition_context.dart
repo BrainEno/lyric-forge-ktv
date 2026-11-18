@@ -1,6 +1,6 @@
 import 'whisper_decoding_policy.dart' show RecognitionHints;
 
-/// The `context` text LyricForge sends with a Qwen3-ASR request.
+/// The `context` text Elysium Player sends with a Qwen3-ASR request.
 ///
 /// Qwen3-ASR copies its context into the transcript when a chunk has little or
 /// no singing: on the songs measured for D-024 every instrumental chunk came

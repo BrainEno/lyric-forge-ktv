@@ -49,7 +49,7 @@ void main() {
         }, vocalPath: '/managed/vocals.wav');
         await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('智能校对 V2'));
+        await tester.tap(find.text('智能校对'));
         await tester.pumpAndSettle();
         if (mode != 'no reference') {
           await tester.ensureVisible(find.text('本次提供参考歌词'));
@@ -114,7 +114,7 @@ void main() {
       });
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('智能校对 V2'));
+      await tester.tap(find.text('智能校对'));
       await tester.pumpAndSettle();
       final field = find.byKey(
         const ValueKey('secondary_asr_transcript_input'),
@@ -524,7 +524,7 @@ void main() {
       );
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('智能校对 V2'));
+      await tester.tap(find.text('智能校对'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('参考歌词优先'));
       await tester.pumpAndSettle();
@@ -632,7 +632,7 @@ void main() {
       );
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('智能校对 V2'));
+      await tester.tap(find.text('智能校对'));
       await tester.pumpAndSettle();
       final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
       await tester.ensureVisible(toggle);
@@ -679,7 +679,7 @@ void main() {
         );
         await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('智能校对 V2'));
+        await tester.tap(find.text('智能校对'));
         await tester.pumpAndSettle();
         final toggle = find.byKey(
           const ValueKey('project_asr_evidence_toggle'),
@@ -773,7 +773,7 @@ void main() {
       );
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('智能校对 V2'));
+      await tester.tap(find.text('智能校对'));
       await tester.pumpAndSettle();
       final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
       await tester.ensureVisible(toggle);
@@ -874,7 +874,7 @@ void main() {
         );
         await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('智能校对 V2'));
+        await tester.tap(find.text('智能校对'));
         await tester.pumpAndSettle();
 
         expect(previewCalls, 1);
@@ -932,7 +932,7 @@ void main() {
       );
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('智能校对 V2'));
+      await tester.tap(find.text('智能校对'));
       await tester.pumpAndSettle();
       final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
       await tester.ensureVisible(toggle);
@@ -1338,7 +1338,7 @@ void main() {
     expect(calls, 1);
     await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
     await tester.pumpAndSettle();
-    expect(find.text('智能校对 V2'), findsNothing);
+    expect(find.text('智能校对'), findsNothing);
     editor.updateLine(
       0,
       editor.document!.lines.single.copyWith(text: 'New manual edit'),
@@ -1475,7 +1475,7 @@ void main() {
     });
     await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('智能校对 V2'));
+    await tester.tap(find.text('智能校对'));
     await tester.pumpAndSettle();
     editor.setLineReviewed(0, reviewed: true);
     await tester.tap(find.text('继续'));
@@ -1491,7 +1491,7 @@ void main() {
     final editor = await _openEditor(tester, _emptyAlignment);
     await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('智能校对 V2'));
+    await tester.tap(find.text('智能校对'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('参考歌词优先'));
     await tester.pumpAndSettle();
@@ -1584,7 +1584,7 @@ void main() {
     );
     await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('智能校对 V2'));
+    await tester.tap(find.text('智能校对'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('参考歌词优先'));
     await tester.pumpAndSettle();
@@ -1674,7 +1674,7 @@ void main() {
       });
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('智能校对 V2'));
+      await tester.tap(find.text('智能校对'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('ASR 优先'));
       await tester.pumpAndSettle();
@@ -1741,7 +1741,7 @@ void main() {
     await _settleAndAssertNoFrameworkException(tester, 'initial render');
     await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('智能校对 V2'));
+    await tester.tap(find.text('智能校对'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('ASR 优先'));
     await tester.pumpAndSettle();
@@ -1864,7 +1864,7 @@ Future<void> _openReferenceEvidenceReview(
 ) async {
   await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
   await tester.pumpAndSettle();
-  await tester.tap(find.text('智能校对 V2'));
+  await tester.tap(find.text('智能校对'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('参考歌词优先'));
   await tester.pumpAndSettle();
@@ -1882,7 +1882,7 @@ Future<void> _openReferenceEvidenceReview(
 Future<void> _selectProjectEvidence(WidgetTester tester) async {
   await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
   await tester.pumpAndSettle();
-  await tester.tap(find.text('智能校对 V2'));
+  await tester.tap(find.text('智能校对'));
   await tester.pumpAndSettle();
   final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
   await tester.ensureVisible(toggle);
@@ -1969,7 +1969,7 @@ Future<LyricEditorDocumentController> _openEditor(
 Future<void> _startAlignment(WidgetTester tester) async {
   await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
   await tester.pumpAndSettle();
-  await tester.tap(find.text('智能校对 V2'));
+  await tester.tap(find.text('智能校对'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('ASR 优先'));
   await tester.pumpAndSettle();

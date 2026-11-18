@@ -1,4 +1,4 @@
-# LyricForge vendored just_audio_media_kit
+# Elysium Player vendored just_audio_media_kit
 
 ## Provenance
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import 'playback_action_feedback.dart';
@@ -402,27 +403,10 @@ class _EmptyQueue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.queue_music_rounded,
-              size: 36,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '播放队列为空',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
+    return const AppEmptyState(
+      icon: Icons.queue_music_rounded,
+      title: '播放队列为空',
+      density: AppEmptyStateDensity.panel,
     );
   }
 }
