@@ -8,6 +8,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_state.dart';
@@ -931,38 +932,17 @@ class _Artwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final file = path == null ? null : File(path!);
-    final hasArtwork = file != null && file.existsSync();
-
     return AspectRatio(
       aspectRatio: 1,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: AppColors.cardGradient,
-            boxShadow: const [
-              BoxShadow(
-                color: AppColors.shadowFar,
-                blurRadius: 32,
-                offset: Offset(0, 18),
+      child: isLoading
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
+              child: const DecoratedBox(
+                decoration: BoxDecoration(gradient: AppColors.cardGradient),
+                child: Center(child: CircularProgressIndicator()),
               ),
-            ],
-          ),
-          child: isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : hasArtwork
-              ? Image.file(file, fit: BoxFit.cover)
-              : Container(
-                  color: AppColors.bgSurface,
-                  child: const Icon(
-                    Icons.album_rounded,
-                    size: 96,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-        ),
-      ),
+            )
+          : AppArtwork(path: path, borderRadius: AppSpacing.radiusXLarge),
     );
   }
 }

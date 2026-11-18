@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_artwork.dart';
 
 Widget _host(Widget child) => MaterialApp(
@@ -64,6 +65,23 @@ void main() {
     expect(tester.getSize(find.byType(AppArtwork)), const Size(200, 160));
     final icon = tester.widget<Icon>(find.byIcon(Icons.cloud_rounded));
     expect(icon.size, closeTo(160 * AppArtwork.placeholderIconScale, 0.01));
+  });
+
+  testWidgets('a status colour can mark a meaningful placeholder', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const AppArtwork(
+          size: 48,
+          placeholderIcon: Icons.link_off_rounded,
+          placeholderColor: AppColors.error,
+        ),
+      ),
+    );
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.link_off_rounded));
+    expect(icon.color, AppColors.error);
   });
 
   testWidgets('a remote cover is requested over the network', (tester) async {

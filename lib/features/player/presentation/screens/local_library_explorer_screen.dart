@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_library_browse_item.dart';
@@ -1019,20 +1020,13 @@ class _Artwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final file = song.artworkPath == null ? null : File(song.artworkPath!);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: file?.existsSync() == true
-          ? Image.file(file!, fit: BoxFit.cover)
-          : Container(
-              color: AppColors.bgSurface,
-              alignment: Alignment.center,
-              child: Icon(
-                song.playable ? Icons.album_rounded : Icons.link_off_rounded,
-                color: song.playable ? AppColors.textTertiary : AppColors.error,
-                size: 50,
-              ),
-            ),
+    return AppArtwork(
+      path: song.artworkPath,
+      borderRadius: AppSpacing.radiusLarge,
+      placeholderIcon: song.playable
+          ? Icons.album_rounded
+          : Icons.link_off_rounded,
+      placeholderColor: song.playable ? null : AppColors.error,
     );
   }
 }

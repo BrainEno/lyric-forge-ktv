@@ -21,6 +21,7 @@ class AppArtwork extends StatelessWidget {
     this.size,
     this.borderRadius = AppSpacing.radiusSmall,
     this.placeholderIcon = Icons.album_rounded,
+    this.placeholderColor,
   });
 
   final String? path;
@@ -31,6 +32,11 @@ class AppArtwork extends StatelessWidget {
 
   final double borderRadius;
   final IconData placeholderIcon;
+
+  /// Placeholder icon colour; defaults to [AppColors.textTertiary]. Use a
+  /// status colour only when the placeholder itself carries meaning, such as
+  /// a song whose file is missing.
+  final Color? placeholderColor;
 
   /// Placeholder icon size as a fraction of the artwork edge.
   static const double placeholderIconScale = 0.42;
@@ -56,10 +62,12 @@ class AppArtwork extends StatelessWidget {
     final remote = networkUri(remoteUri);
 
     Widget placeholder() {
-      if (extent != null) return _Placeholder(placeholderIcon, extent);
+      final icon = placeholderIcon;
+      final color = placeholderColor ?? AppColors.textTertiary;
+      if (extent != null) return _Placeholder(icon, color, extent);
       return LayoutBuilder(
         builder: (context, constraints) =>
-            _Placeholder(placeholderIcon, constraints.biggest.shortestSide),
+            _Placeholder(icon, color, constraints.biggest.shortestSide),
       );
     }
 
@@ -90,9 +98,10 @@ class AppArtwork extends StatelessWidget {
 }
 
 class _Placeholder extends StatelessWidget {
-  const _Placeholder(this.icon, this.extent);
+  const _Placeholder(this.icon, this.color, this.extent);
 
   final IconData icon;
+  final Color color;
   final double extent;
 
   @override
@@ -104,7 +113,7 @@ class _Placeholder extends StatelessWidget {
         child: Icon(
           icon,
           size: iconSize.isFinite ? iconSize : null,
-          color: AppColors.textTertiary,
+          color: color,
         ),
       ),
     );

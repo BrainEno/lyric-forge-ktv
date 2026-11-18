@@ -10,11 +10,11 @@
 ## Git 现场
 
 - 分支：`arena/96221899-lyric-forge-ktv`，基于 main `ca78297`。
-- 提交：`Add a shared artwork widget for player surfaces`。
+- 提交：`Add a shared artwork widget for player surfaces`；`Use the shared artwork widget on library screens`。
 
 ## 已改文件
 
-见工作日志 `docs/log/entries/2026-11-18-2338-add-shared-artwork-widget.md`：两个新组件、四个播放器文件、两个测试文件。
+见工作日志 `2026-11-18-2338-add-shared-artwork-widget.md`（两个新组件、四个播放器文件、两个测试）和 `2026-11-18-2340-use-shared-artwork-in-library.md`（五个音乐库/首页文件、`AppArtwork` 增加 `placeholderColor`）。
 
 ## 检查结果
 
@@ -22,12 +22,11 @@
 
 ## 下一步
 
-- C-04 后半：`dashboard_screen.dart`、`local_library_explorer_screen.dart`、`local_artist_album_browser_screen.dart`、`local_collections_screen.dart`、`quick_play_screen.dart`。
-- 之后：C-05 `AppBadge`、C-07 `TransportBar`、C-03 ASR 设置拆卡、其余空状态。
+- C-04 已完成（传输域的 `RemoteMediaArtwork` 因为要走带认证的下载，保持独立）。之后：C-05 `AppBadge`、C-07 `TransportBar`、C-03 ASR 设置拆卡、其余空状态。
 
 ## 已知风险
 
-- 没有在运行中的应用里看过；占位图标的大小和颜色有小变化，详见工作日志。
+- 没有在运行中的应用里看过；占位图标的大小和颜色有小变化，首页封面占位从渐变改为纯色，详见工作日志。
 - 带 `remoteArtworkUri` 的本地条目不再加载远程封面（正常数据里不会出现）。
 
-最后更新：2026-11-18 23:40（Asia/Taipei）
+最后更新：2026-11-18 23:42（Asia/Taipei）

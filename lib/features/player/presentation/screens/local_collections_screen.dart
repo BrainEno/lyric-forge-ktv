@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -1200,25 +1201,10 @@ class _CollectionArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final file = path == null ? null : File(path!);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(large ? AppSpacing.radiusLarge : 8),
-      child: Container(
-        color: AppColors.bgSurface,
-        alignment: Alignment.center,
-        child: file?.existsSync() == true
-            ? Image.file(
-                file!,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-              )
-            : Icon(
-                Icons.music_note_rounded,
-                size: large ? 54 : 24,
-                color: AppColors.textTertiary,
-              ),
-      ),
+    return AppArtwork(
+      path: path,
+      borderRadius: large ? AppSpacing.radiusLarge : AppSpacing.radiusMedium,
+      placeholderIcon: large ? Icons.music_note_rounded : Icons.album_rounded,
     );
   }
 }

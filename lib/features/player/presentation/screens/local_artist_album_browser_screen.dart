@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -867,23 +868,11 @@ class _CatalogArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final file = path == null ? null : File(path!);
-    final child = file?.existsSync() == true
-        ? Image.file(file!, width: size, height: size, fit: BoxFit.cover)
-        : Container(
-            width: size,
-            height: size,
-            color: AppColors.bgSurface,
-            alignment: Alignment.center,
-            child: Icon(
-              round ? Icons.person_rounded : Icons.album_rounded,
-              size: size * 0.36,
-              color: AppColors.textTertiary,
-            ),
-          );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(round ? size / 2 : 12),
-      child: child,
+    return AppArtwork(
+      path: path,
+      size: size,
+      borderRadius: round ? size / 2 : AppSpacing.radiusLarge,
+      placeholderIcon: round ? Icons.person_rounded : Icons.album_rounded,
     );
   }
 }
