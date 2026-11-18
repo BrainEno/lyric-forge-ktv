@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
@@ -8,6 +6,7 @@ import '../../../../core/widgets/app_empty_state.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import 'playback_action_feedback.dart';
+import 'playback_artwork.dart';
 import 'playback_mode_controls.dart';
 import 'playback_queue_playlist_action.dart';
 
@@ -261,7 +260,7 @@ class _QueueRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
-              _QueueArtwork(item: item),
+              PlaybackArtwork(item: item, size: 38),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -328,49 +327,6 @@ class _QueueRow extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _QueueArtwork extends StatelessWidget {
-  final PlaybackItem item;
-
-  const _QueueArtwork({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    final rawLocal = item.artworkPath?.trim().isNotEmpty == true
-        ? item.artworkPath!.trim()
-        : item.audioAsset.thumbnailPath?.trim();
-    final file = rawLocal == null ? null : File(rawLocal);
-    final hasArtwork = file != null && file.existsSync();
-    final rawRemote = item.audioAsset.metadata['remoteArtworkUri'];
-    final remote = rawRemote is String ? Uri.tryParse(rawRemote.trim()) : null;
-    final validRemote =
-        remote != null && (remote.scheme == 'http' || remote.scheme == 'https');
-
-    final fallback = Icon(
-      item.isRemoteStream ? Icons.cloud_rounded : Icons.music_note_rounded,
-      size: 18,
-      color: AppColors.textSecondary,
-    );
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-      child: Container(
-        width: 38,
-        height: 38,
-        color: AppColors.bgSurface,
-        child: hasArtwork
-            ? Image.file(file, fit: BoxFit.cover)
-            : validRemote
-            ? Image.network(
-                remote.toString(),
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => fallback,
-              )
-            : fallback,
       ),
     );
   }

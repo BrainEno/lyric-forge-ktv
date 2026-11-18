@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-18 23:17] Add a shared empty-state widget ([entry](log/entries/2026-11-18-2317-add-shared-empty-state.md))
 - [2026-11-18 23:12] Group the proofreading menu into labelled sections ([entry](log/entries/2026-11-18-2312-group-proofread-menu.md))
 - [2026-11-18 23:00] Restore Elysium Player as the product name ([entry](log/entries/2026-11-18-2300-restore-elysium-player-name.md))
 - [2026-11-18 21:10] Raise theme text contrast and drop the unbundled Inter declaration ([entry](log/entries/2026-11-18-2110-raise-theme-text-contrast.md))

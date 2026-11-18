@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/routes.dart';
@@ -10,6 +8,7 @@ import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import 'playback_action_feedback.dart';
+import 'playback_artwork.dart';
 import 'seekable_progress_bar.dart';
 
 /// Compact Spotify-style player chrome for mobile.
@@ -54,11 +53,6 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
           builder: (context, playbackSnapshot) {
             final playback =
                 playbackSnapshot.data ?? const PlaybackState.idle();
-            final rawRemoteArtwork =
-                item.audioAsset.metadata['remoteArtworkUri'];
-            final remoteArtwork = rawRemoteArtwork is String
-                ? Uri.tryParse(rawRemoteArtwork)
-                : null;
 
             return Material(
               color: AppColors.bgElevated,
@@ -85,11 +79,7 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                           ),
                           child: Row(
                             children: [
-                              _MobileArtwork(
-                                path: item.artworkPath,
-                                remoteUri: remoteArtwork,
-                                remote: item.isRemoteStream,
-                              ),
+                              PlaybackArtwork(item: item, size: 48),
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Column(
@@ -193,46 +183,6 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
           },
         );
       },
-    );
-  }
-}
-
-class _MobileArtwork extends StatelessWidget {
-  final String? path;
-  final Uri? remoteUri;
-  final bool remote;
-
-  const _MobileArtwork({
-    required this.path,
-    required this.remoteUri,
-    required this.remote,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final file = path == null ? null : File(path!);
-    final hasArtwork = file != null && file.existsSync();
-    final fallback = Icon(
-      remote ? Icons.cloud_rounded : Icons.music_note_rounded,
-      color: AppColors.textSecondary,
-    );
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-      child: Container(
-        width: 48,
-        height: 48,
-        color: AppColors.bgSurface,
-        child: hasArtwork
-            ? Image.file(file, fit: BoxFit.cover)
-            : remoteUri == null
-            ? fallback
-            : Image.network(
-                remoteUri.toString(),
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => fallback,
-              ),
-      ),
     );
   }
 }

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
@@ -14,6 +12,7 @@ import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../playback_screen_dependencies.dart';
 import '../widgets/now_playing_lyrics_project_action.dart';
+import '../widgets/playback_artwork.dart';
 import '../widgets/playback_mode_controls.dart';
 import '../widgets/playback_queue_panel.dart';
 import '../widgets/seekable_progress_bar.dart';
@@ -498,38 +497,8 @@ class _PlaybackArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final localPath = item.artworkPath?.trim().isNotEmpty == true
-        ? item.artworkPath!.trim()
-        : item.audioAsset.thumbnailPath?.trim();
-    final local = localPath == null ? null : File(localPath);
-    final hasLocal = local != null && local.existsSync();
-    final remote = _remoteArtworkUri(item);
-
-    final fallback = Container(
-      color: AppColors.bgSurface,
-      child: Icon(
-        item.isRemoteStream ? Icons.cloud_rounded : Icons.album_rounded,
-        size: 92,
-        color: AppColors.textSecondary,
-      ),
-    );
-
     return RepaintBoundary(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-        child: DecoratedBox(
-          decoration: const BoxDecoration(gradient: AppColors.playerGradient),
-          child: hasLocal
-              ? Image.file(local, fit: BoxFit.cover)
-              : remote != null
-              ? Image.network(
-                  remote.toString(),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => fallback,
-                )
-              : fallback,
-        ),
-      ),
+      child: PlaybackArtwork(item: item, borderRadius: AppSpacing.radiusXLarge),
     );
   }
 }
@@ -645,14 +614,4 @@ class _InfoChip extends StatelessWidget {
     return (label: '桌面音乐库', chip: 'REMOTE');
   }
   return (label: '本地音乐', chip: 'LOCAL');
-}
-
-Uri? _remoteArtworkUri(PlaybackItem item) {
-  final raw = item.audioAsset.metadata['remoteArtworkUri'];
-  if (raw is! String || raw.trim().isEmpty) return null;
-  final uri = Uri.tryParse(raw.trim());
-  if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
-    return null;
-  }
-  return uri;
 }
