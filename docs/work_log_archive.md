@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-18 21:00] Rename the user-facing product name to LyricForge KTV ([entry](log/entries/2026-11-18-2100-rename-user-facing-product-name.md))
 - [2026-11-18 12:00] Keep word timing and add a recognition loop check ([entry](log/entries/2026-11-18-1200-keep-word-timing-and-add-loop-check.md))
 - [2026-11-17 18:00] Add tap-to-sync, pace check and karaoke export ([entry](log/entries/2026-11-17-1800-add-tap-sync-pace-check-and-karaoke-export.md))
 - [2026-11-16 18:00] Add timeline repair, timing shift and multi-format export ([entry](log/entries/2026-11-16-1800-add-timing-tools-and-export-formats.md))

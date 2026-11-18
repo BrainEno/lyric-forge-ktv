@@ -99,7 +99,7 @@
 ## 8. 实施进度（2026-11-18 更新）
 
 阶段 1 已在分支 `arena/f1dee18e-lyric-forge-ktv` 实施（每项一条工作日志）：
-- B-02 对外名称统一 —— 提交 `Rename user-facing product name to LyricForge KTV`；决定数据目录的平台标识按 D-028 保留。
+- B-02 对外名称统一 —— 提交 `Rename user-facing product name to LyricForge KTV`；决定数据目录的平台标识按 D-029 保留。
 - A-01 / A-03 / S-01 —— 提交 `Raise theme text contrast and drop unbundled Inter font`。
 - T-01 —— 不实施（见上方更正）。
 - 更正：A-01 原记 2.31:1，复算为 2.59:1（仍不达标）。
