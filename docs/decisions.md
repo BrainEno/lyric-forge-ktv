@@ -504,3 +504,29 @@
   - 阈值来自 6 首歌和合成样例，需要 #413 的语料继续校准。
 - 状态：生效
 - 来源：用户反馈（后半段一两句无限重复）；[工作日志](log/entries/2026-11-23-1200-stop-whisper-history-loops.md)
+
+## D-028 错误不再静默吞掉；下载地址和断点续传各只有一份实现
+
+- 日期：2026-11-24
+- 背景：
+  - #460：`lib` 里有 39 处 `catch (_) {}`。其中 11 处是 9 个文件存储各自手写的同一个写入链（先等上一次写入、忽略它的错误、再写），其余分布在录音回滚、麦克风停止、封面缓存、Media Hub 上传清理、ASR 进程终止和打点窗口的播放控制里。打点窗口里播放器拒绝播放时按钮没有任何反应，也没有日志。
+  - #461：Hugging Face、ModelScope、GitHub release 和 FFmpeg 下载地址散落在 5 个文件里，仓库 owner 写死了两次；切镜像或 fork 时容易漏改。
+  - #462：三个运行时安装器各有一份断点续传下载循环，而且已经不一致：`ResilientAsrRuntimeManager` 收到 206 时不检查 `Content-Range` 起点，也不检查最终大小。
+- 决定：
+  - **写入链**：新增 `core/persistence/SerialWriteQueue`。写入严格串行；某次写入失败只让发起它的调用者失败，后面的写入照常进行；`idle` 等待已排队的写入且不抛错。9 个文件存储改用它。
+  - **尽力而为的步骤**：新增 `core/diagnostics/bestEffort`（以及 `bestEffortSync`、`bestEffortValue`）。调用处必须写明这一步是什么、失败影响多大：`housekeeping`（删临时文件、取消订阅等）记 debug，不带堆栈；`degraded`（可能占用麦克风、缓存不再清理、留下半个上传文件）记 warning 并带堆栈，会进入诊断报告。只用于继续执行确实正确的地方；调用者需要处理的错误仍然向上抛。
+  - 日志系统自己的 sink 失败无法再写日志，`app_logger` 的 flush、`crash_capture`、`file_log_sink` 保留忽略，并写明原因。
+  - **打点窗口**：播放、暂停、跳转、调速失败时在窗口里显示“…失败：播放器没有响应”，并记 warning；下一次成功的操作清除提示。关闭窗口时的暂停和恢复速度只记日志。
+  - **ASR 地址**：新增 `AsrEndpoints`，transcription 目录里只有它可以写 `https://` 或 `Uri.https(`。发布仓库默认 `BrainEno/lyric-forge-ktv`，fork 可用 `--dart-define=LYRICFORGE_RELEASE_REPOSITORY=owner/name` 覆盖。固定版本、文件名和 SHA-256 仍放在校验它们的代码旁边。
+  - **断点续传**：新增 `ResumableFileDownload` 和 `AsrTransferCancellation`，三个安装器都通过它下载：
+    - 已有的 `.part` 只在服务器返回 206 且 `Content-Range` 正好从它的长度开始时续传，返回 200 时从头下载，其他 206 删除 `.part` 并报错；
+    - 结果必须等于已知大小：短了保留 `.part` 供下次续传，长了删除；
+    - 每个数据块都检查取消；取消会中止正在进行的请求，并关闭对应的 client。
+    - 各安装器只负责把失败类型翻译成自己的提示，并在校验摘要后才替换目标文件。
+  - **防回退**：`test/architecture/source_hygiene_test.dart` 禁止空的 `catch` 块、logger 以外的空 `catchError`、feature 里的手写 `_writeChain`、theme 以外的颜色字面量（#458），以及 `AsrEndpoints` 以外的 transcription 远程地址。
+- 影响：
+  - 原来静默的失败现在会出现在日志里；debug 级别只在开启详细诊断时记录。
+  - 运行时引擎和 FFmpeg 下载失败的提示改用实际组件名，不再一律写成 “Whisper large-v3”。
+  - `ResilientAsrRuntimeManager` 的 Whisper runtime 下载现在也会拒绝不一致的续传响应，并检查大小。
+- 状态：生效
+- 来源：issue #458、#460、#461、#462、#464；[工作日志](log/entries/2026-11-24-1200-issue-cleanup-errors-endpoints-downloads.md)

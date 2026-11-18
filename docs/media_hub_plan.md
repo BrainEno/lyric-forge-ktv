@@ -250,6 +250,22 @@ MVP：
 5. 所有远程音频最终都必须进入现有 AudioPlayerService 抽象。
    UI 不直接操作 HTTP client 或本地文件路径。
 
+## 页面职责（`lib/features/transfer/presentation/screens/`）
+
+2026-11-24 起每个页面只有一个入口，没有并存的旧版本（#464）：
+
+| 页面 | 入口 | 职责 |
+|---|---|---|
+| `DesktopMediaTransferHubScreen` | 桌面 `Routes.mediaSharing` | 预览本机曲库，用户确认 HTTPS 共享范围后才启动 Media Hub；显示配对二维码，配对设备可以向电脑上传音频 |
+| `MobileMediaTransferHubScreen` | 手机 `Routes.remoteLibrary` | 手机端首页：连接状态、把本机音乐发到电脑、持久化传输队列 |
+| `MobileRemoteLibraryShell` | 手机 `Routes.remoteBrowse` | 电脑曲库的底部导航外壳，四个标签页共用同一组依赖 |
+| `MobileRemoteMusicLibraryScreen` | 外壳“歌曲”标签 | 平铺曲目列表、搜索和筛选（全部 / 已下载 / 有歌词）、串流和下载；未连接时负责配对连接 |
+| `MobileRemoteGroupedLibraryScreen` | 外壳“歌手”“专辑”标签 | 同一曲库按歌手或专辑分组 |
+| `MobileDownloadManagerScreen` | 外壳“下载”标签 | 进行中和失败的传输任务、已保存到手机的曲目 |
+| `MediaHubQrScannerScreen` | 手机 `Routes.mediaHubScanner` | 扫描配对二维码并把内容返回给打开它的页面，自己不连接 |
+
+已删除：`DesktopMediaSharingScreen`、`CrossDeviceMediaLibraryScreen`、`RemoteMediaLibraryScreen`（及只被它使用的 `RemoteMediaLibraryDependencies`）。桌面传输中心去掉了文件名里的 `v2`。`test/architecture/workflow_screen_injection_contract_test.dart` 检查这些文件不会回来。
+
 ---
 
 ## 必备：桌面端本地歌词识别与生成链路
