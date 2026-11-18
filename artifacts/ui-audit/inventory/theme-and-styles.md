@@ -74,7 +74,7 @@ token 使用广度（grep 实测）：
 | textSecondary #B3B3B3 / bgBase | ≈8.9:1 | ✅ | |
 | **textTertiary #6A6A6A / bgBase** | **≈3.5:1** | ❌ | 大量 12px 说明文字使用（_mutedLabel 模式遍布各页） |
 | accent #1DB954 / bgBase | ≈8.1:1 | ✅ | |
-| **onPrimary #FFF / accent #1DB954**（ElevatedButton、SnackBar 文案） | **≈2.3:1** | ❌❌ | 主按钮白字绿底，AA/AAA 均不达标；SnackBar 同 |
+| **onPrimary #FFF / accent #1DB954**（ElevatedButton、SnackBar 文案） | **≈2.59:1** | ❌❌ | 主按钮白字绿底，AA/AAA 均不达标；SnackBar 同 |
 | error #E22134 / bgBase | ≈4.6:1 | ✅（勉强） | |
 
 其他无障碍实测：`Semantics()` 全项目仅 2 处；`minimumInteractiveExtent` 规范存在（48/40 分级）但 `FloatingActionButton.small`（local_music_library_shell，Material 规格 40dp）在触屏布局低于项目自定的 48dp 规范；键盘快捷键仅歌词编辑器有（Ctrl+S/Z/Y/H），播放器等核心页无快捷键。
@@ -88,7 +88,7 @@ token 使用广度（grep 实测）：
 | ID | 偏离 | 证据 | 级别 |
 |---|---|---|---|
 | S-01 | Inter 字体声明无效（未打包） | app_theme.dart:195 + pubspec.yaml | P1 |
-| S-02 | 白字/绿底主按钮对比度 ≈2.3:1 | app_theme.dart elevatedButtonTheme + snackBarTheme | P1 |
+| S-02 | 白字/绿底主按钮对比度 ≈2.59:1 | app_theme.dart elevatedButtonTheme + snackBarTheme | P1 |
 | S-03 | textTertiary 对比度 ≈3.5:1 却承担大量说明文字 | color_tokens.dart + _mutedLabel 模式 | P2 |
 | S-04 | 评级色用 Material amber/green 绕过 token | lyric_proofread_v2_dialog.dart:692,802-803 | P3 |
 | S-05 | 13 处圆角字面量未走 token | 见 §2 表 | P3 |

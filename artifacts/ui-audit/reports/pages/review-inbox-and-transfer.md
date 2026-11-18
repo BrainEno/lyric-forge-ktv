@@ -21,7 +21,7 @@
 问题：
 | ID | 问题 | 证据 | 级别 |
 |---|---|---|---|
-| T-01 | **死代码**：RemoteMediaLibraryScreen（632 行）零引用 | remote_media_library_screen.dart | P2 |
+| T-01 | RemoteMediaLibraryScreen（632 行）无路由入口；**更正：**为有意保留的待装配页面（见 2026-11-03 工作日志），非死代码 | remote_media_library_screen.dart | P3 |
 | T-02 | 传输相关屏达 8 个文件/2900+ 行，移动端壳含 3 子页；与四大目的地相比体量过重，但未进顶层导航（设计决策合理），发现性依赖库页/首页入口 | transfer/* | P3 |
 | T-03 | 文件名带版本号（`..._v2_screen.dart`），暗示 V1 已删；远端浏览三子页与本地音乐库五分区在信息架构上部分同构但未复用组件 | mobile_remote_library_shell.dart | P3 |
 
