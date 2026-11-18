@@ -2,41 +2,45 @@
 
 ## 目标
 
-用户反馈（#467、#468 之后）：歌曲后半段仍会一两句无限重复。查明原因并针对性修复（D-027）：
+用户要求：清理 open 的 issue，先核实描述的问题是否真实、合理，再修复真实有效的（D-028）。
 
-- **原因**：whisper.cpp 把之前解码的文字作为下一个 30 秒窗口的上下文，循环会自我强化；v1 歌词档位的歌名歌手提示也在同一上下文里。逐行比较的融合看不到跨行循环。
-- **预防**：歌词档位改为 `whisper-lyrics-v2`（`--suppress-nst --max-context 0`，不发提示）。6 首 CC 歌曲实测平均词错误率 0.815 → 0.354，没有成组循环。
-- **恢复**：首遍保留了文字历史且强循环时，只把循环的一段关闭历史重新识别。
-- **仲裁**：融合时用 Qwen 在同一段听到的内容判断循环是真是假，替换、保留或删减并进入复核。
+- **#460**：空 `catch` 全部改为共享写入队列 `SerialWriteQueue` 或带日志的 `bestEffort`；打点窗口在播放器拒绝命令时给出提示。
+- **#458**：最后一个颜色字面量改为主题 token。
+- **#461**：ASR 下载地址集中到 `AsrEndpoints`，发布仓库可通过 `--dart-define` 覆盖。
+- **#462**：三个安装器共用 `ResumableFileDownload`（续传校验、大小校验、逐块取消）。
+- **#464**：删除没有入口的 `RemoteMediaLibraryScreen`，桌面传输中心去掉 `v2`，在 `media_hub_plan.md` 写明页面职责。
+- 核实后不需要再改：#442、#319（已实现）、#416（大部分已修好）。#413、#260、#258、#226 是较大的功能需求，本轮不做。
 
 合并前先征求用户确认。
 
 ## Git 现场
 
-- 分支：`arena/c21298fd-lyric-forge-ktv`，基于 main `c67b08755f7f0380a57c02b68c358ddd74953e8e`。
-- 实验和验证用的临时 workflow 以及它们提交的结果文件已在开 PR 前删除，不进入 PR diff。
+- 分支：`arena/61f424ad-lyric-forge-ktv`，基于 main `80b04a341c817fa3463645fe8d53b08a5ddf4610`。
+- 验证用的临时 workflow 和它提交的结果文件已在开 PR 前删除，不进入 PR diff。
 
 ## 已改文件
 
-- **领域**：`transcription/domain/services/asr_segment_loop_detector.dart`、`whisper_loop_recovery.dart`、`whisper_loop_arbiter.dart`（新）；`whisper_decoding_policy.dart`（v2 档位、`disablesTextHistory`、循环恢复参数探测）。
-- **数据**：`whisper_cpp_transcription_service.dart`（循环段重新识别）、`high_quality_transcription_service.dart`（四条融合路径接入仲裁）、`resumable_chunked_transcription_service.dart`（指纹）。
-- **界面**：识别设置开关说明、识别摘要的档位名称。
-- **文档**：`decisions.md`（D-027）、`high_quality_asr.md`、`local_transcription.md`、工作日志条目 `2026-11-23-1200`、本文件。
+- **core**：`persistence/serial_write_queue.dart`、`diagnostics/best_effort.dart`（新）；`theme/color_tokens.dart`、`app_diagnostics.dart`、`app_logger.dart`、`atomic_json_file.dart`。
+- **transcription**：`asr_endpoints.dart`、`resumable_file_download.dart`（新）；三个 runtime manager、连接检查、HTTP client 工厂、FFmpeg 发布表、进程管理、存储服务、批量队列。
+- **player / project / transfer**：九个文件存储、KTV 录音和麦克风、Media Hub 服务和手机端页面；删除 `remote_media_library_screen.dart`、`remote_media_library_dependencies.dart`，重命名桌面传输中心。
+- **lyrics**：打点窗口和控件（`LyricTapTransportFeedback`）、逐字时间编辑、编辑页。
+- **测试**：5 个新测试文件（含 `test/architecture/source_hygiene_test.dart`），四个下载相关契约测试改为检查共享下载器。
+- **文档**：`decisions.md`（D-028）、`media_hub_plan.md`、工作日志条目 `2026-11-24-1200`、本文件。
 
 ## 检查结果
 
-临时 workflow（run 44056944598）：`flutter analyze` 0 个错误/警告，186 条 info（与 main 相同）；定向测试 220 个通过；全量 2758 个通过、2 个跳过、0 个失败（改动前 2712 个）；工作日志检查通过。
+HANDOFF_VALIDATION_PLACEHOLDER
 
 ## 下一步
 
-- 用用户手上出现循环的歌重新识别，确认后半段不再重复；旧草稿需要重新识别。
-- 长间奏里的字幕、制作人员幻觉行（“ご視聴ありがとうございました”、“作詞・作曲・編曲 …”）可以考虑在融合时按“Qwen 没有对应行 + 典型幻觉文本”自动标记。
-- #413（识别质量语料库与回归门槛）仍未开始，循环阈值需要用它校准。
+- 在真实网络下各装一次 Whisper 模型、Qwen 模型和 FFmpeg，中途断网再续传，确认提示和续传正常。
+- 打开详细诊断后看一遍新出现的 debug/warning 日志，如果某条太吵可以调成 housekeeping。
+- #416 剩下的小问题：可以补一个 800×480 下复核对话框的布局测试。
+- #413（识别质量语料库）仍未开始。
 
 ## 已知风险
 
-- Whisper 不再收到歌名、歌手提示，专有名词的写法可能更依赖 Qwen 和校对。
-- 仲裁以 Qwen 为准：Qwen 自己漏掉的重复（尤其是口号）只标记不删除，但被替换的 Whisper 循环里如果有真实重复，需要在复核时找回。
-- 断点续跑指纹变化，已有的分段识别结果会重新识别一次。
+- 以前静默的失败现在会写日志，诊断报告可能多出一些 warning。
+- `ResilientAsrRuntimeManager` 现在会拒绝不一致的续传响应；遇到不支持 Range 的镜像时会删掉 `.part` 重新下载。
 
-最后更新：2026-11-23 12:00（Asia/Taipei）
+最后更新：2026-11-24 12:00（Asia/Taipei）

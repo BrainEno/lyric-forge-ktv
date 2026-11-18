@@ -159,7 +159,7 @@ mixin LyricTapTransportFeedback<T extends StatefulWidget> on State<T> {
     } on Object catch (error, stackTrace) {
       appLog.warning(
         'lyrics.tap',
-        'Tap-sync player command failed: $action',
+        '打点窗口的播放器命令失败：$action',
         error: error,
         stackTrace: stackTrace,
       );
