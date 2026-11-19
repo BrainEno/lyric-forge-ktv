@@ -265,6 +265,7 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
                         ? FullscreenKtvLyricStage(
                             document: _project?.lyricDocument,
                             position: playback.position,
+                            isPlaying: playback.isPlaying,
                           )
                         : Center(
                             child: Text(
