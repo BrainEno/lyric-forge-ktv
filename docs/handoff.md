@@ -13,7 +13,8 @@
 ## Git 现场
 
 - 分支：`arena/16f148e6-lyric-forge-ktv`，基于 main `c4c73dd`。
-- 提交：`Drop the version suffix from smart proofreading`、`Group the editor's review and playback inputs`。
+- 分支 PR #486。
+- 提交：`Drop the version suffix from smart proofreading`、`Group the editor's review and playback inputs`、`Remove the format probe and update the handoff`。
 
 ## 已改文件
 
@@ -21,7 +22,7 @@
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑，并用了临时探针工作流（合并前删除）。改名后变长或变短的行按 `dart format` 的规则手工重排过；工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。
+沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑，并用了临时探针工作流（合并前删除）。改名后变长或变短的行按 `dart format` 的规则手工重排过，第一次探针仍在三个文件里找出了格式差异（枚举名变短后可以合并的行），已按探针给出的差异修正。工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`（0 错误）。探针结果：格式无差异；analyze 184 条（与基线持平）；全部测试 3467 个通过、2 个跳过；本轮新增、改动和改名的测试文件共 323 个用例全过。
 
 ## 下一步
 
