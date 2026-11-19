@@ -10,10 +10,10 @@ void main() {
     expect(chips.selectedColor, AppColors.accentMuted);
     expect(chips.checkmarkColor, AppColors.accent);
     expect(
-      AppTheme.chipSide.resolve({WidgetState.selected}).color,
+      AppTheme.chipSide.resolve({WidgetState.selected})?.color,
       AppColors.accent,
     );
-    expect(AppTheme.chipSide.resolve({}).color, AppColors.borderSubtle);
+    expect(AppTheme.chipSide.resolve({})?.color, AppColors.borderSubtle);
     expect(chips.side, same(AppTheme.chipSide));
   });
 
