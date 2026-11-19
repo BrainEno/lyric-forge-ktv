@@ -1,0 +1,69 @@
+name: zz format probe (temporary)
+
+on:
+  push:
+    branches: ['arena/**']
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: pub get
+        run: flutter pub get --enforce-lockfile
+      - name: format
+        shell: bash
+        run: |
+          BASE=aa7174418b6f65ceeb74b432d3a5512f677f153f
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "$BASE" HEAD -- '*.dart')
+          if (( ${#files[@]} == 0 )); then echo "::notice title=fmt-ok::no dart files"; exit 0; fi
+          dart format "${files[@]}" > /dev/null
+          if git diff --quiet -- "${files[@]}"; then
+            echo "::notice title=fmt-ok::NO FORMAT DIFF (${#files[@]} files)"
+          else
+            i=0
+            for f in $(git diff --name-only -- "${files[@]}"); do
+              d=$(git --no-pager diff -- "$f" | head -c 3500 | sed ':a;N;$!ba;s/\n/\\n/g')
+              echo "::warning title=fmt $i::$d"
+              i=$((i+1))
+            done
+          fi
+          git checkout -- .
+      - name: analyze
+        shell: bash
+        run: |
+          BASE=aa7174418b6f65ceeb74b432d3a5512f677f153f
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "$BASE" HEAD -- 'lib/*.dart' 'test/*.dart')
+          flutter analyze --no-fatal-infos --no-fatal-warnings > /tmp/ana.txt 2>&1 || true
+          for f in "${files[@]}"; do
+            { grep -F "$f" /tmp/ana.txt || true; } | head -20 | while read -r line; do
+              echo "::warning title=ana::$line"
+            done
+          done
+          echo "::notice title=ana-tail::$(tail -1 /tmp/ana.txt)"
+      - name: test
+        shell: bash
+        run: |
+          BASE=aa7174418b6f65ceeb74b432d3a5512f677f153f
+          mapfile -t tests < <(git diff --name-only --diff-filter=AM "$BASE" HEAD -- 'test/**_test.dart' 'test/*_test.dart' | sort -u)
+          if (( ${#tests[@]} == 0 )); then echo "::notice title=test-tail::no tests"; exit 0; fi
+          flutter test --no-pub "${tests[@]}" > /tmp/test.txt 2>&1 || true
+          grep -A22 -E "EXCEPTION CAUGHT|\[E\]$" /tmp/test.txt | grep -v -E "^\s*$|^#[0-9]+ +(Element|_|SingleChild|Stateless|Stateful|ComponentElement|BuildOwner|RenderObjectToWidget)" > /tmp/fail.txt || true
+          split -b 3800 /tmp/fail.txt /tmp/failpart_ || true
+          i=0
+          for part in /tmp/failpart_*; do
+            [ -f "$part" ] || continue
+            (( i < 9 )) || break
+            d=$(sed ':a;N;$!ba;s/\n/\\n/g' "$part")
+            echo "::warning title=test $i::$d"
+            i=$((i+1))
+          done
+          echo "::notice title=test-tail::$(tail -1 /tmp/test.txt)"
