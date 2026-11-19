@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
+import '../../../../core/navigation/playback_destination.dart';
 import '../../../../core/navigation/routes.dart';
 import '../dashboard_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -102,16 +103,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _openLocalPlayer([PlayHistory? history]) async {
-    await Navigator.pushNamed(context, Routes.quickPlay, arguments: history);
+  // Three intents, three routes (audit N-01). They all used to push
+  // `/quick-play` and let the router pick a screen from whatever was playing.
+
+  /// 打开音乐 / 选择音乐: picking something to play happens in the library.
+  Future<void> _openMusic() async {
+    await Navigator.pushNamed(context, Routes.library);
     if (mounted) _refresh();
   }
 
+  /// A recent song: the local player resumes that history entry.
+  Future<void> _resumeHistory(PlayHistory history) async {
+    await Navigator.pushNamed(
+      context,
+      PlaybackDestination.localPlayer.routeName(),
+      arguments: history,
+    );
+    if (mounted) _refresh();
+  }
+
+  /// The playing hero: the player that fits the current song.
   void _openCurrent(PlaybackItem item) {
-    final projectId = item.projectId;
+    final destination = PlaybackDestination.resolve(
+      hasCurrent: true,
+      projectId: item.projectId,
+      isRemoteStream: item.isRemoteStream,
+    );
     Navigator.pushNamed(
       context,
-      projectId == null ? Routes.quickPlay : Routes.playerPath(projectId),
+      destination.routeName(projectId: item.projectId),
     );
   }
 
@@ -172,7 +192,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     isDesktop: _isDesktop,
                                     // The idle hero already offers this.
                                     showOpenMusic: session.currentItem != null,
-                                    onOpenMusic: _openLocalPlayer,
+                                    onOpenMusic: _openMusic,
                                     onImport: () => Navigator.pushNamed(
                                       context,
                                       Routes.import,
@@ -193,7 +213,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   _NowPlayingArea(
                                     session: session,
                                     playback: playback,
-                                    onOpenMusic: _openLocalPlayer,
+                                    onOpenMusic: _openMusic,
                                     onOpenCurrent: _openCurrent,
                                     onPlayPause:
                                         _playbackSession.togglePlayPause,
@@ -252,12 +272,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           action: session.currentItem == null
                                               ? null
                                               : '选择音乐',
-                                          onAction: _openLocalPlayer,
+                                          onAction: _openMusic,
                                         );
                                       }
                                       return _RecentShelf(
                                         histories: items,
-                                        onPlay: _openLocalPlayer,
+                                        onPlay: _resumeHistory,
                                       );
                                     },
                                   ),

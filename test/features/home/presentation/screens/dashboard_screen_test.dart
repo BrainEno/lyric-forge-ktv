@@ -37,9 +37,19 @@ void main() {
     audioPlayer = _TestAudioPlayerService();
     transcriptionQueue = _TestTranscriptionQueue();
     transcriptionSettingsStore = _TestTranscriptionSettingsStore();
+    pushed = [];
   });
 
+  late List<RouteSettings> pushed;
+
   Widget buildScreen() => MaterialApp(
+    onGenerateRoute: (settings) {
+      pushed.add(settings);
+      return MaterialPageRoute<void>(
+        settings: settings,
+        builder: (_) => const Scaffold(body: Text('pushed page')),
+      );
+    },
     home: DashboardScreen(
       dependencies: DashboardDependencies(
         projectRepository: projects,
@@ -233,6 +243,108 @@ void main() {
     expect(find.text('最近工程加载失败'), findsNothing);
     expect(find.text('还没有歌词工程'), findsOneWidget);
     expect(projects.calls, 2);
+  });
+
+  group('player entries (audit N-01)', () {
+    const local = PlaybackItem(
+      id: 'local',
+      title: '本地歌曲',
+      audioAsset: AudioAsset(originalPath: '/music/local.mp3', format: 'mp3'),
+    );
+
+    void playing(PlaybackItem item) {
+      playbackSession.state = PlaybackSessionState(
+        queue: [item],
+        currentIndex: 0,
+      );
+    }
+
+    Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+      await tester.tap(finder);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('打开音乐 opens the library, not a player', (tester) async {
+      playing(local);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tapAndSettle(
+        tester,
+        find.byKey(const ValueKey('dashboard:header-open-music')),
+      );
+
+      expect([for (final route in pushed) route.name], ['/library']);
+    });
+
+    testWidgets('the idle hero opens the library', (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tapAndSettle(tester, find.text('选择音乐开始播放'));
+
+      expect([for (final route in pushed) route.name], ['/library']);
+    });
+
+    testWidgets('the hero opens the local player for a local song', (
+      tester,
+    ) async {
+      playing(local);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tapAndSettle(tester, find.text('打开播放器'));
+
+      expect([for (final route in pushed) route.name], ['/quick-play']);
+    });
+
+    testWidgets('the hero opens now playing for a desktop stream', (
+      tester,
+    ) async {
+      final remote = local.copyWith(
+        id: 'remote',
+        streamUri: Uri.parse('http://192.168.1.2:8080/song'),
+      );
+      playing(remote);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tapAndSettle(tester, find.text('打开播放器'));
+
+      expect([for (final route in pushed) route.name], ['/now-playing']);
+    });
+
+    testWidgets('the hero opens the project player for a project song', (
+      tester,
+    ) async {
+      playing(local.copyWith(id: 'project-song', projectId: 'p1'));
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tapAndSettle(tester, find.text('打开歌词播放器'));
+
+      expect([for (final route in pushed) route.name], ['/project/p1/player']);
+    });
+
+    testWidgets('a recent song resumes in the local player', (tester) async {
+      final entry = PlayHistory(
+        id: 'recent',
+        name: '最近听过的歌',
+        filePath: '/music/recent.mp3',
+        playedAt: DateTime(2026),
+      );
+      history.items = [entry];
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tapAndSettle(tester, find.text('最近听过的歌'));
+
+      expect(pushed, hasLength(1));
+      expect(pushed.single.name, '/quick-play');
+      expect(pushed.single.arguments, same(entry));
+    });
   });
 }
 
