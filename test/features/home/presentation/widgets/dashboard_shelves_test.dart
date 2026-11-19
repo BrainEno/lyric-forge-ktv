@@ -42,7 +42,7 @@ ProjectManifest _project(
   currentStage: stage,
 );
 
-Finder badge(String label) => find.text(label, findRichText: true);
+Finder badge(String label) => find.textContaining(label, findRichText: true);
 
 void main() {
   group('DashboardSectionHeader', () {
@@ -151,7 +151,7 @@ void main() {
       expect(find.text('歌手甲'), findsOneWidget);
       // A blank artist falls back to the generic label.
       expect(find.text('歌词工程'), findsOneWidget);
-      // Badges lay their icon out inside a rich text.
+      // Badges lay their icon out inside the label's rich text.
       expect(badge('已导出'), findsOneWidget);
       expect(badge('待开始'), findsOneWidget);
       expect(badge('待生成歌词'), findsNWidgets(2));
