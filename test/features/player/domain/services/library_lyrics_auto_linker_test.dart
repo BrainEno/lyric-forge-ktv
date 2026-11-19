@@ -10,6 +10,8 @@ import 'package:lyric_forge_ktv/features/player/domain/services/audio_path_canon
 import 'package:lyric_forge_ktv/features/player/domain/services/library_folder_settings.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/library_lyric_file_matcher.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/library_lyrics_auto_linker.dart';
+import 'package:lyric_forge_ktv/features/player/domain/services/library_lyrics_pairing.dart';
+import 'package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_project_linker.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/project/data/repositories/memory_project_repository.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
@@ -252,6 +254,196 @@ void main() {
     // Once finished, the next call runs a new pass: nothing left to link.
     final again = await shared.linkAll();
     expect(again.linked, isEmpty);
+  });
+
+  group('taking a pairing back (D-034)', () {
+    const song = '/music/夜曲.mp3';
+    const file = '/曲库/夜曲.lrc';
+
+    setUp(() {
+      library.entries.add(_entry(song));
+      files.byFolder['/曲库'] = [file];
+      importer.results[file] = _result(file);
+    });
+
+    Map<String, dynamic> stored() => metadata.stored[song]!.metadata;
+
+    test('the song remembers how its lyrics were paired', () async {
+      await linker().linkAll();
+
+      final project = (await projects.getAllProjects()).single;
+      final pairing = LibraryLyricsPairing.of(metadata.stored[song])!;
+      expect(pairing.lyricPath, file);
+      expect(pairing.projectId, project.id);
+      expect(pairing.reason, LibraryLyricMatchReason.sameFileName);
+      expect(pairing.createdProject, isTrue);
+      expect(pairing.projectRevision, project.revision);
+      expect(pairing.previousStatus, ProjectStatus.draft);
+      expect(pairing.previousStage, ProcessingStage.none);
+      expect(pairing.fingerprint, lyricLinesFingerprint(project.lyricDocument));
+      expect(pairing.pairedAt, DateTime.utc(2026, 11, 28, 12));
+    });
+
+    test('an untouched project the pairing made is deleted', () async {
+      session.currentState = PlaybackSessionState(
+        queue: [
+          PlaybackItem(
+            id: 'q1',
+            title: '夜曲',
+            audioAsset: const AudioAsset(originalPath: song, format: 'mp3'),
+          ),
+        ],
+        currentIndex: 0,
+      );
+      final shared = linker();
+      await shared.linkAll();
+      expect(session.currentState.queue.single.hasLyrics, isTrue);
+
+      final result = await shared.unpair(song);
+
+      expect(result.outcome, LibraryLyricsUnpairOutcome.unpaired);
+      expect(result.removedProject, isTrue);
+      expect(result.pairing?.lyricPath, file);
+      expect(await projects.getAllProjects(), isEmpty);
+      expect(stored().containsKey('linkedProjectId'), isFalse);
+      expect(stored().containsKey('hasLyrics'), isFalse);
+      expect(stored().containsKey(LibraryLyricsPairing.metadataKey), isFalse);
+      expect(stored()[LibraryLyricsPairing.dismissedKey], [file]);
+      expect(session.currentState.queue.single.hasLyrics, isFalse);
+
+      // The next pass leaves the song alone instead of pairing it again.
+      final again = await shared.linkAll();
+      expect(again.linked, isEmpty);
+      expect(importer.imported, [file]);
+      expect(await projects.getAllProjects(), isEmpty);
+    });
+
+    test('a project the song already had is emptied, not deleted', () async {
+      final empty = await projects.createProject(name: '夜曲');
+      await projects.updateProject(
+        empty.copyWith(
+          status: ProjectStatus.processing,
+          currentStage: ProcessingStage.vocalsSeparated,
+          audioAsset: const AudioAsset(originalPath: song, format: 'mp3'),
+        ),
+      );
+      final shared = linker();
+      await shared.linkAll();
+      expect((await projects.getProjectById(empty.id))?.hasLyrics, isTrue);
+
+      final result = await shared.unpair(song);
+
+      expect(result.outcome, LibraryLyricsUnpairOutcome.unpaired);
+      expect(result.removedProject, isFalse);
+      final kept = (await projects.getProjectById(empty.id))!;
+      expect(kept.hasLyrics, isFalse);
+      expect(kept.status, ProjectStatus.processing);
+      expect(kept.currentStage, ProcessingStage.vocalsSeparated);
+      expect(kept.audioAsset?.originalPath, song);
+      expect(kept.metadata.containsKey('lyricImport'), isFalse);
+      expect(kept.metadata.containsKey('lyricSource'), isFalse);
+    });
+
+    test('lyrics edited since the pairing are kept', () async {
+      final shared = linker();
+      await shared.linkAll();
+      final paired = (await projects.getAllProjects()).single;
+      await projects.updateProject(
+        paired.copyWith(lyricDocument: _document('一群嗜血的蚂蚁 被腐肉所吸引')),
+      );
+
+      final result = await shared.unpair(song);
+
+      expect(result.outcome, LibraryLyricsUnpairOutcome.editedSincePairing);
+      final kept = (await projects.getProjectById(paired.id))!;
+      expect(kept.lyricDocument?.lines.single.text, '一群嗜血的蚂蚁 被腐肉所吸引');
+      expect(stored()['linkedProjectId'], paired.id);
+      expect(stored().containsKey(LibraryLyricsPairing.dismissedKey), isFalse);
+    });
+
+    test('other saves to the project do not count as edits', () async {
+      final shared = linker();
+      await shared.linkAll();
+      final paired = (await projects.getAllProjects()).single;
+      await projects.updateProject(
+        paired.copyWith(metadata: {...paired.metadata, 'viewed': true}),
+      );
+
+      final result = await shared.unpair(song);
+
+      expect(result.outcome, LibraryLyricsUnpairOutcome.unpaired);
+      // Changed since, so emptied rather than deleted.
+      expect(result.removedProject, isFalse);
+      final kept = (await projects.getProjectById(paired.id))!;
+      expect(kept.hasLyrics, isFalse);
+      expect(kept.metadata['viewed'], isTrue);
+    });
+
+    test('lyrics linked by hand are not unpaired', () async {
+      metadata.stored[song] = LocalMediaMetadata(
+        sourcePath: song,
+        updatedAt: DateTime(2026),
+        metadata: const {'linkedProjectId': 'p-9', 'hasLyrics': true},
+      );
+
+      final result = await linker().unpair(song);
+
+      expect(result.outcome, LibraryLyricsUnpairOutcome.notAutoPaired);
+      expect(stored()['linkedProjectId'], 'p-9');
+    });
+
+    test('undo pairs the same file with the song again', () async {
+      final shared = linker();
+      await shared.linkAll();
+      final unpaired = await shared.unpair(song);
+
+      final restored = await shared.pairAgain(song, unpaired.pairing!);
+
+      expect(restored.linked.single.lyricPath, file);
+      expect(
+        restored.linked.single.reason,
+        LibraryLyricMatchReason.sameFileName,
+      );
+      final project = (await projects.getAllProjects()).single;
+      expect(project.hasLyrics, isTrue);
+      expect(stored()['linkedProjectId'], project.id);
+      expect(stored().containsKey(LibraryLyricsPairing.dismissedKey), isFalse);
+      expect(LibraryLyricsPairing.of(metadata.stored[song])?.lyricPath, file);
+    });
+
+    test('undo leaves a song that got other lyrics meanwhile alone', () async {
+      final shared = linker();
+      await shared.linkAll();
+      final unpaired = await shared.unpair(song);
+      final manual = await projects.createProject(name: '夜曲');
+      await projects.updateProject(
+        manual.copyWith(
+          audioAsset: const AudioAsset(originalPath: song, format: 'mp3'),
+          lyricDocument: _document('手工输入的歌词'),
+        ),
+      );
+
+      final restored = await shared.pairAgain(song, unpaired.pairing!);
+
+      expect(restored.changedAnything, isFalse);
+      expect(importer.imported, [file]);
+    });
+
+    test('linking the song by hand drops the old record', () async {
+      await linker().linkAll();
+      expect(LibraryLyricsPairing.of(metadata.stored[song]), isNotNull);
+
+      await linkPlaybackLyricsProject(
+        audioPath: song,
+        projectId: 'manual',
+        metadataRepository: metadata,
+        playbackSession: session,
+        pathCanonicalizer: const _SamePath(),
+      );
+
+      expect(stored()['linkedProjectId'], 'manual');
+      expect(stored().containsKey(LibraryLyricsPairing.metadataKey), isFalse);
+    });
   });
 }
 

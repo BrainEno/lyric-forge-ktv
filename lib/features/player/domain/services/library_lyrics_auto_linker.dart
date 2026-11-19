@@ -10,6 +10,7 @@ import 'audio_path_canonicalizer.dart';
 import 'imported_lyrics_project.dart';
 import 'library_folder_settings.dart';
 import 'library_lyric_file_matcher.dart';
+import 'library_lyrics_pairing.dart';
 import 'playback_lyrics_project_linker.dart';
 import 'playback_session_service.dart';
 
@@ -41,6 +42,38 @@ class LibraryLyricsLinkResult {
   final List<String> failed;
 
   bool get changedAnything => linked.isNotEmpty;
+}
+
+/// How [LibraryLyricsAutoLinker.unpair] ended.
+enum LibraryLyricsUnpairOutcome {
+  /// The song no longer has the paired lyrics, and the file will not be
+  /// paired with it again.
+  unpaired,
+
+  /// The song's lyrics were not paired automatically; nothing changed.
+  notAutoPaired,
+
+  /// The paired lyrics were edited since; nothing changed, so the edits
+  /// are not lost.
+  editedSincePairing,
+}
+
+/// What [LibraryLyricsAutoLinker.unpair] did.
+class LibraryLyricsUnpairResult {
+  const LibraryLyricsUnpairResult(
+    this.outcome, {
+    this.pairing,
+    this.removedProject = false,
+  });
+
+  final LibraryLyricsUnpairOutcome outcome;
+
+  /// The pairing that was looked at, when there was one.
+  final LibraryLyricsPairing? pairing;
+
+  /// Whether the project the pairing had created was deleted, rather than
+  /// emptied of the paired lyrics.
+  final bool removedProject;
 }
 
 /// Gives library songs the lyric files saved for them (decision D-033).
@@ -132,6 +165,8 @@ class LibraryLyricsAutoLinker {
     final failed = <String>[];
     for (final match in matches) {
       final candidate = bySong[match.song]!;
+      // The user took this file back from this song (D-034).
+      if (candidate.dismissed.contains(_key(match.lyricPath))) continue;
       try {
         await _attach(candidate, match);
         linked.add(match);
@@ -173,10 +208,19 @@ class LibraryLyricsAutoLinker {
       if (linkedId is String && linkedId.trim().isNotEmpty) continue;
       final existing = projectByAudio[key];
       if (existing != null && existing.hasLyrics) continue;
-      candidates.add(_Candidate(entry, override, existing));
+      candidates.add(
+        _Candidate(entry, override, existing, dismissed: _dismissed(override)),
+      );
     }
     return candidates;
   }
+
+  Set<String> _dismissed(LocalMediaMetadata? metadata) => {
+    for (final path in LibraryLyricsPairing.dismissedFiles(metadata))
+      _key(path),
+  };
+
+  String _key(String path) => pathCanonicalizer.canonicalize(path);
 
   Future<void> _attach(_Candidate candidate, LibraryLyricMatch match) async {
     final result = await importer.importFile(match.lyricPath);
@@ -184,8 +228,9 @@ class LibraryLyricsAutoLinker {
       throw const LyricImportException('歌词文件里没有歌词');
     }
     final song = candidate.song;
+    final existing = candidate.project;
     final project =
-        candidate.project ??
+        existing ??
         await projects.createProject(
           name: song.title,
           artist: song.artist ?? result.artist,
@@ -213,7 +258,152 @@ class LibraryLyricsAutoLinker {
       metadataRepository: metadata,
       playbackSession: playbackSession,
       pathCanonicalizer: pathCanonicalizer,
+      pairing: LibraryLyricsPairing(
+        lyricPath: match.lyricPath,
+        projectId: saved.id,
+        reason: match.reason,
+        createdProject: existing == null,
+        projectRevision: saved.revision,
+        previousStatus: project.status,
+        previousStage: project.currentStage,
+        fingerprint: lyricLinesFingerprint(saved.lyricDocument),
+        pairedAt: _clock(),
+      ),
     );
+  }
+
+  /// Takes back the lyrics paired with the song at [audioPath] (D-034).
+  ///
+  /// A project the pairing created and nobody changed since is deleted; a
+  /// project it filled, or one changed in other ways, loses only the paired
+  /// lyrics and goes back to its earlier status. Lyrics edited since the
+  /// pairing are kept and nothing changes. The song is unlinked, queued
+  /// copies learn it has no lyrics, and the file is remembered so the next
+  /// pass does not pair it with this song again. The file is not touched.
+  Future<LibraryLyricsUnpairResult> unpair(String audioPath) async {
+    final stored = await readCompleteLocalMediaMetadataForAudio(
+      metadata,
+      audioPath,
+    );
+    final pairing = LibraryLyricsPairing.of(stored);
+    if (stored == null || pairing == null) {
+      return const LibraryLyricsUnpairResult(
+        LibraryLyricsUnpairOutcome.notAutoPaired,
+      );
+    }
+
+    final project = await projects.getProjectById(pairing.projectId);
+    var removedProject = false;
+    if (project != null && project.hasLyrics) {
+      final current = lyricLinesFingerprint(project.lyricDocument);
+      if (current != pairing.fingerprint) {
+        return LibraryLyricsUnpairResult(
+          LibraryLyricsUnpairOutcome.editedSincePairing,
+          pairing: pairing,
+        );
+      }
+      if (pairing.createdProject &&
+          project.revision == pairing.projectRevision) {
+        await projects.deleteProject(project.id);
+        removedProject = true;
+      } else {
+        await projects.updateProjectIfUnchanged(
+          projectWithoutPairedLyrics(project, pairing),
+          expectedRevision: project.revision,
+        );
+      }
+    }
+
+    final dismissed = {
+      ...LibraryLyricsPairing.dismissedFiles(stored),
+      pairing.lyricPath,
+    };
+    final kept = {...stored.metadata}
+      ..remove('linkedProjectId')
+      ..remove('hasLyrics')
+      ..remove(LibraryLyricsPairing.metadataKey);
+    await metadata.save(
+      stored.copyWith(
+        updatedAt: _clock(),
+        metadata: {
+          ...kept,
+          LibraryLyricsPairing.dismissedKey: dismissed.toList()..sort(),
+        },
+      ),
+    );
+    await _markQueuedCopiesWithoutLyrics(audioPath);
+    return LibraryLyricsUnpairResult(
+      LibraryLyricsUnpairOutcome.unpaired,
+      pairing: pairing,
+      removedProject: removedProject,
+    );
+  }
+
+  /// Pairs the file of [pairing] with the song at [audioPath] again: the
+  /// undo of [unpair]. The file is no longer remembered as unpaired; a song
+  /// that got lyrics in the meantime keeps them.
+  Future<LibraryLyricsLinkResult> pairAgain(
+    String audioPath,
+    LibraryLyricsPairing pairing,
+  ) async {
+    final stored = await readCompleteLocalMediaMetadataForAudio(
+      metadata,
+      audioPath,
+    );
+    if (stored != null) {
+      final file = _key(pairing.lyricPath);
+      final dismissed = [
+        for (final path in LibraryLyricsPairing.dismissedFiles(stored))
+          if (_key(path) != file) path,
+      ]..sort();
+      final kept = {...stored.metadata}
+        ..remove(LibraryLyricsPairing.dismissedKey);
+      await metadata.save(
+        stored.copyWith(
+          updatedAt: _clock(),
+          metadata: {
+            ...kept,
+            if (dismissed.isNotEmpty)
+              LibraryLyricsPairing.dismissedKey: dismissed,
+          },
+        ),
+      );
+    }
+
+    final folder = await folderSettings.current();
+    final song = _key(audioPath);
+    final candidates = await _songsWithoutLyrics();
+    for (final candidate in candidates) {
+      if (_key(candidate.entry.sourcePath) != song) continue;
+      final match = LibraryLyricMatch(
+        song: candidate.song,
+        lyricPath: pairing.lyricPath,
+        reason: pairing.reason,
+      );
+      try {
+        await _attach(candidate, match);
+      } on Exception {
+        return LibraryLyricsLinkResult(
+          folder: folder,
+          failed: [pairing.lyricPath],
+        );
+      }
+      return LibraryLyricsLinkResult(folder: folder, linked: [match]);
+    }
+    return LibraryLyricsLinkResult(folder: folder);
+  }
+
+  Future<void> _markQueuedCopiesWithoutLyrics(String audioPath) async {
+    final song = _key(audioPath);
+    for (final item in playbackSession.currentState.queue) {
+      if (item.isRemoteStream ||
+          item.projectId != null ||
+          !item.hasLyrics ||
+          _key(item.audioAsset.originalPath) != song) {
+        continue;
+      }
+      await playbackSession.updateItem(item.copyWith(hasLyrics: false));
+    }
   }
 
   static String? _parentOf(String path) {
@@ -225,10 +415,18 @@ class LibraryLyricsAutoLinker {
 
 /// A song without lyrics, with what the library knows about it.
 class _Candidate {
-  _Candidate(this.entry, this.override, this.project);
+  _Candidate(
+    this.entry,
+    this.override,
+    this.project, {
+    required this.dismissed,
+  });
 
   final LocalMediaLibraryEntry entry;
   final LocalMediaMetadata? override;
+
+  /// Canonical paths of lyric files the user unpaired from this song.
+  final Set<String> dismissed;
 
   /// A project for this audio that has no lyrics yet; filled, not replaced.
   final ProjectManifest? project;

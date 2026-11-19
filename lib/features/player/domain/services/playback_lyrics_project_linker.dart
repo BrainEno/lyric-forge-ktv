@@ -1,14 +1,21 @@
 import '../models/local_media_metadata.dart';
 import '../repositories/local_media_metadata_repository.dart';
 import 'audio_path_canonicalizer.dart';
+import 'library_lyrics_pairing.dart';
 import 'playback_session_service.dart';
 
+/// Links the song at [audioPath] to the lyric project [projectId].
+///
+/// A link made here replaces whatever the song was linked to, so a record
+/// of an automatic pairing (D-034) is dropped unless [pairing] describes
+/// this link.
 Future<void> linkPlaybackLyricsProject({
   required String audioPath,
   required String projectId,
   required LocalMediaMetadataRepository metadataRepository,
   required PlaybackSessionService playbackSession,
   required AudioPathCanonicalizer pathCanonicalizer,
+  LibraryLyricsPairing? pairing,
 }) async {
   if (audioPath.trim().isEmpty || projectId.trim().isEmpty) {
     throw ArgumentError('Audio path and project ID must not be empty.');
@@ -25,9 +32,12 @@ Future<void> linkPlaybackLyricsProject({
     metadata.copyWith(
       updatedAt: DateTime.now(),
       metadata: {
-        ...metadata.metadata,
+        for (final entry in metadata.metadata.entries)
+          if (entry.key != LibraryLyricsPairing.metadataKey)
+            entry.key: entry.value,
         'linkedProjectId': projectId,
         'hasLyrics': true,
+        if (pairing != null) LibraryLyricsPairing.metadataKey: pairing.toJson(),
       },
     ),
   );

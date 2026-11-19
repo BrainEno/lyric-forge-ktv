@@ -20,11 +20,13 @@ import '../../domain/repositories/local_store_integrity.dart';
 import '../../domain/repositories/play_history_repository.dart';
 import '../../domain/services/audio_library_import_service.dart';
 import '../../domain/services/library_lyrics_auto_linker.dart';
+import '../../domain/services/library_lyrics_pairing.dart';
 import '../../domain/services/local_media_relink_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_media_metadata_dialog.dart';
 import '../widgets/library_lyrics_link_text.dart';
+import '../widgets/library_lyrics_unpair_action.dart';
 import '../widgets/local_store_integrity_banner.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
 
@@ -318,6 +320,21 @@ class _LocalLibraryExplorerScreenState
     await _reload(showLoading: false);
   }
 
+  /// Takes back lyrics the library paired from a file name (D-034).
+  Future<void> _unpair(_ExplorerSong song) async {
+    final linker = widget.dependencies.lyricsAutoLinker;
+    final pairing = song.pairing;
+    if (linker == null || pairing == null) return;
+    await unpairLibraryLyrics(
+      context,
+      linker: linker,
+      audioPath: song.entry.sourcePath,
+      songTitle: song.title,
+      pairing: pairing,
+      onChanged: () => _reload(showLoading: false),
+    );
+  }
+
   Future<void> _relinkMissing(_ExplorerSong song) => _withWork(() async {
     if (song.playable) return;
     final result = await _relink.pickReplacementAndRelink(
@@ -361,6 +378,9 @@ class _LocalLibraryExplorerScreenState
     final songs = _visibleSongs;
     final playableCount = songs.where((song) => song.playable).length;
     final missingCount = _smartCount(LocalLibrarySmartView.missingFiles);
+    final unpair = widget.dependencies.lyricsAutoLinker == null
+        ? null
+        : _unpair;
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
@@ -475,6 +495,7 @@ class _LocalLibraryExplorerScreenState
                       onEnqueue: _enqueue,
                       onEdit: _edit,
                       onLyrics: _lyrics,
+                      onUnpair: unpair,
                       onRelink: _relinkMissing,
                       onRemove: _remove,
                     )
@@ -484,6 +505,7 @@ class _LocalLibraryExplorerScreenState
                       onEnqueue: _enqueue,
                       onEdit: _edit,
                       onLyrics: _lyrics,
+                      onUnpair: unpair,
                       onRelink: _relinkMissing,
                       onRemove: _remove,
                     ),
@@ -530,6 +552,13 @@ class _ExplorerSong {
       override?.resolvedArtwork(entry.embeddedArtworkPath) ??
       entry.embeddedArtworkPath;
   bool get hasLyrics => override?.metadata['linkedProjectId'] is String;
+
+  /// The record of lyrics paired from a file name (D-034), if these are.
+  LibraryLyricsPairing? get pairing =>
+      hasLyrics ? LibraryLyricsPairing.of(override) : null;
+  bool get hasAutoPairedLyrics => pairing != null;
+  String get lyricsLabel =>
+      hasAutoPairedLyrics ? LibraryLyricsLinkText.autoPairedLabel : '有歌词';
   bool get hasUserOverride => override?.hasOverrides == true;
   bool get playable => !entry.isMissing && File(entry.sourcePath).existsSync();
 
@@ -543,6 +572,7 @@ class _ExplorerSong {
     addedAt: entry.addedAt,
     lastPlayedAt: lastPlayedAt,
     hasLyrics: hasLyrics,
+    hasAutoPairedLyrics: hasAutoPairedLyrics,
     hasUserOverride: hasUserOverride,
     isMissing: entry.isMissing,
   );
@@ -551,6 +581,7 @@ class _ExplorerSong {
     if (artist?.trim().isNotEmpty == true) artist!,
     if (album?.trim().isNotEmpty == true) album!,
     entry.format.toUpperCase(),
+    if (hasAutoPairedLyrics) LibraryLyricsLinkText.autoPairedLabel,
   ].join(' · ');
 
   PlaybackItem get playbackItem => PlaybackItem(
@@ -698,6 +729,7 @@ class _ExplorerHeader extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: LocalLibrarySmartView.values
+                      .where(_showsChip)
                       .map((view) {
                         final selected = view == smartView;
                         final count = countFor(view);
@@ -744,12 +776,19 @@ class _ExplorerHeader extends StatelessWidget {
     );
   }
 
+  /// 自动配对 appears once some song got its lyrics that way.
+  bool _showsChip(LocalLibrarySmartView view) =>
+      view != LocalLibrarySmartView.autoPairedLyrics ||
+      view == smartView ||
+      countFor(view) > 0;
+
   static String _smartLabel(LocalLibrarySmartView view) => switch (view) {
     LocalLibrarySmartView.all => '全部',
     LocalLibrarySmartView.recentlyAdded => '最近添加',
     LocalLibrarySmartView.recentlyPlayed => '最近播放',
     LocalLibrarySmartView.withLyrics => '有歌词',
     LocalLibrarySmartView.withoutLyrics => '无歌词',
+    LocalLibrarySmartView.autoPairedLyrics => '自动配对',
     LocalLibrarySmartView.editedMetadata => '已编辑资料',
     LocalLibrarySmartView.missingFiles => '文件不可用',
   };
@@ -760,6 +799,7 @@ class _ExplorerHeader extends StatelessWidget {
     LocalLibrarySmartView.recentlyPlayed => Icons.history_rounded,
     LocalLibrarySmartView.withLyrics => Icons.lyrics_rounded,
     LocalLibrarySmartView.withoutLyrics => Icons.lyrics_outlined,
+    LocalLibrarySmartView.autoPairedLyrics => Icons.auto_awesome_rounded,
     LocalLibrarySmartView.editedMetadata => Icons.edit_note_rounded,
     LocalLibrarySmartView.missingFiles => Icons.link_off_rounded,
   };
@@ -779,6 +819,7 @@ class _ExplorerGrid extends StatelessWidget {
   final ValueChanged<_ExplorerSong> onEnqueue;
   final ValueChanged<_ExplorerSong> onEdit;
   final ValueChanged<_ExplorerSong> onLyrics;
+  final ValueChanged<_ExplorerSong>? onUnpair;
   final ValueChanged<_ExplorerSong> onRelink;
   final ValueChanged<_ExplorerSong> onRemove;
 
@@ -788,6 +829,7 @@ class _ExplorerGrid extends StatelessWidget {
     required this.onEnqueue,
     required this.onEdit,
     required this.onLyrics,
+    required this.onUnpair,
     required this.onRelink,
     required this.onRemove,
   });
@@ -813,6 +855,7 @@ class _ExplorerGrid extends StatelessWidget {
           itemCount: songs.length,
           itemBuilder: (context, index) {
             final song = songs[index];
+            final unpair = onUnpair;
             return _ExplorerCard(
               song: song,
               compact: layout.isCompact,
@@ -820,6 +863,7 @@ class _ExplorerGrid extends StatelessWidget {
               onEnqueue: () => onEnqueue(song),
               onEdit: () => onEdit(song),
               onLyrics: () => onLyrics(song),
+              onUnpair: unpair == null ? null : () => unpair(song),
               onRelink: () => onRelink(song),
               onRemove: () => onRemove(song),
             );
@@ -836,6 +880,7 @@ class _ExplorerList extends StatelessWidget {
   final ValueChanged<_ExplorerSong> onEnqueue;
   final ValueChanged<_ExplorerSong> onEdit;
   final ValueChanged<_ExplorerSong> onLyrics;
+  final ValueChanged<_ExplorerSong>? onUnpair;
   final ValueChanged<_ExplorerSong> onRelink;
   final ValueChanged<_ExplorerSong> onRemove;
 
@@ -845,6 +890,7 @@ class _ExplorerList extends StatelessWidget {
     required this.onEnqueue,
     required this.onEdit,
     required this.onLyrics,
+    required this.onUnpair,
     required this.onRelink,
     required this.onRemove,
   });
@@ -858,6 +904,7 @@ class _ExplorerList extends StatelessWidget {
       separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final song = songs[index];
+        final unpair = onUnpair;
         return ListTile(
           minVerticalPadding: layout.isCompact ? AppSpacing.sm : null,
           leading: SizedBox(
@@ -877,6 +924,7 @@ class _ExplorerList extends StatelessWidget {
             onEnqueue: () => onEnqueue(song),
             onEdit: () => onEdit(song),
             onLyrics: () => onLyrics(song),
+            onUnpair: unpair == null ? null : () => unpair(song),
             onRelink: () => onRelink(song),
             onRemove: () => onRemove(song),
           ),
@@ -893,6 +941,7 @@ class _ExplorerCard extends StatelessWidget {
   final VoidCallback onEnqueue;
   final VoidCallback onEdit;
   final VoidCallback onLyrics;
+  final VoidCallback? onUnpair;
   final VoidCallback onRelink;
   final VoidCallback onRemove;
 
@@ -903,6 +952,7 @@ class _ExplorerCard extends StatelessWidget {
     required this.onEnqueue,
     required this.onEdit,
     required this.onLyrics,
+    required this.onUnpair,
     required this.onRelink,
     required this.onRemove,
   });
@@ -943,6 +993,7 @@ class _ExplorerCard extends StatelessWidget {
                   onEnqueue: onEnqueue,
                   onEdit: onEdit,
                   onLyrics: onLyrics,
+                  onUnpair: onUnpair,
                   onRelink: onRelink,
                   onRemove: onRemove,
                 ),
@@ -959,7 +1010,7 @@ class _ExplorerCard extends StatelessWidget {
               [
                 entryLabel(song),
                 if (song.hasUserOverride) '已编辑',
-                if (song.hasLyrics) '有歌词',
+                if (song.hasLyrics) song.lyricsLabel,
               ].where((value) => value.isNotEmpty).join(' · '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -983,6 +1034,7 @@ class _SongMenu extends StatelessWidget {
   final VoidCallback onEnqueue;
   final VoidCallback onEdit;
   final VoidCallback onLyrics;
+  final VoidCallback? onUnpair;
   final VoidCallback onRelink;
   final VoidCallback onRemove;
 
@@ -991,6 +1043,7 @@ class _SongMenu extends StatelessWidget {
     required this.onEnqueue,
     required this.onEdit,
     required this.onLyrics,
+    required this.onUnpair,
     required this.onRelink,
     required this.onRemove,
   });
@@ -1009,6 +1062,9 @@ class _SongMenu extends StatelessWidget {
           case 'lyrics':
             onLyrics();
             return;
+          case 'unpair':
+            onUnpair?.call();
+            return;
           case 'relink':
             onRelink();
             return;
@@ -1026,6 +1082,11 @@ class _SongMenu extends StatelessWidget {
           PopupMenuItem(
             value: 'lyrics',
             child: Text(song.hasLyrics ? '打开歌词' : '导入歌词'),
+          ),
+        if (song.hasAutoPairedLyrics && onUnpair != null)
+          const PopupMenuItem(
+            value: 'unpair',
+            child: Text(LibraryLyricsLinkText.unpairAction),
           ),
         if (!song.playable)
           const PopupMenuItem(value: 'relink', child: Text('重新定位文件')),
