@@ -2,19 +2,18 @@
 
 ## 目标
 
-审计路线阶段 2 的下一轮（PR #472 已合并为 `ca78297`）：
+审计路线阶段 2 的下一轮（PR #473 已合并为 `fb33769`）。这一轮多做几个任务：
 
-1. C-04 共享封面组件：`AppArtwork`（`lib/core/widgets/`）和播放器用的 `PlaybackArtwork`，先迁移播放器的四个界面：桌面播放条、移动播放条、播放队列、正在播放。
-2. 接着迁移音乐库和首页的五个封面（C-04 后半）。
+1. C-05 共享标签组件 `AppBadge`（`lib/core/widgets/`），先迁移首页、导入、复核收件箱、参考对齐和歌词编辑器的标签。
 
 ## Git 现场
 
-- 分支：`arena/96221899-lyric-forge-ktv`，基于 main `ca78297`。
-- 提交：`Add a shared artwork widget for player surfaces`；`Use the shared artwork widget on library screens`。
+- 分支：`arena/abbb9c6e-lyric-forge-ktv`，基于 main `fb33769`。
+- 提交：`Add a shared badge widget`。
 
 ## 已改文件
 
-见工作日志 `2026-11-18-2338-add-shared-artwork-widget.md`（两个新组件、四个播放器文件、两个测试）和 `2026-11-18-2340-use-shared-artwork-in-library.md`（五个音乐库/首页文件、`AppArtwork` 增加 `placeholderColor`）。
+见工作日志 `2026-11-19-0941-add-shared-badge-widget.md`（新组件和测试、五个迁移文件）。
 
 ## 检查结果
 
@@ -22,11 +21,10 @@
 
 ## 下一步
 
-- C-04 已完成（传输域的 `RemoteMediaArtwork` 因为要走带认证的下载，保持独立）。之后：C-05 `AppBadge`、C-07 `TransportBar`、C-03 ASR 设置拆卡、其余空状态。
+- C-05 后半：播放器、工程详情和转写队列里的标签。之后：C-07 `TransportBar`、错误/加载状态、C-03 ASR 设置拆卡、其余空状态。
 
 ## 已知风险
 
-- 没有在运行中的应用里看过；占位图标的大小和颜色有小变化，首页封面占位从渐变改为纯色，详见工作日志。
-- 带 `remoteArtworkUri` 的本地条目不再加载远程封面（正常数据里不会出现）。
+- 没有在运行中的应用里看过；中性 `LyricTinyBadge` 从灰色底改为表面色底、次级文字色，对比度更高，详见工作日志。
 
-最后更新：2026-11-18 23:42（Asia/Taipei）
+最后更新：2026-11-19 09:41（Asia/Taipei）

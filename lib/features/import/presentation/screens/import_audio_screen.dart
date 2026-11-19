@@ -6,6 +6,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../transcription_import_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_badge.dart';
 import '../../../transcription/presentation/widgets/transcription_queue_panel.dart';
 
 /// Batch import entry point.
@@ -277,29 +278,7 @@ class _FeaturePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 6,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColors.textSecondary),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
-      ),
-    );
+    return AppBadge(label: label, icon: icon);
   }
 }
 

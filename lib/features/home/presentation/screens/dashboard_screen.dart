@@ -6,6 +6,7 @@ import '../dashboard_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_badge.dart';
 import '../../../player/domain/models/play_history.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/repositories/play_history_repository.dart';
@@ -1434,32 +1435,10 @@ class _MetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 4,
-      ),
-      decoration: BoxDecoration(
-        color: accent ? AppColors.accent.withAlpha(16) : AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 13,
-            color: accent ? AppColors.accent : AppColors.textTertiary,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: accent ? AppColors.accent : AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
+    return AppBadge(
+      label: label,
+      icon: icon,
+      tone: accent ? AppBadgeTone.accent : AppBadgeTone.neutral,
     );
   }
 }

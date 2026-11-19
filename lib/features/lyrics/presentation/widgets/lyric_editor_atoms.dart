@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/color_tokens.dart';
-import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_badge.dart';
 
 /// Small shared pieces of the lyric editor: badges, nudge steppers and the
 /// duration formatters the list, inspector and toolbar all print.
@@ -23,24 +22,12 @@ class LyricTinyBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = warning
-        ? AppColors.warning
+    final tone = warning
+        ? AppBadgeTone.warning
         : accent
-        ? AppColors.accent
-        : AppColors.textTertiary;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: color, fontSize: 10),
-      ),
-    );
+        ? AppBadgeTone.accent
+        : AppBadgeTone.neutral;
+    return AppBadge(label: label, tone: tone, size: AppBadgeSize.small);
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_badge.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/services/character_diff_service.dart';
@@ -1176,17 +1177,7 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withAlpha(24),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
-      ),
-    );
+    return AppBadge(label: label, color: color, size: AppBadgeSize.small);
   }
 }
 
