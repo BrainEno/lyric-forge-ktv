@@ -8,6 +8,7 @@ import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
+import 'global_playback_shortcuts.dart';
 import 'local_collection_actions.dart';
 import 'local_media_metadata_dialog.dart';
 import 'local_song_lyrics_import_action.dart';
@@ -345,7 +346,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                             if (!minimal)
                               IconButton(
-                                tooltip: '上一首 / 重新开始',
+                                tooltip: GlobalPlaybackShortcuts.withHint(
+                                  '上一首 / 重新开始',
+                                  GlobalPlaybackCommand.previous,
+                                ),
                                 onPressed: session.canSkipPrevious
                                     ? () => runPlaybackActionWithFeedback(
                                         context,
@@ -358,7 +362,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               width: minimal ? 40 : 42,
                               height: minimal ? 40 : 42,
                               child: IconButton(
-                                tooltip: playback.isPlaying ? '暂停' : '播放',
+                                tooltip: GlobalPlaybackShortcuts.withHint(
+                                  playback.isPlaying ? '暂停' : '播放',
+                                  GlobalPlaybackCommand.togglePlayPause,
+                                ),
                                 onPressed: playback.isBuffering
                                     ? null
                                     : () => runPlaybackActionWithFeedback(
@@ -387,7 +394,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                             ),
                             if (!minimal)
                               IconButton(
-                                tooltip: '下一首',
+                                tooltip: GlobalPlaybackShortcuts.withHint(
+                                  '下一首',
+                                  GlobalPlaybackCommand.next,
+                                ),
                                 onPressed: session.canSkipNext
                                     ? () => runPlaybackActionWithFeedback(
                                         context,

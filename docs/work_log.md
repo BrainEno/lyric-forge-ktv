@@ -9,9 +9,9 @@
 - [2026-11-21 12:00] Fix Qwen chunk loops and detect block loops `Fix Qwen chunk loops and detect block loops` ([entry](log/entries/2026-11-21-1200-fix-qwen-chunk-loops-and-detect-block-loops.md))
 - [2026-11-20 12:00] Import karaoke word timing, add word timing check and fine-tuning `Import karaoke word timing, add word timing check and fine-tuning` ([entry](log/entries/2026-11-20-1200-import-check-and-fine-tune-word-timing.md))
 - [2026-11-19 12:00] Add word-by-word tap-to-sync and Whisper word timing `Add word-by-word tap-to-sync and Whisper word timing` ([entry](log/entries/2026-11-19-1200-add-word-tap-sync-and-whisper-word-timing.md))
-- [2026-11-19 10:35] Split the recognition settings into section cards `Split the recognition settings into section cards` ([entry](log/entries/2026-11-19-1035-split-asr-settings-into-cards.md))
+- [2026-11-19 10:45] Add global playback shortcuts `Add global playback shortcuts` ([entry](log/entries/2026-11-19-1045-add-global-playback-shortcuts.md))
 
-<!-- 321 entries total: 8 active, 313 archived. -->
+<!-- 322 entries total: 8 active, 314 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)
