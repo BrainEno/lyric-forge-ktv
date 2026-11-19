@@ -14,6 +14,7 @@
   - `test/architecture/artwork_convergence_test.dart` (the shelf joins the converged screens).
 - Validation:
   - No Dart/Flutter toolchain in the sandbox; `dart format`, `flutter analyze` and the tests run in the PR's Flutter Quality Gate and the temporary format probe.
+  - The format probe found older formatter debt elsewhere in `test/playback_history_tracking_test.dart` (two collapsible lists); the follow-up commit `Apply the formatter to the play history tracking test` fixes it, since the quality gate formats every touched file.
   - Work-log `write` + `check` => Python port of `tool/work_log.dart`.
 - Notes:
   - Entries saved before this change keep the placeholder until the track is played again; looking covers up in the library for them would make the dashboard depend on the library repository for a cosmetic gain.

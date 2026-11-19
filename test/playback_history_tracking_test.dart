@@ -106,10 +106,7 @@ void main() {
     );
 
     test('switching tracks preserves the previous track progress', () async {
-      await session.setQueue([
-        _localItem('first'),
-        _localItem('second'),
-      ]);
+      await session.setQueue([_localItem('first'), _localItem('second')]);
       await session.seek(const Duration(seconds: 61));
 
       await session.skipNext();
@@ -128,10 +125,7 @@ PlaybackItem _localItem(String id) {
     id: 'local:$id',
     title: id,
     artist: 'Artist',
-    audioAsset: AudioAsset(
-      originalPath: '/tmp/$id.mp3',
-      format: 'mp3',
-    ),
+    audioAsset: AudioAsset(originalPath: '/tmp/$id.mp3', format: 'mp3'),
     preferredSource: AudioSourceType.original,
   );
 }
@@ -141,10 +135,7 @@ PlaybackItem _projectItem(String id) {
     id: 'project:$id',
     title: id,
     projectId: id,
-    audioAsset: AudioAsset(
-      originalPath: '/tmp/$id.mp3',
-      format: 'mp3',
-    ),
+    audioAsset: AudioAsset(originalPath: '/tmp/$id.mp3', format: 'mp3'),
     preferredSource: AudioSourceType.original,
   );
 }
