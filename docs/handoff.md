@@ -13,7 +13,7 @@
 ## Git 现场
 
 - 分支：`arena/08eecee8-lyric-forge-ktv`，基于 main `4969c1c`。
-- 提交：`Add a karaoke wipe to the KTV stage`；`Fix the karaoke line test and format the KTV files`；`Show a page for unknown routes`；`Move library empty states to AppEmptyState`；`Restore the formatter's layout in two KTV files`；`Move the library transfer button into the section strip`；`Add a button spinner that follows the label`。
+- 提交：`Add a karaoke wipe to the KTV stage`；`Fix the karaoke line test and format the KTV files`；`Show a page for unknown routes`；`Move library empty states to AppEmptyState`；`Restore the formatter's layout in two KTV files`；`Move the library transfer button into the section strip`；`Add a button spinner that follows the label`；`Fix nullable border sides in the chip theme test`；`Remove the temporary format probe`。
 
 ## 已改文件
 
@@ -21,11 +21,11 @@
 
 ## 检查结果
 
-沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。
+沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。PR #475 在 `98b0e1a` 上 Flutter Quality Gate 全绿（变更文件格式检查、analyze、全量测试、工作日志），flutter、protective-pause 也通过。临时格式探针已删除。注意：CI 在 `flutter pub get` 之后才运行 `dart format`，没有包配置时格式化结果不同，排查格式问题要以 pub get 之后的结果为准。
 
 ## 下一步
 
-- 本轮其余任务见 PR 描述。之后：全局/移动播放条紧凑控制、SE-05 冒烟测试卡片面向用户的文案、Forge Red 品牌色（B-01）。
+- 之后：全局/移动播放条紧凑控制、SE-05 冒烟测试卡片面向用户的文案、Forge Red 品牌色（B-01）。
 
 ## 已知风险
 
