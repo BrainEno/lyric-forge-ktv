@@ -16,6 +16,7 @@ import 'playback_action_feedback.dart';
 import 'playback_artwork.dart';
 import 'playback_mode_controls.dart';
 import 'playback_queue_panel.dart';
+import 'player_bar_semantics.dart';
 import 'seekable_progress_bar.dart';
 
 class GlobalPlayerBar extends StatefulWidget {
@@ -111,6 +112,14 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
         }
 
         final localSong = item.projectId == null && !item.isRemoteStream;
+        final subtitle = PlayerBarSemantics.subtitleFor(
+          item,
+          projectLabel: '歌词工程',
+          remoteLabel: '远程音乐',
+          localLabel: '本地音乐',
+        );
+        void openNowPlaying() =>
+            Navigator.pushNamed(context, Routes.nowPlaying);
 
         return StreamBuilder<PlaybackState>(
           stream: _audio.stateStream,
@@ -175,72 +184,69 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                         ),
                         child: Row(
                           children: [
-                            InkWell(
-                              borderRadius: BorderRadius.circular(
-                                AppSpacing.radiusSmall,
-                              ),
-                              onTap: () => Navigator.pushNamed(
-                                context,
-                                Routes.nowPlaying,
-                              ),
-                              child: PlaybackArtwork(
-                                item: item,
-                                size: minimal ? 40 : 48,
+                            // Same destination as the title block, which
+                            // carries the label for both.
+                            ExcludeSemantics(
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(
+                                  AppSpacing.radiusSmall,
+                                ),
+                                onTap: openNowPlaying,
+                                child: PlaybackArtwork(
+                                  item: item,
+                                  size: minimal ? 40 : 48,
+                                ),
                               ),
                             ),
                             SizedBox(
                               width: minimal ? AppSpacing.sm : AppSpacing.md,
                             ),
                             Expanded(
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(
-                                  AppSpacing.radiusSmall,
-                                ),
-                                onTap: () => Navigator.pushNamed(
-                                  context,
-                                  Routes.nowPlaying,
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 4,
+                              child: PlayerBarNowPlayingTarget(
+                                title: item.title,
+                                subtitle: subtitle,
+                                onOpen: openNowPlaying,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusSmall,
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        item.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
-                                      if (!compact) ...[
-                                        const SizedBox(height: 2),
+                                  onTap: openNowPlaying,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
                                         Text(
-                                          item.artist?.trim().isNotEmpty == true
-                                              ? item.artist!
-                                              : item.projectId != null
-                                              ? '歌词工程'
-                                              : item.isRemoteStream
-                                              ? '远程音乐'
-                                              : '本地音乐',
+                                          item.title,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: Theme.of(context)
                                               .textTheme
-                                              .bodySmall
+                                              .titleSmall
                                               ?.copyWith(
-                                                color: AppColors.textTertiary,
+                                                fontWeight: FontWeight.w700,
                                               ),
                                         ),
+                                        if (!compact) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            subtitle,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: AppColors.textTertiary,
+                                                ),
+                                          ),
+                                        ],
                                       ],
-                                    ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -363,10 +369,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               height: minimal ? 40 : 42,
                               child: IconButton(
                                 tooltip: GlobalPlaybackShortcuts.withHint(
-                                  playback.isPlaying ? '暂停' : '播放',
+                                  PlayerBarSemantics.playPause(playback),
                                   GlobalPlaybackCommand.togglePlayPause,
                                 ),
-                                onPressed: playback.isBuffering
+                                onPressed: PlayerBarSemantics.isBusy(playback)
                                     ? null
                                     : () => runPlaybackActionWithFeedback(
                                         context,
@@ -376,7 +382,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                   backgroundColor: AppColors.pureWhite,
                                   foregroundColor: AppColors.pureBlack,
                                 ),
-                                icon: playback.isBuffering
+                                icon: PlayerBarSemantics.isBusy(playback)
                                     ? const SizedBox(
                                         width: 18,
                                         height: 18,
@@ -409,20 +415,12 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                             SizedBox(
                               width: minimal ? AppSpacing.xs : AppSpacing.sm,
                             ),
-                            TextButton.icon(
-                              onPressed: () => setState(
+                            PlayerBarQueueToggle(
+                              count: session.queue.length,
+                              expanded: _queueExpanded,
+                              compact: compact,
+                              onToggle: () => setState(
                                 () => _queueExpanded = !_queueExpanded,
-                              ),
-                              icon: Icon(
-                                _queueExpanded
-                                    ? Icons.keyboard_arrow_down_rounded
-                                    : Icons.queue_music_rounded,
-                                size: 20,
-                              ),
-                              label: Text(
-                                compact
-                                    ? '${session.queue.length}'
-                                    : '队列 ${session.queue.length}',
                               ),
                             ),
                           ],

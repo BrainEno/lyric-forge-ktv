@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-19 12:25] Offer open music once on the dashboard ([entry](log/entries/2026-11-19-1225-offer-open-music-once-on-the-dashboard.md))
 - [2026-11-19 12:20] Share the remaining empty states ([entry](log/entries/2026-11-19-1220-share-the-remaining-empty-states.md))
 - [2026-11-19 12:15] Move the trial run under troubleshooting ([entry](log/entries/2026-11-19-1215-move-the-trial-run-under-troubleshooting.md))
 - [2026-11-19 12:10] Fold reviewed projects in the review inbox ([entry](log/entries/2026-11-19-1210-fold-reviewed-projects-in-the-review-inbox.md))

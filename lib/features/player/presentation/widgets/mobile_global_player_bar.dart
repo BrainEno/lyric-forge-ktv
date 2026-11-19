@@ -9,6 +9,7 @@ import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import 'playback_action_feedback.dart';
 import 'playback_artwork.dart';
+import 'player_bar_semantics.dart';
 import 'seekable_progress_bar.dart';
 
 /// Compact Spotify-style player chrome for mobile.
@@ -53,6 +54,15 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
           builder: (context, playbackSnapshot) {
             final playback =
                 playbackSnapshot.data ?? const PlaybackState.idle();
+            final busy = PlayerBarSemantics.isBusy(playback);
+            final subtitle = PlayerBarSemantics.subtitleFor(
+              item,
+              projectLabel: item.isRemoteStream ? '桌面音乐库' : '本地音乐',
+              remoteLabel: '桌面音乐库',
+              localLabel: '本地音乐',
+            );
+            void openNowPlaying() =>
+                Navigator.pushNamed(context, Routes.nowPlaying);
 
             return Material(
               color: AppColors.bgElevated,
@@ -70,8 +80,10 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                     SizedBox(
                       height: 66,
                       child: InkWell(
-                        onTap: () =>
-                            Navigator.pushNamed(context, Routes.nowPlaying),
+                        // The title block below carries the label; the
+                        // buttons keep their own.
+                        excludeFromSemantics: true,
+                        onTap: openNowPlaying,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm,
@@ -79,41 +91,23 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                           ),
                           child: Row(
                             children: [
-                              PlaybackArtwork(item: item, size: 48),
-                              const SizedBox(width: AppSpacing.sm),
                               Expanded(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      item.artist?.trim().isNotEmpty == true
-                                          ? item.artist!
-                                          : item.isRemoteStream
-                                          ? '桌面音乐库'
-                                          : '本地音乐',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: AppColors.textTertiary,
-                                          ),
-                                    ),
-                                  ],
+                                child: PlayerBarNowPlayingTarget(
+                                  title: item.title,
+                                  subtitle: subtitle,
+                                  onOpen: openNowPlaying,
+                                  child: Row(
+                                    children: [
+                                      PlaybackArtwork(item: item, size: 48),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Expanded(
+                                        child: _TitleBlock(
+                                          title: item.title,
+                                          subtitle: subtitle,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                               IconButton(
@@ -130,9 +124,10 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                                 width: 44,
                                 height: 44,
                                 child: IconButton(
-                                  tooltip: playback.isPlaying ? '暂停' : '播放',
-                                  onPressed:
-                                      playback.isBuffering || playback.isLoading
+                                  tooltip: PlayerBarSemantics.playPause(
+                                    playback,
+                                  ),
+                                  onPressed: busy
                                       ? null
                                       : () => runPlaybackActionWithFeedback(
                                           context,
@@ -144,8 +139,7 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                                     disabledBackgroundColor:
                                         AppColors.textDisabled,
                                   ),
-                                  icon:
-                                      playback.isBuffering || playback.isLoading
+                                  icon: busy
                                       ? const SizedBox(
                                           width: 18,
                                           height: 18,
@@ -183,6 +177,38 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
           },
         );
       },
+    );
+  }
+}
+
+/// Title and subtitle of the mobile bar.
+class _TitleBlock extends StatelessWidget {
+  const _TitleBlock({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: text.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: text.bodySmall?.copyWith(color: AppColors.textTertiary),
+        ),
+      ],
     );
   }
 }
