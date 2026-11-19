@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_managed_storage_service.dart';
@@ -12,13 +11,9 @@ import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/asr_storage_preflight_service.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
 import '../../../transcription/presentation/widgets/asr_existing_model_actions.dart';
-import '../../../transcription/presentation/widgets/asr_install_error_card.dart';
-import '../../../transcription/presentation/widgets/asr_install_progress_card.dart';
-import '../../../transcription/presentation/widgets/asr_storage_preflight_card.dart';
 import '../../../transcription/presentation/transcription_screen_dependencies.dart';
 import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
-import 'asr_runtime_overview.dart';
-import 'settings_section_card.dart';
+import 'ai_transcription_settings_cards.dart';
 
 class AiTranscriptionSettingsSection extends StatefulWidget {
   final AsrRuntimeSetupDependencies dependencies;
@@ -182,9 +177,9 @@ class _AiTranscriptionSettingsSectionState
     setState(() {
       _error =
           '磁盘空间不足：本次安装建议至少可用 '
-          '${_formatBytes(storage.requiredAdditionalBytes)}，'
-          '当前可用 ${_formatBytes(storage.availableBytes)}，'
-          '还差 ${_formatBytes(storage.shortfallBytes)}。'
+          '${AsrSettingsText.formatBytes(storage.requiredAdditionalBytes)}，'
+          '当前可用 ${AsrSettingsText.formatBytes(storage.availableBytes)}，'
+          '还差 ${AsrSettingsText.formatBytes(storage.shortfallBytes)}。'
           '请释放空间后重新检测。';
     });
     return false;
@@ -381,7 +376,7 @@ class _AiTranscriptionSettingsSectionState
         builder: (context) => AlertDialog(
           title: Text(useDefault ? '迁回默认位置？' : '迁移识别环境？'),
           content: Text(
-            '当前托管环境约 ${_formatBytes(bytes)}。如果所选位置已有 LyricForge ASRRuntime，'
+            '当前托管环境约 ${AsrSettingsText.formatBytes(bytes)}。如果所选位置已有 LyricForge ASRRuntime，'
             '会直接识别并使用其中的模型，不复制、不删除当前目录；否则会先完整复制并核对文件数量与总大小，'
             '确认新目录完整后才切换路径并清理旧目录。操作期间不会启动识别任务。',
           ),
@@ -532,363 +527,69 @@ class _AiTranscriptionSettingsSectionState
     await _saveAndRefresh(updated);
   }
 
-  String _componentLabel(AsrRuntimeComponent component) {
-    return switch (component) {
-      AsrRuntimeComponent.ffmpeg => 'FFmpeg',
-      AsrRuntimeComponent.whisperRuntime => 'Whisper runtime',
-      AsrRuntimeComponent.whisperModel => 'Whisper 模型',
-      AsrRuntimeComponent.qwenRuntime => 'Qwen runtime',
-      AsrRuntimeComponent.qwenModel => 'Qwen 模型',
-      AsrRuntimeComponent.qwenAligner => 'ForcedAligner',
-    };
-  }
-
-  String _modeLabel(TranscriptionMode mode) {
-    return switch (mode) {
-      TranscriptionMode.highestQuality => '最高质量 · Qwen + 对齐 + Whisper fallback',
-      TranscriptionMode.whisperOnly => 'Whisper 单模型 · 更省空间',
-    };
-  }
-
-  String _modelSummary(TranscriptionConfig config) {
-    if (config.mode == TranscriptionMode.whisperOnly) {
-      final model = config.modelPath.trim().isEmpty
-          ? 'Whisper large-v3（待安装）'
-          : _basename(config.modelPath);
-      return '$model · Whisper runtime';
-    }
-
-    final qwen = _modelDisplay(config.qwenModelPath, 'Qwen3-ASR 1.7B');
-    final aligner = _modelDisplay(
-      config.qwenAlignerModelPath,
-      'ForcedAligner 0.6B',
-    );
-    final whisper = config.modelPath.trim().isEmpty
-        ? 'Whisper fallback'
-        : '${_basename(config.modelPath)} fallback';
-    return '$qwen + $aligner + $whisper';
-  }
-
-  String _modelDisplay(String pathOrId, String fallback) {
-    final value = pathOrId.trim();
-    if (value.isEmpty) return fallback;
-    if (value.contains('Qwen3-ASR-1.7B')) return 'Qwen3-ASR 1.7B';
-    if (value.contains('Qwen3-ASR-0.6B')) return 'Qwen3-ASR 0.6B';
-    if (value.contains('ForcedAligner-0.6B')) return 'ForcedAligner 0.6B';
-    return _basename(value);
-  }
-
-  String _basename(String path) {
-    final normalized = path.replaceAll('\\', '/');
-    final parts = normalized
-        .split('/')
-        .where((part) => part.isNotEmpty)
-        .toList();
-    return parts.isEmpty ? path : parts.last;
-  }
-
-  String _formatBytes(int? bytes) {
-    if (bytes == null) return '无法读取';
-    if (bytes == 0) return '0 MB';
-    final gib = bytes / (1024 * 1024 * 1024);
-    if (gib >= 1) return '${gib.toStringAsFixed(gib >= 10 ? 1 : 2)} GB';
-    final mib = bytes / (1024 * 1024);
-    return '${mib.toStringAsFixed(mib >= 10 ? 0 : 1)} MB';
-  }
-
   @override
   Widget build(BuildContext context) {
     final config = _config ?? _defaultConfig;
     final status = _status;
     final ready = status?.isReady == true;
     final storageBlocked = _storage?.canInstall == false;
+    VoidCallback? unlessBusy(VoidCallback action) => _busy ? null : action;
 
+    // The four cards are stateless (ai_transcription_settings_cards.dart);
+    // this state object owns the services, the install and move flows and
+    // the confirmation dialogs (audit SE-04).
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildPlanCard(config, status, ready: ready),
+        AsrPlanCard(
+          config: config,
+          status: status,
+          loading: _loading,
+          installing: _installing,
+          managedBytes: _managedBytes,
+          onModeChanged: _busy ? null : (mode) => unawaited(_changeMode(mode)),
+        ),
         const SizedBox(height: AppSpacing.lg),
-        _buildStorageCard(context, ready: ready),
+        AsrStorageSettingsCard(
+          ready: ready,
+          loading: _loading,
+          storage: _storage,
+          location: _managedStorageLocation,
+          scanningExisting: _scanningExisting,
+          existingModelMessage: _existingModelMessage,
+          movingStorage: _movingStorage,
+          movingCopiedBytes: _movingCopiedBytes,
+          movingTotalBytes: _movingTotalBytes,
+          onScan: unlessBusy(_scanExistingModels),
+          onPastePath: unlessBusy(_pasteExistingModelPath),
+          onBrowse: unlessBusy(_browseExistingModel),
+          onChangeLocation: unlessBusy(_changeManagedStorageLocation),
+          onRestoreDefault: unlessBusy(_restoreDefaultStorageLocation),
+        ),
         const SizedBox(height: AppSpacing.lg),
-        _buildMaintenanceCard(ready: ready, storageBlocked: storageBlocked),
+        AsrMaintenanceCard(
+          ready: ready,
+          loading: _loading,
+          busy: _busy,
+          storageBlocked: storageBlocked,
+          installing: _installing,
+          paused: _paused,
+          progress: _progress,
+          error: _error,
+          failedComponent: _failedComponent,
+          onRefresh: () => _refresh(loadFromStore: true),
+          onInstall: _install,
+          onPause: _pauseInstall,
+          onResume: _resumeInstall,
+          onRetry: () => _install(resume: true),
+          onDelete: (reinstall) => _deleteModels(reinstall: reinstall),
+        ),
         const SizedBox(height: AppSpacing.lg),
-        _buildAdvancedCard(context, config),
+        AsrAdvancedSettingsCard(
+          config: config,
+          onOpenAdvanced: unlessBusy(_openAdvanced),
+        ),
       ],
-    );
-  }
-
-  /// Recommended profile, actual models, install state and the quality plan.
-  Widget _buildPlanCard(
-    TranscriptionConfig config,
-    AsrRuntimeStatus? status, {
-    required bool ready,
-  }) {
-    return SettingsSectionCard(
-      icon: Icons.auto_awesome_rounded,
-      title: 'AI / 歌词识别',
-      subtitle: '这里是桌面端统一的模型与 runtime 管理入口。保存后，工程详情和下一次歌词识别会读取同一份配置。',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AsrInfoGrid(
-            children: [
-              AsrInfoTile(
-                label: '当前推荐方案',
-                value: status?.profile.label ?? (_loading ? '正在检测…' : '尚未检测'),
-                detail: status?.profile.description,
-              ),
-              AsrInfoTile(label: '当前实际模型', value: _modelSummary(config)),
-              AsrInfoTile(
-                label: '安装状态',
-                value: ready
-                    ? '已就绪'
-                    : _installing
-                    ? '正在安装'
-                    : status == null
-                    ? '未检测'
-                    : '${status.readyCount}/${status.components.length} 个组件已就绪',
-                valueColor: ready ? AppColors.success : null,
-              ),
-              AsrInfoTile(
-                label: '托管环境占用空间',
-                value: _formatBytes(_managedBytes),
-                detail: '仅统计 Elysium Player 托管目录；外部手工模型不计入',
-              ),
-              AsrInfoTile(
-                label: '安装目录',
-                value: status?.managedRoot ?? '检测后显示',
-                selectable: true,
-              ),
-              AsrInfoTile(label: '当前质量方案', value: _modeLabel(config.mode)),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          DropdownButtonFormField<TranscriptionMode>(
-            initialValue: config.mode,
-            decoration: const InputDecoration(
-              labelText: '质量方案',
-              helperText: '切换后立即保存，并作用于下一次识别。',
-            ),
-            items: const [
-              DropdownMenuItem(
-                value: TranscriptionMode.highestQuality,
-                child: Text('最高质量 · Qwen + ForcedAligner + Whisper fallback'),
-              ),
-              DropdownMenuItem(
-                value: TranscriptionMode.whisperOnly,
-                child: Text('Whisper 单模型 · 更省空间'),
-              ),
-            ],
-            onChanged: _busy
-                ? null
-                : (value) {
-                    if (value != null && value != config.mode) {
-                      unawaited(_changeMode(value));
-                    }
-                  },
-          ),
-          if (status != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            AsrComponentList(components: status.components),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Adopting models that are already on disk and moving the managed folder.
-  Widget _buildStorageCard(BuildContext context, {required bool ready}) {
-    final text = Theme.of(context).textTheme;
-    final hintStyle = text.bodySmall?.copyWith(color: AppColors.textSecondary);
-    return SettingsSectionCard(
-      icon: Icons.folder_rounded,
-      title: '模型与存储',
-      subtitle: '识别本机已有的模型，或把托管环境迁移到空间更大的磁盘。',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (!ready || _existingModelMessage != null) ...[
-            AsrExistingModelCard(
-              scanning: _scanningExisting,
-              message: _existingModelMessage,
-              onScan: _busy ? null : _scanExistingModels,
-              onPastePath: _busy ? null : _pasteExistingModelPath,
-              onBrowse: _busy ? null : _browseExistingModel,
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-          AsrStoragePreflightCard(
-            result: _storage,
-            loading: _loading,
-            onChangeLocation: _busy ? null : _changeManagedStorageLocation,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              OutlinedButton.icon(
-                onPressed: _busy ? null : _changeManagedStorageLocation,
-                icon: const Icon(Icons.folder_open_rounded),
-                label: const Text('迁移当前环境到其他文件夹'),
-              ),
-              if (_managedStorageLocation?.isDefault == false)
-                TextButton.icon(
-                  onPressed: _busy ? null : _restoreDefaultStorageLocation,
-                  icon: const Icon(Icons.settings_backup_restore_rounded),
-                  label: const Text('迁回默认位置'),
-                ),
-              if (_movingStorage)
-                Text(
-                  _movingTotalBytes > 0
-                      ? '正在迁移 ${_formatBytes(_movingCopiedBytes)} / ${_formatBytes(_movingTotalBytes)}'
-                      : '正在迁移识别环境…',
-                  style: hintStyle,
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Download progress, failures and the install, repair and delete actions.
-  Widget _buildMaintenanceCard({
-    required bool ready,
-    required bool storageBlocked,
-  }) {
-    return SettingsSectionCard(
-      icon: Icons.build_circle_outlined,
-      title: '安装与维护',
-      subtitle: '下载、校验、修复或删除识别组件；下载可以暂停后继续。',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_progress != null &&
-              (_installing || _paused || _error != null)) ...[
-            AsrInstallProgressCard(
-              progress: _progress!,
-              paused: _paused,
-              failed: _error != null && !_paused,
-              onPause: _installing ? _pauseInstall : null,
-              onResume: _paused ? _resumeInstall : null,
-              onRetry: _error != null && !_paused
-                  ? () => _install(resume: true)
-                  : null,
-              retryLabel: _failedComponent == null
-                  ? '重试未完成组件'
-                  : '重试 ${_componentLabel(_failedComponent!)}',
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-          if (_error != null) ...[
-            AsrInstallErrorCard(message: _error!),
-            const SizedBox(height: AppSpacing.md),
-          ],
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              OutlinedButton.icon(
-                onPressed: _busy ? null : () => _refresh(loadFromStore: true),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('重新检测'),
-              ),
-              if (_installing)
-                OutlinedButton.icon(
-                  onPressed: _pauseInstall,
-                  icon: const Icon(Icons.pause_rounded),
-                  label: const Text('暂停下载'),
-                )
-              else if (_paused)
-                FilledButton.icon(
-                  onPressed: _resumeInstall,
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('继续下载'),
-                )
-              else
-                FilledButton.icon(
-                  onPressed: _loading || storageBlocked ? null : _install,
-                  icon: Icon(
-                    storageBlocked
-                        ? Icons.sd_storage_rounded
-                        : _error != null
-                        ? Icons.refresh_rounded
-                        : Icons.fact_check_outlined,
-                  ),
-                  label: Text(
-                    storageBlocked
-                        ? '空间不足'
-                        : _error != null
-                        ? (_failedComponent == null
-                              ? '重试未完成组件'
-                              : '重试 ${_componentLabel(_failedComponent!)}')
-                        : ready
-                        ? '校验并修复'
-                        : '校验并补齐缺失组件',
-                  ),
-                ),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : () => _deleteModels(reinstall: false),
-                icon: const Icon(Icons.delete_outline_rounded),
-                label: const Text('删除模型'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : () => _deleteModels(reinstall: true),
-                icon: const Icon(Icons.restart_alt_rounded),
-                label: const Text('删除并重装模型'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Read-only summary of the configured paths and the manual editor.
-  Widget _buildAdvancedCard(BuildContext context, TranscriptionConfig config) {
-    final text = Theme.of(context).textTheme;
-    return SettingsSectionCard(
-      icon: Icons.tune_rounded,
-      title: '高级设置',
-      subtitle: '手工选择模型路径、runtime、FFmpeg、设备和精度',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: const EdgeInsets.only(bottom: AppSpacing.md),
-            title: const Text('查看当前路径'),
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Qwen runtime：${config.qwenExecutable.isEmpty ? '未指定' : config.qwenExecutable}\n'
-                  'Qwen 模型：${config.qwenModelPath}\n'
-                  'ForcedAligner：${config.qwenAlignerModelPath}\n'
-                  'Whisper runtime：${config.whisperExecutable.isEmpty ? '未指定' : config.whisperExecutable}\n'
-                  'Whisper 模型：${config.modelPath.isEmpty ? '未指定' : config.modelPath}\n'
-                  'FFmpeg：${config.ffmpegExecutable}',
-                  style: text.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.6,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonalIcon(
-              onPressed: _busy ? null : _openAdvanced,
-              icon: const Icon(Icons.tune_rounded),
-              label: const Text('手工选择模型路径和 runtime'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

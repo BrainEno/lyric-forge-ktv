@@ -26,9 +26,10 @@ void main() {
   );
 
   test('settings shows storage budget and rechecks before install', () {
-    final settings = File(
+    final settings = [
       'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
-    ).readAsStringSync();
+      'lib/features/settings/presentation/widgets/ai_transcription_settings_cards.dart',
+    ].map((path) => File(path).readAsStringSync()).join('\n');
 
     expect(settings, contains('AsrStoragePreflightCard('));
     expect(settings, contains('_ensureStorageBeforeInstall(current)'));

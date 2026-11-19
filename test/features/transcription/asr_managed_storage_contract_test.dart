@@ -34,9 +34,14 @@ void main() {
     final setup = await File(
       'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
     ).readAsString();
-    final settings = await File(
-      'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
-    ).readAsString();
+    final settings = [
+      await File(
+        'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
+      ).readAsString(),
+      await File(
+        'lib/features/settings/presentation/widgets/ai_transcription_settings_cards.dart',
+      ).readAsString(),
+    ].join('\n');
     final card = await File(
       'lib/features/transcription/presentation/widgets/asr_storage_preflight_card.dart',
     ).readAsString();
