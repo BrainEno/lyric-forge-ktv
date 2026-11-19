@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-23 12:00] Stop Whisper's history loops; re-decode and arbitrate cross-segment loops ([entry](log/entries/2026-11-23-1200-stop-whisper-history-loops.md))
 - [2026-11-22 12:00] Re-run a stretch of rows; accept zero-length aligned words ([entry](log/entries/2026-11-22-1200-rerun-a-stretch-and-accept-zero-length-alignment.md))
 - [2026-11-21 18:00] Keep unplaced aligner words and check missed repeats ([entry](log/entries/2026-11-21-1800-keep-unplaced-aligner-words-and-check-missed-repeats.md))
 - [2026-11-21 12:00] Fix Qwen chunk loops and detect block loops ([entry](log/entries/2026-11-21-1200-fix-qwen-chunk-loops-and-detect-block-loops.md))

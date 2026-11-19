@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
+import '../../../../core/navigation/transfer_entry.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../transfer_screen_dependencies.dart';
@@ -91,7 +92,7 @@ class _MobileMediaTransferHubScreenState
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
-        title: const Text('跨设备传输'),
+        title: const Text(TransferEntry.label),
         backgroundColor: AppColors.bgBase,
       ),
       body: SafeArea(

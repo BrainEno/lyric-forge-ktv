@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/playback_destination.dart';
 import '../../../../core/navigation/routes.dart';
+import '../../../../core/navigation/transfer_entry.dart';
 import '../dashboard_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -40,8 +41,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late final TranscriptionSettingsStore _transcriptionSettingsStore;
   late Future<List<ProjectManifest>> _projectsFuture;
   late Future<List<PlayHistory>> _historyFuture;
-
-  bool get _isDesktop => AppResponsive.isDesktopTarget();
 
   @override
   void initState() {
@@ -189,7 +188,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   _Header(
-                                    isDesktop: _isDesktop,
                                     // The idle hero already offers this.
                                     showOpenMusic: session.currentItem != null,
                                     onOpenMusic: _openMusic,
@@ -197,12 +195,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       context,
                                       Routes.import,
                                     ),
-                                    onRemote: () => Navigator.pushNamed(
-                                      context,
-                                      _isDesktop
-                                          ? Routes.mediaSharing
-                                          : Routes.remoteLibrary,
-                                    ),
+                                    onOpenTransfer: () =>
+                                        TransferEntry.open(context),
                                     onOpenModelSettings: _openModelSettings,
                                     onOpenSettings: () => Navigator.pushNamed(
                                       context,
@@ -366,20 +360,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 /// only while something is playing, when the hero shows the current song
 /// instead of its own button.
 class _Header extends StatelessWidget {
-  final bool isDesktop;
   final bool showOpenMusic;
   final VoidCallback onOpenMusic;
   final VoidCallback onImport;
-  final VoidCallback onRemote;
+
+  /// 跨设备传输 in the 更多 menu. The header used to have its own 远程音乐库
+  /// button for it on desktop (audit L-02).
+  final VoidCallback onOpenTransfer;
   final VoidCallback onOpenModelSettings;
   final VoidCallback onOpenSettings;
 
   const _Header({
-    required this.isDesktop,
     required this.showOpenMusic,
     required this.onOpenMusic,
     required this.onImport,
-    required this.onRemote,
+    required this.onOpenTransfer,
     required this.onOpenModelSettings,
     required this.onOpenSettings,
   });
@@ -431,16 +426,6 @@ class _Header extends StatelessWidget {
                 icon: const Icon(Icons.library_music_rounded, size: 18),
                 label: const Text('打开音乐'),
               ),
-            if (isDesktop)
-              SizedBox(
-                width: layout.minimumInteractiveExtent,
-                height: layout.minimumInteractiveExtent,
-                child: IconButton.filledTonal(
-                  tooltip: '远程音乐库',
-                  onPressed: onRemote,
-                  icon: const Icon(Icons.cast_connected_rounded),
-                ),
-              ),
             FilledButton.icon(
               style: FilledButton.styleFrom(
                 minimumSize: Size(
@@ -460,6 +445,9 @@ class _Header extends StatelessWidget {
                 icon: const Icon(Icons.more_horiz_rounded),
                 onSelected: (value) {
                   switch (value) {
+                    case TransferEntry.menuValue:
+                      onOpenTransfer();
+                      break;
                     case 'modelSettings':
                       onOpenModelSettings();
                       break;
@@ -469,6 +457,16 @@ class _Header extends StatelessWidget {
                   }
                 },
                 itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: TransferEntry.menuValue,
+                    child: Row(
+                      children: [
+                        Icon(TransferEntry.icon, size: 18),
+                        SizedBox(width: AppSpacing.sm),
+                        Text(TransferEntry.label),
+                      ],
+                    ),
+                  ),
                   PopupMenuItem(
                     value: 'modelSettings',
                     child: Row(

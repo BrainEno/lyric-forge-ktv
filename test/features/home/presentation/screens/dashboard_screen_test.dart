@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/navigation/transfer_entry.dart';
 import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_empty_state.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/dashboard_dependencies.dart';
@@ -344,6 +346,59 @@ void main() {
       expect(pushed, hasLength(1));
       expect(pushed.single.name, '/quick-play');
       expect(pushed.single.arguments, same(entry));
+    });
+  });
+
+  group('transfer entry (audit L-02)', () {
+    Future<void> openMoreMenu(WidgetTester tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('更多'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the header has no separate remote library button', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('远程音乐库'), findsNothing);
+      expect(find.byIcon(Icons.cast_connected_rounded), findsNothing);
+      expect(find.byTooltip(TransferEntry.label), findsNothing);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets('更多 lists 跨设备传输 first', (tester) async {
+      await openMoreMenu(tester);
+
+      final menu = find.byType(PopupMenuItem<String>);
+      final values = [
+        for (final item in tester.widgetList<PopupMenuItem<String>>(menu))
+          item.value,
+      ];
+      expect(values, [TransferEntry.menuValue, 'modelSettings', 'settings']);
+      expect(find.text(TransferEntry.label), findsOneWidget);
+      expect(find.byIcon(TransferEntry.icon), findsOneWidget);
+    });
+
+    testWidgets('a phone opens the connect screen from 更多', (tester) async {
+      await openMoreMenu(tester);
+      await tester.tap(find.text(TransferEntry.label));
+      await tester.pumpAndSettle();
+
+      expect([for (final route in pushed) route.name], ['/remote-library']);
+    });
+
+    testWidgets('a desktop opens the sharing screen from 更多', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      await openMoreMenu(tester);
+      await tester.tap(find.text(TransferEntry.label));
+      await tester.pumpAndSettle();
+
+      expect([for (final route in pushed) route.name], ['/media-sharing']);
+      debugDefaultTargetPlatformOverride = null;
     });
   });
 }
