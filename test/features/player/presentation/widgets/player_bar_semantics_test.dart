@@ -164,12 +164,15 @@ void main() {
   });
 
   group('desktop bar', () {
-    setUp(() => debugDefaultTargetPlatformOverride = TargetPlatform.linux);
+    // Set inside each test and cleared before it ends: the binding checks
+    // foundation debug variables before tear-downs run. The tear-down only
+    // covers a test that fails part-way.
     tearDown(() => debugDefaultTargetPlatformOverride = null);
 
     testWidgets('artwork and title are read once, as one button', (
       tester,
     ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       await tester.binding.setSurfaceSize(const Size(1280, 800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final handle = tester.ensureSemantics();
@@ -178,9 +181,11 @@ void main() {
       expect(find.bySemanticsLabel('正在播放：晴天，周杰伦'), findsOneWidget);
       expect(find.byType(ExcludeSemantics), findsWidgets);
       handle.dispose();
+      debugDefaultTargetPlatformOverride = null;
     });
 
     testWidgets('queue toggle names the queue and its size', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       await tester.binding.setSurfaceSize(const Size(500, 800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(_host(_desktopBar(), <String>[]));
@@ -206,11 +211,13 @@ void main() {
       await tester.tap(toggle);
       await tester.pumpAndSettle();
       expect(semanticsOf().properties.expanded, isTrue);
+      debugDefaultTargetPlatformOverride = null;
     });
 
     testWidgets('buffering uses the loading label with the shortcut', (
       tester,
     ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       await tester.binding.setSurfaceSize(const Size(1280, 800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
@@ -225,6 +232,7 @@ void main() {
         ),
         findsOneWidget,
       );
+      debugDefaultTargetPlatformOverride = null;
     });
   });
 }
