@@ -58,7 +58,7 @@ abstract final class PlayerBarSemantics {
 }
 
 /// Title block of a player bar. Artwork and text open the full player and are
-/// read as one button: 正在播放：<title>，<subtitle>, hint 打开播放页.
+/// read as one button, `正在播放：title，subtitle`, with the hint 打开播放页.
 class PlayerBarNowPlayingTarget extends StatelessWidget {
   const PlayerBarNowPlayingTarget({
     super.key,
