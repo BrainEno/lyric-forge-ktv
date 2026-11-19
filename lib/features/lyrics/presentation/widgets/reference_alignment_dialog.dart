@@ -9,11 +9,58 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/services/reference_lyric_text_parser.dart';
 
+/// What the pasted reference lyrics will be used for.
+///
+/// One input dialog serves three flows. It used to be titled 参考歌词纠正 and
+/// promise inferred timing in every case, so a user who had picked the
+/// text-only correction was told the opposite of what would happen, and the
+/// two menu entries could only be told apart by their subtitles (audit E-02).
+/// The menu and the dialog now share one name per flow, and the two reference
+/// flows read as a pair: 纠正文字和时间轴 versus 只改文字.
+enum ReferenceLyricPurpose {
+  /// Aligns the reference, can fill missed rows and replace timing.
+  alignment(
+    title: '参考歌词：纠正文字和时间轴',
+    menuDetail: '有参考歌词；可补全漏行并重算时间轴',
+    dialogDetail: '用正确的歌词文本纠正当前 ASR 草稿，并可补全漏行、推断时间；应用前会自动备份。',
+  ),
+
+  /// Corrects the text row by row and keeps the existing timestamps.
+  textOnly(
+    title: '参考歌词：只改文字',
+    menuDetail: '有参考歌词；逐行改正文字，时间戳保持不变',
+    dialogDetail: '逐行比对参考歌词，只改正文字，现有时间戳保持不变；每一处改动应用前都可以复核。',
+  ),
+
+  /// Feeds the reference into the smart proofreading proposal.
+  proposal(
+    title: '智能校对：提供参考歌词',
+    menuDetail: null,
+    dialogDetail: '参考歌词会作为智能校对的优先依据；生成的是提案，逐行确认后才会写入歌词。',
+  );
+
+  const ReferenceLyricPurpose({
+    required this.title,
+    required this.menuDetail,
+    required this.dialogDetail,
+  });
+
+  /// Dialog title, and the menu title of the flows that have a menu entry.
+  final String title;
+
+  /// One-line menu subtitle; null for flows reached from another dialog.
+  final String? menuDetail;
+
+  /// The explanation under the dialog title.
+  final String dialogDetail;
+}
+
 Future<ReferenceLyricInput?> showReferenceAlignmentDialog(
   BuildContext context, {
   required ReferenceLyricTextParser parser,
   required String initialTitle,
   String? initialArtist,
+  ReferenceLyricPurpose purpose = ReferenceLyricPurpose.alignment,
 }) {
   return showDialog<ReferenceLyricInput>(
     context: context,
@@ -21,6 +68,7 @@ Future<ReferenceLyricInput?> showReferenceAlignmentDialog(
       parser: parser,
       initialTitle: initialTitle,
       initialArtist: initialArtist,
+      purpose: purpose,
     ),
   );
 }
@@ -32,11 +80,15 @@ class ReferenceAlignmentDialog extends StatefulWidget {
   final String initialTitle;
   final String? initialArtist;
 
+  /// Which flow the reference is for; sets the title and the explanation.
+  final ReferenceLyricPurpose purpose;
+
   const ReferenceAlignmentDialog({
     super.key,
     required this.parser,
     required this.initialTitle,
     this.initialArtist,
+    this.purpose = ReferenceLyricPurpose.alignment,
   });
 
   @override
@@ -251,10 +303,10 @@ class _ReferenceAlignmentDialogState extends State<ReferenceAlignmentDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('参考歌词纠正'),
+          Text(widget.purpose.title),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '用正确的歌词文本纠正当前 ASR 草稿，并可补全漏行、推断时间；应用前会自动备份。',
+            widget.purpose.dialogDetail,
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),

@@ -28,8 +28,8 @@ void main() {
     expect(find.text(LyricProofreadMenuButton.label), findsOneWidget);
     // None of the individual flows is visible before the menu is opened.
     expect(find.text('智能校对'), findsNothing);
-    expect(find.text('参考歌词纠正'), findsNothing);
-    expect(find.text('逐行智能纠错（保留时间戳）'), findsNothing);
+    expect(find.text('参考歌词：纠正文字和时间轴'), findsNothing);
+    expect(find.text('参考歌词：只改文字'), findsNothing);
     expect(find.text('撤销最近更改'), findsNothing);
     expect(find.text('恢复对齐前版本'), findsNothing);
   });
@@ -52,9 +52,9 @@ void main() {
 
     expect(find.text('智能校对'), findsOneWidget);
     expect(find.text('不需要参考歌词；生成不写盘的提案，逐行对比后再应用'), findsOneWidget);
-    expect(find.text('参考歌词纠正'), findsOneWidget);
-    expect(find.text('逐行智能纠错（保留时间戳）'), findsOneWidget);
-    expect(find.text('有参考歌词；只改文字，时间戳保持不变'), findsOneWidget);
+    expect(find.text('参考歌词：纠正文字和时间轴'), findsOneWidget);
+    expect(find.text('参考歌词：只改文字'), findsOneWidget);
+    expect(find.text('有参考歌词；逐行改正文字，时间戳保持不变'), findsOneWidget);
     // Availability-driven entries stay hidden when the editor has nothing to
     // show yet.
     expect(find.text('查看逐行对比'), findsNothing);
@@ -79,8 +79,8 @@ void main() {
 
     for (final entry in {
       '智能校对': 'v2',
-      '参考歌词纠正': 'alignment',
-      '逐行智能纠错（保留时间戳）': 'proofread',
+      '参考歌词：纠正文字和时间轴': 'alignment',
+      '参考歌词：只改文字': 'proofread',
       '查看逐行对比': 'comparison',
       '撤销最近更改': 'undo',
       '恢复对齐前版本': 'restore',
@@ -179,7 +179,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('智能校对'), findsOneWidget);
-    expect(find.text('参考歌词纠正'), findsOneWidget);
+    expect(find.text('参考歌词：纠正文字和时间轴'), findsOneWidget);
   });
 
   group('forActions', () {

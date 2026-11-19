@@ -16,6 +16,7 @@ import 'lyric_timeline_repair_dialog.dart';
 import 'lyric_timing_shift_dialog.dart';
 import 'lyric_word_tap_dialog.dart';
 import 'lyric_word_timing_check_dialog.dart';
+import 'reference_alignment_dialog.dart';
 
 /// The proofreading capabilities.
 ///
@@ -147,10 +148,11 @@ class LyricProofreadMenuButton extends StatelessWidget {
   /// 智能校对: builds a proposal from the ASR evidence without writing it.
   final VoidCallback? onProofreadV2;
 
-  /// 参考歌词纠正: aligns a pasted reference and can replace timing.
+  /// 参考歌词：纠正文字和时间轴 — aligns a pasted reference and can replace
+  /// timing.
   final VoidCallback? onReferenceAlignment;
 
-  /// 逐行智能纠错: text-only corrections from a pasted reference.
+  /// 参考歌词：只改文字 — text-only corrections from a pasted reference.
   final VoidCallback? onReferenceProofread;
 
   /// 统一简繁字形: previews and applies a simplified/traditional unification.
@@ -306,10 +308,13 @@ class LyricProofreadMenuButton extends StatelessWidget {
         smartProofreadTitle,
         '不需要参考歌词；生成不写盘的提案，逐行对比后再应用',
       ),
-      LyricProofreadAction.referenceAlignment => ('参考歌词纠正', '有参考歌词；可一并修正时间轴'),
+      LyricProofreadAction.referenceAlignment => (
+        ReferenceLyricPurpose.alignment.title,
+        ReferenceLyricPurpose.alignment.menuDetail,
+      ),
       LyricProofreadAction.referenceProofread => (
-        '逐行智能纠错（保留时间戳）',
-        '有参考歌词；只改文字，时间戳保持不变',
+        ReferenceLyricPurpose.textOnly.title,
+        ReferenceLyricPurpose.textOnly.menuDetail,
       ),
       LyricProofreadAction.repetitionConsistency => (
         LyricRepetitionStrings.actionTitle,
