@@ -21,6 +21,7 @@ import '../../../transcription/domain/services/transcription_settings_store.dart
 import '../../../transcription/presentation/widgets/asr_runtime_setup_dialog.dart';
 import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
+import '../widgets/production_steps.dart';
 import '../widgets/project_audio_sources_section.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
@@ -726,40 +727,10 @@ class _ProcessingProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
     final displayProgress = (liveProgress?.progress ?? progress)
         .clamp(0.0, 1.0)
         .toDouble();
     final displayLabel = liveProgress?.message ?? _stageLabel(stage);
-    final stages = <Widget>[
-      _StagePill(
-        label: '导入',
-        icon: Icons.audio_file_outlined,
-        completed: stage.index >= ProcessingStage.audioImported.index,
-      ),
-      _StagePill(
-        label: '音频处理',
-        icon: Icons.tune_rounded,
-        completed: stage.index >= ProcessingStage.audioNormalized.index,
-      ),
-      _StagePill(
-        label: '歌词识别',
-        icon: Icons.auto_awesome,
-        completed: stage.index >= ProcessingStage.transcriptionComplete.index,
-        active: liveProgress != null,
-      ),
-      _StagePill(
-        label: '歌词校对',
-        icon: Icons.edit_note_rounded,
-        completed: stage.index >= ProcessingStage.lyricsEdited.index,
-      ),
-      _StagePill(
-        label: '导出',
-        icon: Icons.ios_share_rounded,
-        completed: stage.index >= ProcessingStage.exported.index,
-      ),
-    ];
-
     return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -806,75 +777,10 @@ class _ProcessingProgress extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
           ),
           const SizedBox(height: AppSpacing.lg),
-          if (spec.isCompactOrMedium || spec.isShort)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (var index = 0; index < stages.length; index++) ...[
-                    if (index > 0) const SizedBox(width: AppSpacing.sm),
-                    stages[index],
-                  ],
-                ],
-              ),
-            )
-          else
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: stages,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StagePill extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool completed;
-  final bool active;
-
-  const _StagePill({
-    required this.label,
-    required this.icon,
-    required this.completed,
-    this.active = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = completed || active
-        ? AppColors.accent
-        : AppColors.textTertiary;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: completed || active
-            ? AppColors.accent.withAlpha(18)
-            : AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            completed ? Icons.check_circle_rounded : icon,
-            size: 16,
-            color: color,
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: completed || active
-                  ? FontWeight.w700
-                  : FontWeight.w500,
+          ProductionSteps(
+            steps: productionStepsFor(
+              stage,
+              transcribing: liveProgress != null,
             ),
           ),
         ],
