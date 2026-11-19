@@ -21,6 +21,7 @@ import '../../../transcription/domain/services/transcription_settings_store.dart
 import '../../../transcription/presentation/widgets/asr_runtime_setup_dialog.dart';
 import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
+import '../widgets/project_audio_sources_section.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   final String projectId;
@@ -48,6 +49,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   bool _isTranscribing = false;
   bool _isImportingStem = false;
   bool _importingVocal = false;
+
+  /// Kept here rather than in the section: a refresh after an import shows
+  /// the loading state and rebuilds the whole page.
+  bool _audioSourcesExpanded = false;
 
   bool get _isDesktop =>
       !kIsWeb &&
@@ -317,6 +322,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             isImportingStem: _isImportingStem,
             isImportingVocal: _importingVocal,
             liveProgress: _liveProgress,
+            audioSourcesExpanded: _audioSourcesExpanded,
+            onAudioSourcesExpandedChanged: (value) =>
+                setState(() => _audioSourcesExpanded = value),
             onImportAccompaniment: () => _importStem(project, vocal: false),
             onImportVocal: () => _importStem(project, vocal: true),
             onTranscribe: () => _startTranscription(project),
@@ -362,6 +370,8 @@ class _ProjectDetailContent extends StatelessWidget {
   final bool isImportingStem;
   final bool isImportingVocal;
   final TranscriptionProgress? liveProgress;
+  final bool audioSourcesExpanded;
+  final ValueChanged<bool> onAudioSourcesExpandedChanged;
   final VoidCallback onImportAccompaniment;
   final VoidCallback onImportVocal;
   final VoidCallback onTranscribe;
@@ -376,6 +386,8 @@ class _ProjectDetailContent extends StatelessWidget {
     required this.isImportingStem,
     required this.isImportingVocal,
     required this.liveProgress,
+    required this.audioSourcesExpanded,
+    required this.onAudioSourcesExpandedChanged,
     required this.onImportAccompaniment,
     required this.onImportVocal,
     required this.onTranscribe,
@@ -464,6 +476,9 @@ class _ProjectDetailContent extends StatelessWidget {
                                 isTranscribing: isTranscribing,
                                 isImportingStem: isImportingStem,
                                 isImportingVocal: isImportingVocal,
+                                audioSourcesExpanded: audioSourcesExpanded,
+                                onAudioSourcesExpandedChanged:
+                                    onAudioSourcesExpandedChanged,
                                 onImportAccompaniment: onImportAccompaniment,
                                 onImportVocal: onImportVocal,
                                 onTranscribe: onTranscribe,
@@ -967,6 +982,8 @@ class _ActionPanel extends StatelessWidget {
   final bool isTranscribing;
   final bool isImportingStem;
   final bool isImportingVocal;
+  final bool audioSourcesExpanded;
+  final ValueChanged<bool> onAudioSourcesExpandedChanged;
   final VoidCallback onImportAccompaniment;
   final VoidCallback onImportVocal;
   final VoidCallback onTranscribe;
@@ -979,6 +996,8 @@ class _ActionPanel extends StatelessWidget {
     required this.isTranscribing,
     required this.isImportingStem,
     required this.isImportingVocal,
+    required this.audioSourcesExpanded,
+    required this.onAudioSourcesExpandedChanged,
     required this.onImportAccompaniment,
     required this.onImportVocal,
     required this.onTranscribe,
@@ -1072,42 +1091,16 @@ class _ActionPanel extends StatelessWidget {
             ),
           ],
           if (isDesktop && project.audioAsset != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              style: outlinedStyle,
-              onPressed: isTranscribing || isImportingStem
-                  ? null
-                  : onImportAccompaniment,
-              icon: const Icon(Icons.library_music_outlined),
-              label: Text(
-                isImportingStem && !isImportingVocal
-                    ? '正在导入伴奏…'
-                    : project.audioAsset!.instrumentalPath == null
-                    ? '导入已有伴奏'
-                    : '更换伴奏',
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              style: outlinedStyle,
-              onPressed: isTranscribing || isImportingStem
-                  ? null
-                  : onImportVocal,
-              icon: const Icon(Icons.mic_none_rounded),
-              label: Text(
-                isImportingStem && isImportingVocal
-                    ? '正在导入人声…'
-                    : project.audioAsset!.vocalPath == null
-                    ? '导入已有人声'
-                    : '更换人声',
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '选择与原曲时间轴一致的人声或伴奏；应用不会自动分离或校准。',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+            const Divider(height: AppSpacing.xl),
+            ProjectAudioSourcesSection(
+              audio: project.audioAsset!,
+              expanded: audioSourcesExpanded,
+              onExpandedChanged: onAudioSourcesExpandedChanged,
+              busy: isTranscribing || isImportingStem,
+              isImportingStem: isImportingStem,
+              isImportingVocal: isImportingVocal,
+              onImportAccompaniment: onImportAccompaniment,
+              onImportVocal: onImportVocal,
             ),
           ],
           if (isDesktop) ...[

@@ -12,6 +12,7 @@ import 'package:lyric_forge_ktv/features/project/domain/services/project_accompa
 import 'package:lyric_forge_ktv/features/project/domain/services/project_vocal_importer.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/project_detail_dependencies.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/screens/project_detail_screen.dart';
+import 'package:lyric_forge_ktv/features/project/presentation/widgets/project_audio_sources_section.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_download_connection_checker.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_managed_storage_service.dart';
@@ -51,6 +52,7 @@ Future<void> _showProject(
   ProjectVocalImporter? vocalImporter,
   ActiveProjectPlaybackSourceUpdater? updater,
   double textScale = 1,
+  bool openAudioSources = true,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -90,6 +92,19 @@ Future<void> _showProject(
       ),
     ),
   );
+  await tester.pumpAndSettle();
+  // The track imports are folded behind 伴奏与人声 (desktop only).
+  final toggle = find.byKey(ProjectAudioSourcesSection.toggleKey);
+  if (openAudioSources && toggle.evaluate().isNotEmpty) {
+    await _reveal(tester, toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+  }
+}
+
+/// Scrolls [finder] to the middle of the page, clear of the pinned app bar.
+Future<void> _reveal(WidgetTester tester, Finder finder) async {
+  await Scrollable.ensureVisible(tester.element(finder), alignment: 0.5);
   await tester.pumpAndSettle();
 }
 
@@ -181,6 +196,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('更换伴奏'), findsOneWidget);
         expect(find.textContaining('伴奏已导入'), findsOneWidget);
+        await _reveal(tester, find.text('更换伴奏'));
         await tester.tap(find.text('更换伴奏'));
         await tester.pumpAndSettle();
         expect(find.text('更换伴奏？'), findsOneWidget);
@@ -375,6 +391,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.textContaining('人声已导入'), findsOneWidget);
         expect(find.text('更换人声'), findsOneWidget);
+        await _reveal(tester, find.text('更换人声'));
         await tester.tap(find.text('更换人声'));
         await tester.pumpAndSettle();
         expect(find.text('更换人声？'), findsOneWidget);
@@ -609,6 +626,85 @@ void main() {
     }
   });
 
+  testWidgets('track imports start folded behind 伴奏与人声', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      await _showProject(
+        tester,
+        _project(
+          stage: ProcessingStage.lyricsEdited,
+          audio: const AudioAsset(
+            originalPath: '/song.wav',
+            vocalPath: '/vocal.wav',
+            format: 'wav',
+          ),
+        ),
+        const Size(1366, 768),
+        openAudioSources: false,
+      );
+
+      expect(find.text('伴奏与人声'), findsOneWidget);
+      expect(find.text('没有伴奏轨 · 已有人声轨'), findsOneWidget);
+      expect(find.text('导入已有伴奏'), findsNothing);
+      expect(find.text('更换人声'), findsNothing);
+      // The main path is still first.
+      expect(find.widgetWithText(FilledButton, '校对歌词'), findsOneWidget);
+
+      final toggle = find.byKey(ProjectAudioSourcesSection.toggleKey);
+      await _reveal(tester, toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.text('导入已有伴奏'), findsOneWidget);
+      expect(find.text('更换人声'), findsOneWidget);
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.text('导入已有伴奏'), findsNothing);
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('the section stays open across the refresh after an import', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final project = _project(
+        stage: ProcessingStage.lyricsEdited,
+        audio: const AudioAsset(originalPath: '/song.mp3', format: 'mp3'),
+      );
+      final projects = _Projects(project);
+      final importer = _Importer(
+        onImport: (_) async {
+          projects.project = project.copyWith(
+            audioAsset: project.audioAsset!.copyWith(
+              instrumentalPath: '/managed/backing.mp3',
+            ),
+          );
+          return projects.project;
+        },
+      );
+      await _showProject(
+        tester,
+        project,
+        const Size(1366, 768),
+        projects: projects,
+        importer: importer,
+      );
+
+      await tester.tap(find.text('导入已有伴奏'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('更换伴奏'), findsOneWidget);
+      expect(find.text('已有伴奏轨 · 没有人声轨'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('mobile does not expose desktop accompaniment import', (
     tester,
   ) async {
@@ -627,6 +723,7 @@ void main() {
       );
       expect(find.text('导入已有伴奏'), findsNothing);
       expect(find.text('导入已有人声'), findsNothing);
+      expect(find.text('伴奏与人声'), findsNothing);
       expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;
