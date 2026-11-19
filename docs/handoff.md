@@ -6,15 +6,16 @@
 
 1. P-02 工程详情：人声/伴奏导入收进“伴奏与人声”折叠行，行内显示已有哪些音轨。
 2. A-04 播放条读屏标注：两个播放条的标题区读作一个按钮“正在播放：歌名，歌手”；加载时播放键读“正在加载”；队列按钮读“播放队列，N 首”并报告展开状态；音乐库搜索的清除按钮补上提示。
+3. E-05 窄屏行检查器：底部面板从固定 88% 改为先开到 62%，显示上一行/下一行，可拖动到 40% 或 92%，加关闭按钮并避开键盘。
 
 ## Git 现场
 
 - 分支：`arena/1cf88c2c-lyric-forge-ktv`，基于 main `2fb8680`。
-- 提交：`Fold track imports on the project page`；`Label the player bars for screen readers`。
+- 提交：`Fold track imports on the project page`；`Label the player bars for screen readers`；`Let the narrow line inspector sheet resize`。
 
 ## 已改文件
 
-见工作日志 `2026-11-24-1210-fold-track-imports-on-the-project-page.md`（工程详情的伴奏与人声折叠）和 `2026-11-24-1220-label-the-player-bars-for-screen-readers.md`（播放条读屏标注）。
+见工作日志 `2026-11-24-1210-fold-track-imports-on-the-project-page.md`（工程详情的伴奏与人声折叠）和 `2026-11-24-1220-label-the-player-bars-for-screen-readers.md`（播放条读屏标注）、`2026-11-24-1240-let-the-narrow-line-inspector-sheet-resize.md`（窄屏行检查器）。
 
 ## 检查结果
 
@@ -28,4 +29,4 @@
 
 - 没有在运行中的应用里看过。详见工作日志。
 
-最后更新：2026-11-24 12:20（Asia/Taipei）
+最后更新：2026-11-24 12:40（Asia/Taipei）

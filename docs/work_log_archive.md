@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-20 12:00] Import karaoke word timing, add word timing check and fine-tuning ([entry](log/entries/2026-11-20-1200-import-check-and-fine-tune-word-timing.md))
 - [2026-11-19 12:25] Offer open music once on the dashboard ([entry](log/entries/2026-11-19-1225-offer-open-music-once-on-the-dashboard.md))
 - [2026-11-19 12:20] Share the remaining empty states ([entry](log/entries/2026-11-19-1220-share-the-remaining-empty-states.md))
 - [2026-11-19 12:15] Move the trial run under troubleshooting ([entry](log/entries/2026-11-19-1215-move-the-trial-run-under-troubleshooting.md))
