@@ -125,4 +125,129 @@ class ReviewInboxBulkReview {
       return const BulkReviewResult._(status: BulkReviewStatus.conflict);
     }
   }
+
+  /// Marks every line of every project in [projects] reviewed, one project at
+  /// a time, and reports progress after each: the inbox-wide version of
+  /// [markAllReviewed] behind its global button (audit R-03, second half).
+  ///
+  /// Each project keeps its own revision check, so a project saved in the
+  /// editor since the inbox read it is skipped as a conflict instead of
+  /// overwritten, and one failing save does not stop the others. Never throws
+  /// for a repository error: the project is listed in
+  /// [BulkReviewBatchResult.failed] instead.
+  Future<BulkReviewBatchResult> markAllProjectsReviewed(
+    List<ProjectManifest> projects, {
+    void Function(int done, int total)? onProgress,
+  }) async {
+    final saved = <BulkReviewResult>[];
+    final conflicts = <ProjectManifest>[];
+    final failed = <ProjectManifest>[];
+    var unchanged = 0;
+    for (var index = 0; index < projects.length; index++) {
+      final project = projects[index];
+      try {
+        final result = await markAllReviewed(project);
+        switch (result.status) {
+          case BulkReviewStatus.saved:
+            saved.add(result);
+          case BulkReviewStatus.conflict:
+            conflicts.add(project);
+          case BulkReviewStatus.unchanged:
+            unchanged++;
+        }
+      } on Exception {
+        failed.add(project);
+      }
+      onProgress?.call(index + 1, projects.length);
+    }
+    return BulkReviewBatchResult._(
+      saved: saved,
+      conflicts: conflicts,
+      failed: failed,
+      unchanged: unchanged,
+    );
+  }
+
+  /// Undoes every project [batch] saved that nothing has saved again since.
+  Future<BulkReviewBatchUndo> undoBatch(BulkReviewBatchResult batch) async {
+    var restored = 0;
+    var conflicts = 0;
+    var failed = 0;
+    for (final result in batch.saved) {
+      try {
+        final undone = await undo(result);
+        if (undone.status == BulkReviewStatus.saved) {
+          restored++;
+        } else {
+          conflicts++;
+        }
+      } on Exception {
+        failed++;
+      }
+    }
+    return BulkReviewBatchUndo(
+      restored: restored,
+      conflicts: conflicts,
+      failed: failed,
+    );
+  }
+}
+
+/// Outcome of marking several projects reviewed in one go.
+class BulkReviewBatchResult {
+  BulkReviewBatchResult._({
+    required List<BulkReviewResult> saved,
+    required List<ProjectManifest> conflicts,
+    required List<ProjectManifest> failed,
+    required this.unchanged,
+  }) : saved = List.unmodifiable(saved),
+       conflicts = List.unmodifiable(conflicts),
+       failed = List.unmodifiable(failed);
+
+  /// One saved result per project that was written, in request order.
+  final List<BulkReviewResult> saved;
+
+  /// Projects that changed since the inbox read them; nothing was written.
+  final List<ProjectManifest> conflicts;
+
+  /// Projects whose save failed for another reason (storage, I/O).
+  final List<ProjectManifest> failed;
+
+  /// Projects whose every line was already confirmed.
+  final int unchanged;
+
+  /// Lines newly confirmed across every saved project.
+  int get markedLines {
+    var total = 0;
+    for (final result in saved) {
+      total += result.markedLines;
+    }
+    return total;
+  }
+
+  /// Whether the inbox should re-read projects: something was written, or a
+  /// conflict showed that its copy is stale.
+  bool get changedAnything => saved.isNotEmpty || conflicts.isNotEmpty;
+
+  bool get canUndo => saved.any((result) => result.canUndo);
+}
+
+/// Outcome of undoing a [BulkReviewBatchResult].
+class BulkReviewBatchUndo {
+  const BulkReviewBatchUndo({
+    required this.restored,
+    required this.conflicts,
+    required this.failed,
+  });
+
+  /// Projects whose lyrics are back to how they were before the batch.
+  final int restored;
+
+  /// Projects saved again since the batch; they were left alone.
+  final int conflicts;
+
+  /// Projects whose restore failed for another reason.
+  final int failed;
+
+  bool get isComplete => conflicts == 0 && failed == 0;
 }
