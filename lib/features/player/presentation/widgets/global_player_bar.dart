@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
+import '../../../../core/navigation/app_chrome_scope.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -41,18 +42,40 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
     _audio = widget.dependencies.audioPlayer;
   }
 
+  /// The bar is app chrome, outside the navigator: dialogs opened from it go
+  /// through the navigator's context.
+  BuildContext _host(BuildContext context) => AppChromeScope.contextOf(context);
+
   Future<void> _addToPlaylist(BuildContext context, PlaybackItem item) async {
     if (item.isRemoteStream) return;
+    final host = _host(context);
     final playlist = await showAddToLocalPlaylistDialog(
-      context,
+      host,
       sourcePath: item.audioAsset.originalPath,
       title: item.title,
       repository: widget.dependencies.collectionRepository,
     );
-    if (!context.mounted || playlist == null) return;
+    if (!host.mounted || playlist == null) return;
     ScaffoldMessenger.of(
-      context,
+      host,
     ).showSnackBar(SnackBar(content: Text('已加入“${playlist.name}”')));
+  }
+
+  Future<void> _importLyrics(BuildContext context, PlaybackItem item) {
+    return importLyricsForLocalPlaybackItem(
+      _host(context),
+      item,
+      widget.dependencies.lyricsImport,
+    );
+  }
+
+  Future<void> _editMetadata(BuildContext context, PlaybackItem item) {
+    return showLocalMediaMetadataDialog(
+      _host(context),
+      item,
+      repository: widget.dependencies.metadataRepository,
+      session: widget.dependencies.playbackSession,
+    );
   }
 
   Future<void> _handleSongAction(
@@ -62,32 +85,19 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
   ) async {
     switch (value) {
       case 'library':
-        Navigator.pushNamed(context, Routes.library);
+        AppChromeScope.pushNamed<void>(context, Routes.library);
         return;
       case 'collections':
-        Navigator.pushNamed(context, Routes.collections);
+        AppChromeScope.pushNamed<void>(context, Routes.collections);
         return;
       case 'playlist':
         if (!item.isRemoteStream) await _addToPlaylist(context, item);
         return;
       case 'lyrics':
-        if (!item.isRemoteStream) {
-          await importLyricsForLocalPlaybackItem(
-            context,
-            item,
-            widget.dependencies.lyricsImport,
-          );
-        }
+        if (!item.isRemoteStream) await _importLyrics(context, item);
         return;
       case 'edit':
-        if (!item.isRemoteStream) {
-          await showLocalMediaMetadataDialog(
-            context,
-            item,
-            repository: widget.dependencies.metadataRepository,
-            session: widget.dependencies.playbackSession,
-          );
-        }
+        if (!item.isRemoteStream) await _editMetadata(context, item);
         return;
     }
   }
@@ -119,7 +129,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
           localLabel: '本地音乐',
         );
         void openNowPlaying() =>
-            Navigator.pushNamed(context, Routes.nowPlaying);
+            AppChromeScope.pushNamed<void>(context, Routes.nowPlaying);
 
         return StreamBuilder<PlaybackState>(
           stream: _audio.stateStream,
@@ -254,7 +264,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                             if (!compact)
                               IconButton(
                                 tooltip: '音乐库',
-                                onPressed: () => Navigator.pushNamed(
+                                onPressed: () => AppChromeScope.pushNamed<void>(
                                   context,
                                   Routes.library,
                                 ),
@@ -263,7 +273,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                             if (!compact)
                               IconButton(
                                 tooltip: '收藏与播放列表',
-                                onPressed: () => Navigator.pushNamed(
+                                onPressed: () => AppChromeScope.pushNamed<void>(
                                   context,
                                   Routes.collections,
                                 ),
@@ -288,12 +298,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                               IconButton(
                                 tooltip: item.hasLyrics ? '打开歌词' : '导入歌词文件',
-                                onPressed: () =>
-                                    importLyricsForLocalPlaybackItem(
-                                      context,
-                                      item,
-                                      widget.dependencies.lyricsImport,
-                                    ),
+                                onPressed: () => _importLyrics(context, item),
                                 icon: Icon(
                                   item.hasLyrics
                                       ? Icons.lyrics_rounded
@@ -302,47 +307,16 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                               IconButton(
                                 tooltip: '编辑歌曲资料与封面',
-                                onPressed: () => showLocalMediaMetadataDialog(
-                                  context,
-                                  item,
-                                  repository:
-                                      widget.dependencies.metadataRepository,
-                                  session: widget.dependencies.playbackSession,
-                                ),
+                                onPressed: () => _editMetadata(context, item),
                                 icon: const Icon(Icons.edit_outlined),
                               ),
                             ],
                             if (localSong && compact)
-                              PopupMenuButton<String>(
-                                tooltip: '更多歌曲操作',
+                              _SongActionsMenu(
+                                showLibrary: minimal,
+                                hasLyrics: item.hasLyrics,
                                 onSelected: (value) =>
                                     _handleSongAction(context, item, value),
-                                itemBuilder: (_) => [
-                                  if (minimal)
-                                    const PopupMenuItem(
-                                      value: 'library',
-                                      child: Text('音乐库'),
-                                    ),
-                                  const PopupMenuItem(
-                                    value: 'collections',
-                                    child: Text('收藏与播放列表'),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'playlist',
-                                    child: Text('加入播放列表'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'lyrics',
-                                    child: Text(
-                                      item.hasLyrics ? '打开歌词' : '导入歌词文件',
-                                    ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'edit',
-                                    child: Text('编辑歌曲资料与封面'),
-                                  ),
-                                ],
-                                icon: const Icon(Icons.more_horiz_rounded),
                               ),
                             if (!compact)
                               PlaybackModeControls(
@@ -434,6 +408,60 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
           },
         );
       },
+    );
+  }
+}
+
+/// Overflow menu of the compact bar.
+///
+/// A [MenuAnchor] rather than a `PopupMenuButton`: a popup menu is a route,
+/// and the bar sits outside the navigator, so the popup threw instead of
+/// opening. The menu anchor only needs the overlay the desktop chrome
+/// provides.
+class _SongActionsMenu extends StatelessWidget {
+  const _SongActionsMenu({
+    required this.showLibrary,
+    required this.hasLyrics,
+    required this.onSelected,
+  });
+
+  /// Whether 音乐库 is in the menu (the minimal bar has no button for it).
+  final bool showLibrary;
+  final bool hasLyrics;
+  final ValueChanged<String> onSelected;
+
+  static const Key buttonKey = ValueKey('player-bar:song-actions');
+
+  @override
+  Widget build(BuildContext context) {
+    MenuItemButton item(String value, IconData icon, String label) {
+      return MenuItemButton(
+        leadingIcon: Icon(icon, size: 20),
+        onPressed: () => onSelected(value),
+        child: Text(label),
+      );
+    }
+
+    return MenuAnchor(
+      menuChildren: [
+        if (showLibrary) item('library', Icons.library_music_rounded, '音乐库'),
+        item('collections', Icons.collections_bookmark_outlined, '收藏与播放列表'),
+        item('playlist', Icons.playlist_add_rounded, '加入播放列表'),
+        item(
+          'lyrics',
+          hasLyrics ? Icons.lyrics_rounded : Icons.file_upload_outlined,
+          hasLyrics ? '打开歌词' : '导入歌词文件',
+        ),
+        item('edit', Icons.edit_outlined, '编辑歌曲资料与封面'),
+      ],
+      builder: (context, controller, _) => IconButton(
+        key: buttonKey,
+        tooltip: '更多歌曲操作',
+        isSelected: controller.isOpen,
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+        icon: const Icon(Icons.more_horiz_rounded),
+      ),
     );
   }
 }

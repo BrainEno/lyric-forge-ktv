@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/navigation/app_chrome_scope.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_badge.dart';
@@ -36,17 +37,20 @@ class PlaybackQueuePanel extends StatelessWidget {
     BuildContext context,
     PlaybackSessionState state,
   ) async {
+    // The panel also opens from the desktop player bar, which is chrome
+    // outside the navigator; the dialog needs the navigator's context.
+    final host = AppChromeScope.contextOf(context);
     final result = await savePlaybackQueueToPlaylist(
-      context,
+      host,
       state,
       repository: collectionRepository,
     );
-    if (!context.mounted || result == null) return;
+    if (!host.mounted || result == null) return;
 
     final skipped = result.skippedCount > 0
         ? '，跳过 ${result.skippedCount} 个远程、工程或重复队列项'
         : '';
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(host).showSnackBar(
       SnackBar(
         content: Text(
           '已将 ${result.savedCount} 首本地歌曲保存到“${result.playlistName}”$skipped',

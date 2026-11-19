@@ -31,7 +31,7 @@ void main() {
     expect(builtApp!.debugShowCheckedModeBanner, isFalse);
   });
 
-  testWidgets('mobile root renders Navigator child without desktop overlay', (
+  testWidgets('mobile root renders the Navigator child under the chrome', (
     WidgetTester tester,
   ) async {
     AppChromeController.enterImmersive();
@@ -73,10 +73,12 @@ void main() {
         find.byKey(const ValueKey('mobile-navigator-child')),
         findsOneWidget,
       );
+      // The chrome has its own overlay on mobile too: without one the bottom
+      // bar's destination tooltips had nowhere to go and threw.
       expect(
         find.byType(Overlay),
-        findsOneWidget,
-        reason: 'mobile chrome must not add the desktop-only Overlay',
+        findsNWidgets(2),
+        reason: 'the app overlay plus the chrome overlay',
       );
     } finally {
       // Unmount listeners before restoring the shared chrome controller. This

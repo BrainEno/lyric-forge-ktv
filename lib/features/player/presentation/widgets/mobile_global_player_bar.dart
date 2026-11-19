@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/navigation/app_chrome_scope.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -62,7 +63,7 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
               localLabel: '本地音乐',
             );
             void openNowPlaying() =>
-                Navigator.pushNamed(context, Routes.nowPlaying);
+                AppChromeScope.pushNamed<void>(context, Routes.nowPlaying);
 
             return Material(
               color: AppColors.bgElevated,
