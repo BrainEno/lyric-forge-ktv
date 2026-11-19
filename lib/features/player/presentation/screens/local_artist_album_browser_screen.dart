@@ -6,6 +6,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_error_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -96,7 +97,7 @@ class _LocalArtistAlbumBrowserScreenState
         _error = null;
       });
     } catch (error) {
-      if (mounted) setState(() => _error = '媒体分类加载失败：$error');
+      if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -935,25 +936,6 @@ class _CatalogError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layout = AppResponsive.of(context);
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(layout.pageGutter),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              size: 52,
-              color: AppColors.error,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.md),
-            OutlinedButton(onPressed: onRetry, child: const Text('重试')),
-          ],
-        ),
-      ),
-    );
+    return AppErrorState(title: '媒体分类加载失败', message: message, onRetry: onRetry);
   }
 }

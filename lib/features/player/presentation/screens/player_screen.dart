@@ -6,6 +6,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_error_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -185,29 +186,12 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
     return Scaffold(
       backgroundColor: AppColors.bgBase,
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(spec.pageGutter),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-              const SizedBox(height: AppSpacing.md),
-              const Text('加载播放器失败'),
-              const SizedBox(height: AppSpacing.md),
-              FilledButton(
-                onPressed: onRetry,
-                style: FilledButton.styleFrom(
-                  minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
-                ),
-                child: const Text('重试'),
-              ),
-            ],
-          ),
-        ),
+      body: AppErrorState(
+        title: '加载播放器失败',
+        message: '工程或音频暂时无法读取，可以重新加载一次。',
+        onRetry: onRetry,
       ),
     );
   }
