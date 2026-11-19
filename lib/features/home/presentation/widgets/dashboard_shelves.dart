@@ -302,7 +302,7 @@ class _StatusDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (status) {
-      ProjectStatus.ready => AppColors.accent,
+      ProjectStatus.ready => AppColors.success,
       ProjectStatus.error => AppColors.error,
       ProjectStatus.transcribing || ProjectStatus.processing => AppColors.info,
       ProjectStatus.editing => AppColors.warning,

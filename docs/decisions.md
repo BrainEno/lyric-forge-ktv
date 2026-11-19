@@ -559,3 +559,16 @@
   - 改名目录需要数据迁移，属于独立任务。
 - 状态：生效
 - 来源：用户更正；[工作日志](log/entries/2026-11-18-2300-restore-elysium-player-name.md)
+
+## D-031 强调色改为淡紫色（Elysium Lavender）
+
+- 日期：2026-11-26
+- 背景：强调色原为 Spotify 绿 `#1DB954`，与成功色同值，“选中”“主操作”“已完成”看起来一样，也和红、黑、米白的应用图标没有关系。审计 A-01 建议换强调色；用户同意更换，要求和错误色区分开、好看，颜色可自行决定。
+- 决定：
+  - `AppColors.accent` 改为淡紫 `#B69CFF`（悬停 `#C7B3FF`、按下 `#9F84F0`、16% 底色 `accentMuted`），按钮上的文字仍用黑色（9.2:1）。
+  - 绿色只表示“完成/成功”：工程“就绪”状态点、参考歌词对比里的“新增文字”改用 `AppColors.success`。
+  - 红色只用于品牌标记（`AppColors.brand`）和错误（`AppColors.error`）。
+  - `test/core/theme/accent_palette_test.dart` 固定色相距离和对比度要求。
+- 影响：所有用 `AppColors.accent` 和主题主色的地方（主按钮、滑块、进度、选中态、KTV 已唱部分）一起变色；进行中的状态继续用强调色。
+- 状态：生效
+- 来源：用户决定；[工作日志](log/entries/2026-11-26-0900-switch-the-accent-to-elysium-lavender.md)

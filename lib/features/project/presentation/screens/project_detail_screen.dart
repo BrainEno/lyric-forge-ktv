@@ -1237,7 +1237,7 @@ Color _statusColor(ProjectStatus status) {
     ProjectStatus.processing => AppColors.info,
     ProjectStatus.transcribing => AppColors.info,
     ProjectStatus.editing => AppColors.warning,
-    ProjectStatus.ready => AppColors.accent,
+    ProjectStatus.ready => AppColors.success,
     ProjectStatus.error => AppColors.error,
   };
 }
