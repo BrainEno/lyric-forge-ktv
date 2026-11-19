@@ -38,5 +38,6 @@ SettingsScreenDependencies assembleSettingsScreenDependencies(
       final pass = await services.libraryLyricsAutoLinker.linkAll();
       return LibraryLyricsLinkText.summary(pass);
     },
+    countAutoPairedLyrics: services.libraryLyricsAutoLinker.autoPairedCount,
   );
 }

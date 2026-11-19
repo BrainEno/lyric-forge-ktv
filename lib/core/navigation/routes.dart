@@ -10,6 +10,11 @@ abstract class Routes {
   static const String library = '/library';
   static const String libraryArtists = '/library/artists';
   static const String libraryAlbums = '/library/albums';
+
+  /// The songs section filtered to the songs whose lyrics the library paired
+  /// on its own (D-034); the 曲库目录 settings card links here.
+  static const String libraryAutoPaired = '/library/auto-paired';
+
   static const String collections = '/collections';
   static const String playlists = '/playlists';
   static const String quickPlay = '/quick-play';

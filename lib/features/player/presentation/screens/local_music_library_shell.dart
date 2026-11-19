@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/layout/app_responsive.dart';
+import '../../../../core/navigation/routes.dart';
 import '../../../../core/navigation/transfer_entry.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_tap_pulse.dart';
+import '../../domain/models/local_library_browse_item.dart';
 import '../local_library_dependencies.dart';
 import 'local_artist_album_browser_screen.dart';
 import 'local_collections_screen.dart';
@@ -28,6 +30,9 @@ class LocalMusicLibraryShell extends StatefulWidget {
 
   final int initialIndex;
 
+  /// The smart view the songs section opens with; null opens 全部.
+  final LocalLibrarySmartView? initialSmartView;
+
   /// Supplied by the routing table (`lib/app/local_library_assembly.dart`) and
   /// handed to each section. Builds only when [sections] is omitted.
   final LocalLibraryDependencies? dependencies;
@@ -39,6 +44,7 @@ class LocalMusicLibraryShell extends StatefulWidget {
   const LocalMusicLibraryShell({
     super.key,
     this.initialIndex = 0,
+    this.initialSmartView,
     this.dependencies,
     this.sections,
   }) : assert(
@@ -46,8 +52,45 @@ class LocalMusicLibraryShell extends StatefulWidget {
          'The shell needs either the library dependencies or explicit sections.',
        );
 
+  /// The section and smart view each library route opens, or null when
+  /// [path] is not a library route. The routing table builds the shell from
+  /// this, so every way into the library agrees on where it lands.
+  static LibraryShellTarget? targetFor(String path) => switch (path) {
+    Routes.library => const LibraryShellTarget(0),
+    Routes.libraryAutoPaired => const LibraryShellTarget(
+      0,
+      smartView: LocalLibrarySmartView.autoPairedLyrics,
+    ),
+    Routes.libraryArtists => const LibraryShellTarget(1),
+    Routes.libraryAlbums => const LibraryShellTarget(2),
+    Routes.collections => const LibraryShellTarget(3),
+    Routes.playlists => const LibraryShellTarget(4),
+    _ => null,
+  };
+
   @override
   State<LocalMusicLibraryShell> createState() => _LocalMusicLibraryShellState();
+}
+
+/// Where a library route opens: a section of the shell and, for the songs
+/// section, a smart view.
+class LibraryShellTarget {
+  const LibraryShellTarget(this.index, {this.smartView});
+
+  final int index;
+  final LocalLibrarySmartView? smartView;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LibraryShellTarget &&
+      other.index == index &&
+      other.smartView == smartView;
+
+  @override
+  int get hashCode => Object.hash(index, smartView);
+
+  @override
+  String toString() => 'LibraryShellTarget($index, $smartView)';
 }
 
 class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
@@ -125,7 +168,10 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
     if (sections != null) return sections;
     final dependencies = widget.dependencies!;
     return [
-      LocalLibraryExplorerScreen(dependencies: dependencies),
+      LocalLibraryExplorerScreen(
+        dependencies: dependencies,
+        initialSmartView: widget.initialSmartView,
+      ),
       LocalArtistAlbumBrowserScreen(
         view: LocalCatalogView.artists,
         dependencies: dependencies,

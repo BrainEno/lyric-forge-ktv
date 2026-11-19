@@ -41,14 +41,18 @@ class AppRouter {
   final AppServices services;
 
   /// The music library is one screen with five sections; each route only
-  /// differs in which section is selected.
-  Widget _libraryShell(int initialIndex) => LocalMusicLibraryShell(
-    initialIndex: initialIndex,
+  /// differs in which section (and, for songs, which smart view) is selected.
+  Widget _libraryShell(LibraryShellTarget target) => LocalMusicLibraryShell(
+    initialIndex: target.index,
+    initialSmartView: target.smartView,
     dependencies: assembleLocalLibraryDependencies(services),
   );
 
   Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final uri = Uri.parse(settings.name ?? Routes.home);
+
+    final section = LocalMusicLibraryShell.targetFor(uri.path);
+    if (section != null) return _fadeRoute(_libraryShell(section), settings);
 
     switch (uri.path) {
       case Routes.home:
@@ -68,21 +72,6 @@ class AppRouter {
           settings,
         );
 
-      case Routes.library:
-        return _fadeRoute(_libraryShell(0), settings);
-
-      case Routes.libraryArtists:
-        return _fadeRoute(_libraryShell(1), settings);
-
-      case Routes.libraryAlbums:
-        return _fadeRoute(_libraryShell(2), settings);
-
-      case Routes.collections:
-        return _fadeRoute(_libraryShell(3), settings);
-
-      case Routes.playlists:
-        return _fadeRoute(_libraryShell(4), settings);
-
       case Routes.quickPlay:
         // The same rules the dashboard uses before it pushes, so a bare
         // `/quick-play` lands where a tap would (audit N-01).
@@ -101,7 +90,9 @@ class AppRouter {
           PlaybackDestination.nowPlaying => NowPlayingScreen(
             dependencies: assembleNowPlayingDependencies(services),
           ),
-          PlaybackDestination.library => _libraryShell(0),
+          PlaybackDestination.library => _libraryShell(
+            const LibraryShellTarget(0),
+          ),
           // A local song, a resumed history entry, or a project song, which
           // the local player hands over to its project player.
           _ => QuickPlayScreen(

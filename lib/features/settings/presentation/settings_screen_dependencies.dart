@@ -17,11 +17,15 @@ class SettingsScreenDependencies {
   /// Pairs lyric files in the library folder now and describes the result.
   final Future<String> Function()? findLibraryLyrics;
 
+  /// Counts the songs whose lyrics the library paired on its own (D-034).
+  final Future<int> Function()? countAutoPairedLyrics;
+
   const SettingsScreenDependencies({
     required this.asrRuntimeSetupDependencies,
     required this.smokeTestService,
     required this.diagnostics,
     this.libraryFolder,
     this.findLibraryLyrics,
+    this.countAutoPairedLyrics,
   });
 }

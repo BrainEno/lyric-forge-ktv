@@ -272,6 +272,21 @@ class LibraryLyricsAutoLinker {
     );
   }
 
+  /// How many songs in the library have lyrics the library paired on its own
+  /// (D-034): the songs the library's 自动配对 view lists. Missing songs
+  /// count too, as they do there.
+  Future<int> autoPairedCount() async {
+    final paired = <String>{
+      for (final item in await metadata.getAll())
+        if (LibraryLyricsPairing.of(item) != null) _key(item.sourcePath),
+    };
+    if (paired.isEmpty) return 0;
+    final songs = <String>{
+      for (final entry in await library.getAll()) _key(entry.sourcePath),
+    };
+    return songs.where(paired.contains).length;
+  }
+
   /// Takes back the lyrics paired with the song at [audioPath] (D-034).
   ///
   /// A project the pairing created and nobody changed since is deleted; a
