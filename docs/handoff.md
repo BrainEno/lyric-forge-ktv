@@ -2,33 +2,29 @@
 
 ## 目标
 
-审计路线的下一轮（PR #474 已合并为 `4969c1c`）。这一轮多做几个任务：
+审计路线的下一轮（PR #475 已合并为 `0b4c337`）。这一轮多做几个任务：
 
-1. K-01 KTV 舞台逐字着色：当前行按字/词随演唱变色，有逐字时间轴时按真实时间。
-2. R-04 未知路由显示“页面不存在”（带路由名、回到首页、返回上一页），并记录警告日志。
-3. `AppEmptyState` 新增 hero 密度（大图标卡片、标题、可滚动）和 status/footer 插槽；快速播放、歌曲库、艺人/专辑、收藏/歌单的空状态统一改用它。
-4. L-01/L-03 音乐库窄屏去掉 40dp 小浮动按钮，传输按钮在所有宽度都放在分区条末尾（≥48dp）；全局 Chip 选中态加强调色描边和浅绿底。
-5. 忙碌按钮的转圈改用 `AppButtonSpinner`（跟随按钮图标色，禁用时一起变暗）；错误色按钮前景改用 `AppColors.onError`。
+1. I-01/I-02 导入流程：环境检查页改名“准备识别环境”，两页都显示“1 准备识别环境 — 2 选择歌曲”步骤条；导入页三个卖点胶囊改成一行说明。
 
 ## Git 现场
 
-- 分支：`arena/08eecee8-lyric-forge-ktv`，基于 main `4969c1c`。
-- 提交：`Add a karaoke wipe to the KTV stage`；`Fix the karaoke line test and format the KTV files`；`Show a page for unknown routes`；`Move library empty states to AppEmptyState`；`Restore the formatter's layout in two KTV files`；`Move the library transfer button into the section strip`；`Add a button spinner that follows the label`；`Fix nullable border sides in the chip theme test`；`Remove the temporary format probe`。
+- 分支：`arena/8d29a47a-lyric-forge-ktv`，基于 main `0b4c337`。
+- 提交：`Name the import steps`。
 
 ## 已改文件
 
-见工作日志 `2026-11-19-1115-add-karaoke-wipe-to-ktv-stage.md`（逐字着色组件、KTV 舞台、沉浸 KTV 页）和 `2026-11-19-1125-show-a-page-for-unknown-routes.md`（未找到页面、路由表）和 `2026-11-19-1135-move-library-empty-states-to-app-empty-state.md`（空状态组件和四个音乐库页面）和 `2026-11-19-1145-move-library-transfer-button-into-section-strip.md`（音乐库分区条、Chip 主题）和 `2026-11-19-1155-add-a-button-spinner-that-follows-the-label.md`（按钮转圈、onError）。
+见工作日志 `2026-11-19-1205-name-the-import-steps.md`（步骤条组件、环境检查页、导入页）。
 
 ## 检查结果
 
-沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。PR #475 在 `98b0e1a` 上 Flutter Quality Gate 全绿（变更文件格式检查、analyze、全量测试、工作日志），flutter、protective-pause 也通过。临时格式探针已删除。注意：CI 在 `flutter pub get` 之后才运行 `dart format`，没有包配置时格式化结果不同，排查格式问题要以 pub get 之后的结果为准。
+沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。注意：CI 在 `flutter pub get` 之后才运行 `dart format`，排查格式问题以 pub get 之后的结果为准。
 
 ## 下一步
 
-- 之后：全局/移动播放条紧凑控制、SE-05 冒烟测试卡片面向用户的文案、Forge Red 品牌色（B-01）。
+- 本轮其余任务见 PR 描述。之后：L-02 传输入口收敛、A-04 语义标注、Forge Red 品牌色（B-01）。
 
 ## 已知风险
 
-- 没有在运行中的应用里看过。KTV 舞台当前行会随演唱逐字变绿；没有在真机上看过实际播放时的流畅度。未知路由不再静默回到首页。详见工作日志。
+- 没有在运行中的应用里看过。详见工作日志。
 
-最后更新：2026-11-19 11:55（Asia/Taipei）
+最后更新：2026-11-19 12:05（Asia/Taipei）

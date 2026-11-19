@@ -11,6 +11,7 @@ import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/transcription_environment_preflight.dart';
 import '../../../transcription/presentation/widgets/asr_runtime_setup_dialog.dart';
+import '../widgets/import_step_indicator.dart';
 import 'import_audio_screen.dart';
 
 /// Desktop-first onboarding gate for batch transcription.
@@ -163,7 +164,7 @@ class _TranscriptionReadyImportScreenState
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
-        title: const Text('批量导入'),
+        title: const Text('准备识别环境'),
         backgroundColor: AppColors.bgBase,
       ),
       body: SafeArea(
@@ -234,6 +235,8 @@ class _ReadinessOnboarding extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const ImportStepIndicator(current: ImportStep.prepare),
+              SizedBox(height: spec.isShort ? AppSpacing.sm : AppSpacing.md),
               Container(
                 padding: EdgeInsets.all(
                   spec.isCompact ? AppSpacing.md : AppSpacing.xl,

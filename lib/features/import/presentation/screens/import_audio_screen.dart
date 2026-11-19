@@ -6,9 +6,9 @@ import '../../../../core/layout/app_responsive.dart';
 import '../transcription_import_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../transcription/presentation/widgets/transcription_queue_panel.dart';
+import '../widgets/import_step_indicator.dart';
 
 /// Batch import entry point.
 ///
@@ -18,7 +18,16 @@ import '../../../transcription/presentation/widgets/transcription_queue_panel.da
 class ImportAudioScreen extends StatefulWidget {
   final TranscriptionImportDependencies dependencies;
 
-  const ImportAudioScreen({super.key, required this.dependencies});
+  /// Whether to show the "2 选择歌曲" step strip. Defaults to desktop, where
+  /// this screen only opens after the environment step; mobile import has a
+  /// single step.
+  final bool? showSetupSteps;
+
+  const ImportAudioScreen({
+    super.key,
+    required this.dependencies,
+    this.showSetupSteps,
+  });
 
   @override
   State<ImportAudioScreen> createState() => _ImportAudioScreenState();
@@ -105,6 +114,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
     final spec = AppResponsive.of(context);
     final contentWidth = spec.contentMaxWidth.clamp(0.0, 1040.0).toDouble();
     final stackActions = spec.isCompactOrMedium || spec.isShort;
+    final showSteps = widget.showSetupSteps ?? AppResponsive.isDesktopTarget();
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
@@ -124,6 +134,12 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
                 spec.isShort ? AppSpacing.xl : AppSpacing.xxxl,
               ),
               children: [
+                if (showSteps) ...[
+                  const ImportStepIndicator(current: ImportStep.choose),
+                  SizedBox(
+                    height: spec.isShort ? AppSpacing.sm : AppSpacing.md,
+                  ),
+                ],
                 const _ImportHero(),
                 SizedBox(height: spec.isShort ? AppSpacing.md : AppSpacing.lg),
                 _ImportActions(
@@ -180,6 +196,9 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
   }
 }
 
+/// The line under the import hero that sums up how the queue behaves.
+const String importHeroFootnote = '逐首处理 · 可随时暂停或恢复 · 进度自动保存';
+
 class _ImportHero extends StatelessWidget {
   const _ImportHero();
 
@@ -221,16 +240,15 @@ class _ImportHero extends StatelessWidget {
             height: 1.45,
           ),
         ),
+        // One quiet line instead of three feature pills, which read like a
+        // product page on a screen people open to get work done (audit I-02).
         if (!spec.isShort) ...[
-          const SizedBox(height: AppSpacing.md),
-          const Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              _FeaturePill(icon: Icons.queue_music_rounded, label: '逐首处理'),
-              _FeaturePill(icon: Icons.pause_rounded, label: '可暂停 / 恢复'),
-              _FeaturePill(icon: Icons.save_outlined, label: '进度持久化'),
-            ],
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            importHeroFootnote,
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: AppColors.textTertiary),
           ),
         ],
       ],
@@ -261,18 +279,6 @@ class _ImportHero extends StatelessWidget {
               ],
             ),
     );
-  }
-}
-
-class _FeaturePill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _FeaturePill({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppBadge(label: label, icon: icon);
   }
 }
 
