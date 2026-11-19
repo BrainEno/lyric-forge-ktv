@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
@@ -1148,26 +1148,17 @@ class _ProjectArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final file = path == null ? null : File(path!);
-    final hasArtwork = file != null && file.existsSync();
+    // The shared cover falls back to its placeholder when the file is
+    // missing or cannot be decoded; a raw Image.file showed a broken image
+    // (audit C-04). The accent icon still marks a song that is loading.
     return AspectRatio(
       aspectRatio: 1,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(
-          compact ? AppSpacing.radiusMedium : AppSpacing.radiusXLarge,
-        ),
-        child: Container(
-          decoration: const BoxDecoration(gradient: AppColors.playerGradient),
-          child: hasArtwork
-              ? Image.file(file, fit: BoxFit.cover)
-              : Center(
-                  child: Icon(
-                    Icons.album_rounded,
-                    size: compact ? 34 : 88,
-                    color: loading ? AppColors.accent : AppColors.textTertiary,
-                  ),
-                ),
-        ),
+      child: AppArtwork(
+        path: path,
+        borderRadius: compact
+            ? AppSpacing.radiusMedium
+            : AppSpacing.radiusXLarge,
+        placeholderColor: loading ? AppColors.accent : null,
       ),
     );
   }

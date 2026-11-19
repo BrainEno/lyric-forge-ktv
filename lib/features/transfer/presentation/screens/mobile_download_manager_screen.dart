@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
@@ -478,10 +479,6 @@ class _DownloadedTrackTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final artwork = entry.embeddedArtworkPath == null
-        ? null
-        : File(entry.embeddedArtworkPath!);
-    final hasArtwork = artwork != null && artwork.existsSync();
     final subtitle = <String>[
       if (entry.embeddedArtist?.trim().isNotEmpty == true)
         entry.embeddedArtist!.trim(),
@@ -499,19 +496,10 @@ class _DownloadedTrackTile extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
         ),
-        leading: ClipRRect(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-          child: Container(
-            width: 50,
-            height: 50,
-            color: AppColors.bgSurface,
-            child: hasArtwork
-                ? Image.file(artwork, fit: BoxFit.cover)
-                : const Icon(
-                    Icons.music_note_rounded,
-                    color: AppColors.textSecondary,
-                  ),
-          ),
+        leading: AppArtwork(
+          path: entry.embeddedArtworkPath,
+          size: 50,
+          placeholderIcon: Icons.music_note_rounded,
         ),
         title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),

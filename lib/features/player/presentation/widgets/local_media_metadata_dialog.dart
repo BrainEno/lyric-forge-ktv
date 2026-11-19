@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/playback_session_service.dart';
@@ -451,24 +452,12 @@ class _ArtworkPreview extends StatelessWidget {
 
   const _ArtworkPreview({this.path, required this.extent});
 
+  // A picked image that cannot be decoded shows the placeholder instead of a
+  // broken image (audit C-04).
   @override
-  Widget build(BuildContext context) {
-    final file = path == null ? null : File(path!);
-    final exists = file != null && file.existsSync();
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      child: Container(
-        width: extent,
-        height: extent,
-        color: AppColors.bgSurface,
-        child: exists
-            ? Image.file(file, fit: BoxFit.cover)
-            : Icon(
-                Icons.album_rounded,
-                size: extent * 0.4,
-                color: AppColors.textTertiary,
-              ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => AppArtwork(
+    path: path,
+    size: extent,
+    borderRadius: AppSpacing.radiusLarge,
+  );
 }

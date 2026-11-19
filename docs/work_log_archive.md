@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-24 12:10] Fold track imports on the project page ([entry](log/entries/2026-11-24-1210-fold-track-imports-on-the-project-page.md))
 - [2026-11-24 12:00] Issue cleanup: logged best-effort steps, ASR endpoints, one resumable downloader ([entry](log/entries/2026-11-24-1200-issue-cleanup-errors-endpoints-downloads.md))
 - [2026-11-23 12:00] Stop Whisper's history loops; re-decode and arbitrate cross-segment loops ([entry](log/entries/2026-11-23-1200-stop-whisper-history-loops.md))
 - [2026-11-22 12:00] Re-run a stretch of rows; accept zero-length aligned words ([entry](log/entries/2026-11-22-1200-rerun-a-stretch-and-accept-zero-length-alignment.md))
