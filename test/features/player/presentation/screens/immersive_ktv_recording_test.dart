@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_chrome_controller.dart';
+import 'package:lyric_forge_ktv/core/widgets/app_error_state.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/file_audio_path_canonicalizer.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/audio_preview_state.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/ktv_microphone_state.dart';
@@ -19,6 +21,7 @@ import 'package:lyric_forge_ktv/features/player/domain/services/ktv_take_history
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/playback_screen_dependencies.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/screens/immersive_ktv_screen.dart';
+import 'package:lyric_forge_ktv/features/player/presentation/widgets/fullscreen_ktv_lyric_stage.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/widgets/ktv_recording_toolbar.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/widgets/ktv_take_history_sheet.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
@@ -61,13 +64,16 @@ void main() {
     microphone = _FakeMicrophoneService();
   });
 
-  Widget buildScreen() => ImmersiveKtvScreen(
+  Widget buildScreen({
+    _FakePlaybackSession? session,
+    _FakeProjectRepository? projects,
+  }) => ImmersiveKtvScreen(
     initialProjectId: project.id,
     dependencies: ImmersiveKtvDependencies(
-      projectRepository: _FakeProjectRepository(project),
+      projectRepository: projects ?? _FakeProjectRepository(project),
       metadataRepository: _FakeMetadataRepository(),
       audioPlayer: _FakeAudioPlayerService(),
-      playbackSession: _FakePlaybackSession(),
+      playbackSession: session ?? _FakePlaybackSession(),
       pathCanonicalizer: const FileAudioPathCanonicalizer(),
       microphoneService: microphone,
       recordingService: recording,
@@ -76,8 +82,16 @@ void main() {
     ),
   );
 
-  Future<void> pumpScreen(WidgetTester tester) async {
-    await tester.pumpWidget(MaterialApp(home: buildScreen()));
+  Future<void> pumpScreen(
+    WidgetTester tester, {
+    _FakePlaybackSession? session,
+    _FakeProjectRepository? projects,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: buildScreen(session: session, projects: projects),
+      ),
+    );
     // One frame for the project load, one more for the toolbar to rebuild with
     // the project in hand (until then its entry points are disabled).
     await tester.pump();
@@ -176,6 +190,184 @@ void main() {
     await tester.pump();
 
     expect(recording.log, contains('stop'));
+  });
+
+  group('控制层', () {
+    const song = PlaybackItem(
+      id: 'song',
+      title: 'Song (queue)',
+      artist: '歌手',
+      audioAsset: AudioAsset(originalPath: '/music/song.wav', format: 'wav'),
+    );
+    const other = PlaybackItem(
+      id: 'other',
+      title: 'Other',
+      audioAsset: AudioAsset(originalPath: '/music/other.wav', format: 'wav'),
+    );
+    const playing = PlaybackState(
+      isPlaying: true,
+      isBuffering: false,
+      isCompleted: false,
+      isLoading: false,
+      position: Duration(seconds: 30),
+      duration: Duration(minutes: 3),
+      bufferedPosition: Duration.zero,
+      speed: 1,
+      volume: 1,
+    );
+
+    _FakePlaybackSession playingSession() => _FakePlaybackSession(
+      state: const PlaybackSessionState(queue: [song, other], currentIndex: 0),
+      playback: playing,
+    );
+
+    Future<void> press(
+      WidgetTester tester,
+      LogicalKeyboardKey key, {
+      LogicalKeyboardKey? modifier,
+    }) async {
+      if (modifier != null) await tester.sendKeyDownEvent(modifier);
+      await tester.sendKeyDownEvent(key);
+      await tester.sendKeyUpEvent(key);
+      if (modifier != null) await tester.sendKeyUpEvent(modifier);
+      await tester.pump();
+    }
+
+    testWidgets('标题醒目，下面是歌手；上下各有一层渐变遮罩', (tester) async {
+      await pumpScreen(tester, session: playingSession());
+
+      final title = tester.widget<Text>(
+        find.byKey(ImmersiveKtvScreen.titleKey),
+      );
+      expect(title.data, 'Song');
+      expect(title.style?.fontWeight, FontWeight.w700);
+      expect(find.text('歌手'), findsOneWidget);
+
+      for (final key in [
+        ImmersiveKtvScreen.topScrimKey,
+        ImmersiveKtvScreen.bottomScrimKey,
+      ]) {
+        final box = tester.widget<DecoratedBox>(find.byKey(key));
+        final gradient =
+            (box.decoration as BoxDecoration).gradient! as LinearGradient;
+        expect(
+          gradient.colors.first.a,
+          closeTo(ImmersiveKtvScreen.scrimAlpha, 0.01),
+        );
+        expect(gradient.colors.last.a, closeTo(0, 0.01));
+      }
+      expect(find.byTooltip(ImmersiveKtvScreen.exitTooltip), findsOneWidget);
+
+      await disposeScreen(tester);
+    });
+
+    testWidgets('桌面端显示按键提示，移动端不显示', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      await pumpScreen(tester);
+      final hint = tester.widget<Text>(
+        find.byKey(ImmersiveKtvScreen.keyHintKey),
+      );
+      expect(hint.data, contains('空格 播放/暂停'));
+      expect(hint.data, contains('Ctrl+←/→'));
+      await disposeScreen(tester);
+
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      await pumpScreen(tester);
+      expect(find.byKey(ImmersiveKtvScreen.keyHintKey), findsNothing);
+      await disposeScreen(tester);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets('空格暂停，方向键快进快退，Ctrl+方向键切歌', (tester) async {
+      final session = playingSession();
+      await pumpScreen(tester, session: session);
+
+      await press(tester, LogicalKeyboardKey.space);
+      await press(tester, LogicalKeyboardKey.arrowRight);
+      await press(tester, LogicalKeyboardKey.arrowLeft);
+      await press(
+        tester,
+        LogicalKeyboardKey.arrowRight,
+        modifier: LogicalKeyboardKey.controlLeft,
+      );
+      await press(
+        tester,
+        LogicalKeyboardKey.arrowLeft,
+        modifier: LogicalKeyboardKey.controlLeft,
+      );
+
+      expect(session.log, ['toggle', 'seek:35', 'seek:25', 'next', 'previous']);
+
+      await disposeScreen(tester);
+    });
+
+    testWidgets('按键会唤出已隐藏的控制层', (tester) async {
+      final session = playingSession();
+      await pumpScreen(tester, session: session);
+
+      await tester.pump(const Duration(seconds: 4));
+      final hidden = tester.widget<AnimatedOpacity>(
+        find.ancestor(
+          of: find.byKey(ImmersiveKtvScreen.titleKey),
+          matching: find.byType(AnimatedOpacity),
+        ),
+      );
+      expect(hidden.opacity, 0);
+
+      await press(tester, LogicalKeyboardKey.arrowRight);
+      final shown = tester.widget<AnimatedOpacity>(
+        find.ancestor(
+          of: find.byKey(ImmersiveKtvScreen.titleKey),
+          matching: find.byType(AnimatedOpacity),
+        ),
+      );
+      expect(shown.opacity, 1);
+      expect(session.log, ['seek:35']);
+
+      await disposeScreen(tester);
+    });
+
+    testWidgets('没有在播放的歌曲时按键不做任何事', (tester) async {
+      final session = _FakePlaybackSession();
+      await pumpScreen(tester, session: session);
+
+      await press(tester, LogicalKeyboardKey.space);
+      await press(tester, LogicalKeyboardKey.arrowRight);
+
+      expect(session.log, isEmpty);
+
+      await disposeScreen(tester);
+    });
+
+    testWidgets('歌词加载失败时显示统一的错误状态，重试后恢复', (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final projects = _FakeProjectRepository(project, failures: 1);
+      await pumpScreen(tester, projects: projects);
+
+      expect(find.byKey(ImmersiveKtvScreen.errorKey), findsOneWidget);
+      final error = tester.widget<AppErrorState>(
+        find.byKey(ImmersiveKtvScreen.errorKey),
+      );
+      expect(error.title, ImmersiveKtvScreen.errorTitle);
+      expect(error.message, contains('磁盘不可用'));
+      expect(find.textContaining('歌词加载失败：'), findsNothing);
+
+      await tester.tap(find.text(AppErrorState.defaultRetryLabel));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+
+      expect(projects.loads, 2);
+      expect(find.byKey(ImmersiveKtvScreen.errorKey), findsNothing);
+      expect(find.byType(FullscreenKtvLyricStage), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('fullscreen-ktv-empty-lyrics')),
+        findsNothing,
+      );
+
+      await disposeScreen(tester);
+    });
   });
 }
 
@@ -318,29 +510,46 @@ class _FakeAudioPlayerService implements AudioPlayerService {
 }
 
 class _FakePlaybackSession implements PlaybackSessionService {
+  _FakePlaybackSession({
+    this.state = const PlaybackSessionState(),
+    this.playback = const PlaybackState.idle(),
+  });
+
+  final PlaybackSessionState state;
+  final PlaybackState playback;
+  final List<String> log = <String>[];
+
   final StreamController<PlaybackSessionState> _states =
       StreamController<PlaybackSessionState>.broadcast();
 
   @override
-  PlaybackSessionState get currentState => const PlaybackSessionState();
+  PlaybackSessionState get currentState => state;
 
   @override
   Stream<PlaybackSessionState> get stateStream => _states.stream;
 
   @override
-  PlaybackState get playbackState => const PlaybackState.idle();
+  PlaybackState get playbackState => playback;
 
   @override
-  Future<void> seek(Duration position) async {}
+  Future<void> seek(Duration position) async {
+    log.add('seek:${position.inSeconds}');
+  }
 
   @override
-  Future<void> togglePlayPause() async {}
+  Future<void> togglePlayPause() async {
+    log.add('toggle');
+  }
 
   @override
-  Future<void> skipPrevious() async {}
+  Future<void> skipPrevious() async {
+    log.add('previous');
+  }
 
   @override
-  Future<void> skipNext() async {}
+  Future<void> skipNext() async {
+    log.add('next');
+  }
 
   @override
   Future<void> dispose() async {
@@ -354,13 +563,23 @@ class _FakePlaybackSession implements PlaybackSessionService {
 }
 
 class _FakeProjectRepository implements ProjectRepository {
-  _FakeProjectRepository(this.project);
+  _FakeProjectRepository(this.project, {this.failures = 0});
 
   final ProjectManifest project;
 
+  /// How many loads fail before the project comes back.
+  int failures;
+  int loads = 0;
+
   @override
-  Future<ProjectManifest?> getProjectById(String id) async =>
-      id == project.id ? project : null;
+  Future<ProjectManifest?> getProjectById(String id) async {
+    loads++;
+    if (failures > 0) {
+      failures--;
+      throw StateError('磁盘不可用');
+    }
+    return id == project.id ? project : null;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

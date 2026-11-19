@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/app_chrome_controller.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_error_state.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/ktv_recording_session.dart';
@@ -21,6 +23,7 @@ import '../../domain/services/playback_session_service.dart';
 import '../playback_screen_dependencies.dart';
 import '../widgets/fullscreen_ktv_interaction_surface.dart';
 import '../widgets/fullscreen_ktv_lyric_stage.dart';
+import '../widgets/global_playback_shortcuts.dart';
 import '../widgets/ktv_microphone_sheet.dart';
 import '../widgets/ktv_recording_toolbar.dart';
 import '../widgets/ktv_take_history_sheet.dart';
@@ -47,6 +50,21 @@ class ImmersiveKtvScreen extends StatefulWidget {
     required this.initialProjectId,
     required this.dependencies,
   });
+
+  /// Shown in place of the lyrics when they could not be loaded.
+  static const String errorTitle = '歌词加载失败';
+
+  static const Key errorKey = ValueKey('immersive-ktv-error');
+  static const Key titleKey = ValueKey('immersive-ktv-title');
+  static const Key topScrimKey = ValueKey('immersive-ktv-top-scrim');
+  static const Key bottomScrimKey = ValueKey('immersive-ktv-bottom-scrim');
+  static const Key keyHintKey = ValueKey('immersive-ktv-key-hint');
+
+  static const String exitTooltip = '退出全屏 KTV（Esc）';
+
+  /// Opacity of the scrims at the screen edge; they fade to nothing towards
+  /// the lyrics, so the controls stay readable over a bright karaoke line.
+  static const double scrimAlpha = 0.72;
 
   @override
   State<ImmersiveKtvScreen> createState() => _ImmersiveKtvScreenState();
@@ -243,9 +261,22 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
     super.dispose();
   }
 
+  /// Reloads the lyrics of the song that is playing, or of the project the
+  /// screen was opened with when nothing plays.
+  void _retryLoad() {
+    setState(() => _error = null);
+    final state = _session.currentState;
+    if (state.currentItem != null) {
+      unawaited(_syncProjectToPlayback(state));
+    } else {
+      unawaited(_loadProject(widget.initialProjectId));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => FullscreenKtvInteractionSurface(
     onExit: () => Navigator.maybePop(context),
+    onCommand: (command) => GlobalPlaybackShortcuts.run(command, _session),
     builder: (context, controlsVisible) => Material(
       color: AppColors.pureBlack,
       child: SafeArea(
@@ -267,11 +298,11 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
                             position: playback.position,
                             isPlaying: playback.isPlaying,
                           )
-                        : Center(
-                            child: Text(
-                              '歌词加载失败：$_error',
-                              style: const TextStyle(color: AppColors.error),
-                            ),
+                        : AppErrorState(
+                            key: ImmersiveKtvScreen.errorKey,
+                            title: ImmersiveKtvScreen.errorTitle,
+                            message: '$_error',
+                            onRetry: _retryLoad,
                           ),
                   ),
                   // Above the lyrics and outside the fading chrome: a running
@@ -290,6 +321,7 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
                     visible: controlsVisible,
                     title:
                         _project?.name ?? session.currentItem?.title ?? 'KTV',
+                    subtitle: session.currentItem?.artist,
                     playback: playback,
                     canPrevious: session.canSkipPrevious,
                     canNext: session.canSkipNext,
@@ -321,6 +353,7 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
 class _ControlLayer extends StatelessWidget {
   final bool visible;
   final String title;
+  final String? subtitle;
   final PlaybackState playback;
   final bool canPrevious;
   final bool canNext;
@@ -345,10 +378,34 @@ class _ControlLayer extends StatelessWidget {
     required this.onPrevious,
     required this.onNext,
     required this.toolbar,
+    this.subtitle,
   });
+
+  /// Desktop platforms, where a keyboard is a safe assumption.
+  static const Set<TargetPlatform> _keyboardPlatforms = {
+    TargetPlatform.windows,
+    TargetPlatform.macOS,
+    TargetPlatform.linux,
+  };
+
+  static bool get _hasKeyboard =>
+      _keyboardPlatforms.contains(defaultTargetPlatform);
+
+  static BoxDecoration _scrim({required bool top}) => BoxDecoration(
+    gradient: LinearGradient(
+      begin: top ? Alignment.topCenter : Alignment.bottomCenter,
+      end: top ? Alignment.bottomCenter : Alignment.topCenter,
+      colors: [
+        AppColors.pureBlack.withValues(alpha: ImmersiveKtvScreen.scrimAlpha),
+        AppColors.pureBlack.withValues(alpha: 0),
+      ],
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final artist = subtitle?.trim() ?? '';
     return IgnorePointer(
       ignoring: !visible,
       child: AnimatedOpacity(
@@ -356,52 +413,126 @@ class _ControlLayer extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            _Scrimmed(
+              scrimKey: ImmersiveKtvScreen.topScrimKey,
+              decoration: _scrim(top: true),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.xl,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            key: ImmersiveKtvScreen.titleKey,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.titleLarge?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (artist.isNotEmpty)
+                            Text(
+                              artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.bodyMedium?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: '退出全屏 KTV',
-                    onPressed: onExit,
-                    icon: const Icon(Icons.fullscreen_exit_rounded),
-                  ),
-                ],
+                    const SizedBox(width: AppSpacing.sm),
+                    IconButton(
+                      tooltip: ImmersiveKtvScreen.exitTooltip,
+                      onPressed: onExit,
+                      icon: const Icon(Icons.fullscreen_exit_rounded),
+                    ),
+                  ],
+                ),
               ),
             ),
             const Spacer(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.lg,
-              ),
-              child: Column(
-                children: [
-                  SeekableProgressBar(state: playback, onSeek: onSeek),
-                  TransportBar(
-                    compact: true,
-                    isPlaying: playback.isPlaying,
-                    isBusy: playback.isLoading || playback.isBuffering,
-                    onPlayPause: onPlayPause,
-                    onPrevious: canPrevious ? onPrevious : null,
-                    onNext: canNext ? onNext : null,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  toolbar,
-                ],
+            _Scrimmed(
+              scrimKey: ImmersiveKtvScreen.bottomScrimKey,
+              decoration: _scrim(top: false),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.xxl,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
+                child: Column(
+                  children: [
+                    SeekableProgressBar(state: playback, onSeek: onSeek),
+                    TransportBar(
+                      compact: true,
+                      isPlaying: playback.isPlaying,
+                      isBusy: playback.isLoading || playback.isBuffering,
+                      onPlayPause: onPlayPause,
+                      onPrevious: canPrevious ? onPrevious : null,
+                      onNext: canNext ? onNext : null,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    toolbar,
+                    if (_hasKeyboard) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        FullscreenKtvInteractionSurface.keyHint(),
+                        key: ImmersiveKtvScreen.keyHintKey,
+                        textAlign: TextAlign.center,
+                        style: text.labelSmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// [child] over a gradient that fills the same area but never takes a tap,
+/// so a control group's scrim does not hide what lies below it (the retry
+/// button of the error state, the lyrics) from the pointer.
+class _Scrimmed extends StatelessWidget {
+  final Key scrimKey;
+  final Decoration decoration;
+  final Widget child;
+
+  const _Scrimmed({
+    required this.scrimKey,
+    required this.decoration,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(key: scrimKey, decoration: decoration),
+          ),
+        ),
+        child,
+      ],
     );
   }
 }

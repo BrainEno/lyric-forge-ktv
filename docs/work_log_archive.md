@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-26 10:30] Give lavender buttons readable foregrounds ([entry](log/entries/2026-11-26-1030-give-lavender-buttons-readable-foregrounds.md))
 - [2026-11-26 10:10] Colour finished production steps green ([entry](log/entries/2026-11-26-1010-colour-finished-production-steps-green.md))
 - [2026-11-26 10:00] Pick project detail columns from the content width ([entry](log/entries/2026-11-26-1000-pick-project-detail-columns-from-the-content-width.md))
 - [2026-11-26 09:40] Split the AI transcription settings into cards ([entry](log/entries/2026-11-26-0940-split-the-ai-transcription-settings-into-cards.md))
