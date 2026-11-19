@@ -21,11 +21,11 @@
 
 ## 检查结果
 
-沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。注意：CI 在 `flutter pub get` 之后才运行 `dart format`，排查格式问题以 pub get 之后的结果为准。
+沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行；本轮 CI（Flutter Quality Gate）全绿。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。注意：CI 在 `flutter pub get` 之后才运行 `dart format`，排查格式问题以 pub get 之后的结果为准。
 
 ## 下一步
 
-- 本轮其余任务见 PR 描述。
+- 剩余审计项：P-03（工程详情宽屏，需运行验证）、B-01 品牌红色、S-01 字体、T-02 传输子域简化；编辑器子面板继续改用分组参数（E-04 后续）。
 
 ## 已知风险
 
