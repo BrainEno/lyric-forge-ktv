@@ -445,7 +445,9 @@ class _ReviewInboxTile extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               if (pending > 0)
-                _Badge(label: '待复核 $pending', color: AppColors.accent)
+                // A caution, as in the editor's status line; lavender is for
+                // things to press.
+                _Badge(label: '待复核 $pending', color: AppColors.warning)
               else
                 const _Badge(label: '已复核', color: AppColors.textTertiary),
               if (lowConfidence > 0) ...[

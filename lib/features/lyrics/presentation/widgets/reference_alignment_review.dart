@@ -552,7 +552,7 @@ class _ReferenceAlignmentReviewSheetState
         _ReviewMetric(
           label: '待确认',
           count: _correctableEntries.length,
-          color: AppColors.accent,
+          color: AppColors.warning,
         ),
         _ReviewMetric(label: '已选', count: _acceptedReferenceIndices.length),
         if (_acceptedMissingReferenceIndices.isNotEmpty)

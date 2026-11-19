@@ -42,7 +42,7 @@
 |---|---|---|---|---|---|---|---|
 | T-01 | 传输 | 工程/一致性 | remote_media_library_screen.dart | 632 行页面当前无路由入口（**更正：** 2026-11-03 工作日志记载其依赖包是"为将来装配而定义"的有意保留，且 workflow_screen_injection_contract_test 仍检查该文件） | 维护负担 | 无路由引用；有意保留 | 无 | 不删除；由维护者决定接入路由或正式下线 | 低 |
 | D-06 | Dashboard | 工程债 | dashboard_screen.dart | 1623 行 21 私有 widget 单文件 | 实证 | 拆分 | 低 |
-| E-03 | 歌词编辑器 | 视觉 | lyric_editor_toolbar.dart _StatusLine | 「待复核 N」用 accent 绿表"待办" | 实证 | 改用 warning 或中性色 | 低 |
+| E-03 | 歌词编辑器 | 视觉 | lyric_editor_toolbar.dart _StatusLine | 「待复核 N」用 accent 绿表"待办" | 实证 | 改用 warning 或中性色。**第 12 轮：**编辑器状态行早已改用 warning；校对收件箱的「待复核」徽标和参考歌词对齐的「待确认」也改为 warning，紫色只留给可点的东西 | 低 |
 | E-04 | 歌词编辑器 | 工程债 | lyric_editor_content.dart:106 | 构造函数 44 参数 | 实证 | 状态对象化 | 低 |
 | E-05 | 歌词编辑器 | 交互 | lyric_editor_content.dart:212 | 窄屏检查器 88% 高 sheet 遮上下文 | 88%/96% 实证 | 评估侧滑抽屉 | 低 |
 | E-06 | 歌词编辑器 | 视觉 | lyric_editor_atoms.dart:41 等 | fontSize:10 硬编码小字 | 实证 | ≥11 或 token | 低 |
