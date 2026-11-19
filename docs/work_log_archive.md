@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-25 12:10] Draw the brand mark from the app icon ([entry](log/entries/2026-11-25-1210-draw-the-brand-mark-from-the-app-icon.md))
 - [2026-11-25 12:00] Move the last own loading and error cards to shared states ([entry](log/entries/2026-11-25-1200-move-the-last-own-loading-and-error-cards-to-shared-states.md))
 - [2026-11-25 11:50] Show real covers on the recent listening shelf ([entry](log/entries/2026-11-25-1150-show-real-covers-on-the-recent-listening-shelf.md))
 - [2026-11-25 11:40] Name the reference lyric flows as a pair ([entry](log/entries/2026-11-25-1140-name-the-reference-lyric-flows-as-a-pair.md))

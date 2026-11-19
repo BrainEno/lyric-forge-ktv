@@ -7,8 +7,8 @@ void main() {
   test('selected chips get the accent outline and tint', () {
     final chips = AppTheme.darkTheme.chipTheme;
 
-    expect(chips.selectedColor, AppColors.accentMuted);
-    expect(chips.checkmarkColor, AppColors.accent);
+    expect(chips.selectedColor, AppColors.accentContainer);
+    expect(chips.checkmarkColor, AppColors.onAccentContainer);
     expect(
       AppTheme.chipSide.resolve({WidgetState.selected})?.color,
       AppColors.accent,
@@ -17,11 +17,56 @@ void main() {
     expect(chips.side, same(AppTheme.chipSide));
   });
 
-  test('the selected tint keeps white labels readable', () {
-    final tint = Color.alphaBlend(AppColors.accentMuted, AppColors.bgElevated);
-    final white = AppColors.textPrimary.computeLuminance() + 0.05;
-    final background = tint.computeLuminance() + 0.05;
-    expect(white / background, greaterThan(7));
+  test('the selected fill keeps its label readable', () {
+    final label = AppColors.onAccentContainer.computeLuminance() + 0.05;
+    final fill = AppColors.accentContainer.computeLuminance() + 0.05;
+    expect(label / fill, greaterThan(7));
+  });
+
+  testWidgets('a selected chip draws its label and icon in light lavender', (
+    tester,
+  ) async {
+    // Both used to come out black: Material derives them from the secondary
+    // container roles, which were unset and fell back to the black label of
+    // the accent, 1.6:1 on the translucent selected tint.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: Row(
+            children: [
+              ChoiceChip(
+                selected: true,
+                onSelected: (_) {},
+                avatar: const Icon(Icons.favorite_rounded),
+                label: const Text('收藏'),
+              ),
+              ChoiceChip(
+                selected: false,
+                onSelected: (_) {},
+                avatar: const Icon(Icons.queue_music_outlined),
+                label: const Text('歌单'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    Color? colourOf(Finder finder) => tester
+        .widget<RichText>(
+          find.descendant(of: finder, matching: find.byType(RichText)),
+        )
+        .text
+        .style
+        ?.color;
+
+    expect(colourOf(find.text('收藏')), AppColors.onAccentContainer);
+    expect(
+      colourOf(find.byIcon(Icons.favorite_rounded)),
+      AppColors.onAccentContainer,
+    );
+    expect(colourOf(find.text('歌单')), AppColors.textSecondary);
   });
 
   testWidgets('a selected ChoiceChip draws the accent outline', (tester) async {
