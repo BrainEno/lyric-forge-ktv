@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../diagnostics/app_build_info.dart';
 import '../layout/app_responsive.dart';
 import '../theme/color_tokens.dart';
 import '../widgets/app_brand_mark.dart';
+import '../widgets/app_tap_pulse.dart';
 import 'app_destinations.dart';
 
 /// Persistent top-level navigation: a rail on wide windows, a bottom bar on
@@ -71,8 +73,38 @@ class AppNavigationShell extends StatelessWidget {
   }
 }
 
+/// Press counters of the four destinations, shared by the rail and the bottom
+/// bar.
+///
+/// Both used to answer a press with nothing but the ink ripple, and pressing
+/// the destination already open pushed its page again, so it looked like the
+/// press had been ignored. Each press now bumps the destination's counter,
+/// which pulses its icon (see [AppTapPulse]), and gives a selection click.
+mixin _DestinationPresses<T extends StatefulWidget> on State<T> {
+  final Map<AppDestination, int> _presses = {};
+
+  int pressesOf(AppDestination destination) => _presses[destination] ?? 0;
+
+  void press(
+    AppDestination destination,
+    ValueChanged<AppDestination> onSelect,
+  ) {
+    HapticFeedback.selectionClick();
+    setState(() => _presses[destination] = pressesOf(destination) + 1);
+    onSelect(destination);
+  }
+
+  /// The icon of [destination]. The selected and unselected icons are built
+  /// the same way so the bar swaps the icon inside one pulse instead of
+  /// starting a fresh one, which would cut the pulse short when the
+  /// selection moves.
+  Widget pulsingIcon(AppDestination destination, IconData icon) {
+    return AppTapPulse(trigger: pressesOf(destination), child: Icon(icon));
+  }
+}
+
 /// Vertical navigation for wide windows.
-class AppNavigationRail extends StatelessWidget {
+class AppNavigationRail extends StatefulWidget {
   final AppDestination? selected;
   final ValueChanged<AppDestination> onSelect;
 
@@ -86,13 +118,22 @@ class AppNavigationRail extends StatelessWidget {
   static const double extendedWidth = 200;
 
   @override
+  State<AppNavigationRail> createState() => _AppNavigationRailState();
+}
+
+class _AppNavigationRailState extends State<AppNavigationRail>
+    with _DestinationPresses<AppNavigationRail> {
+  @override
   Widget build(BuildContext context) {
+    final selected = widget.selected;
     // Width comes from the window, not from the parent: the rail is installed
     // as a Row child, where constraints are unbounded and every child would
     // otherwise claim to be infinitely wide.
     final extended = MediaQuery.sizeOf(context).width >= 1200;
     return SizedBox(
-      width: extended ? extendedWidth : collapsedWidth,
+      width: extended
+          ? AppNavigationRail.extendedWidth
+          : AppNavigationRail.collapsedWidth,
       child: Material(
         color: AppColors.bgElevated,
         child: SafeArea(
@@ -101,16 +142,16 @@ class AppNavigationRail extends StatelessWidget {
             backgroundColor: Colors.transparent,
             selectedIndex: selected == null
                 ? null
-                : AppDestination.values.indexOf(selected!),
+                : AppDestination.values.indexOf(selected),
             labelType: extended
                 ? NavigationRailLabelType.none
                 : NavigationRailLabelType.all,
             extended: extended,
-            minExtendedWidth: extendedWidth,
-            minWidth: collapsedWidth,
+            minExtendedWidth: AppNavigationRail.extendedWidth,
+            minWidth: AppNavigationRail.collapsedWidth,
             groupAlignment: -0.9,
             onDestinationSelected: (index) =>
-                onSelect(AppDestination.values[index]),
+                press(AppDestination.values[index], widget.onSelect),
             // The brand mark from the app icon, not a generic Material
             // icon (audit B-01).
             leading: const Padding(
@@ -125,9 +166,12 @@ class AppNavigationRail extends StatelessWidget {
                 NavigationRailDestination(
                   icon: Tooltip(
                     message: destination.description,
-                    child: Icon(destination.icon),
+                    child: pulsingIcon(destination, destination.icon),
                   ),
-                  selectedIcon: Icon(destination.selectedIcon),
+                  selectedIcon: Tooltip(
+                    message: destination.description,
+                    child: pulsingIcon(destination, destination.selectedIcon),
+                  ),
                   label: Text(destination.label),
                 ),
             ],
@@ -139,7 +183,7 @@ class AppNavigationRail extends StatelessWidget {
 }
 
 /// Horizontal navigation for narrow windows.
-class AppBottomNavigation extends StatelessWidget {
+class AppBottomNavigation extends StatefulWidget {
   final AppDestination selected;
   final ValueChanged<AppDestination> onSelect;
 
@@ -150,16 +194,25 @@ class AppBottomNavigation extends StatelessWidget {
   });
 
   @override
+  State<AppBottomNavigation> createState() => _AppBottomNavigationState();
+}
+
+class _AppBottomNavigationState extends State<AppBottomNavigation>
+    with _DestinationPresses<AppBottomNavigation> {
+  @override
   Widget build(BuildContext context) {
+    // Colours, indicator and label weights come from the navigation bar
+    // theme (lib/core/theme/app_theme.dart).
     return NavigationBar(
       backgroundColor: AppColors.bgElevated,
-      selectedIndex: AppDestination.values.indexOf(selected),
-      onDestinationSelected: (index) => onSelect(AppDestination.values[index]),
+      selectedIndex: AppDestination.values.indexOf(widget.selected),
+      onDestinationSelected: (index) =>
+          press(AppDestination.values[index], widget.onSelect),
       destinations: [
         for (final destination in AppDestination.values)
           NavigationDestination(
-            icon: Icon(destination.icon),
-            selectedIcon: Icon(destination.selectedIcon),
+            icon: pulsingIcon(destination, destination.icon),
+            selectedIcon: pulsingIcon(destination, destination.selectedIcon),
             label: destination.label,
             tooltip: destination.description,
           ),

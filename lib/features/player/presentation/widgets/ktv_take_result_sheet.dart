@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../domain/models/audio_preview_state.dart';
 import '../../domain/models/ktv_recording_session.dart';
 import '../../domain/services/audio_preview_service.dart';
@@ -404,11 +405,7 @@ class _KtvTakeResultSheetState extends State<KtvTakeResultSheet> {
                     ? null
                     : _exportMix,
                 icon: _exporting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const AppButtonSpinner()
                     : const Icon(Icons.graphic_eq_rounded),
                 label: Text(
                   _session.mixedOutputPath == null ? '导出 WAV 混音' : '重新导出混音',

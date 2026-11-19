@@ -8,6 +8,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/playback_session_service.dart';
@@ -341,11 +342,7 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
             minimumSize: Size(0, spec.minimumInteractiveExtent),
           ),
           icon: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const AppButtonSpinner(size: 16)
               : const Icon(Icons.save_outlined),
           label: const Text('保存'),
         ),

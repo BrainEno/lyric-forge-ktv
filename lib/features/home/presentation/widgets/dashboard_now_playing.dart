@@ -6,8 +6,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/playback_session_service.dart';
 import 'dashboard_surfaces.dart';
@@ -238,12 +240,9 @@ class _PlayingHero extends StatelessWidget {
                   child: IconButton.filled(
                     tooltip: playback.isPlaying ? '暂停' : '播放',
                     onPressed: playback.isBuffering ? null : onPlayPause,
+                    style: AppTheme.busyAccentDisc,
                     icon: playback.isBuffering
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const AppButtonSpinner()
                         : Icon(
                             playback.isPlaying
                                 ? Icons.pause_rounded

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:lyric_forge_ktv/core/widgets/app_tap_pulse.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/screens/local_music_library_shell.dart';
 
 void main() {
@@ -135,5 +137,175 @@ void main() {
 
     expect(opened, hasLength(1));
     expect(find.text('传输页面'), findsOneWidget);
+  });
+
+  group('分区切换反馈', () {
+    const bodies = [
+      Center(child: Text('歌曲内容')),
+      Center(child: Text('艺人内容')),
+      Center(child: Text('专辑内容')),
+      Center(child: Text('收藏内容')),
+      Center(child: Text('歌单内容')),
+    ];
+
+    Widget shellApp({int initialIndex = 0, bool reduceMotion = false}) {
+      return MaterialApp(
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(disableAnimations: reduceMotion),
+            child: LocalMusicLibraryShell(
+              initialIndex: initialIndex,
+              sections: bodies,
+            ),
+          ),
+        ),
+      );
+    }
+
+    void useSize(WidgetTester tester, Size size) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
+
+    List<String?> recordHaptics(WidgetTester tester) {
+      final calls = <String?>[];
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'HapticFeedback.vibrate') {
+          calls.add(call.arguments as String?);
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      return calls;
+    }
+
+    AppTapPulse pulseFor(WidgetTester tester, String label) {
+      final chip = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(ChoiceChip),
+      );
+      final pulse = find.descendant(
+        of: chip,
+        matching: find.byType(AppTapPulse),
+      );
+      return tester.widget<AppTapPulse>(pulse);
+    }
+
+    double bodyOpacity(WidgetTester tester, String body) {
+      final fade = find.ancestor(
+        of: find.text(body),
+        matching: find.byType(FadeTransition),
+      );
+      return tester.widget<FadeTransition>(fade.first).opacity.value;
+    }
+
+    testWidgets('每个分区图标都包在按压脉冲里', (tester) async {
+      useSize(tester, const Size(1400, 900));
+      await tester.pumpWidget(shellApp());
+
+      for (final label in ['歌曲', '艺人', '专辑', '收藏', '歌单']) {
+        expect(pulseFor(tester, label).trigger, 0, reason: label);
+      }
+    });
+
+    testWidgets('点击分区时图标脉冲并给出选择触感', (tester) async {
+      useSize(tester, const Size(1400, 900));
+      final haptics = recordHaptics(tester);
+      await tester.pumpWidget(shellApp());
+
+      await tester.tap(find.text('收藏'));
+      await tester.pumpAndSettle();
+
+      expect(pulseFor(tester, '收藏').trigger, 1);
+      expect(pulseFor(tester, '歌曲').trigger, 0);
+      expect(haptics, ['HapticFeedbackType.selectionClick']);
+    });
+
+    testWidgets('再次点击已选分区也有反馈，内容不变', (tester) async {
+      useSize(tester, const Size(1400, 900));
+      final haptics = recordHaptics(tester);
+      await tester.pumpWidget(shellApp(initialIndex: 4));
+
+      await tester.tap(find.text('歌单'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('歌单'));
+      await tester.pumpAndSettle();
+
+      // Pressing the open section used to do nothing at all.
+      expect(pulseFor(tester, '歌单').trigger, 2);
+      expect(haptics, hasLength(2));
+      final chip = tester.widget<ChoiceChip>(
+        find.ancestor(of: find.text('歌单'), matching: find.byType(ChoiceChip)),
+      );
+      expect(chip.selected, isTrue);
+      expect(find.text('歌单内容'), findsOneWidget);
+    });
+
+    testWidgets('切换分区时内容淡入，而不是一帧硬切', (tester) async {
+      useSize(tester, const Size(1400, 900));
+      await tester.pumpWidget(shellApp());
+      expect(bodyOpacity(tester, '歌曲内容'), 1);
+
+      await tester.tap(find.text('专辑'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+
+      expect(bodyOpacity(tester, '专辑内容'), lessThan(1));
+      expect(bodyOpacity(tester, '专辑内容'), greaterThanOrEqualTo(0.4));
+
+      await tester.pumpAndSettle();
+      expect(bodyOpacity(tester, '专辑内容'), 1);
+    });
+
+    testWidgets('再次点击已选分区不会让内容闪一下', (tester) async {
+      useSize(tester, const Size(1400, 900));
+      await tester.pumpWidget(shellApp());
+
+      await tester.tap(find.text('歌曲'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+
+      expect(bodyOpacity(tester, '歌曲内容'), 1);
+    });
+
+    testWidgets('减少动态效果时直接切换', (tester) async {
+      useSize(tester, const Size(1400, 900));
+      await tester.pumpWidget(shellApp(reduceMotion: true));
+
+      await tester.tap(find.text('专辑'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+
+      expect(bodyOpacity(tester, '专辑内容'), 1);
+    });
+
+    testWidgets('从别处打开分区时，窄屏分区条滚到该分区', (tester) async {
+      useSize(tester, const Size(320, 700));
+      await tester.pumpWidget(shellApp());
+      await tester.pumpAndSettle();
+
+      // 歌单 starts past the right edge of a narrow strip.
+      final width = tester.view.physicalSize.width;
+      expect(tester.getTopRight(find.text('歌单')).dx, greaterThan(width));
+
+      // The router reuses the shell and changes initialIndex when the player
+      // bar opens 歌单.
+      await tester.pumpWidget(shellApp(initialIndex: 4));
+      await tester.pumpAndSettle();
+
+      final chip = find.ancestor(
+        of: find.text('歌单'),
+        matching: find.byType(ChoiceChip),
+      );
+      expect(tester.getTopRight(chip).dx, lessThanOrEqualTo(width));
+      expect(tester.getTopLeft(chip).dx, greaterThanOrEqualTo(0));
+    });
   });
 }

@@ -42,6 +42,16 @@ abstract class AppColors {
   // pressed shade); white would be 2.3:1.
   static const Color onAccent = pureBlack;
 
+  // Accent container: deep lavender for selected chips, tonal buttons and the
+  // navigation indicator, with light lavender on it (9.3:1). Material derives
+  // these roles from the accent when they are not set, which put black
+  // labels on the translucent selected-chip tint (1.6:1) and turned every
+  // tonal button into a second primary button.
+  // Every icon button variant used to share the grey icon colour of the
+  // theme, so the icon on a filled lavender button was 1.1:1 against it.
+  static const Color accentContainer = Color(0xFF3A2E66);
+  static const Color onAccentContainer = Color(0xFFE8DEFF);
+
   // Brand: Forge Red and paper white, sampled from the app icon. They draw
   // the brand mark (AppBrandMark) and nothing else, so red text and red
   // states keep meaning "error". Forge Red on bgBase is 4.3:1, above the 3:1
@@ -73,6 +83,11 @@ abstract class AppColors {
   // Borders (subtle, used sparingly)
   static const Color borderSubtle = Color(0x1AFFFFFF);
   static const Color borderMuted = Color(0x0DFFFFFF);
+
+  // Outlines of controls (outlined buttons, unselected segments, switch
+  // tracks), which need 3:1 against the page: 4.1:1 on bgElevated. Material
+  // used white for them, which outshone the filled buttons beside them.
+  static const Color borderStrong = Color(0xFF7A7A7A);
 
   // Gradients
   static const LinearGradient playerGradient = LinearGradient(

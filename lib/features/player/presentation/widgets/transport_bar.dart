@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/theme/color_tokens.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 
 /// Previous, play/pause and next buttons shared by every player surface.
 ///
@@ -196,19 +197,9 @@ class _PlayButton extends StatelessWidget {
       child: IconButton(
         onPressed: isBusy ? null : onPressed,
         tooltip: tooltip,
-        style: IconButton.styleFrom(
-          backgroundColor: AppColors.pureWhite,
-          foregroundColor: AppColors.pureBlack,
-          disabledBackgroundColor: AppColors.textDisabled,
-        ),
+        style: AppTheme.playDisc,
         icon: isBusy
-            ? SizedBox.square(
-                dimension: spinnerSize,
-                child: const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.pureBlack,
-                ),
-              )
+            ? AppButtonSpinner(size: spinnerSize)
             : Icon(
                 isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 size: iconSize,

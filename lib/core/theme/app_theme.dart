@@ -15,6 +15,107 @@ class AppTheme {
         ),
       );
 
+  /// Background of accent-filled buttons in each state.
+  static final WidgetStateProperty<Color> accentFill =
+      WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return AppColors.bgHighlight;
+        }
+        if (states.contains(WidgetState.pressed)) {
+          return AppColors.accentPressed;
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return AppColors.accentHover;
+        }
+        return AppColors.accent;
+      });
+
+  /// Label and icon on [accentFill].
+  static final WidgetStateProperty<Color> accentForeground =
+      WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? AppColors.textTertiary
+            : AppColors.onAccent,
+      );
+
+  /// Press and hover wash for buttons whose fill stays put: white at 10 %
+  /// on hover and 20 % while pressed, so a press always shows.
+  static final WidgetStateProperty<Color?> fillOverlay =
+      WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) {
+          return AppColors.pressedOverlay;
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return AppColors.hoverOverlay;
+        }
+        return null;
+      });
+
+  /// Outline of outlined buttons: grey, dimmer when disabled.
+  static final WidgetStateBorderSide outlinedSide =
+      WidgetStateBorderSide.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(WidgetState.disabled)
+              ? AppColors.borderSubtle
+              : AppColors.borderStrong,
+        ),
+      );
+
+  /// Filled and tonal buttons while disabled: the same grey on grey as
+  /// [accentFill], and nothing for the enabled states, which fall through to
+  /// the colour scheme.
+  ///
+  /// Material's default disabled colours are white at 12 % and 38 %, which
+  /// leaves the label, and the spinner of a busy button, at 2.2:1.
+  static final WidgetStateProperty<Color?> disabledFill =
+      WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? AppColors.bgHighlight
+            : null,
+      );
+  static final WidgetStateProperty<Color?> disabledForeground =
+      WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? AppColors.textTertiary
+            : null,
+      );
+
+  /// The white play/pause disc of the player bars and the transport.
+  ///
+  /// The disc is disabled only while playback loads, and then shows a black
+  /// spinner. The disabled disc used to be transparent (desktop bar) or
+  /// #535353 (mobile bar, transport), leaving that spinner at 1.1:1 or 2.7:1;
+  /// it now stays light grey, 10:1 under black.
+  static final ButtonStyle playDisc = IconButton.styleFrom(
+    backgroundColor: AppColors.pureWhite,
+    foregroundColor: AppColors.pureBlack,
+    disabledBackgroundColor: AppColors.textSecondary,
+    disabledForegroundColor: AppColors.pureBlack,
+  );
+
+  /// A filled (accent) icon button that is disabled only while it works,
+  /// like the dashboard play button during buffering. It keeps the accent
+  /// disc under a black spinner (9.2:1) rather than turning into the grey of
+  /// an unavailable control, which read as "cannot play" instead of "loading".
+  static final ButtonStyle busyAccentDisc = IconButton.styleFrom(
+    disabledBackgroundColor: AppColors.accent,
+    disabledForegroundColor: AppColors.onAccent,
+  );
+
+  /// Navigation labels: grey, and bold white for the chosen destination.
+  static const TextStyle navigationLabel = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textSecondary,
+  );
+  static const TextStyle navigationLabelSelected = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimary,
+  );
+
   static ThemeData get darkTheme {
     return ThemeData.dark().copyWith(
       scaffoldBackgroundColor: AppColors.bgBase,
@@ -27,10 +128,26 @@ class AppTheme {
         error: AppColors.error,
         onPrimary: AppColors.onAccent,
         onSecondary: AppColors.onAccent,
+        // Selected chips, tonal buttons, segmented buttons and the
+        // navigation indicator read these; left unset they copy the accent
+        // and its black label.
+        primaryContainer: AppColors.accentContainer,
+        onPrimaryContainer: AppColors.onAccentContainer,
+        secondaryContainer: AppColors.accentContainer,
+        onSecondaryContainer: AppColors.onAccentContainer,
         inversePrimary: AppColors.accentHover,
         onSurface: AppColors.textPrimary,
-        onSurfaceVariant: AppColors.textPrimary,
+        // Secondary text and icons: standard icon buttons, unselected chips,
+        // tabs and navigation entries. Plain icon buttons take their grey
+        // from here instead of from the icon button theme, which also
+        // painted the icons of filled buttons.
+        onSurfaceVariant: AppColors.textSecondary,
         onError: AppColors.onError,
+        outline: AppColors.borderStrong,
+        outlineVariant: AppColors.bgHighlight,
+        // No lavender wash over raised surfaces (menus, sheets, the bottom
+        // navigation): the greys stay the greys of the palette.
+        surfaceTint: Colors.transparent,
       ),
       // Typography
       textTheme: _buildTextTheme(),
@@ -57,24 +174,188 @@ class AppTheme {
         margin: EdgeInsets.zero,
       ),
       // Buttons
+      // Primary call to action: the accent, lighter on hover, darker while
+      // pressed, black on all three (7:1 or more). A disabled button drops to
+      // grey on grey instead of a dimmed lavender.
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.accent,
-          foregroundColor: AppColors.onAccent,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.buttonPaddingHorizontal,
-            vertical: AppSpacing.buttonPaddingVertical,
+        style: ButtonStyle(
+          backgroundColor: accentFill,
+          foregroundColor: accentForeground,
+          // The fill itself changes on hover and press; a white wash on top
+          // would only grey it.
+          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+          elevation: const WidgetStatePropertyAll<double>(0),
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(
+              horizontal: AppSpacing.buttonPaddingHorizontal,
+              vertical: AppSpacing.buttonPaddingVertical,
+            ),
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+            ),
           ),
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
+          textStyle: const WidgetStatePropertyAll(
+            TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
           ),
         ),
+      ),
+      // Filled and tonal buttons share this theme, so it sets no enabled
+      // colours: filled takes the accent and black from primary/onPrimary,
+      // tonal the deep lavender and light lavender from the containers. It
+      // makes the press visible on both and gives both the readable disabled
+      // grey of the elevated button.
+      filledButtonTheme: FilledButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: disabledFill,
+          foregroundColor: disabledForeground,
+          iconColor: disabledForeground,
+          overlayColor: fillOverlay,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled)
+                ? AppColors.textDisabled
+                : AppColors.textPrimary,
+          ),
+          side: outlinedSide,
+          overlayColor: fillOverlay,
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? AppColors.accentContainer
+                : Colors.transparent,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return AppColors.textDisabled;
+            }
+            return states.contains(WidgetState.selected)
+                ? AppColors.onAccentContainer
+                : AppColors.textSecondary;
+          }),
+          side: const WidgetStatePropertyAll(
+            BorderSide(color: AppColors.borderStrong),
+          ),
+          overlayColor: fillOverlay,
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.accent,
+        foregroundColor: AppColors.onAccent,
+        hoverColor: AppColors.accentHover,
+        splashColor: AppColors.accentPressed,
+        elevation: 0,
+        focusElevation: 0,
+        hoverElevation: 0,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.textDisabled;
+          }
+          return states.contains(WidgetState.selected)
+              ? AppColors.onAccent
+              : AppColors.textSecondary;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.bgSurface;
+          }
+          return states.contains(WidgetState.selected)
+              ? AppColors.accent
+              : AppColors.bgHighlight;
+        }),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? AppColors.accent
+              : AppColors.borderStrong,
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (!states.contains(WidgetState.selected)) {
+            return Colors.transparent;
+          }
+          return states.contains(WidgetState.disabled)
+              ? AppColors.textDisabled
+              : AppColors.accent;
+        }),
+        checkColor: const WidgetStatePropertyAll(AppColors.onAccent),
+        side: WidgetStateBorderSide.resolveWith(
+          (states) => BorderSide(
+            width: 2,
+            color: states.contains(WidgetState.disabled)
+                ? AppColors.textDisabled
+                : states.contains(WidgetState.selected)
+                ? AppColors.accent
+                : AppColors.textSecondary,
+          ),
+        ),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.textDisabled;
+          }
+          return states.contains(WidgetState.selected)
+              ? AppColors.accent
+              : AppColors.textSecondary;
+        }),
+      ),
+      tabBarTheme: const TabBarThemeData(
+        labelColor: AppColors.textPrimary,
+        unselectedLabelColor: AppColors.textSecondary,
+        indicatorColor: AppColors.accent,
+        dividerColor: AppColors.borderSubtle,
+      ),
+      // The persistent navigation: the deep lavender pill behind the chosen
+      // destination, light lavender on it, bold white label under it.
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.bgElevated,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        indicatorColor: AppColors.accentContainer,
+        overlayColor: fillOverlay,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            size: 24,
+            color: states.contains(WidgetState.selected)
+                ? AppColors.onAccentContainer
+                : AppColors.textSecondary,
+          ),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? navigationLabelSelected
+              : navigationLabel,
+        ),
+      ),
+      navigationRailTheme: const NavigationRailThemeData(
+        backgroundColor: AppColors.bgElevated,
+        useIndicator: true,
+        indicatorColor: AppColors.accentContainer,
+        selectedIconTheme: IconThemeData(
+          size: 24,
+          color: AppColors.onAccentContainer,
+        ),
+        unselectedIconTheme: IconThemeData(
+          size: 24,
+          color: AppColors.textSecondary,
+        ),
+        selectedLabelTextStyle: navigationLabelSelected,
+        unselectedLabelTextStyle: navigationLabel,
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
@@ -88,9 +369,12 @@ class AppTheme {
           ),
         ),
       ),
+      // No foreground here: the theme applies to every icon button variant,
+      // and a grey set here also painted the icons of filled (lavender) and
+      // tonal buttons, 1.1:1 on the accent. Plain icon buttons get the grey
+      // from onSurfaceVariant, filled ones black, tonal ones light lavender.
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
-          foregroundColor: AppColors.textSecondary,
           hoverColor: AppColors.hoverOverlay,
           highlightColor: AppColors.pressedOverlay,
         ),
@@ -127,10 +411,12 @@ class AppTheme {
       ),
       // Chips: a selected chip used to differ from the others only by the
       // default grey fill, so a row of filter or section chips gave little
-      // sign of which one was on (audit L-03).
+      // sign of which one was on (audit L-03). The selected fill is the
+      // opaque accent container; its label and icon come from
+      // onSecondaryContainer, light lavender instead of black.
       chipTheme: ChipThemeData(
-        selectedColor: AppColors.accentMuted,
-        checkmarkColor: AppColors.accent,
+        selectedColor: AppColors.accentContainer,
+        checkmarkColor: AppColors.onAccentContainer,
         side: chipSide,
       ),
       // Bottom Navigation

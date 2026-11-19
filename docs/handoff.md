@@ -2,36 +2,38 @@
 
 ## 目标
 
-审计路线的第八轮（第七轮 PR #479 已合并为 `2de2786`）。每轮多做几个任务，lib+test 代码量至少 800 行：
+审计路线的第九轮（第八轮 PR #480 已合并为 `7742df3`）。每轮多做几个任务，lib+test 代码量至少 800 行。用户反馈：淡紫按钮上有些部分对比度差；底部的音乐库、收藏、播放列表等点击后没什么反馈。
 
-1. A-01 强调色：用户同意更换，要求和错误色分开、好看。改为淡紫 Elysium Lavender `#B69CFF`（悬停 `#C7B3FF`、按下 `#9F84F0`、16% 底色 `accentMuted`），按钮文字仍为黑色（9.2:1）。绿色 `#1DB954` 只表示“完成”（工程“就绪”状态点、参考歌词对比里的新增文字、制作进度的已完成步骤），红色只给品牌标记和错误。决定见 D-031。
-2. 工程播放器传输区合并：`ProjectPlayerTransport` 用一份状态、一组动作和三种布局（侧栏 / 顶部 / 矮窗口单行）取代 `_TransportPane`、`_CompactTransportHeader` 和 `_PlaybackControls` 包装；`player_screen.dart` 从 1404 行减到约 950 行。
-3. SE-04 拆分 `AiTranscriptionSettingsSection`：四张卡片（方案、模型与存储、安装与维护、高级设置）改为无状态组件，文案放进纯函数 `AsrSettingsText`；页面状态和安装、迁移、删除流程留在原组件（约 600 行）。“查看当前路径”改为一行一个路径；新测试发现展开项的水波纹被卡片背景挡住，已修好。
-4. P-03 工程详情宽屏：双栏不再按窗口宽度判断，而是按内容区实际宽度（≥880 px）判断，侧栏约占三分之一（320–440 px）。
-5. 制作进度配色：已完成的步骤用绿色，当前步骤用淡紫色圆环，后面的步骤用灰色。
+1. 淡紫按钮前景色：图标按钮主题设了灰色前景，连填充（淡紫）和色调图标按钮也被涂成灰色（灰配淡紫约 1.1:1）；容器色没设，选中的筛选标签是黑字配半透明紫（1.57:1），色调按钮、分段按钮和导航指示器都和主按钮一样亮。现在补齐了容器色：深紫 `#3A2E66` 配浅紫 `#E8DEFF`（9.3:1），描边灰 `#7A7A7A`；主题里的图标按钮不再设前景色。
+2. 外壳组件拿不到 Navigator：播放条、转写队列条和导航都在 `MaterialApp.builder` 里，位于 Navigator 旁边而不是下面，直接用 `Navigator.of`、`showDialog` 会报错或拿错上下文。新增 `AppChromeScope`（`pushNamed`、`contextOf`）、`destination_navigation.dart`（再点当前目的地不再重复压页面）和 `lib/app/app_chrome.dart`。桌面端外壳的 `Overlay(initialEntries:)` 只读一次初始项，导航栏一直高亮第一个页面、全屏播放器上播放条也不隐藏；现在只建一次 OverlayEntry 并自己监听路由。移动端外壳原来没有 Overlay，底部导航长按提示会抛 “No Overlay widget found”，现在共用同一个 Overlay 宿主。
+3. 播放条上的链接（音乐库、收藏、歌单等）：`PlayerBarDestinationButton` 用深紫底标出当前所在页面，点击时图标弹一下（`AppTapPulse`）并给选择触感；已在该页面时只弹一下，不再重复打开。
+4. 导航栏和侧栏：每次点击图标弹一下并给触感，再点当前目的地不再重复压页面；指示器为深紫、选中图标浅紫、选中文字白色加粗。
+5. 音乐库分区条：分区图标点击时弹一下并给触感（包括再点当前分区）；内容切换时 220 ms 淡入上移（减少动态效果时直接切换）；从别处打开分区时，窄屏分区条会滚到该分区。
+6. 忙碌状态的转圈：按钮里的转圈统一用 `AppButtonSpinner`，跟随按钮图标颜色。填充/色调按钮禁用时为 `#8F8F8F` 配 `#3E3E3E`（3.3:1，原来约 2.2:1）。三个播放圆钮共用 `AppTheme.playDisc`，加载时保持浅灰底黑色转圈（10:1，原来桌面端是透明底 1.1:1，移动端和传输条是 `#535353` 底 2.7:1）。首页播放按钮缓冲时保持淡紫底黑色转圈。
+7. 收藏爱心：点击后立即填充（淡紫）或清空，填充时弹一下并给触感，写入失败再恢复并提示；不再在每次写入时变灰。
 
 ## Git 现场
 
-- 分支：`arena/c07438ee-lyric-forge-ktv`，基于 main `2de2786`。
-- 提交：`Switch the accent to Elysium Lavender`、`Give the project player one transport`、`Split the AI transcription settings into cards`、`Pick project detail columns from the content width`、`Colour finished production steps green`、`Remove the format probe and update the handoff`。
+- 分支：`arena/595833ba-lyric-forge-ktv`，基于 main `7742df3`，PR #481。
+- 提交：`Give lavender buttons readable foregrounds`、`Let the app chrome reach the navigator`、`Show where the player bar links lead`、`Make navigation presses visible`、`Answer library section presses`、`Keep busy spinners visible`、`Answer the favourite heart at once`、`Remove the format probe and update the handoff`。
 
 ## 已改文件
 
-见工作日志 `2026-11-26-0900` 至 `2026-11-26-1010` 的五条记录。
+见工作日志 `2026-11-26-1030` 至 `2026-11-26-1130` 的七条记录。
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑。本轮用了一个临时探针工作流（合并前已删除），把格式差异、analyze 结果、测试失败和异常的上下文写进注解。靠它修掉了：漏掉的品牌色常量，几处格式问题，封面收敛契约测试里的旧路径，一个浮点比较，以及高级设置卡片的 ListTile 水波纹断言。行长度在本地按字符数检查过；工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。
+沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑。本轮同样用了临时探针工作流（合并前已删除）。靠它修掉了：几处格式问题，移动端外壳缺 Overlay 导致的三个测试失败（也是真实的崩溃），以及三个脉冲测试少等了一帧（点击后的那一帧才开始计时）。最后一次探针：3207 个测试全部通过，analyze 仍是基线的 186 条提示。行长度在本地按字符数检查过；工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。
 
 ## 下一步
 
-- 剩余审计项：沉浸式 KTV 控件，T-02/T-03（传输子域体量），B-02 的文档残留（例如迁移弹窗里的 “LyricForge ASRRuntime” 是不是真实的目录名，需要确认）。
-- 需要在运行中的应用里看一下淡紫强调色：KTV 已唱部分、滑块、主按钮、选中的筛选标签。
+- 剩余审计项：沉浸式 KTV 控件，T-02/T-03（传输子域体量），B-02 的文档残留（迁移弹窗里的 “LyricForge ASRRuntime” 是不是真实的目录名，需要确认）。
+- 在真机上确认触感和弹跳的力度是否合适（`AppTapPulse.defaultPeakScale` 为 1.18，分区和爱心为 1.3–1.35）。
 
 ## 已知风险
 
 - 都没有在运行中的应用里看过，详见工作日志。
-- 强调色改了以后，所有用 `AppColors.accent` 的地方（42 个文件，约 105 处）都会一起变色。其中用强调色表示“完成”的地方已经找出来改成绿色了，但仍可能有漏掉的。
-- 工程详情的双栏阈值（880 px）是按代码推算的，没有截图核对。
+- 移动端外壳现在也包在 Overlay 里；`test/widget_test.dart` 原来专门断言移动端没有 Overlay（原因没有记录），已改为断言有外壳 Overlay。如果移动端出现输入法或焦点问题，先查这里。
+- 收藏爱心改为乐观更新；如果存储很慢，连续点击在写入完成前会被忽略。
 
-最后更新：2026-11-26 10:20（Asia/Taipei）
+最后更新：2026-11-26 11:40（Asia/Taipei）

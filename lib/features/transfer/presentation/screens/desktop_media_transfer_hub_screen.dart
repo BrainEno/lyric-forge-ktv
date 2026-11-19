@@ -10,6 +10,7 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/navigation/transfer_entry.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../transfer_screen_dependencies.dart';
@@ -421,11 +422,7 @@ class _OverviewCard extends StatelessWidget {
                       ? onStop
                       : onStart,
                   icon: busy || initializing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const AppButtonSpinner()
                       : Icon(
                           running
                               ? Icons.stop_rounded

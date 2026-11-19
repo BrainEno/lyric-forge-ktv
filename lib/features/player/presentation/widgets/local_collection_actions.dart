@@ -1,13 +1,23 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_tap_pulse.dart';
 import '../../domain/models/local_playlist.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 import 'local_store_integrity_banner.dart';
 
+/// The heart of the player bar and the album rows.
+///
+/// A press answers at once: the heart fills (in the accent) or empties before
+/// the store has written, pulses when it fills, and the platform gives a
+/// selection click. The store's answer then confirms it, or puts the heart
+/// back and explains in a snack bar. It used to wait for the write with the
+/// button disabled, so every press greyed the heart out for a moment and only
+/// then changed it, which read as a press that had not registered.
 class LocalFavoriteButton extends StatefulWidget {
   final String sourcePath;
   final double? iconSize;
@@ -31,7 +41,14 @@ class _LocalFavoriteButtonState extends State<LocalFavoriteButton> {
   late LocalMediaCollectionRepository _collections;
   StreamSubscription<int>? _changeSubscription;
   bool _favorite = false;
-  bool _loading = true;
+
+  /// Whether the first load has finished; until then the heart is disabled
+  /// because it does not know which way to toggle.
+  bool _ready = false;
+  bool _toggling = false;
+
+  /// Times the heart has filled, for the pulse.
+  int _fills = 0;
 
   @override
   void initState() {
@@ -67,18 +84,25 @@ class _LocalFavoriteButtonState extends State<LocalFavoriteButton> {
   }
 
   Future<void> _load() async {
-    if (mounted) setState(() => _loading = true);
     try {
       final value = await _collections.isFavorite(widget.sourcePath);
-      if (mounted) setState(() => _favorite = value);
+      // A reload triggered by our own write must not undo the optimistic
+      // heart while that write is still in flight.
+      if (mounted && !_toggling) setState(() => _favorite = value);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _ready = true);
     }
   }
 
   Future<void> _toggle() async {
-    if (_loading) return;
-    setState(() => _loading = true);
+    if (!_ready || _toggling) return;
+    final before = _favorite;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _toggling = true;
+      _favorite = !before;
+      if (_favorite) _fills++;
+    });
     try {
       final value = await _collections.toggleFavorite(widget.sourcePath);
       if (mounted) setState(() => _favorite = value);
@@ -86,12 +110,13 @@ class _LocalFavoriteButtonState extends State<LocalFavoriteButton> {
       // A write-protected or failing store must explain itself instead of
       // surfacing as an unhandled async error behind a heart that never moves.
       if (mounted) {
+        setState(() => _favorite = before);
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(
           SnackBar(content: Text('收藏未保存：${describeLocalLibraryError(error)}')),
         );
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _toggling = false);
     }
   }
 
@@ -103,10 +128,17 @@ class _LocalFavoriteButtonState extends State<LocalFavoriteButton> {
       height: spec.minimumInteractiveExtent,
       child: IconButton(
         tooltip: _favorite ? '取消收藏' : '收藏歌曲',
-        onPressed: _loading ? null : _toggle,
+        onPressed: _ready ? _toggle : null,
         iconSize: widget.iconSize,
-        icon: Icon(
-          _favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+        // Selected icon buttons take the accent from the theme. One icon
+        // slot for both states, so the pulse survives the swap.
+        isSelected: _favorite,
+        icon: AppTapPulse(
+          trigger: _fills,
+          peakScale: 1.35,
+          child: Icon(
+            _favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          ),
         ),
       ),
     );

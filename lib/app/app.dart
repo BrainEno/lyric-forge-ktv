@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../core/layout/app_responsive.dart';
-import '../core/navigation/app_chrome_controller.dart';
 import '../core/navigation/app_destinations.dart';
-import '../core/navigation/app_navigation_shell.dart';
 import '../core/navigation/current_route_observer.dart';
+import '../core/navigation/destination_navigation.dart';
 import '../core/navigation/routes.dart';
 import '../core/theme/app_theme.dart';
 import '../features/player/presentation/widgets/global_playback_shortcuts.dart';
@@ -12,6 +11,7 @@ import '../features/player/presentation/widgets/global_player_bar.dart';
 import '../features/player/presentation/widgets/mobile_global_player_bar.dart';
 import '../features/player/presentation/widgets/playback_lyrics_availability_sync.dart';
 import '../features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
+import 'app_chrome.dart';
 import 'app_router.dart';
 import 'app_services.dart';
 import 'local_library_assembly.dart';
@@ -23,22 +23,13 @@ final _appRouteObserver = CurrentRouteObserver();
 /// the whole app, so `Navigator.of(context)` from there finds nothing.
 final _navigatorKey = GlobalKey<NavigatorState>();
 
-/// Sends the user to a top-level destination from anywhere.
-///
-/// 「工程」 is the root route, so it pops back to it instead of stacking another
-/// copy; the other three are pushed on top of the root so that one press of
-/// back returns to the previous place rather than exiting the app.
+/// Sends the user to a top-level destination from the rail or bottom bar.
+/// Pressing the destination already on screen leaves the page alone; see
+/// [planDestinationTap].
 void _goToDestination(AppDestination destination) {
   final navigator = _navigatorKey.currentState;
   if (navigator == null) return;
-  if (destination == AppDestination.projects) {
-    navigator.popUntil((route) => route.isFirst);
-    return;
-  }
-  navigator.pushNamedAndRemoveUntil(
-    destination.route,
-    (route) => route.isFirst,
-  );
+  goToDestination(navigator, destination, _appRouteObserver.routeName.value);
 }
 
 /// The app shell: theme, navigator, routing table and the chrome around it.
@@ -99,84 +90,20 @@ class ElysiumPlayerApp extends StatelessWidget {
                 ),
               )
             : shell;
-        return ValueListenableBuilder<String?>(
-          valueListenable: _appRouteObserver.routeName,
-          builder: (context, routeName, _) {
-            final suppressPlayerBar = routeName == Routes.nowPlaying;
-            // The four top-level destinations are always one press away; the
-            // immersive player and the KTV view are the two places where a
-            // persistent rail would cover what the user is watching.
-            final showNavigation = destinationForRoute(routeName) != null;
-            final selectedDestination = destinationForRoute(routeName);
-            final layout = AppResponsive.of(context);
-            final useRail = layout.useNavigationRail;
-
-            if (!desktopChrome) {
-              return ValueListenableBuilder<bool>(
-                valueListenable: AppChromeController.immersive,
-                builder: (context, immersive, _) {
-                  final keyboardVisible =
-                      MediaQuery.viewInsetsOf(context).bottom > 0;
-                  final showChrome = !immersive && !keyboardVisible;
-                  return Column(
-                    children: [
-                      Expanded(child: syncedShell),
-                      if (showChrome &&
-                          !suppressPlayerBar &&
-                          localLibrary != null)
-                        MobileGlobalPlayerBar(dependencies: localLibrary),
-                      if (showChrome && showNavigation)
-                        AppBottomNavigation(
-                          selected: selectedDestination!,
-                          onSelect: _goToDestination,
-                        ),
-                    ],
-                  );
-                },
-              );
-            }
-
-            return Overlay(
-              clipBehavior: Clip.none,
-              initialEntries: [
-                OverlayEntry(
-                  builder: (overlayContext) {
-                    return ValueListenableBuilder<bool>(
-                      valueListenable: AppChromeController.immersive,
-                      builder: (context, immersive, _) {
-                        final content = Column(
-                          children: [
-                            Expanded(child: syncedShell),
-                            if (!immersive) ...[
-                              if (services.isInitialized)
-                                GlobalTranscriptionQueueBar(
-                                  queue: services.transcriptionQueue,
-                                ),
-                              if (!suppressPlayerBar && localLibrary != null)
-                                GlobalPlayerBar(dependencies: localLibrary),
-                            ],
-                          ],
-                        );
-                        if (immersive || !showNavigation || !useRail) {
-                          return content;
-                        }
-                        return Row(
-                          children: [
-                            AppNavigationRail(
-                              selected: selectedDestination,
-                              onSelect: _goToDestination,
-                            ),
-                            const VerticalDivider(width: 1, thickness: 1),
-                            Expanded(child: content),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
-            );
-          },
+        return AppChrome(
+          desktop: desktopChrome,
+          navigatorKey: _navigatorKey,
+          currentRoute: _appRouteObserver.routeName,
+          onSelectDestination: _goToDestination,
+          queueBar: desktopChrome && services.isInitialized
+              ? GlobalTranscriptionQueueBar(queue: services.transcriptionQueue)
+              : null,
+          playerBar: localLibrary == null
+              ? null
+              : desktopChrome
+              ? GlobalPlayerBar(dependencies: localLibrary)
+              : MobileGlobalPlayerBar(dependencies: localLibrary),
+          child: syncedShell,
         );
       },
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/navigation/app_chrome_scope.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -54,7 +55,8 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
         return Material(
           color: AppColors.bgBase,
           child: InkWell(
-            onTap: () => Navigator.pushNamed(context, Routes.import),
+            // Chrome beside the navigator: see AppChromeScope.
+            onTap: () => AppChromeScope.pushNamed<void>(context, Routes.import),
             hoverColor: AppColors.hoverOverlay,
             child: Column(
               mainAxisSize: MainAxisSize.min,

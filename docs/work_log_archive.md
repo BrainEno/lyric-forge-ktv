@@ -84,6 +84,13 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-26 10:00] Pick project detail columns from the content width ([entry](log/entries/2026-11-26-1000-pick-project-detail-columns-from-the-content-width.md))
+- [2026-11-26 09:40] Split the AI transcription settings into cards ([entry](log/entries/2026-11-26-0940-split-the-ai-transcription-settings-into-cards.md))
+- [2026-11-26 09:20] Give the project player one transport ([entry](log/entries/2026-11-26-0920-give-the-project-player-one-transport.md))
+- [2026-11-26 09:00] Switch the accent to Elysium Lavender ([entry](log/entries/2026-11-26-0900-switch-the-accent-to-elysium-lavender.md))
+- [2026-11-25 12:30] Mark a whole project reviewed from the inbox ([entry](log/entries/2026-11-25-1230-mark-a-whole-project-reviewed-from-the-inbox.md))
+- [2026-11-25 12:20] Share the playback facts and session transport ([entry](log/entries/2026-11-25-1220-share-the-playback-facts-and-session-transport.md))
+- [2026-11-25 12:10] Draw the brand mark from the app icon ([entry](log/entries/2026-11-25-1210-draw-the-brand-mark-from-the-app-icon.md))
 - [2026-11-25 12:00] Move the last own loading and error cards to shared states ([entry](log/entries/2026-11-25-1200-move-the-last-own-loading-and-error-cards-to-shared-states.md))
 - [2026-11-25 11:50] Show real covers on the recent listening shelf ([entry](log/entries/2026-11-25-1150-show-real-covers-on-the-recent-listening-shelf.md))
 - [2026-11-25 11:40] Name the reference lyric flows as a pair ([entry](log/entries/2026-11-25-1140-name-the-reference-lyric-flows-as-a-pair.md))
