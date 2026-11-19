@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-25 11:30] Pass the editor groups to the child panes ([entry](log/entries/2026-11-25-1130-pass-the-editor-groups-to-the-child-panes.md))
 - [2026-11-25 11:20] Group the lyric editor inputs ([entry](log/entries/2026-11-25-1120-group-the-lyric-editor-inputs.md))
 - [2026-11-25 11:00] Route the last bare covers through AppArtwork ([entry](log/entries/2026-11-25-1100-route-the-last-bare-covers-through-appartwork.md))
 - [2026-11-25 10:40] Split the dashboard into section widgets ([entry](log/entries/2026-11-25-1040-split-the-dashboard-into-section-widgets.md))

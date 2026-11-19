@@ -38,7 +38,8 @@ void main() {
 
   test('the converged screens use AppArtwork', () {
     const screens = [
-      'lib/features/player/presentation/screens/player_screen.dart',
+      // The project player's cover moved into its transport widget.
+      'lib/features/player/presentation/widgets/project_player_transport.dart',
       'lib/features/project/presentation/screens/project_detail_screen.dart',
       'lib/features/player/presentation/widgets/'
           'local_media_metadata_dialog.dart',
