@@ -4,7 +4,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_st
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_review_strings.dart';
-import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_dialog.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 void main() {
@@ -25,13 +25,13 @@ void main() {
   testWidgets(
     'strategy dialog returns reference-first with reference enabled',
     (tester) async {
-      ProofreadV2RunOptions? result;
+      ProofreadRunOptions? result;
       await tester.pumpWidget(
         host(
           Builder(
             builder: (context) => FilledButton(
               onPressed: () async {
-                result = await showProofreadV2RunOptionsDialog(context);
+                result = await showProofreadRunOptionsDialog(context);
               },
               child: const Text('open strategy'),
             ),
@@ -55,13 +55,13 @@ void main() {
   testWidgets(
     'ASR-first options return the optional timestamped secondary transcript',
     (tester) async {
-      ProofreadV2RunOptions? result;
+      ProofreadRunOptions? result;
       await tester.pumpWidget(
         host(
           Builder(
             builder: (context) => FilledButton(
               onPressed: () async {
-                result = await showProofreadV2RunOptionsDialog(context);
+                result = await showProofreadRunOptionsDialog(context);
               },
               child: const Text('open strategy'),
             ),
@@ -92,13 +92,13 @@ void main() {
   testWidgets('ASR-first options can enable ForcedAligner evidence', (
     tester,
   ) async {
-    ProofreadV2RunOptions? result;
+    ProofreadRunOptions? result;
     await tester.pumpWidget(
       host(
         Builder(
           builder: (context) => FilledButton(
             onPressed: () async {
-              result = await showProofreadV2RunOptionsDialog(context);
+              result = await showProofreadRunOptionsDialog(context);
             },
             child: const Text('open strategy'),
           ),
@@ -132,12 +132,12 @@ void main() {
         host(
           Builder(
             builder: (context) => FilledButton(
-              onPressed: () => showLyricProofreadV2ReviewDialog(
+              onPressed: () => showLyricProofreadReviewDialog(
                 context,
                 summary: '琥珀色 1',
                 explanation: '复核差异',
                 items: [
-                  LyricProofreadV2ReviewItem(
+                  LyricProofreadReviewItem(
                     proposalIndex: 0,
                     sourceIndex: 0,
                     originalLine: line(example.$1),
@@ -183,19 +183,19 @@ void main() {
       host(
         Builder(
           builder: (context) => FilledButton(
-            onPressed: () => showLyricProofreadV2ReviewDialog(
+            onPressed: () => showLyricProofreadReviewDialog(
               context,
               summary: '琥珀色 2',
               explanation: '复核',
               items: [
-                LyricProofreadV2ReviewItem(
+                LyricProofreadReviewItem(
                   proposalIndex: 0,
                   sourceIndex: 0,
                   originalLine: line('same'),
                   proposedLine: line('same', startMs: 100),
                   verdict: LyricProofreadReviewVerdict.amber,
                 ),
-                LyricProofreadV2ReviewItem(
+                LyricProofreadReviewItem(
                   proposalIndex: 1,
                   sourceIndex: null,
                   originalLine: null,
@@ -246,19 +246,19 @@ void main() {
         Builder(
           builder: (context) => FilledButton(
             onPressed: () async {
-              await showLyricProofreadV2ReviewDialog(
+              await showLyricProofreadReviewDialog(
                 context,
                 summary: '绿色 0 · 琥珀色 1',
                 explanation: '词级时间仅供复核。',
                 items: [
-                  LyricProofreadV2ReviewItem(
+                  LyricProofreadReviewItem(
                     proposalIndex: 0,
                     sourceIndex: 0,
                     originalLine: line('hello world'),
                     proposedLine: line('hello world'),
                     verdict: LyricProofreadReviewVerdict.amber,
                     alignmentHints: {
-                      LyricProofreadV2AlignmentHint.wordTimingAvailable,
+                      LyricProofreadAlignmentHint.wordTimingAvailable,
                     },
                     alignmentTokens: [
                       token,
@@ -319,12 +319,12 @@ void main() {
           Builder(
             builder: (context) => FilledButton(
               onPressed: () async {
-                await showLyricProofreadV2ReviewDialog(
+                await showLyricProofreadReviewDialog(
                   context,
                   summary: '绿色 0 · 琥珀色 1',
                   explanation: '时间复核。',
                   items: [
-                    LyricProofreadV2ReviewItem(
+                    LyricProofreadReviewItem(
                       proposalIndex: 0,
                       sourceIndex: 0,
                       originalLine: original,
@@ -386,12 +386,12 @@ void main() {
         Builder(
           builder: (context) => FilledButton(
             onPressed: () async {
-              await showLyricProofreadV2ReviewDialog(
+              await showLyricProofreadReviewDialog(
                 context,
                 summary: '策略：参考歌词优先 · 绿色 1',
                 explanation: '逐行查看原文与建议。',
                 items: [
-                  LyricProofreadV2ReviewItem(
+                  LyricProofreadReviewItem(
                     proposalIndex: 0,
                     sourceIndex: 0,
                     originalLine: line(
@@ -426,9 +426,9 @@ void main() {
   testWidgets(
     'review dialog compares rows and returns amber plus grey restore',
     (tester) async {
-      LyricProofreadV2Selection? result;
+      LyricProofreadSelection? result;
       final items = [
-        LyricProofreadV2ReviewItem(
+        LyricProofreadReviewItem(
           proposalIndex: 0,
           sourceIndex: 0,
           originalLine: line('old green', id: 'green'),
@@ -436,7 +436,7 @@ void main() {
           verdict: LyricProofreadReviewVerdict.green,
           proofreadReasons: {ProofreadReason.referenceCorrection},
         ),
-        LyricProofreadV2ReviewItem(
+        LyricProofreadReviewItem(
           proposalIndex: 1,
           sourceIndex: 1,
           originalLine: line(
@@ -452,11 +452,9 @@ void main() {
             id: 'amber',
           ),
           verdict: LyricProofreadReviewVerdict.amber,
-          referenceReasons: {
-            LyricProofreadV2ReferenceReason.ambiguousAlignment,
-          },
+          referenceReasons: {LyricProofreadReferenceReason.ambiguousAlignment},
         ),
-        LyricProofreadV2ReviewItem(
+        LyricProofreadReviewItem(
           proposalIndex: 2,
           sourceIndex: 3,
           originalLine: line(
@@ -472,11 +470,11 @@ void main() {
             id: 'locked',
           ),
           verdict: LyricProofreadReviewVerdict.locked,
-          referenceReasons: {LyricProofreadV2ReferenceReason.protectedLine},
+          referenceReasons: {LyricProofreadReferenceReason.protectedLine},
         ),
       ];
       final dropped = [
-        LyricProofreadV2DroppedItem(
+        LyricProofreadDroppedItem(
           sourceIndex: 2,
           line: line('restore me', startMs: 2100, endMs: 2150, id: 'drop'),
         ),
@@ -487,7 +485,7 @@ void main() {
           Builder(
             builder: (context) => FilledButton(
               onPressed: () async {
-                result = await showLyricProofreadV2ReviewDialog(
+                result = await showLyricProofreadReviewDialog(
                   context,
                   summary: '绿色 1 · 琥珀色 1 · 受保护 1 · 灰色 1',
                   explanation: '低置信提案需要人工确认。',
@@ -550,19 +548,17 @@ void main() {
   testWidgets(
     'green-only action ignores amber selection and grey restoration',
     (tester) async {
-      LyricProofreadV2Selection? result;
+      LyricProofreadSelection? result;
       final items = [
-        LyricProofreadV2ReviewItem(
+        LyricProofreadReviewItem(
           proposalIndex: 0,
           sourceIndex: 0,
           originalLine: line('before', id: 'green'),
           proposedLine: line('after', id: 'green'),
           verdict: LyricProofreadReviewVerdict.green,
-          referenceReasons: {
-            LyricProofreadV2ReferenceReason.referenceTimestamp,
-          },
+          referenceReasons: {LyricProofreadReferenceReason.referenceTimestamp},
         ),
-        LyricProofreadV2ReviewItem(
+        LyricProofreadReviewItem(
           proposalIndex: 1,
           sourceIndex: 1,
           originalLine: line(
@@ -578,11 +574,9 @@ void main() {
             id: 'amber',
           ),
           verdict: LyricProofreadReviewVerdict.amber,
-          referenceReasons: {
-            LyricProofreadV2ReferenceReason.ambiguousAlignment,
-          },
+          referenceReasons: {LyricProofreadReferenceReason.ambiguousAlignment},
         ),
-        LyricProofreadV2ReviewItem(
+        LyricProofreadReviewItem(
           proposalIndex: 2,
           sourceIndex: 2,
           originalLine: line(
@@ -598,11 +592,11 @@ void main() {
             id: 'locked',
           ),
           verdict: LyricProofreadReviewVerdict.locked,
-          referenceReasons: {LyricProofreadV2ReferenceReason.protectedLine},
+          referenceReasons: {LyricProofreadReferenceReason.protectedLine},
         ),
       ];
       final dropped = [
-        LyricProofreadV2DroppedItem(
+        LyricProofreadDroppedItem(
           sourceIndex: 3,
           line: line(
             'restore separately',
@@ -618,7 +612,7 @@ void main() {
           Builder(
             builder: (context) => FilledButton(
               onPressed: () async {
-                result = await showLyricProofreadV2ReviewDialog(
+                result = await showLyricProofreadReviewDialog(
                   context,
                   summary: '绿色 1 · 琥珀色 1 · 受保护 1 · 灰色 1',
                   explanation: '逐项复核。',
@@ -655,25 +649,25 @@ void main() {
   );
 
   testWidgets('review cancel returns no acceptance selection', (tester) async {
-    LyricProofreadV2Selection? result;
+    LyricProofreadSelection? result;
     await tester.pumpWidget(
       host(
         Builder(
           builder: (context) => FilledButton(
             onPressed: () async {
-              result = await showLyricProofreadV2ReviewDialog(
+              result = await showLyricProofreadReviewDialog(
                 context,
                 summary: '绿色 1',
                 explanation: '取消后不采纳任何提案。',
                 items: [
-                  LyricProofreadV2ReviewItem(
+                  LyricProofreadReviewItem(
                     proposalIndex: 0,
                     sourceIndex: 0,
                     originalLine: line('before', id: 'line'),
                     proposedLine: line('after', id: 'line'),
                     verdict: LyricProofreadReviewVerdict.green,
                     referenceReasons: {
-                      LyricProofreadV2ReferenceReason.referenceTimestamp,
+                      LyricProofreadReferenceReason.referenceTimestamp,
                     },
                   ),
                 ],
@@ -703,7 +697,7 @@ void main() {
         Builder(
           builder: (context) => FilledButton(
             onPressed: () async {
-              await showLyricProofreadV2ReviewDialog(
+              await showLyricProofreadReviewDialog(
                 context,
                 summary: '策略：ASR 优先',
                 explanation: '低覆盖率证据需要人工复核。',

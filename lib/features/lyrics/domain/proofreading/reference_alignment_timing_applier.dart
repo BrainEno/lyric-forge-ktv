@@ -36,8 +36,8 @@ class ReferenceAlignmentTimingApplier {
   LyricDocument apply({
     required LyricDocument before,
     required LyricDocument composed,
-    required List<LyricProofreadV2ReviewItem> items,
-    required LyricProofreadV2Selection selection,
+    required List<LyricProofreadReviewItem> items,
+    required LyricProofreadSelection selection,
     required LyricSourceStrategy effectiveStrategy,
     required Map<int, int> outputIndexByProposal,
   }) {
@@ -56,7 +56,7 @@ class ReferenceAlignmentTimingApplier {
         ReferenceTimingApplyFailure.offsetChanged,
       );
     }
-    final byProposal = <int, LyricProofreadV2ReviewItem>{};
+    final byProposal = <int, LyricProofreadReviewItem>{};
     for (final item in items) {
       if (byProposal.containsKey(item.proposalIndex)) {
         throw const ReferenceTimingApplyException(

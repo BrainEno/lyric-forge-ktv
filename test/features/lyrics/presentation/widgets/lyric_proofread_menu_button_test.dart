@@ -15,7 +15,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         LyricProofreadMenuButton(
-          onProofreadV2: () {},
+          onSmartProofread: () {},
           onReferenceAlignment: () {},
           onReferenceProofread: () {},
           onViewComparison: () {},
@@ -40,7 +40,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         LyricProofreadMenuButton(
-          onProofreadV2: () {},
+          onSmartProofread: () {},
           onReferenceAlignment: () {},
           onReferenceProofread: () {},
         ),
@@ -67,7 +67,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         LyricProofreadMenuButton(
-          onProofreadV2: () => fired.add('v2'),
+          onSmartProofread: () => fired.add('smart'),
           onReferenceAlignment: () => fired.add('alignment'),
           onReferenceProofread: () => fired.add('proofread'),
           onViewComparison: () => fired.add('comparison'),
@@ -78,7 +78,7 @@ void main() {
     );
 
     for (final entry in {
-      '智能校对': 'v2',
+      '智能校对': 'smart',
       '参考歌词：纠正文字和时间轴': 'alignment',
       '参考歌词：只改文字': 'proofread',
       '查看逐行对比': 'comparison',
@@ -104,7 +104,7 @@ void main() {
           onRestoreBackup: () {},
           onTapSync: () {},
           onTextCleanup: () {},
-          onProofreadV2: () {},
+          onSmartProofread: () {},
         ),
       ),
     );
@@ -139,7 +139,7 @@ void main() {
 
   testWidgets('sections without an available entry are hidden', (tester) async {
     await tester.pumpWidget(
-      _host(LyricProofreadMenuButton(onProofreadV2: () {})),
+      _host(LyricProofreadMenuButton(onSmartProofread: () {})),
     );
 
     await tester.tap(find.text(LyricProofreadMenuButton.label));
@@ -166,7 +166,7 @@ void main() {
       _host(
         LyricProofreadMenuButton(
           compact: true,
-          onProofreadV2: () {},
+          onSmartProofread: () {},
           onReferenceAlignment: () {},
         ),
       ),
@@ -239,7 +239,7 @@ void main() {
         LyricProofreadActions(
           onReferenceAlignment: alignment,
           onReferenceProofread: proofread,
-          onProofreadV2: smart,
+          onSmartProofread: smart,
           onUnifyChineseScript: unify,
           onViewAlignmentComparison: compare,
           onUndoReferenceAlignment: undo,
@@ -251,7 +251,7 @@ void main() {
       expect(button.compact, isTrue);
       expect(button.onReferenceAlignment, same(alignment));
       expect(button.onReferenceProofread, same(proofread));
-      expect(button.onProofreadV2, same(smart));
+      expect(button.onSmartProofread, same(smart));
       expect(button.onUnifyChineseScript, same(unify));
       expect(button.onViewComparison, same(compare));
       expect(button.onUndoAlignment, same(undo));

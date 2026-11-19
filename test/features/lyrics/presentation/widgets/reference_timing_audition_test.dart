@@ -7,7 +7,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_li
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/reference_forced_alignment_planner.dart';
-import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_dialog.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 void main() {
@@ -47,7 +47,7 @@ void main() {
     startTime: Duration.zero,
     endTime: Duration(seconds: 1),
   );
-  LyricProofreadV2Selection? selection;
+  LyricProofreadSelection? selection;
 
   Future<void> open(
     WidgetTester tester, {
@@ -75,7 +75,7 @@ void main() {
           body: Builder(
             builder: (context) => TextButton(
               onPressed: () async {
-                selection = await showLyricProofreadV2ReviewDialog(
+                selection = await showLyricProofreadReviewDialog(
                   context,
                   summary: 'summary',
                   explanation: 'evidence',
@@ -85,7 +85,7 @@ void main() {
                   onPreviewReferenceTiming: preview,
                   originalGlobalOffset: const Duration(seconds: 1),
                   items: [
-                    LyricProofreadV2ReviewItem(
+                    LyricProofreadReviewItem(
                       proposalIndex: 7,
                       sourceIndex: source == null ? null : 0,
                       originalLine: source,

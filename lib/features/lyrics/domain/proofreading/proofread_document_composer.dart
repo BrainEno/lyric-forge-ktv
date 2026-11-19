@@ -18,19 +18,19 @@ import 'reference_alignment_timing_applier.dart';
 ///   still belongs to that line;
 /// * a reference-first run that moved any timing resets the global offset,
 ///   because the new timestamps are already absolute.
-class ProofreadV2DocumentComposer {
+class ProofreadDocumentComposer {
   final LyricManualEditMarkerService markerService;
 
-  const ProofreadV2DocumentComposer({
+  const ProofreadDocumentComposer({
     this.markerService = const LyricManualEditMarkerService(),
   });
 
   LyricDocument compose({
     required LyricDocument before,
     required LyricDocument proposalDocument,
-    required List<LyricProofreadV2ReviewItem> items,
-    required List<LyricProofreadV2DroppedItem> droppedItems,
-    required LyricProofreadV2Selection selection,
+    required List<LyricProofreadReviewItem> items,
+    required List<LyricProofreadDroppedItem> droppedItems,
+    required LyricProofreadSelection selection,
     required LyricSourceStrategy effectiveStrategy,
   }) {
     final accepted = selection.acceptedProposalIndices;

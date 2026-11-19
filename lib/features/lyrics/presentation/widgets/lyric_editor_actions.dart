@@ -50,7 +50,7 @@ class LyricProofreadActions {
   const LyricProofreadActions({
     this.onReferenceAlignment,
     this.onReferenceProofread,
-    this.onProofreadV2,
+    this.onSmartProofread,
     this.onUndoReferenceAlignment,
     this.onViewAlignmentComparison,
     this.onRestoreAlignment,
@@ -61,19 +61,19 @@ class LyricProofreadActions {
   /// Nothing available, as for a project without lyrics.
   static const LyricProofreadActions none = LyricProofreadActions();
 
-  /// The tools for the current document. The text tools need lyrics, proofread
-  /// V2 runs one pass at a time, and the alignment follow-ups depend only on
-  /// the applied [alignment], so they stay available after every row was
-  /// deleted. Only a reference alignment, not a proofreading pass, has a
-  /// before/after comparison.
+  /// The tools for the current document. The text tools need lyrics, smart
+  /// proofreading runs one pass at a time, and the alignment follow-ups
+  /// depend only on the applied [alignment], so they stay available after
+  /// every row was deleted. Only a reference alignment, not a proofreading
+  /// pass, has a before/after comparison.
   factory LyricProofreadActions.forDocument({
     required bool hasLines,
-    bool proofreadV2Running = false,
+    bool smartProofreadRunning = false,
     LyricEditorSnapshot? alignment,
     bool canRestore = false,
     required VoidCallback referenceAlignment,
     required VoidCallback referenceProofread,
-    required VoidCallback proofreadV2,
+    required VoidCallback smartProofread,
     required VoidCallback undoAlignment,
     required VoidCallback viewComparison,
     required VoidCallback restoreAlignment,
@@ -84,7 +84,9 @@ class LyricProofreadActions {
     return LyricProofreadActions(
       onReferenceAlignment: hasLines ? referenceAlignment : null,
       onReferenceProofread: hasLines ? referenceProofread : null,
-      onProofreadV2: hasLines && !proofreadV2Running ? proofreadV2 : null,
+      onSmartProofread: hasLines && !smartProofreadRunning
+          ? smartProofread
+          : null,
       onUndoReferenceAlignment: alignment == null ? null : undoAlignment,
       onViewAlignmentComparison: comparable ? viewComparison : null,
       onRestoreAlignment: canRestore ? restoreAlignment : null,
@@ -95,7 +97,7 @@ class LyricProofreadActions {
 
   final VoidCallback? onReferenceAlignment;
   final VoidCallback? onReferenceProofread;
-  final VoidCallback? onProofreadV2;
+  final VoidCallback? onSmartProofread;
   final VoidCallback? onUndoReferenceAlignment;
   final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;

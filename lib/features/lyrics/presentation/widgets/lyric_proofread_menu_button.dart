@@ -26,7 +26,7 @@ import 'reference_alignment_dialog.dart';
 /// group, so the destructive-sounding entries are not the first thing under
 /// the cursor.
 enum LyricProofreadAction {
-  proofreadV2(LyricProofreadGroup.correction),
+  smartProofread(LyricProofreadGroup.correction),
   referenceAlignment(LyricProofreadGroup.correction),
   referenceProofread(LyricProofreadGroup.correction),
   spanRecognition(LyricProofreadGroup.correction),
@@ -82,7 +82,7 @@ enum LyricProofreadGroup {
 class LyricProofreadMenuButton extends StatelessWidget {
   const LyricProofreadMenuButton({
     super.key,
-    this.onProofreadV2,
+    this.onSmartProofread,
     this.onReferenceAlignment,
     this.onReferenceProofread,
     this.onUnifyChineseScript,
@@ -122,7 +122,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
     return LyricProofreadMenuButton(
       key: key,
       compact: compact,
-      onProofreadV2: actions.onProofreadV2,
+      onSmartProofread: actions.onSmartProofread,
       onReferenceAlignment: actions.onReferenceAlignment,
       onReferenceProofread: actions.onReferenceProofread,
       onUnifyChineseScript: actions.onUnifyChineseScript,
@@ -146,7 +146,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
   }
 
   /// 智能校对: builds a proposal from the ASR evidence without writing it.
-  final VoidCallback? onProofreadV2;
+  final VoidCallback? onSmartProofread;
 
   /// 参考歌词：纠正文字和时间轴 — aligns a pasted reference and can replace
   /// timing.
@@ -206,7 +206,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   static const String label = '校对';
 
-  /// Menu title of the no-reference proposal flow ([onProofreadV2]).
+  /// Menu title of the no-reference proposal flow ([onSmartProofread]).
   static const String smartProofreadTitle = '智能校对';
 
   @override
@@ -258,7 +258,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
   /// Available entries per group; groups without any entry are left out.
   List<(LyricProofreadGroup, List<_ProofreadMenuItem>)> _groups() {
     final actions = <LyricProofreadAction, VoidCallback?>{
-      LyricProofreadAction.proofreadV2: onProofreadV2,
+      LyricProofreadAction.smartProofread: onSmartProofread,
       LyricProofreadAction.referenceAlignment: onReferenceAlignment,
       LyricProofreadAction.referenceProofread: onReferenceProofread,
       LyricProofreadAction.repetitionConsistency: onRepetitionConsistency,
@@ -304,7 +304,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
   /// Title plus the one-line explanation that distinguishes the strategies.
   static (String, String?) _textFor(LyricProofreadAction action) {
     return switch (action) {
-      LyricProofreadAction.proofreadV2 => (
+      LyricProofreadAction.smartProofread => (
         smartProofreadTitle,
         '不需要参考歌词；生成不写盘的提案，逐行对比后再应用',
       ),
@@ -380,7 +380,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   static IconData _iconFor(LyricProofreadAction action) {
     return switch (action) {
-      LyricProofreadAction.proofreadV2 => Icons.auto_awesome_rounded,
+      LyricProofreadAction.smartProofread => Icons.auto_awesome_rounded,
       LyricProofreadAction.referenceAlignment => Icons.auto_fix_high_rounded,
       LyricProofreadAction.referenceProofread => Icons.spellcheck_rounded,
       LyricProofreadAction.repetitionConsistency =>

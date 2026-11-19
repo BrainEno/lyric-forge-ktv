@@ -15,8 +15,8 @@ import '../../domain/proofreading/project_proofread_evidence.dart';
 import '../../domain/proofreading/reference_alignment_audio_guard.dart';
 import '../../domain/proofreading/reference_alignment_timing_applier.dart';
 import '../../domain/proofreading/reference_timing_audition_planner.dart';
-import '../../domain/proofreading/proofread_v2_document_composer.dart';
-import '../../domain/proofreading/run_proofread_v2_use_case.dart';
+import '../../domain/proofreading/proofread_document_composer.dart';
+import '../../domain/proofreading/run_proofread_use_case.dart';
 import '../../domain/proofreading/run_reference_proofread_use_case.dart';
 import '../../domain/services/lyric_timeline_validator.dart';
 import '../../domain/services/reference_lyric_text_parser.dart';
@@ -24,7 +24,7 @@ import '../controllers/line_audition_controller.dart';
 import '../controllers/reference_timing_audition_coordinator.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
-import '../widgets/lyric_proofread_v2_dialog.dart';
+import '../widgets/lyric_proofread_dialog.dart';
 import '../widgets/project_asr_snapshot_dialog.dart';
 import '../widgets/project_chunk_asr_snapshot_dialog.dart';
 import '../widgets/reference_alignment_dialog.dart';
@@ -257,7 +257,7 @@ class LyricEditorProofreadingCoordinator {
     );
   }
 
-  Future<void> runProofreadV2({
+  Future<void> runSmartProofread({
     required ProjectManifest project,
     required LyricDocument document,
     required int revision,
@@ -281,7 +281,7 @@ class LyricEditorProofreadingCoordinator {
       }
       if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
     }
-    final options = await showProofreadV2RunOptionsDialog(
+    final options = await showProofreadRunOptionsDialog(
       context,
       allowProjectEvidence: dependencies.projectProofreadEvidenceLoader != null,
       projectEvidenceHint: projectEvidenceHint,
@@ -412,7 +412,7 @@ class LyricEditorProofreadingCoordinator {
         if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
       }
       final run =
-          await RunProofreadV2UseCase(
+          await RunProofreadUseCase(
             runner: dependencies.forcedAlignmentRunner,
           ).build(
             draft: document,
@@ -562,13 +562,13 @@ class LyricEditorProofreadingCoordinator {
               },
               stopOwnedPlayback: stopOwnedReferenceAudition,
             );
-      final selection = await showLyricProofreadV2ReviewDialog(
+      final selection = await showLyricProofreadReviewDialog(
         context,
-        summary: LyricReviewStrings.proofreadV2Summary(summary),
+        summary: LyricReviewStrings.proofreadSummary(summary),
         explanation: [
           if (projectEvidence != null)
             '工程独立第二稿：${projectEvidence.secondaryEngine} · ${projectEvidence.capturedAtUtc!.toIso8601String()}；音频已核对，模型内容未校验。',
-          LyricReviewStrings.proofreadV2Explanations(assembly.explanations),
+          LyricReviewStrings.proofreadExplanations(assembly.explanations),
           if (assembly.referenceAlignmentPlan case final plan?) ...[
             LyricReviewStrings.referenceAlignmentSummary(plan),
             if (plan.isReady)
@@ -657,7 +657,7 @@ class LyricEditorProofreadingCoordinator {
       if (!await verifyTimingSnapshot()) return;
       if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
 
-      const composer = ProofreadV2DocumentComposer();
+      const composer = ProofreadDocumentComposer();
       final after = composer.compose(
         before: document,
         proposalDocument: assembly.proposalDocument,
@@ -707,7 +707,7 @@ class LyricEditorProofreadingCoordinator {
           ? LyricReviewStrings.referenceTimingApplyFailure(error.reason)
           : error is ForcedAlignmentLanguageResolutionException
           ? LyricReviewStrings.forcedAlignmentLanguageError(error)
-          : error is ProofreadV2MissingAudioException
+          : error is ProofreadMissingAudioException
           ? 'Bad state: ForcedAligner 需要工程音频及有效音频时长；请先检查音频资源。'
           : error is ForcedAlignmentResourceBusyException
           ? LyricReviewStrings.forcedAlignmentBusy

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
-import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_dialog.dart';
 
 void main() {
   final scenarios = <({Size size, double scale})>[
@@ -16,7 +16,7 @@ void main() {
     testWidgets('options are scrollable and actions reachable: $scenario', (
       tester,
     ) async {
-      ProofreadV2RunOptions? result;
+      ProofreadRunOptions? result;
       await _configureView(tester, scenario.size);
       await tester.pumpWidget(
         _host(scale: scenario.scale, onResult: (value) => result = value),
@@ -62,7 +62,7 @@ void main() {
       tester,
     ) async {
       var completed = false;
-      ProofreadV2RunOptions? result;
+      ProofreadRunOptions? result;
       await _configureView(tester, scenario.size);
       await tester.pumpWidget(
         _host(
@@ -97,7 +97,7 @@ void main() {
   testWidgets('long pasted input survives scrolling and strategy changes', (
     tester,
   ) async {
-    ProofreadV2RunOptions? result;
+    ProofreadRunOptions? result;
     await _configureView(tester, const Size(320, 568));
     await tester.pumpWidget(
       _host(scale: 2, onResult: (value) => result = value),
@@ -126,7 +126,7 @@ void main() {
   });
 
   testWidgets('empty secondary input stays optional', (tester) async {
-    ProofreadV2RunOptions? result;
+    ProofreadRunOptions? result;
     await _configureView(tester, const Size(320, 568));
     await tester.pumpWidget(
       _host(scale: 2, onResult: (value) => result = value),
@@ -172,7 +172,7 @@ void main() {
     tester,
   ) async {
     var completed = false;
-    ProofreadV2RunOptions? result;
+    ProofreadRunOptions? result;
     await _configureView(tester, const Size(800, 480));
     await tester.pumpWidget(
       _host(
@@ -202,7 +202,7 @@ void main() {
   testWidgets(
     'resizing preserves entered options and leaves actions reachable',
     (tester) async {
-      ProofreadV2RunOptions? result;
+      ProofreadRunOptions? result;
       await _configureView(tester, const Size(800, 600));
       await tester.pumpWidget(
         _host(scale: 2, onResult: (value) => result = value),
@@ -241,7 +241,7 @@ void main() {
   testWidgets('keyboard traverses strategy, toggle, text and continue', (
     tester,
   ) async {
-    ProofreadV2RunOptions? result;
+    ProofreadRunOptions? result;
     await _configureView(tester, const Size(320, 568));
     await tester.pumpWidget(
       _host(scale: 2, onResult: (value) => result = value),
@@ -277,7 +277,7 @@ Future<void> _configureView(WidgetTester tester, Size size) async {
 
 Widget _host({
   required double scale,
-  required void Function(ProofreadV2RunOptions?) onResult,
+  required void Function(ProofreadRunOptions?) onResult,
 }) {
   return MaterialApp(
     theme: ThemeData.dark(),
@@ -292,7 +292,7 @@ Widget _host({
         child: Builder(
           builder: (context) => FilledButton(
             onPressed: () async =>
-                onResult(await showProofreadV2RunOptionsDialog(context)),
+                onResult(await showProofreadRunOptionsDialog(context)),
             child: const Text('open'),
           ),
         ),

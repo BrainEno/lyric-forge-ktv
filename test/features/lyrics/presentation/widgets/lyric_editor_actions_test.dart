@@ -57,7 +57,7 @@ void main() {
 
       expect(none.onReferenceAlignment, isNull);
       expect(none.onReferenceProofread, isNull);
-      expect(none.onProofreadV2, isNull);
+      expect(none.onSmartProofread, isNull);
       expect(none.onUndoReferenceAlignment, isNull);
       expect(none.onViewAlignmentComparison, isNull);
       expect(none.onRestoreAlignment, isNull);
@@ -67,19 +67,19 @@ void main() {
 
     LyricProofreadActions forDocument({
       required bool hasLines,
-      bool proofreadV2Running = false,
+      bool smartProofreadRunning = false,
       LyricEditorSnapshot? alignment,
       bool canRestore = false,
     }) {
       void noop() {}
       return LyricProofreadActions.forDocument(
         hasLines: hasLines,
-        proofreadV2Running: proofreadV2Running,
+        smartProofreadRunning: smartProofreadRunning,
         alignment: alignment,
         canRestore: canRestore,
         referenceAlignment: noop,
         referenceProofread: noop,
-        proofreadV2: noop,
+        smartProofread: noop,
         undoAlignment: noop,
         viewComparison: noop,
         restoreAlignment: noop,
@@ -102,7 +102,7 @@ void main() {
 
       expect(actions.onReferenceAlignment, isNotNull);
       expect(actions.onReferenceProofread, isNotNull);
-      expect(actions.onProofreadV2, isNotNull);
+      expect(actions.onSmartProofread, isNotNull);
       expect(actions.onUnifyChineseScript, isNotNull);
       expect(actions.onBatchTextTool, isNotNull);
       // Nothing applied yet, so nothing to undo, compare or restore.
@@ -116,15 +116,15 @@ void main() {
 
       expect(actions.onReferenceAlignment, isNull);
       expect(actions.onReferenceProofread, isNull);
-      expect(actions.onProofreadV2, isNull);
+      expect(actions.onSmartProofread, isNull);
       expect(actions.onUnifyChineseScript, isNull);
       expect(actions.onBatchTextTool, isNull);
     });
 
-    test('proofread V2 is offered again only after its pass ends', () {
-      final running = forDocument(hasLines: true, proofreadV2Running: true);
+    test('smart proofreading is offered again only after its pass ends', () {
+      final running = forDocument(hasLines: true, smartProofreadRunning: true);
 
-      expect(running.onProofreadV2, isNull);
+      expect(running.onSmartProofread, isNull);
       expect(running.onReferenceAlignment, isNotNull);
     });
 

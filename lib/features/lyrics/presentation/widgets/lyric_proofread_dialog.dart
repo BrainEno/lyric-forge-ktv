@@ -13,14 +13,14 @@ import '../../domain/proofreading/reference_forced_alignment_planner.dart';
 import '../../domain/services/character_diff_service.dart';
 import '../lyric_review_strings.dart';
 
-class ProofreadV2RunOptions {
+class ProofreadRunOptions {
   final LyricSourceStrategy strategy;
   final bool useReference;
   final String? secondaryTranscriptText;
   final bool useForcedAlignment;
   final bool useProjectEvidence;
 
-  const ProofreadV2RunOptions({
+  const ProofreadRunOptions({
     required this.strategy,
     required this.useReference,
     this.secondaryTranscriptText,
@@ -29,36 +29,36 @@ class ProofreadV2RunOptions {
   });
 }
 
-Future<ProofreadV2RunOptions?> showProofreadV2RunOptionsDialog(
+Future<ProofreadRunOptions?> showProofreadRunOptionsDialog(
   BuildContext context, {
   bool allowProjectEvidence = false,
   ProjectProofreadEvidenceHint? projectEvidenceHint,
 }) {
-  return showDialog<ProofreadV2RunOptions>(
+  return showDialog<ProofreadRunOptions>(
     context: context,
-    builder: (_) => _ProofreadV2RunOptionsDialog(
+    builder: (_) => _ProofreadRunOptionsDialog(
       allowProjectEvidence: allowProjectEvidence,
       projectEvidenceHint: projectEvidenceHint,
     ),
   );
 }
 
-class _ProofreadV2RunOptionsDialog extends StatefulWidget {
+class _ProofreadRunOptionsDialog extends StatefulWidget {
   final bool allowProjectEvidence;
   final ProjectProofreadEvidenceHint? projectEvidenceHint;
 
-  const _ProofreadV2RunOptionsDialog({
+  const _ProofreadRunOptionsDialog({
     required this.allowProjectEvidence,
     required this.projectEvidenceHint,
   });
 
   @override
-  State<_ProofreadV2RunOptionsDialog> createState() =>
-      _ProofreadV2RunOptionsDialogState();
+  State<_ProofreadRunOptionsDialog> createState() =>
+      _ProofreadRunOptionsDialogState();
 }
 
-class _ProofreadV2RunOptionsDialogState
-    extends State<_ProofreadV2RunOptionsDialog> {
+class _ProofreadRunOptionsDialogState
+    extends State<_ProofreadRunOptionsDialog> {
   LyricSourceStrategy _strategy = LyricSourceStrategy.auto;
   bool _useReference = false;
   bool _useForcedAlignment = false;
@@ -292,7 +292,7 @@ class _ProofreadV2RunOptionsDialogState
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(
-            ProofreadV2RunOptions(
+            ProofreadRunOptions(
               strategy: _strategy,
               useReference:
                   _strategy == LyricSourceStrategy.referenceFirst ||
@@ -343,12 +343,12 @@ typedef ReferenceTimingPreview =
       ReferenceForcedTimingProposal evidence,
     );
 
-Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
+Future<LyricProofreadSelection?> showLyricProofreadReviewDialog(
   BuildContext context, {
   required String summary,
   required String explanation,
-  required List<LyricProofreadV2ReviewItem> items,
-  required List<LyricProofreadV2DroppedItem> droppedItems,
+  required List<LyricProofreadReviewItem> items,
+  required List<LyricProofreadDroppedItem> droppedItems,
   required ValueChanged<int>? onPreviewDraftLine,
   ProofreadTimedLinePreview? onPreviewTimedLine,
   Duration originalGlobalOffset = Duration.zero,
@@ -359,9 +359,9 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   bool allowReferenceTimingSelection = false,
   ReferenceTimingPreview? onPreviewReferenceTiming,
 }) {
-  return showDialog<LyricProofreadV2Selection>(
+  return showDialog<LyricProofreadSelection>(
     context: context,
-    builder: (_) => _LyricProofreadV2ReviewDialog(
+    builder: (_) => _LyricProofreadReviewDialog(
       summary: summary,
       explanation: explanation,
       items: items,
@@ -378,11 +378,11 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   );
 }
 
-class _LyricProofreadV2ReviewDialog extends StatefulWidget {
+class _LyricProofreadReviewDialog extends StatefulWidget {
   final String summary;
   final String explanation;
-  final List<LyricProofreadV2ReviewItem> items;
-  final List<LyricProofreadV2DroppedItem> droppedItems;
+  final List<LyricProofreadReviewItem> items;
+  final List<LyricProofreadDroppedItem> droppedItems;
   final ValueChanged<int>? onPreviewDraftLine;
   final ProofreadTimedLinePreview? onPreviewTimedLine;
   final Duration originalGlobalOffset;
@@ -393,7 +393,7 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
   final bool allowReferenceTimingSelection;
   final ReferenceTimingPreview? onPreviewReferenceTiming;
 
-  const _LyricProofreadV2ReviewDialog({
+  const _LyricProofreadReviewDialog({
     required this.summary,
     required this.explanation,
     required this.items,
@@ -409,12 +409,12 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
   });
 
   @override
-  State<_LyricProofreadV2ReviewDialog> createState() =>
-      _LyricProofreadV2ReviewDialogState();
+  State<_LyricProofreadReviewDialog> createState() =>
+      _LyricProofreadReviewDialogState();
 }
 
-class _LyricProofreadV2ReviewDialogState
-    extends State<_LyricProofreadV2ReviewDialog> {
+class _LyricProofreadReviewDialogState
+    extends State<_LyricProofreadReviewDialog> {
   final Set<int> _acceptedAmber = {};
   final Set<int> _restoredDraftIndices = {};
   final Set<int> _acceptedReferenceTimings = {};
@@ -425,20 +425,20 @@ class _LyricProofreadV2ReviewDialogState
   final Map<(String, String), List<CharacterDiffSegment>> _textDiffs = {};
 
   @override
-  void didUpdateWidget(covariant _LyricProofreadV2ReviewDialog oldWidget) {
+  void didUpdateWidget(covariant _LyricProofreadReviewDialog oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.items != widget.items) _textDiffs.clear();
   }
 
-  List<LyricProofreadV2ReviewItem> get _greenItems => widget.items
+  List<LyricProofreadReviewItem> get _greenItems => widget.items
       .where((item) => item.verdict == LyricProofreadReviewVerdict.green)
       .toList(growable: false);
 
-  List<LyricProofreadV2ReviewItem> get _amberItems => widget.items
+  List<LyricProofreadReviewItem> get _amberItems => widget.items
       .where((item) => item.verdict == LyricProofreadReviewVerdict.amber)
       .toList(growable: false);
 
-  List<LyricProofreadV2ReviewItem> get _lockedItems => widget.items
+  List<LyricProofreadReviewItem> get _lockedItems => widget.items
       .where((item) => item.verdict == LyricProofreadReviewVerdict.locked)
       .toList(growable: false);
 
@@ -488,7 +488,7 @@ class _LyricProofreadV2ReviewDialogState
   }
 
   Future<void> _previewReferenceTiming(
-    LyricProofreadV2ReviewItem item,
+    LyricProofreadReviewItem item,
     ReferenceForcedTimingProposal evidence,
   ) async {
     final preview = widget.onPreviewReferenceTiming;
@@ -538,7 +538,7 @@ class _LyricProofreadV2ReviewDialogState
       if (includeAmber) ..._acceptedAmber,
     };
     Navigator.of(context).pop(
-      LyricProofreadV2Selection(
+      LyricProofreadSelection(
         acceptedProposalIndices: accepted,
         restoredDraftIndices: _restoredDraftIndices,
         acceptedReferenceTimingIndices: _acceptedReferenceTimings,
@@ -552,7 +552,7 @@ class _LyricProofreadV2ReviewDialogState
       ..._greenItems.map((item) => item.proposalIndex),
     };
     Navigator.of(context).pop(
-      LyricProofreadV2Selection(
+      LyricProofreadSelection(
         acceptedProposalIndices: accepted,
         restoredDraftIndices: const {},
       ),
@@ -762,7 +762,7 @@ class _LyricProofreadV2ReviewDialogState
     );
   }
 
-  bool _canSelectReferenceTiming(LyricProofreadV2ReviewItem item) {
+  bool _canSelectReferenceTiming(LyricProofreadReviewItem item) {
     final evidence = item.referenceTimingEvidence;
     if (!widget.allowReferenceTimingSelection ||
         evidence == null ||
@@ -777,7 +777,7 @@ class _LyricProofreadV2ReviewDialogState
         evidence.start >= widget.originalGlobalOffset;
   }
 
-  Widget _buildProposalCard(LyricProofreadV2ReviewItem item) {
+  Widget _buildProposalCard(LyricProofreadReviewItem item) {
     final original = item.originalLine;
     final segments = original != null && original.text != item.proposedLine.text
         ? _textDiffs.putIfAbsent(

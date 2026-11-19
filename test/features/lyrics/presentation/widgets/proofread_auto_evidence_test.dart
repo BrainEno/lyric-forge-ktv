@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
-import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_dialog.dart';
 
 void main() {
   for (final size in [const Size(320, 568), const Size(800, 480)]) {
@@ -10,7 +10,7 @@ void main() {
       testWidgets('auto evidence remains reachable at $size scale $scale', (
         tester,
       ) async {
-        ProofreadV2RunOptions? result;
+        ProofreadRunOptions? result;
         await configure(tester, size, scale, (value) => result = value);
         expect(find.text('自动选择'), findsOneWidget);
         expect(find.textContaining('第二份 ASR 仅在最终选择 ASR 优先时使用'), findsOneWidget);
@@ -46,7 +46,7 @@ void main() {
     testWidgets('reference mode exposes alignment option at scale $scale', (
       tester,
     ) async {
-      ProofreadV2RunOptions? result;
+      ProofreadRunOptions? result;
       await configure(
         tester,
         const Size(320, 568),
@@ -76,7 +76,7 @@ void main() {
   testWidgets('automatic defaults do not request evidence or reference', (
     tester,
   ) async {
-    ProofreadV2RunOptions? result;
+    ProofreadRunOptions? result;
     await configure(tester, const Size(800, 600), 1, (value) => result = value);
     await tester.tap(find.text('继续'));
     await tester.pumpAndSettle();
@@ -90,7 +90,7 @@ void main() {
   testWidgets(
     'reference-first keeps alignment but suppresses previously entered second ASR',
     (tester) async {
-      ProofreadV2RunOptions? result;
+      ProofreadRunOptions? result;
       await configure(
         tester,
         const Size(800, 600),
@@ -126,7 +126,7 @@ void main() {
   );
 
   testWidgets('switching back to auto restores both options', (tester) async {
-    ProofreadV2RunOptions? result;
+    ProofreadRunOptions? result;
     await configure(tester, const Size(800, 600), 1, (value) => result = value);
     final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));
     await tester.ensureVisible(toggle);
@@ -156,7 +156,7 @@ void main() {
   testWidgets('keyboard can configure auto evidence at large text size', (
     tester,
   ) async {
-    ProofreadV2RunOptions? result;
+    ProofreadRunOptions? result;
     await configure(tester, const Size(320, 568), 2, (value) => result = value);
     final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));
     await tabUntil(tester, toggle);
@@ -179,7 +179,7 @@ Future<void> configure(
   WidgetTester tester,
   Size size,
   double scale,
-  void Function(ProofreadV2RunOptions?) onResult,
+  void Function(ProofreadRunOptions?) onResult,
 ) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -198,7 +198,7 @@ Future<void> configure(
         body: Builder(
           builder: (context) => FilledButton(
             onPressed: () async =>
-                onResult(await showProofreadV2RunOptionsDialog(context)),
+                onResult(await showProofreadRunOptionsDialog(context)),
             child: const Text('open'),
           ),
         ),

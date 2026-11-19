@@ -167,7 +167,7 @@ void main() {
         home: Scaffold(
           body: Center(
             child: LyricProofreadMenuButton(
-              onProofreadV2: () {},
+              onSmartProofread: () {},
               onUnifyChineseScript: () => fired++,
             ),
           ),

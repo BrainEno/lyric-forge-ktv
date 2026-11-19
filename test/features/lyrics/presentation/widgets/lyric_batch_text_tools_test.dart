@@ -271,7 +271,7 @@ void main() {
         home: Scaffold(
           body: Center(
             child: LyricProofreadMenuButton(
-              onProofreadV2: () {},
+              onSmartProofread: () {},
               onRepetitionConsistency: () => fired.add('repeat'),
               onTextCleanup: () => fired.add('cleanup'),
               onFindReplace: () => fired.add('replace'),

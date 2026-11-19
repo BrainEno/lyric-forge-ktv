@@ -5,7 +5,8 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import 'asr_evidence_audio_verifier.dart';
 
-/// Checks the same vocal-or-original selection used by V2's alignment runner.
+/// Checks the same vocal-or-original selection used by smart proofreading's
+/// alignment runner.
 /// Hashing and revision rechecks are observations, not locks or CAS writes.
 class ProjectReferenceAlignmentAudioGuard
     implements ReferenceAlignmentAudioGuard {

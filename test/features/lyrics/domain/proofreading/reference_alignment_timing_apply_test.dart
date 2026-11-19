@@ -7,7 +7,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/models/timing_provenance.
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
-import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_v2_document_composer.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_document_composer.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/reference_alignment_timing_applier.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/reference_forced_alignment_planner.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
@@ -45,14 +45,14 @@ ReferenceForcedTimingProposal evidence(String text, int start, int end) {
       .single;
 }
 
-LyricProofreadV2ReviewItem row({
+LyricProofreadReviewItem row({
   required int index,
   required LyricLine proposed,
   LyricLine? original,
   int? source,
   LyricProofreadReviewVerdict verdict = LyricProofreadReviewVerdict.amber,
   ReferenceForcedTimingProposal? timing,
-}) => LyricProofreadV2ReviewItem(
+}) => LyricProofreadReviewItem(
   proposalIndex: index,
   sourceIndex: source,
   originalLine: original,
@@ -60,24 +60,24 @@ LyricProofreadV2ReviewItem row({
   verdict: verdict,
   referenceTimingEvidence: timing,
 );
-LyricProofreadV2Selection choice({
+LyricProofreadSelection choice({
   Set<int> accept = const {},
   Set<int> timings = const {},
   Set<int> restore = const {},
-}) => LyricProofreadV2Selection(
+}) => LyricProofreadSelection(
   acceptedProposalIndices: accept,
   restoredDraftIndices: restore,
   acceptedReferenceTimingIndices: timings,
 );
 
 void main() {
-  const composer = ProofreadV2DocumentComposer();
+  const composer = ProofreadDocumentComposer();
   const applier = ReferenceAlignmentTimingApplier();
   LyricDocument compose({
     required LyricDocument before,
-    required List<LyricProofreadV2ReviewItem> items,
-    LyricProofreadV2Selection? selection,
-    List<LyricProofreadV2DroppedItem> dropped = const [],
+    required List<LyricProofreadReviewItem> items,
+    LyricProofreadSelection? selection,
+    List<LyricProofreadDroppedItem> dropped = const [],
     LyricSourceStrategy strategy = LyricSourceStrategy.referenceFirst,
   }) => composer.compose(
     before: before,
@@ -308,7 +308,7 @@ void main() {
           ),
         ],
         dropped: [
-          LyricProofreadV2DroppedItem(sourceIndex: 0, line: source.lines[0]),
+          LyricProofreadDroppedItem(sourceIndex: 0, line: source.lines[0]),
         ],
         selection: choice(timings: {3}, restore: {0}),
       );
@@ -351,7 +351,7 @@ void main() {
 
   group('fail closed instead of guessing', () {
     late LyricDocument source;
-    late LyricProofreadV2ReviewItem valid;
+    late LyricProofreadReviewItem valid;
     setUp(() {
       source = LyricDocument(
         language: 'en',

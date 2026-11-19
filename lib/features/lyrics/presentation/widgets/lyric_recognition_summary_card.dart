@@ -12,7 +12,8 @@ import 'lyric_batch_text_edit.dart';
 /// It answers "what did recognition produce and where do I start?" with plain
 /// counts. A number the run did not collect is shown as "未采集"; nothing is
 /// shown as a percentage or a confidence. The only action is entering the
-/// existing review queue — Proofread V2 keeps its single entry in the toolbar.
+/// existing review queue — smart proofreading keeps its single entry in the
+/// toolbar.
 class LyricRecognitionSummaryCard extends StatefulWidget {
   final RecognitionReviewSummary summary;
 

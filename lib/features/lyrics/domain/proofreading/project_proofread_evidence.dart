@@ -106,7 +106,8 @@ typedef ProjectProofreadEvidenceLoader =
       required LyricDocument draft,
     });
 
-/// A cheap, non-authoritative summary used to configure the V2 options dialog.
+/// A cheap, non-authoritative summary used to configure the smart
+/// proofreading options dialog.
 ///
 /// The preview never authorizes comparison. Selecting a candidate still runs
 /// the full project-revision, selected-audio hash, and draft checks in the

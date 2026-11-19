@@ -9,7 +9,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_align
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
-import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/run_proofread_v2_use_case.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/run_proofread_use_case.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_decision_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
@@ -78,16 +78,16 @@ class SpyRunner {
   }
 }
 
-Set<LyricProofreadV2ExplanationCode> codes(ProofreadV2RunResult result) =>
+Set<LyricProofreadExplanationCode> codes(ProofreadRunResult result) =>
     result.assembly.explanations.map((entry) => entry.code).toSet();
 
 void main() {
   late SpyRunner spy;
-  late RunProofreadV2UseCase useCase;
+  late RunProofreadUseCase useCase;
 
   setUp(() {
     spy = SpyRunner();
-    useCase = RunProofreadV2UseCase(runner: spy.run);
+    useCase = RunProofreadUseCase(runner: spy.run);
   });
 
   group('strategy and evidence orchestration', () {
@@ -110,7 +110,7 @@ void main() {
         ]);
         expect(
           codes(run),
-          contains(LyricProofreadV2ExplanationCode.missingSecondaryTranscript),
+          contains(LyricProofreadExplanationCode.missingSecondaryTranscript),
         );
         expect(spy.calls, 0);
         expect(jsonEncode(input.toJson()), snapshot);
@@ -126,19 +126,19 @@ void main() {
       );
       expect(
         codes(run),
-        contains(LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence),
+        contains(LyricProofreadExplanationCode.secondaryTranscriptEvidence),
       );
       expect(
         codes(run),
         isNot(
-          contains(LyricProofreadV2ExplanationCode.missingSecondaryTranscript),
+          contains(LyricProofreadExplanationCode.missingSecondaryTranscript),
         ),
       );
       expect(run.assembly.items, hasLength(2));
       expect(spy.calls, 0);
     });
 
-    test('matching secondary transcript yields V2 consensus rows', () async {
+    test('matching secondary transcript yields consensus rows', () async {
       final primary = LyricDocument(
         language: 'en',
         lines: const [
@@ -182,12 +182,12 @@ void main() {
       );
       expect(
         codes(run),
-        contains(LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence),
+        contains(LyricProofreadExplanationCode.secondaryTranscriptEvidence),
       );
       expect(
         codes(run),
         isNot(
-          contains(LyricProofreadV2ExplanationCode.missingSecondaryTranscript),
+          contains(LyricProofreadExplanationCode.missingSecondaryTranscript),
         ),
       );
     });
@@ -227,7 +227,7 @@ void main() {
       expect(run.summary.referenceCoverage, closeTo(1, 0.001));
       expect(
         codes(run),
-        contains(LyricProofreadV2ExplanationCode.automaticReferenceCoverage),
+        contains(LyricProofreadExplanationCode.automaticReferenceCoverage),
       );
       expect(spy.calls, 0);
     });
@@ -243,7 +243,7 @@ void main() {
       expect(run.decision.autoFellBackToAsr, isTrue);
       expect(
         codes(run),
-        contains(LyricProofreadV2ExplanationCode.automaticFallbackToAsr),
+        contains(LyricProofreadExplanationCode.automaticFallbackToAsr),
       );
       expect(run.assembly.proposalDocument.lines.map((line) => line.text), [
         'hello world',
@@ -287,14 +287,14 @@ void main() {
         ]);
         expect(
           codes(run),
-          contains(LyricProofreadV2ExplanationCode.referenceInputWarnings),
+          contains(LyricProofreadExplanationCode.referenceInputWarnings),
         );
         expect(
           run.assembly.explanations
               .singleWhere(
                 (entry) =>
                     entry.code ==
-                    LyricProofreadV2ExplanationCode.referenceInputWarnings,
+                    LyricProofreadExplanationCode.referenceInputWarnings,
               )
               .referenceWarningCount,
           1,
@@ -328,7 +328,7 @@ void main() {
         expect(
           run.assembly.items.every(
             (row) => row.referenceReasons.contains(
-              LyricProofreadV2ReferenceReason.protectedLine,
+              LyricProofreadReferenceReason.protectedLine,
             ),
           ),
           isTrue,
@@ -382,7 +382,7 @@ void main() {
         expect(
           codes(run),
           contains(
-            LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
+            LyricProofreadExplanationCode.forcedAlignmentEvidenceAvailable,
           ),
         );
         expect(jsonEncode(input.toJson()), before);
@@ -416,14 +416,14 @@ void main() {
         codes(run),
         isNot(
           contains(
-            LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
+            LyricProofreadExplanationCode.forcedAlignmentEvidenceAvailable,
           ),
         ),
       );
       expect(
         codes(run),
         isNot(
-          contains(LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable),
+          contains(LyricProofreadExplanationCode.forcedAlignmentUnavailable),
         ),
       );
     });
@@ -440,7 +440,7 @@ void main() {
         );
         expect(
           codes(run),
-          contains(LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable),
+          contains(LyricProofreadExplanationCode.forcedAlignmentUnavailable),
         );
         expect(run.assembly.proposalDocument.lines.map((line) => line.text), [
           'hello world',
@@ -490,7 +490,7 @@ void main() {
               audioAsset: asset,
               useForcedAlignment: true,
             ),
-            throwsA(isA<ProofreadV2MissingAudioException>()),
+            throwsA(isA<ProofreadMissingAudioException>()),
           );
           expect(spy.calls, 0);
         },

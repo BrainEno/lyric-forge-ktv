@@ -87,7 +87,7 @@ void main() {
     LyricReviewFilter filter = LyricReviewFilter.all,
     bool followPlayback = true,
     LyricProofreadActions proofread = const LyricProofreadActions(
-      onProofreadV2: _noop,
+      onSmartProofread: _noop,
     ),
     bool loopCurrentLine = false,
     ValueChanged<bool>? onLoopChanged,

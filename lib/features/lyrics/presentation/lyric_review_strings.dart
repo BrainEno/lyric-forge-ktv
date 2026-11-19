@@ -23,18 +23,18 @@ abstract final class LyricReviewStrings {
   static const String loopCurrentLineDisabled = '已关闭循环本行';
   static const String droppedReferenceItemReason = '未找到可靠参考匹配；默认排除，可勾选恢复';
 
-  static String referenceReason(LyricProofreadV2ReferenceReason reason) {
+  static String referenceReason(LyricProofreadReferenceReason reason) {
     return switch (reason) {
-      LyricProofreadV2ReferenceReason.lowConfidenceAlignment => '对齐置信度低',
-      LyricProofreadV2ReferenceReason.ambiguousAlignment => '对齐存在歧义',
-      LyricProofreadV2ReferenceReason.structuralMismatch => '行结构不匹配',
-      LyricProofreadV2ReferenceReason.referenceTimestamp => '参考时间戳',
-      LyricProofreadV2ReferenceReason.mappedAsrTiming => '沿用 ASR 时间',
-      LyricProofreadV2ReferenceReason.interpolatedTiming => '插值时间需复核',
-      LyricProofreadV2ReferenceReason.estimatedTailTiming => '尾部估算时间需复核',
-      LyricProofreadV2ReferenceReason.timelineAdjusted => '时间轴已调整，需复核',
-      LyricProofreadV2ReferenceReason.protectedLine => '手动编辑保护',
-      LyricProofreadV2ReferenceReason.referenceImportWarning => '参考输入含警告',
+      LyricProofreadReferenceReason.lowConfidenceAlignment => '对齐置信度低',
+      LyricProofreadReferenceReason.ambiguousAlignment => '对齐存在歧义',
+      LyricProofreadReferenceReason.structuralMismatch => '行结构不匹配',
+      LyricProofreadReferenceReason.referenceTimestamp => '参考时间戳',
+      LyricProofreadReferenceReason.mappedAsrTiming => '沿用 ASR 时间',
+      LyricProofreadReferenceReason.interpolatedTiming => '插值时间需复核',
+      LyricProofreadReferenceReason.estimatedTailTiming => '尾部估算时间需复核',
+      LyricProofreadReferenceReason.timelineAdjusted => '时间轴已调整，需复核',
+      LyricProofreadReferenceReason.protectedLine => '手动编辑保护',
+      LyricProofreadReferenceReason.referenceImportWarning => '参考输入含警告',
     };
   }
 
@@ -61,12 +61,12 @@ abstract final class LyricReviewStrings {
   }
 
   static String alignmentHint(
-    LyricProofreadV2AlignmentHint hint, {
+    LyricProofreadAlignmentHint hint, {
     required int wordCount,
   }) {
     return switch (hint) {
-      LyricProofreadV2AlignmentHint.wordTimingAvailable => '词级对齐 $wordCount 词',
-      LyricProofreadV2AlignmentHint.wordTimingMissing => '缺少词级对齐证据',
+      LyricProofreadAlignmentHint.wordTimingAvailable => '词级对齐 $wordCount 词',
+      LyricProofreadAlignmentHint.wordTimingMissing => '缺少词级对齐证据',
     };
   }
 
@@ -190,47 +190,45 @@ abstract final class LyricReviewStrings {
     ForcedAlignmentLanguageResolutionException error,
   ) => '无法从工程语言“${error.language}”确定 ForcedAligner 语言；请将工程语言设为中文、英文或日文。';
 
-  static String proofreadV2Explanation(
-    LyricProofreadV2Explanation explanation,
-  ) {
+  static String proofreadExplanation(LyricProofreadExplanation explanation) {
     return switch (explanation.code) {
-      LyricProofreadV2ExplanationCode.automaticReferenceCoverage =>
+      LyricProofreadExplanationCode.automaticReferenceCoverage =>
         '自动策略计算参考文本覆盖率 '
             '${explanation.referenceCoveragePercent!}%。',
-      LyricProofreadV2ExplanationCode.referenceFirstGuidance =>
+      LyricProofreadExplanationCode.referenceFirstGuidance =>
         '参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。',
-      LyricProofreadV2ExplanationCode.referenceAlignmentBudgetExceeded =>
+      LyricProofreadExplanationCode.referenceAlignmentBudgetExceeded =>
         '词级对齐达到计算预算上限，覆盖率不能作为完整证据。',
-      LyricProofreadV2ExplanationCode.referenceInputWarnings =>
+      LyricProofreadExplanationCode.referenceInputWarnings =>
         '参考输入包含 ${explanation.referenceWarningCount!} 条冲突或警告，相关行会要求复核。',
-      LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference =>
+      LyricProofreadExplanationCode.forcedAlignmentIgnoredByReference =>
         '本次选择了参考歌词优先，ForcedAligner 未运行；参考优先暂不支持强制对齐。',
-      LyricProofreadV2ExplanationCode.secondaryTranscriptIgnoredByReference =>
+      LyricProofreadExplanationCode.secondaryTranscriptIgnoredByReference =>
         '本次选择了参考歌词优先，第二份 ASR 转写稿未参与本次复核。',
-      LyricProofreadV2ExplanationCode.referenceIgnoredByAsr =>
+      LyricProofreadExplanationCode.referenceIgnoredByAsr =>
         '本次 ASR 优先未用参考歌词替换草稿文字或时间；在自动策略中仅用于覆盖率判断。',
-      LyricProofreadV2ExplanationCode.automaticFallbackToAsr =>
+      LyricProofreadExplanationCode.automaticFallbackToAsr =>
         '自动策略因参考文本覆盖率低于 25% 而退回 ASR 优先。',
-      LyricProofreadV2ExplanationCode.missingSecondaryTranscript =>
+      LyricProofreadExplanationCode.missingSecondaryTranscript =>
         '未提供第二份 ASR 转写稿，因此只标记当前草稿风险。',
-      LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence =>
+      LyricProofreadExplanationCode.secondaryTranscriptEvidence =>
         '已将第二份带时间戳的转写稿作为独立证据；文本分歧仍需逐行复核。',
-      LyricProofreadV2ExplanationCode.asrFirstConservativeTiming =>
+      LyricProofreadExplanationCode.asrFirstConservativeTiming =>
         'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
-      LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable =>
+      LyricProofreadExplanationCode.forcedAlignmentEvidenceAvailable =>
         'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
-      LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable =>
+      LyricProofreadExplanationCode.forcedAlignmentUnavailable =>
         'ForcedAligner 强制对齐不可用；已保留现有歌词文字和时间戳，请手动复核时间。',
-      LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing =>
+      LyricProofreadExplanationCode.forcedAlignmentDiagnosticsMissing =>
         'ForcedAligner 强制对齐已完成，但未返回逐行诊断；请手动复核时间。',
     };
   }
 
-  static String proofreadV2Explanations(
-    Iterable<LyricProofreadV2Explanation> explanations,
-  ) => explanations.map(proofreadV2Explanation).join(' ');
+  static String proofreadExplanations(
+    Iterable<LyricProofreadExplanation> explanations,
+  ) => explanations.map(proofreadExplanation).join(' ');
 
-  static String proofreadV2Summary(LyricProofreadV2ReviewSummary summary) {
+  static String proofreadSummary(LyricProofreadReviewSummary summary) {
     final strategyLabel = switch (summary.effectiveStrategy) {
       LyricSourceStrategy.referenceFirst => '参考歌词优先',
       LyricSourceStrategy.asrFirst => 'ASR 优先',

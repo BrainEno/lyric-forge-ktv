@@ -8,39 +8,40 @@ import 'forced_alignment_proofread_service.dart';
 import 'proofread_result.dart';
 import 'proofread_review_proposal.dart';
 import 'proofread_strategy_selector.dart';
-import 'proofread_v2_review_assembler.dart';
+import 'proofread_review_assembler.dart';
 import 'reference_first_pipeline.dart';
 import 'reference_forced_alignment_planner.dart';
 import 'reference_token_aligner.dart';
 
 /// A forced-alignment request lacks a usable audio source or duration.
-class ProofreadV2MissingAudioException implements Exception {
-  const ProofreadV2MissingAudioException();
+class ProofreadMissingAudioException implements Exception {
+  const ProofreadMissingAudioException();
 }
 
 /// An uncommitted proposal and the structured information needed to review it.
-class ProofreadV2RunResult {
+class ProofreadRunResult {
   final ProofreadStrategyDecision decision;
-  final ProofreadV2ReviewAssembly assembly;
-  final LyricProofreadV2ReviewSummary summary;
+  final ProofreadReviewAssembly assembly;
+  final LyricProofreadReviewSummary summary;
 
-  const ProofreadV2RunResult({
+  const ProofreadRunResult({
     required this.decision,
     required this.assembly,
     required this.summary,
   });
 }
 
-/// Builds a V2 proposal without mutating the draft or persisting any result.
+/// Builds a smart proofreading proposal without mutating the draft or
+/// persisting any result.
 ///
 /// The caller owns cancellation, editor revision checks, review, timeline
 /// confirmation, and committing the accepted changes. Reference alignment is
 /// separate review evidence and never changes proposed or accepted timestamps.
-class RunProofreadV2UseCase {
+class RunProofreadUseCase {
   final ForcedAlignmentRunner runner;
-  const RunProofreadV2UseCase({required this.runner});
+  const RunProofreadUseCase({required this.runner});
 
-  Future<ProofreadV2RunResult> build({
+  Future<ProofreadRunResult> build({
     required LyricDocument draft,
     required LyricSourceStrategy strategy,
     AudioAsset? audioAsset,
@@ -68,8 +69,8 @@ class RunProofreadV2UseCase {
       ...manuallyEditedIndices,
       ...const LyricReviewDecisionService().reviewedIndices(draft),
     };
-    const assembler = ProofreadV2ReviewAssembler();
-    late final ProofreadV2ReviewAssembly assembly;
+    const assembler = ProofreadReviewAssembler();
+    late final ProofreadReviewAssembly assembly;
     if (decision.effectiveStrategy == LyricSourceStrategy.referenceFirst) {
       final result = const ReferenceFirstPipeline().build(
         draft: draft,
@@ -83,7 +84,7 @@ class RunProofreadV2UseCase {
         if (audioAsset == null ||
             duration == null ||
             duration <= Duration.zero) {
-          throw const ProofreadV2MissingAudioException();
+          throw const ProofreadMissingAudioException();
         }
         final language = ForcedAlignmentLanguage.resolve(draft.language);
         referenceAlignmentPlan =
@@ -110,7 +111,7 @@ class RunProofreadV2UseCase {
         if (audioAsset == null ||
             duration == null ||
             duration <= Duration.zero) {
-          throw const ProofreadV2MissingAudioException();
+          throw const ProofreadMissingAudioException();
         }
         final language = ForcedAlignmentLanguage.resolve(draft.language);
         alignmentOutcome = await ForcedAlignmentProofreadService(runner: runner)
@@ -142,7 +143,7 @@ class RunProofreadV2UseCase {
         alignmentOutcome: alignmentOutcome,
       );
     }
-    return ProofreadV2RunResult(
+    return ProofreadRunResult(
       decision: decision,
       assembly: assembly,
       summary: assembler.summary(

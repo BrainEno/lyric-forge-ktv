@@ -33,7 +33,7 @@ import '../widgets/lyric_editor_actions.dart';
 import '../widgets/lyric_editor_atoms.dart';
 import '../widgets/lyric_editor_content.dart';
 import '../widgets/lyric_editor_toolbar.dart';
-import '../widgets/lyric_proofread_v2_dialog.dart';
+import '../widgets/lyric_proofread_dialog.dart';
 import '../widgets/project_save_conflict_dialog.dart';
 
 class LyricEditorScreen extends StatefulWidget {
@@ -79,7 +79,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
   /// and the undo history; this screen only decides what to show.
   late final LyricEditorDocumentController _editor;
 
-  bool _proofreadV2InProgress = false;
+  bool _smartProofreadInProgress = false;
   bool _followPlayback = true;
   LyricReviewFilter _filter = LyricReviewFilter.all;
 
@@ -410,22 +410,24 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     );
   }
 
-  Future<void> _openProofreadV2(ProjectManifest project) async {
+  Future<void> _openSmartProofread(ProjectManifest project) async {
     final document = _editingDocument;
-    if (_proofreadV2InProgress || document == null || document.lines.isEmpty) {
+    if (_smartProofreadInProgress ||
+        document == null ||
+        document.lines.isEmpty) {
       return;
     }
     final revision = _editor.documentRevision;
-    setState(() => _proofreadV2InProgress = true);
+    setState(() => _smartProofreadInProgress = true);
     try {
-      await _proofreading.runProofreadV2(
+      await _proofreading.runSmartProofread(
         project: project,
         document: document,
         revision: revision,
         projectRevision: _projectRevision ?? project.revision,
       );
     } finally {
-      if (mounted) setState(() => _proofreadV2InProgress = false);
+      if (mounted) setState(() => _smartProofreadInProgress = false);
     }
   }
 
@@ -1104,14 +1106,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                         ),
                         proofread: LyricProofreadActions.forDocument(
                           hasLines: document.lines.isNotEmpty,
-                          proofreadV2Running: _proofreadV2InProgress,
+                          smartProofreadRunning: _smartProofreadInProgress,
                           alignment: editorState.alignmentSnapshot,
                           canRestore: canRestore,
                           referenceAlignment: () =>
                               _openReferenceAlignment(project),
                           referenceProofread: () =>
                               _openReferenceProofread(project),
-                          proofreadV2: () => _openProofreadV2(project),
+                          smartProofread: () => _openSmartProofread(project),
                           undoAlignment: _undoAlignmentApply,
                           viewComparison: () =>
                               _showAlignmentComparison(project),

@@ -11,7 +11,7 @@ import 'reference_forced_alignment_planner.dart';
 enum LyricProofreadReviewVerdict { locked, green, amber }
 
 /// Stable, locale-neutral reason codes for reference-first review rows.
-enum LyricProofreadV2ReferenceReason {
+enum LyricProofreadReferenceReason {
   lowConfidenceAlignment,
   ambiguousAlignment,
   structuralMismatch,
@@ -24,9 +24,9 @@ enum LyricProofreadV2ReferenceReason {
   referenceImportWarning,
 }
 
-enum LyricProofreadV2AlignmentHint { wordTimingAvailable, wordTimingMissing }
+enum LyricProofreadAlignmentHint { wordTimingAvailable, wordTimingMissing }
 
-enum LyricProofreadV2ExplanationCode {
+enum LyricProofreadExplanationCode {
   automaticReferenceCoverage,
   referenceFirstGuidance,
   referenceAlignmentBudgetExceeded,
@@ -43,28 +43,28 @@ enum LyricProofreadV2ExplanationCode {
   forcedAlignmentDiagnosticsMissing,
 }
 
-/// A structured Proofread V2 explanation for presentation to render.
-class LyricProofreadV2Explanation {
-  final LyricProofreadV2ExplanationCode code;
+/// A structured smart proofreading explanation for presentation to render.
+class LyricProofreadExplanation {
+  final LyricProofreadExplanationCode code;
   final int? referenceCoveragePercent;
   final int? referenceWarningCount;
 
-  const LyricProofreadV2Explanation(
+  const LyricProofreadExplanation(
     this.code, {
     this.referenceCoveragePercent,
     this.referenceWarningCount,
   }) : assert(
-         code != LyricProofreadV2ExplanationCode.automaticReferenceCoverage ||
+         code != LyricProofreadExplanationCode.automaticReferenceCoverage ||
              referenceCoveragePercent != null,
        ),
        assert(
-         code != LyricProofreadV2ExplanationCode.referenceInputWarnings ||
+         code != LyricProofreadExplanationCode.referenceInputWarnings ||
              referenceWarningCount != null,
        );
 }
 
-/// Counts and strategy data for the Proofread V2 dialog header.
-class LyricProofreadV2ReviewSummary {
+/// Counts and strategy data for the smart proofreading dialog header.
+class LyricProofreadReviewSummary {
   final LyricSourceStrategy effectiveStrategy;
   final int greenCount;
   final int amberCount;
@@ -72,7 +72,7 @@ class LyricProofreadV2ReviewSummary {
   final int droppedCount;
   final double? referenceCoverage;
 
-  const LyricProofreadV2ReviewSummary({
+  const LyricProofreadReviewSummary({
     required this.effectiveStrategy,
     required this.greenCount,
     required this.amberCount,
@@ -86,30 +86,30 @@ class LyricProofreadV2ReviewSummary {
 /// line it would replace.
 ///
 /// This is a proposal only. Nothing here changes a document until the caller
-/// hands a selection back to `ProofreadV2DocumentComposer`.
-class LyricProofreadV2ReviewItem {
+/// hands a selection back to `ProofreadDocumentComposer`.
+class LyricProofreadReviewItem {
   final int proposalIndex;
   final int? sourceIndex;
   final LyricLine proposedLine;
   final LyricLine? originalLine;
   final LyricProofreadReviewVerdict verdict;
-  final Set<LyricProofreadV2ReferenceReason> referenceReasons;
+  final Set<LyricProofreadReferenceReason> referenceReasons;
   final Set<ProofreadReason> proofreadReasons;
-  final Set<LyricProofreadV2AlignmentHint> alignmentHints;
+  final Set<LyricProofreadAlignmentHint> alignmentHints;
   final List<TimedLyricToken> alignmentTokens;
 
   /// Separate, absolute-time reference evidence; never part of proposedLine.
   final ReferenceForcedTimingProposal? referenceTimingEvidence;
 
-  LyricProofreadV2ReviewItem({
+  LyricProofreadReviewItem({
     required this.proposalIndex,
     required this.sourceIndex,
     required this.proposedLine,
     required this.originalLine,
     required this.verdict,
-    Set<LyricProofreadV2ReferenceReason> referenceReasons = const {},
+    Set<LyricProofreadReferenceReason> referenceReasons = const {},
     Set<ProofreadReason> proofreadReasons = const {},
-    Set<LyricProofreadV2AlignmentHint> alignmentHints = const {},
+    Set<LyricProofreadAlignmentHint> alignmentHints = const {},
     this.alignmentTokens = const [],
     this.referenceTimingEvidence,
   }) : referenceReasons = Set.unmodifiable(referenceReasons),
@@ -129,25 +129,25 @@ class LyricProofreadV2ReviewItem {
 
 /// A draft line the pipeline wanted to remove, kept visible in the dialog so
 /// the user can restore it explicitly.
-class LyricProofreadV2DroppedItem {
+class LyricProofreadDroppedItem {
   final int sourceIndex;
   final LyricLine line;
 
-  const LyricProofreadV2DroppedItem({
+  const LyricProofreadDroppedItem({
     required this.sourceIndex,
     required this.line,
   });
 }
 
 /// What the user confirmed in the review dialog.
-class LyricProofreadV2Selection {
+class LyricProofreadSelection {
   final Set<int> acceptedProposalIndices;
   final Set<int> restoredDraftIndices;
 
   /// Explicit choices, separate from ordinary text/timing proposal acceptance.
   final Set<int> acceptedReferenceTimingIndices;
 
-  LyricProofreadV2Selection({
+  LyricProofreadSelection({
     required Set<int> acceptedProposalIndices,
     required Set<int> restoredDraftIndices,
     Set<int> acceptedReferenceTimingIndices = const {},
