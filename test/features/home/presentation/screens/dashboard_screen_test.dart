@@ -31,6 +31,7 @@ void main() {
   late _TestAudioPlayerService audioPlayer;
   late _TestTranscriptionQueue transcriptionQueue;
   late _TestTranscriptionSettingsStore transcriptionSettingsStore;
+  late List<RouteSettings> pushed;
 
   setUp(() {
     projects = _TestProjectRepository();
@@ -41,8 +42,6 @@ void main() {
     transcriptionSettingsStore = _TestTranscriptionSettingsStore();
     pushed = [];
   });
-
-  late List<RouteSettings> pushed;
 
   Widget buildScreen() => MaterialApp(
     onGenerateRoute: (settings) {
