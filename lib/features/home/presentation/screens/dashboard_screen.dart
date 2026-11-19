@@ -1169,12 +1169,19 @@ class _SectionHeader extends StatelessWidget {
     if (layout.isCompact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [info, const SizedBox(height: AppSpacing.xs), button],
+        children: [
+          info,
+          const SizedBox(height: AppSpacing.xs),
+          button,
+        ],
       );
     }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: [Expanded(child: info), button],
+      children: [
+        Expanded(child: info),
+        button,
+      ],
     );
   }
 }

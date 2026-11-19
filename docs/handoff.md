@@ -21,14 +21,16 @@
 
 ## 检查结果
 
-沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。注意：CI 在 `flutter pub get` 之后才运行 `dart format`，排查格式问题以 pub get 之后的结果为准。
+沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。注意：CI 在 `flutter pub get` 之后才运行 `dart format`，排查格式问题以 pub get 之后的结果为准。临时格式探针工作流（`zz-format-probe.yml`）已删除；它在 pub get 之后跑过本轮所有改动文件的格式、analyze 和测试（50 个测试全部通过），最后一处格式差异（首页 `_SectionHeader` 的 children 列表）已按它的结果修正。
 
 ## 下一步
 
-- 本轮其余任务见 PR 描述。之后：L-02 传输入口收敛、A-04 语义标注、Forge Red 品牌色（B-01）。
+- 下一轮候选：P-02 工程详情“音频源管理”折叠（注意 `project_detail_capability_test.dart` 里约 15 个测试直接点人声/伴奏按钮）、L-02 传输入口收敛、A-04 语义标注、N-01 `/quick-play` 入口、Forge Red 品牌色（B-01）。
 
 ## 已知风险
 
 - 没有在运行中的应用里看过。详见工作日志。
+- 首页正在播放时才显示页头“打开音乐”；如果用户习惯从页头进入，空闲时需要改用主视觉卡片的按钮。
+- 歌词列表的空状态改用 page 密度（56 px 图标），在很矮的编辑器窗格里不会滚动，和旧实现一样。
 
-最后更新：2026-11-19 12:25（Asia/Taipei）
+最后更新：2026-11-19 12:35（Asia/Taipei）
