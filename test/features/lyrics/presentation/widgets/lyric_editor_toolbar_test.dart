@@ -5,9 +5,11 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_review_queue
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_actions.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_review_controls.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
+import 'package:lyric_forge_ktv/features/player/presentation/widgets/seekable_progress_bar.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 const _document = LyricDocument(
@@ -59,6 +61,42 @@ LyricReviewQueue _queue({
 
 void _noop() {}
 
+/// The review group the editor passes, built around a hand-made queue.
+LyricReviewControls _review({
+  LyricReviewQueue? queue,
+  LyricReviewFilter filter = LyricReviewFilter.all,
+  bool followPlayback = true,
+  ValueChanged<LyricReviewFilter>? onFilterChanged,
+  ValueChanged<bool>? onFollowPlaybackChanged,
+}) {
+  final effective = queue ?? _queue();
+  return LyricReviewControls(
+    queue: effective,
+    priorityByIndex: effective.byIndex,
+    filter: filter,
+    selectedLineIndex: null,
+    followPlayback: followPlayback,
+    onFilterChanged: onFilterChanged ?? (_) {},
+    onFollowPlaybackChanged: onFollowPlaybackChanged ?? (_) {},
+    onSelectLine: (_) {},
+    onDecision: (_, _) {},
+  );
+}
+
+/// A player that holds another song unless [ours] is set.
+LyricPlaybackControls _player({
+  bool ours = false,
+  bool playing = false,
+  VoidCallback? onToggle,
+}) {
+  return LyricPlaybackControls(
+    state: const PlaybackState.idle().copyWith(isPlaying: playing),
+    belongsToProject: ours,
+    onSeek: (_) {},
+    onToggle: onToggle ?? () {},
+  );
+}
+
 /// Counts the controls a user can actually press, which is the number the review
 /// measured when it complained about a toolbar with twenty-five of them.
 Finder get _interactiveControls => find.byWidgetPredicate(
@@ -91,21 +129,22 @@ void main() {
     ),
     bool loopCurrentLine = false,
     ValueChanged<bool>? onLoopChanged,
+    LyricPlaybackControls? player,
+    ValueChanged<bool>? onFollowChanged,
   }) {
     return MaterialApp(
       home: Scaffold(
         body: LyricEditorToolbar(
           document: _document,
-          playback: const PlaybackState.idle(),
-          playbackBelongsToProject: false,
-          review: review ?? _queue(),
-          filter: filter,
-          onFilterChanged: (value) => selectedFilter = value,
-          followPlayback: followPlayback,
-          onFollowPlaybackChanged: (_) {},
+          player: player ?? _player(onToggle: () => calls.add('play')),
+          review: _review(
+            queue: review,
+            filter: filter,
+            followPlayback: followPlayback,
+            onFilterChanged: (value) => selectedFilter = value,
+            onFollowPlaybackChanged: onFollowChanged,
+          ),
           onUpdateOffset: (value) => updatedOffset = value,
-          onTogglePlayback: () => calls.add('play'),
-          onSeekPlayback: (_) {},
           audition: LyricAuditionControls(
             onPreviewLine: (_) {},
             loopCurrentLine: loopCurrentLine,
@@ -254,16 +293,11 @@ void main() {
                 ),
               ],
             ),
-            playback: const PlaybackState.idle(),
-            playbackBelongsToProject: false,
-            review: _queue(needsReview: 0, lowConfidence: 0, totalLines: 1),
-            filter: LyricReviewFilter.all,
-            onFilterChanged: (_) {},
-            followPlayback: true,
-            onFollowPlaybackChanged: (_) {},
+            player: _player(),
+            review: _review(
+              queue: _queue(needsReview: 0, lowConfidence: 0, totalLines: 1),
+            ),
             onUpdateOffset: (value) => updatedOffset = value,
-            onTogglePlayback: () {},
-            onSeekPlayback: (_) {},
             audition: LyricAuditionControls(
               onPreviewLine: (_) {},
               onLoopCurrentLineChanged: (_) {},
@@ -317,6 +351,84 @@ void main() {
     await tester.tap(find.text('循环本行'));
     await tester.pumpAndSettle();
     expect(toggled, isFalse);
+  });
+
+  group('the playback group', () {
+    testWidgets('another song: offer to start, no progress bar', (
+      tester,
+    ) async {
+      await pumpAt(tester, buildToolbar(), const Size(1280, 900));
+
+      expect(find.text('尚未开始试听'), findsOneWidget);
+      expect(find.byTooltip('继续试听'), findsOneWidget);
+      expect(find.byType(SeekableProgressBar), findsNothing);
+
+      await tester.tap(find.byTooltip('继续试听'));
+      expect(calls, ['play']);
+    });
+
+    testWidgets('a play state of another song is not ours to pause', (
+      tester,
+    ) async {
+      await pumpAt(
+        tester,
+        buildToolbar(player: _player(playing: true)),
+        const Size(1280, 900),
+      );
+
+      // The player is busy with a different song, so the button resumes
+      // this project instead of offering to pause someone else's.
+      expect(find.byTooltip('继续试听'), findsOneWidget);
+      expect(find.byTooltip('暂停试听'), findsNothing);
+    });
+
+    testWidgets('our song playing: pause, and the progress bar shows', (
+      tester,
+    ) async {
+      await pumpAt(
+        tester,
+        buildToolbar(player: _player(ours: true, playing: true)),
+        const Size(1280, 900),
+      );
+
+      expect(find.byTooltip('暂停试听'), findsOneWidget);
+      expect(find.text('尚未开始试听'), findsNothing);
+      expect(find.byType(SeekableProgressBar), findsOneWidget);
+    });
+  });
+
+  group('the review group', () {
+    testWidgets('the follow chip reads and writes the group', (tester) async {
+      bool? follow;
+      await pumpAt(
+        tester,
+        buildToolbar(
+          followPlayback: false,
+          onFollowChanged: (value) => follow = value,
+        ),
+        const Size(1280, 900),
+      );
+
+      final chip = tester.widget<FilterChip>(
+        find.ancestor(of: find.text('跟随播放'), matching: find.byType(FilterChip)),
+      );
+      expect(chip.selected, isFalse);
+      expect(find.byIcon(Icons.location_disabled_rounded), findsOneWidget);
+
+      await tester.tap(find.text('跟随播放'));
+      await tester.pumpAndSettle();
+      expect(follow, isTrue);
+    });
+
+    testWidgets('the status line counts the group queue', (tester) async {
+      await pumpAt(
+        tester,
+        buildToolbar(review: _queue(needsReview: 2)),
+        const Size(1280, 900),
+      );
+
+      expect(find.textContaining('待复核 2'), findsWidgets);
+    });
   });
 
   testWidgets('校对分组原样交给菜单：批量工具按种类回调', (tester) async {

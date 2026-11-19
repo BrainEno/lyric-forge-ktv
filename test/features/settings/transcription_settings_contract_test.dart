@@ -6,10 +6,11 @@ void main() {
   test(
     'desktop settings exposes the complete AI transcription management surface',
     () {
-      // The section owns the flows; its four cards live next to it.
+      // The section, its four cards and the controller behind its flows.
       final source = [
         'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
         'lib/features/settings/presentation/widgets/ai_transcription_settings_cards.dart',
+        'lib/features/settings/presentation/widgets/ai_transcription_settings_controller.dart',
       ].map((path) => File(path).readAsStringSync()).join('\n');
 
       for (final label in const [
@@ -61,9 +62,11 @@ void main() {
   test(
     'settings and project recognition share the same persisted transcription store',
     () {
-      final settings = File(
+      // The section builds the controller; the controller saves.
+      final settings = [
         'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
-      ).readAsStringSync();
+        'lib/features/settings/presentation/widgets/ai_transcription_settings_controller.dart',
+      ].map((path) => File(path).readAsStringSync()).join('\n');
       final project = File(
         'lib/features/project/presentation/screens/project_detail_screen.dart',
       ).readAsStringSync();

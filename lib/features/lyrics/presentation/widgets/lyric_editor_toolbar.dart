@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../../player/domain/models/playback_state.dart';
 import '../../../player/presentation/widgets/seekable_progress_bar.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../lyric_review_strings.dart';
 import 'lyric_editor_actions.dart';
+import 'lyric_editor_review_controls.dart';
 import 'lyric_proofread_menu_button.dart';
 
 /// Which lines the editor list shows.
@@ -38,16 +38,16 @@ enum LyricReviewFilter { all, needsReview, lowConfidence }
 /// width, so nothing is ever off-screen.
 class LyricEditorToolbar extends StatelessWidget {
   final LyricDocument document;
-  final PlaybackState playback;
-  final bool playbackBelongsToProject;
-  final LyricReviewQueue review;
-  final LyricReviewFilter filter;
-  final ValueChanged<LyricReviewFilter> onFilterChanged;
-  final bool followPlayback;
-  final ValueChanged<bool> onFollowPlaybackChanged;
+
+  /// Play, pause and seek. The strip used to take the state, the "this is
+  /// our song" flag and both callbacks as four arguments; it now takes the
+  /// same group the editor content does (audit E-04).
+  final LyricPlaybackControls player;
+
+  /// The queue counts, the filter and the follow toggle, as one group
+  /// instead of five arguments.
+  final LyricReviewControls review;
   final ValueChanged<Duration> onUpdateOffset;
-  final VoidCallback onTogglePlayback;
-  final ValueChanged<Duration> onSeekPlayback;
 
   /// The single-row loop toggle, shown while reviewing the queue.
   final LyricAuditionControls audition;
@@ -60,16 +60,9 @@ class LyricEditorToolbar extends StatelessWidget {
   const LyricEditorToolbar({
     super.key,
     required this.document,
-    required this.playback,
-    required this.playbackBelongsToProject,
+    required this.player,
     required this.review,
-    required this.filter,
-    required this.onFilterChanged,
-    required this.followPlayback,
-    required this.onFollowPlaybackChanged,
     required this.onUpdateOffset,
-    required this.onTogglePlayback,
-    required this.onSeekPlayback,
     required this.audition,
     this.proofread = LyricProofreadActions.none,
   });
@@ -100,7 +93,7 @@ class LyricEditorToolbar extends StatelessWidget {
           _StatusLine(
             lineCount: document.lines.length,
             language: document.language,
-            review: review,
+            review: review.queue,
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
@@ -112,18 +105,16 @@ class LyricEditorToolbar extends StatelessWidget {
                 width: spec.minimumInteractiveExtent,
                 height: spec.minimumInteractiveExtent,
                 child: IconButton(
-                  tooltip: playbackBelongsToProject && playback.isPlaying
-                      ? '暂停试听'
-                      : '继续试听',
-                  onPressed: onTogglePlayback,
+                  tooltip: player.isPlaying ? '暂停试听' : '继续试听',
+                  onPressed: player.onToggle,
                   icon: Icon(
-                    playbackBelongsToProject && playback.isPlaying
+                    player.isPlaying
                         ? Icons.pause_circle_filled_rounded
                         : Icons.play_circle_fill_rounded,
                   ),
                 ),
               ),
-              if (!playbackBelongsToProject)
+              if (!player.belongsToProject)
                 Text(
                   '尚未开始试听',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
@@ -131,15 +122,15 @@ class LyricEditorToolbar extends StatelessWidget {
                   ),
                 ),
               _FilterMenu(
-                filter: filter,
-                review: review,
-                onChanged: onFilterChanged,
+                filter: review.filter,
+                review: review.queue,
+                onChanged: review.onFilterChanged,
               ),
               FilterChip(
-                selected: followPlayback,
-                onSelected: onFollowPlaybackChanged,
+                selected: review.followPlayback,
+                onSelected: review.onFollowPlaybackChanged,
                 avatar: Icon(
-                  followPlayback
+                  review.followPlayback
                       ? Icons.my_location_rounded
                       : Icons.location_disabled_rounded,
                   size: 16,
@@ -147,7 +138,7 @@ class LyricEditorToolbar extends StatelessWidget {
                 label: const Text('跟随播放'),
               ),
               _OffsetMenu(offset: offset, onChanged: onUpdateOffset),
-              if (filter == LyricReviewFilter.needsReview)
+              if (review.filter == LyricReviewFilter.needsReview)
                 Tooltip(
                   message: LyricReviewStrings.loopCurrentLineHelp,
                   child: FilterChip(
@@ -161,11 +152,11 @@ class LyricEditorToolbar extends StatelessWidget {
                 LyricProofreadMenuButton.forActions(proofread),
             ],
           ),
-          if (playbackBelongsToProject) ...[
+          if (player.belongsToProject) ...[
             const SizedBox(height: AppSpacing.xs),
             SeekableProgressBar(
-              state: playback,
-              onSeek: onSeekPlayback,
+              state: player.state,
+              onSeek: player.onSeek,
               compact: true,
             ),
           ],
