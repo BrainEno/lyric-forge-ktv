@@ -2,9 +2,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Source rules that keep three kinds of debt from coming back: silently
-/// swallowed errors (#460), colour literals outside the theme (#458) and
-/// download addresses outside the ASR endpoint table (#461).
+/// Source rules that keep four kinds of debt from coming back: silently
+/// swallowed errors (#460), colour literals outside the theme (#458), literal
+/// corner radii and font sizes outside the theme (UI audit S-05) and download
+/// addresses outside the ASR endpoint table (#461).
 void main() {
   group('errors are never swallowed silently', () {
     // `catch (...) {}` with nothing inside, not even a comment.
@@ -64,6 +65,24 @@ void main() {
       _matches(files, literal),
       isEmpty,
       reason: 'Add a token to AppColors (lib/core/theme/color_tokens.dart).',
+    );
+  });
+
+  test('corner radii and font sizes come from the theme outside it', () {
+    // A number straight inside `circular(` or after `fontSize:`; computed
+    // values (`size / 2`, `compact ? ... : ...`) are left alone.
+    final literal = RegExp(
+      r'\b(?:Border)?Radius\.circular\(\s*\d|\bfontSize:\s*\d',
+    );
+    final files = _dartFiles(
+      'lib',
+    ).where((file) => !_path(file).startsWith('lib/core/theme/'));
+    expect(
+      _matches(files, literal),
+      isEmpty,
+      reason:
+          'Use AppSpacing.radius* (lib/core/theme/spacing_tokens.dart) and a '
+          'TextTheme style from AppTheme instead of a literal.',
     );
   });
 

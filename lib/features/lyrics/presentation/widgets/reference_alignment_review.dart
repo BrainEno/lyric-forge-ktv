@@ -70,7 +70,9 @@ Future<ReferenceAlignmentReviewDecision?> showReferenceAlignmentReview(
             child: Material(
               color: AppColors.bgElevated,
               shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppSpacing.radiusSheet),
+                ),
               ),
               clipBehavior: Clip.antiAlias,
               child: ReferenceAlignmentReviewSheet(
@@ -795,6 +797,9 @@ class _ReviewCard extends StatelessWidget {
     final lowConfidence = similarityPercent < thresholdPercent;
     final isAmbiguous = entry.status == ReferenceLineAlignmentStatus.ambiguous;
     final showCheckbox = !locked || overridden;
+    final choiceStyle = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary);
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -862,7 +867,7 @@ class _ReviewCard extends StatelessWidget {
                           onChanged: (_) => onAmbiguousChoice?.call('replace'),
                         ),
                         const SizedBox(width: 4),
-                        const Text('替换此行', style: TextStyle(fontSize: 12)),
+                        Text('替换此行', style: choiceStyle),
                       ],
                     ),
                     Row(
@@ -873,7 +878,7 @@ class _ReviewCard extends StatelessWidget {
                           onChanged: (_) => onAmbiguousChoice?.call('insert'),
                         ),
                         const SizedBox(width: 4),
-                        const Text('作为漏行插入', style: TextStyle(fontSize: 12)),
+                        Text('作为漏行插入', style: choiceStyle),
                       ],
                     ),
                     Row(
@@ -884,7 +889,7 @@ class _ReviewCard extends StatelessWidget {
                           onChanged: (_) => onAmbiguousChoice?.call('skip'),
                         ),
                         const SizedBox(width: 4),
-                        const Text('跳过', style: TextStyle(fontSize: 12)),
+                        Text('跳过', style: choiceStyle),
                       ],
                     ),
                   ],

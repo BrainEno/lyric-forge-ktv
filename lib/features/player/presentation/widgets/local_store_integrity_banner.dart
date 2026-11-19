@@ -86,7 +86,7 @@ class LocalStoreIntegrityBanner extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: AppColors.warning.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
           border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
         ),
         child: Column(

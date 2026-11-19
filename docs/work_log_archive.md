@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-19 10:55] Use design tokens in lyric editor surfaces ([entry](log/entries/2026-11-19-1055-use-tokens-in-lyric-editor-surfaces.md))
 - [2026-11-19 10:45] Add global playback shortcuts ([entry](log/entries/2026-11-19-1045-add-global-playback-shortcuts.md))
 - [2026-11-19 10:35] Split the recognition settings into section cards ([entry](log/entries/2026-11-19-1035-split-asr-settings-into-cards.md))
 - [2026-11-19 10:25] Add a shared loading state for pages and panes ([entry](log/entries/2026-11-19-1025-add-shared-loading-state.md))

@@ -38,6 +38,9 @@ abstract class AppSpacing {
   static const double radiusMedium = unit * 2;
   static const double radiusLarge = unit * 3;
   static const double radiusXLarge = unit * 4;
+
+  /// Top corners of bottom sheets.
+  static const double radiusSheet = unit * 5;
   static const double radiusCircular = 999.0;
 
   // Player specific

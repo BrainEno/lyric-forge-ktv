@@ -885,12 +885,12 @@ class _ExplorerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: song.playable ? onPlay : null,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
       child: Container(
         padding: EdgeInsets.all(compact ? AppSpacing.xs : AppSpacing.sm),
         decoration: BoxDecoration(
           color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
           border: Border.all(
             color: song.playable
                 ? AppColors.borderMuted
@@ -937,10 +937,7 @@ class _ExplorerCard extends StatelessWidget {
               ].where((value) => value.isNotEmpty).join(' · '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textTertiary,
-                fontSize: 11,
-              ),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ),

@@ -774,12 +774,12 @@ class _CatalogCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
       child: Container(
         padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
         decoration: BoxDecoration(
           color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
           border: Border.all(color: AppColors.borderMuted),
         ),
         child: Column(
@@ -835,7 +835,7 @@ class _MiniAlbumCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -849,7 +849,7 @@ class _MiniAlbumCard extends StatelessWidget {
           ),
           Text(
             '${album.songs.length} 首',
-            style: const TextStyle(color: AppColors.textTertiary, fontSize: 12),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),

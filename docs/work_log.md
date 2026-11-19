@@ -9,9 +9,9 @@
 - [2026-11-21 12:00] Fix Qwen chunk loops and detect block loops `Fix Qwen chunk loops and detect block loops` ([entry](log/entries/2026-11-21-1200-fix-qwen-chunk-loops-and-detect-block-loops.md))
 - [2026-11-20 12:00] Import karaoke word timing, add word timing check and fine-tuning `Import karaoke word timing, add word timing check and fine-tuning` ([entry](log/entries/2026-11-20-1200-import-check-and-fine-tune-word-timing.md))
 - [2026-11-19 12:00] Add word-by-word tap-to-sync and Whisper word timing `Add word-by-word tap-to-sync and Whisper word timing` ([entry](log/entries/2026-11-19-1200-add-word-tap-sync-and-whisper-word-timing.md))
-- [2026-11-19 10:55] Use design tokens in lyric editor surfaces `Use design tokens in lyric editor surfaces` ([entry](log/entries/2026-11-19-1055-use-tokens-in-lyric-editor-surfaces.md))
+- [2026-11-19 11:05] Use radius and type tokens everywhere `Use radius and type tokens everywhere` ([entry](log/entries/2026-11-19-1105-use-radius-and-type-tokens-everywhere.md))
 
-<!-- 323 entries total: 8 active, 315 archived. -->
+<!-- 324 entries total: 8 active, 316 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)
