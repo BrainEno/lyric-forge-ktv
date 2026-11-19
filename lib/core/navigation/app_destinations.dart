@@ -50,7 +50,7 @@ extension AppDestinationX on AppDestination {
     AppDestination.projects => '导入歌曲、继续识别、打开工程',
     AppDestination.library => '本机的歌曲、艺人、专辑与歌单',
     AppDestination.review => '挑选需要校对的歌词',
-    AppDestination.settings => '播放、识别与存储设置',
+    AppDestination.settings => '识别环境、诊断与试识别',
   };
 }
 
