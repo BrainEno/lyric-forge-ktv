@@ -33,6 +33,17 @@ class PlaybackItem {
 
   bool get isRemoteStream => streamUri != null;
 
+  /// The local cover: the item's own artwork, else the audio thumbnail.
+  ///
+  /// One rule for the player surfaces and the play history, so the recent
+  /// listening shelf shows the same cover the player did.
+  String? get localArtworkPath {
+    final own = artworkPath?.trim();
+    if (own != null && own.isNotEmpty) return own;
+    final thumbnail = audioAsset.thumbnailPath?.trim();
+    return thumbnail == null || thumbnail.isEmpty ? null : thumbnail;
+  }
+
   PlaybackItem copyWith({
     String? id,
     String? title,

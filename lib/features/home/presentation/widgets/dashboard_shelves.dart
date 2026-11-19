@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../player/domain/models/play_history.dart';
@@ -128,20 +129,15 @@ class _ListeningCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // The cover recorded with the history entry, through the
+                // shared artwork component. Every card used to draw the same
+                // gradient and note icon (audit D-04); entries saved before
+                // covers were recorded still get the shared placeholder.
                 Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.cardGradient,
-                      borderRadius: BorderRadius.circular(
-                        AppSpacing.radiusMedium,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.music_note_rounded,
-                      size: 42,
-                      color: AppColors.textSecondary,
-                    ),
+                  child: AppArtwork(
+                    path: history.artworkPath,
+                    borderRadius: AppSpacing.radiusMedium,
+                    placeholderIcon: Icons.music_note_rounded,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),

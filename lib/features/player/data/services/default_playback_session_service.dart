@@ -330,6 +330,7 @@ class DefaultPlaybackSessionService
           lastPosition: resolvedPosition,
           duration: playback.duration,
           lastSource: playback.currentSource ?? item.preferredSource,
+          artworkPath: item.localArtworkPath,
         ),
       );
     } catch (_) {

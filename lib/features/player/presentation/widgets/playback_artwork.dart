@@ -25,11 +25,7 @@ class PlaybackArtwork extends StatelessWidget {
   final double borderRadius;
 
   /// The local cover path: the item's artwork, else the audio thumbnail.
-  static String? localPathOf(PlaybackItem item) {
-    final own = item.artworkPath?.trim();
-    if (own != null && own.isNotEmpty) return own;
-    return item.audioAsset.thumbnailPath;
-  }
+  static String? localPathOf(PlaybackItem item) => item.localArtworkPath;
 
   /// The remote cover of a Media Hub stream, if it has a usable one.
   static Uri? remoteUriOf(PlaybackItem item) {
