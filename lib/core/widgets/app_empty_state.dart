@@ -17,6 +17,10 @@ enum AppEmptyStateDensity {
   /// headline, and everything is framed in a card that scrolls on short
   /// screens.
   hero,
+
+  /// Inside a card on a dashboard-like page: icon, title and message in a row
+  /// with the actions at the end; the actions move below on narrow widths.
+  inline,
 }
 
 /// Centered placeholder shown when a list, page or pane has nothing to show.
@@ -66,6 +70,14 @@ class AppEmptyState extends StatelessWidget {
     return 156;
   }
 
+  /// Icon size of the inline density for [layout].
+  static double inlineIconSizeFor(AppLayoutSpec layout) =>
+      layout.isCompact ? 36 : 42;
+
+  /// Whether the inline density puts its actions under the text. It measures
+  /// the card, not the window, so a narrow card stacks on a wide screen too.
+  static bool inlineStacksActions(AppLayoutSpec layout) => layout.isCompact;
+
   /// Upper bound for the text column so long messages stay readable.
   static const double maxContentWidth = 420;
 
@@ -75,6 +87,12 @@ class AppEmptyState extends StatelessWidget {
       return LayoutBuilder(
         builder: (context, constraints) =>
             _buildHero(context, AppResponsive.fromConstraints(constraints)),
+      );
+    }
+    if (density == AppEmptyStateDensity.inline) {
+      return LayoutBuilder(
+        builder: (context, constraints) =>
+            _buildInline(context, AppResponsive.fromConstraints(constraints)),
       );
     }
     final text = Theme.of(context).textTheme;
@@ -215,6 +233,83 @@ class AppEmptyState extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildInline(BuildContext context, AppLayoutSpec layout) {
+    final text = Theme.of(context).textTheme;
+    final description = message;
+    final extra = status;
+    final bottom = footer;
+    final info = Row(
+      children: [
+        Icon(
+          icon,
+          size: inlineIconSizeFor(layout),
+          color: iconColor ?? AppColors.textTertiary,
+        ),
+        const SizedBox(width: AppSpacing.lg),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: text.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (description != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  description,
+                  style: text.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ],
+              if (extra != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                extra,
+              ],
+              if (bottom != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                bottom,
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+    if (actions.isEmpty) return info;
+
+    if (inlineStacksActions(layout)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          info,
+          for (final action in actions) ...[
+            SizedBox(
+              height: action == actions.first ? AppSpacing.md : AppSpacing.sm,
+            ),
+            action,
+          ],
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: info),
+        for (final action in actions) ...[
+          const SizedBox(width: AppSpacing.md),
+          action,
+        ],
+      ],
     );
   }
 }

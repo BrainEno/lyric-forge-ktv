@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
@@ -23,6 +24,9 @@ class LyricListPane extends StatefulWidget {
   final List<int> visibleIndices;
   final Map<int, LyricReviewPriority> reviewPriorityByIndex;
   final LyricReviewFilter filter;
+
+  /// Clears the review filter; offered when the filter hides every line.
+  final VoidCallback? onShowAllLines;
   final int? activeAuditionLineIndex;
   final bool auditionPlaying;
   final int? selectedIndex;
@@ -55,6 +59,7 @@ class LyricListPane extends StatefulWidget {
     required this.visibleIndices,
     required this.reviewPriorityByIndex,
     required this.filter,
+    this.onShowAllLines,
     required this.activeAuditionLineIndex,
     required this.auditionPlaying,
     required this.selectedIndex,
@@ -366,8 +371,9 @@ class _LyricListPaneState extends State<LyricListPane> {
               reviewedCount: const LyricReviewDecisionService()
                   .reviewedIndices(widget.document)
                   .length,
+              onShowAllLines: widget.onShowAllLines,
             )
-          : const _FilteredEmptyState();
+          : _FilteredEmptyState(onShowAllLines: widget.onShowAllLines);
       if (summary == null) return empty;
       return Column(
         children: [
@@ -1288,68 +1294,54 @@ class LyricReviewRow extends StatelessWidget {
   }
 }
 
+/// Action that clears the filter, or nothing when the host cannot.
+List<Widget> _showAllActions(VoidCallback? onShowAllLines) => [
+  if (onShowAllLines != null)
+    OutlinedButton.icon(
+      key: const ValueKey('lyric-list:show-all'),
+      onPressed: onShowAllLines,
+      icon: const Icon(Icons.format_list_bulleted_rounded),
+      label: const Text('显示全部歌词'),
+    ),
+];
+
 class _ReviewQueueEmptyState extends StatelessWidget {
   final int reviewedCount;
+  final VoidCallback? onShowAllLines;
 
-  const _ReviewQueueEmptyState({required this.reviewedCount});
+  const _ReviewQueueEmptyState({
+    required this.reviewedCount,
+    this.onShowAllLines,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
     final completed = reviewedCount > 0;
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Padding(
-          padding: EdgeInsets.all(spec.pageGutter.clamp(16, 32).toDouble()),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.check_circle_outline_rounded,
-                size: 44,
-                color: AppColors.accent,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                completed ? '本轮复核已完成' : '暂未发现明显风险行',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                completed
-                    ? '已确认 $reviewedCount 行。若修改了歌词文本或时间轴，该行会自动重新进入待复核队列。请保存以保留确认记录。'
-                    : '当前没有达到复核阈值的明显问题。自动排序只看结构与时间轴证据，不能判断歌词语义是否正确，仍可结合试听和个人听感检查。',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
+    return AppEmptyState(
+      icon: Icons.check_circle_outline_rounded,
+      iconColor: AppColors.accent,
+      title: completed ? '本轮复核已完成' : '暂未发现明显风险行',
+      message: completed
+          ? '已确认 $reviewedCount 行。若修改了歌词文本或时间轴，该行会自动重新进入待复核队列。请保存以保留确认记录。'
+          : '当前没有达到复核阈值的明显问题。自动排序只看结构与时间轴证据，不能判断歌词语义是否正确，仍可结合试听和个人听感检查。',
+      actions: _showAllActions(onShowAllLines),
     );
   }
 }
 
 class _FilteredEmptyState extends StatelessWidget {
-  const _FilteredEmptyState();
+  final VoidCallback? onShowAllLines;
+
+  const _FilteredEmptyState({this.onShowAllLines});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.task_alt_rounded, size: 42, color: AppColors.accent),
-          const SizedBox(height: AppSpacing.sm),
-          Text('当前筛选下没有待处理歌词', style: Theme.of(context).textTheme.titleMedium),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.task_alt_rounded,
+      iconColor: AppColors.accent,
+      title: '当前筛选下没有待处理歌词',
+      message: '换一个筛选条件，或回到全部歌词继续校对。',
+      actions: _showAllActions(onShowAllLines),
     );
   }
 }

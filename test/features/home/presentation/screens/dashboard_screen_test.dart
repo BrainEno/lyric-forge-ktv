@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
+import 'package:lyric_forge_ktv/core/widgets/app_empty_state.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/dashboard_dependencies.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/screens/dashboard_screen.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/play_history.dart';
@@ -65,6 +67,38 @@ void main() {
     expect(find.text('打开一首本地音乐后，会从这里快速继续。'), findsOneWidget);
     expect(projects.calls, 1);
     expect(history.calls, 1);
+    // Both shelves use the shared inline empty state.
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is AppEmptyState &&
+            widget.density == AppEmptyStateDensity.inline,
+      ),
+      findsNWidgets(2),
+    );
+  });
+
+  testWidgets('failed shelves use the error colour, empty ones stay muted', (
+    WidgetTester tester,
+  ) async {
+    projects.failuresRemaining = 1;
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    final failed = tester.widget<AppEmptyState>(
+      find.ancestor(
+        of: find.text('最近工程加载失败'),
+        matching: find.byType(AppEmptyState),
+      ),
+    );
+    final empty = tester.widget<AppEmptyState>(
+      find.ancestor(
+        of: find.text('还没有播放记录'),
+        matching: find.byType(AppEmptyState),
+      ),
+    );
+    expect(failed.iconColor, AppColors.error);
+    expect(empty.iconColor, isNull);
   });
 
   testWidgets('history read failure is not presented as an empty history', (

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/layout/app_responsive.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_empty_state.dart';
 
 Widget _host(Widget child) => MaterialApp(home: Scaffold(body: child));
@@ -157,5 +158,94 @@ void main() {
     final status = tester.getCenter(find.text('文件格式不受支持')).dy;
     expect(status, greaterThan(tester.getCenter(find.text('请换一个文件再试。')).dy));
     expect(status, lessThan(tester.getCenter(find.text('重试')).dy));
+  });
+
+  group('inline density', () {
+    Widget inline({double width = 900, bool withAction = true}) => _host(
+      Align(
+        alignment: Alignment.topLeft,
+        child: SizedBox(
+          width: width,
+          child: AppEmptyState(
+            density: AppEmptyStateDensity.inline,
+            icon: Icons.headphones_rounded,
+            title: '还没有播放记录',
+            message: '打开一首本地音乐后，会从这里快速继续。',
+            footer: const Text('也可以从音乐库开始'),
+            actions: [
+              if (withAction)
+                OutlinedButton(onPressed: () {}, child: const Text('选择音乐')),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('puts the action at the end of the row on wide cards', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(inline());
+
+      final title = tester.getCenter(find.text('还没有播放记录'));
+      final action = tester.getCenter(find.text('选择音乐'));
+      expect(action.dx, greaterThan(title.dx));
+      expect(
+        tester.widget<Icon>(find.byIcon(Icons.headphones_rounded)).size,
+        42,
+      );
+      expect(find.text('也可以从音乐库开始'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('stacks the action under the text on narrow cards', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(inline(width: 360));
+
+      final message = tester.getBottomLeft(find.text('打开一首本地音乐后，会从这里快速继续。'));
+      final action = tester.getTopLeft(find.text('选择音乐'));
+      expect(action.dy, greaterThan(message.dy));
+      expect(
+        tester.widget<Icon>(find.byIcon(Icons.headphones_rounded)).size,
+        36,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('marks the title as a heading and works without actions', (
+      tester,
+    ) async {
+      await tester.pumpWidget(inline(withAction: false));
+
+      expect(find.byType(OutlinedButton), findsNothing);
+      expect(
+        find.ancestor(
+          of: find.text('还没有播放记录'),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Semantics && widget.properties.header == true,
+          ),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    test('stacking follows the card width, not the window', () {
+      expect(
+        AppEmptyState.inlineStacksActions(
+          AppResponsive.fromSize(const Size(360, 200)),
+        ),
+        isTrue,
+      );
+      expect(
+        AppEmptyState.inlineStacksActions(
+          AppResponsive.fromSize(const Size(900, 200)),
+        ),
+        isFalse,
+      );
+    });
   });
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/models/transcription_queue_models.dart';
 import '../../domain/services/batch_transcription_queue.dart';
@@ -391,46 +392,17 @@ class _EmptyQueueState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xl,
-      ),
+      width: double.infinity,
       decoration: BoxDecoration(
         color: AppColors.bgElevated,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
         border: Border.all(color: AppColors.borderMuted),
       ),
-      child: Column(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.bgSurface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-            ),
-            child: const Icon(
-              Icons.queue_music_rounded,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            '后台队列还没有歌曲',
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '从上方选择音频或音乐文件夹。加入后可以离开此页面，Elysium Player 会继续逐首生成歌词。',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textTertiary,
-              height: 1.4,
-            ),
-          ),
-        ],
+      child: const AppEmptyState(
+        density: AppEmptyStateDensity.panel,
+        icon: Icons.queue_music_rounded,
+        title: '后台队列还没有歌曲',
+        message: '从上方选择音频或音乐文件夹。加入后可以离开此页面，Elysium Player 会继续逐首生成歌词。',
       ),
     );
   }

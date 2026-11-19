@@ -7,6 +7,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../../player/domain/models/play_history.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/repositories/play_history_repository.dart';
@@ -234,6 +235,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       }
                                       if (snapshot.hasError) {
                                         return _EmptyCard(
+                                          isError: true,
                                           icon: Icons.error_outline_rounded,
                                           title: '播放记录加载失败',
                                           message: '播放记录暂时无法读取，可以重新加载一次。',
@@ -283,6 +285,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       }
                                       if (snapshot.hasError) {
                                         return _EmptyCard(
+                                          isError: true,
                                           icon: Icons.error_outline_rounded,
                                           title: '最近工程加载失败',
                                           message: '工程文件暂时无法读取，可以重新加载一次。',
@@ -1460,12 +1463,16 @@ class _Eyebrow extends StatelessWidget {
   }
 }
 
+/// Dashboard card for an empty or failed shelf. The layout comes from the
+/// shared [AppEmptyState] inline density; this only adds the card frame and
+/// the error colour.
 class _EmptyCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
   final String action;
   final VoidCallback onAction;
+  final bool isError;
 
   const _EmptyCard({
     required this.icon,
@@ -1473,6 +1480,7 @@ class _EmptyCard extends StatelessWidget {
     required this.message,
     required this.action,
     required this.onAction,
+    this.isError = false,
   });
 
   @override
@@ -1480,58 +1488,20 @@ class _EmptyCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final layout = AppResponsive.fromConstraints(constraints);
-        final info = Row(
-          children: [
-            Icon(
-              icon,
-              size: layout.isCompact ? 34 : 42,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    message,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
         return Container(
           width: double.infinity,
           padding: EdgeInsets.all(
             layout.isCompact ? AppSpacing.md : AppSpacing.xl,
           ),
           decoration: _cardDecoration(),
-          child: layout.isCompactOrMedium || layout.isShort
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    info,
-                    const SizedBox(height: AppSpacing.md),
-                    OutlinedButton(onPressed: onAction, child: Text(action)),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: info),
-                    const SizedBox(width: AppSpacing.md),
-                    OutlinedButton(onPressed: onAction, child: Text(action)),
-                  ],
-                ),
+          child: AppEmptyState(
+            density: AppEmptyStateDensity.inline,
+            icon: icon,
+            iconColor: isError ? AppColors.error : null,
+            title: title,
+            message: message,
+            actions: [OutlinedButton(onPressed: onAction, child: Text(action))],
+          ),
         );
       },
     );
