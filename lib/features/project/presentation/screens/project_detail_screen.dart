@@ -10,6 +10,7 @@ import '../project_detail_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../transcription/domain/models/transcription_degradation.dart';
@@ -1033,14 +1034,7 @@ class _ActionPanel extends StatelessWidget {
                   ? null
                   : onTranscribe,
               icon: isTranscribing
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.pureWhite,
-                      ),
-                    )
+                  ? const AppButtonSpinner()
                   : const Icon(Icons.auto_awesome),
               label: Text(isTranscribing ? '正在生成歌词…' : '生成歌词'),
             )

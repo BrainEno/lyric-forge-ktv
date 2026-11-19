@@ -7,6 +7,7 @@ import '../../../../core/navigation/routes.dart';
 import '../transcription_import_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/transcription_environment_preflight.dart';
 import '../../../transcription/presentation/widgets/asr_runtime_setup_dialog.dart';
@@ -370,14 +371,7 @@ class _ReadinessOnboarding extends StatelessWidget {
                   final prepare = FilledButton.icon(
                     onPressed: openingSetup ? null : onPrepare,
                     icon: openingSetup
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.pureWhite,
-                            ),
-                          )
+                        ? const AppButtonSpinner()
                         : const Icon(Icons.download_for_offline_rounded),
                     label: Text(openingSetup ? '正在准备...' : '一键准备识别环境'),
                   );

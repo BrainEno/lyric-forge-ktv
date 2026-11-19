@@ -30,7 +30,7 @@ class AppTheme {
         inversePrimary: AppColors.accentHover,
         onSurface: AppColors.textPrimary,
         onSurfaceVariant: AppColors.textPrimary,
-        onError: AppColors.pureWhite,
+        onError: AppColors.onError,
       ),
       // Typography
       textTheme: _buildTextTheme(),

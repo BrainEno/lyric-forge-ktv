@@ -7,6 +7,7 @@ import '../transcription_import_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../transcription/presentation/widgets/transcription_queue_panel.dart';
 
 /// Batch import entry point.
@@ -152,14 +153,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
                     child: FilledButton.icon(
                       onPressed: _isEnqueueing ? null : _enqueue,
                       icon: _isEnqueueing
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.pureWhite,
-                              ),
-                            )
+                          ? const AppButtonSpinner()
                           : const Icon(Icons.playlist_add_rounded),
                       label: Text(
                         _isEnqueueing

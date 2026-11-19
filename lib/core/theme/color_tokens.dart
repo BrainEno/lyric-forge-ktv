@@ -37,6 +37,10 @@ abstract class AppColors {
 
   // Semantic colors
   static const Color error = Color(0xFFE22134);
+
+  // Text and icons on error fills (destructive buttons, recording). White on
+  // #E22134 is 4.7:1.
+  static const Color onError = pureWhite;
   static const Color warning = Color(0xFFFFA42B);
   static const Color success = Color(0xFF1DB954);
   static const Color info = Color(0xFF2E77D0);
