@@ -9,9 +9,9 @@
 - [2026-11-21 12:00] Fix Qwen chunk loops and detect block loops `Fix Qwen chunk loops and detect block loops` ([entry](log/entries/2026-11-21-1200-fix-qwen-chunk-loops-and-detect-block-loops.md))
 - [2026-11-20 12:00] Import karaoke word timing, add word timing check and fine-tuning `Import karaoke word timing, add word timing check and fine-tuning` ([entry](log/entries/2026-11-20-1200-import-check-and-fine-tune-word-timing.md))
 - [2026-11-19 12:00] Add word-by-word tap-to-sync and Whisper word timing `Add word-by-word tap-to-sync and Whisper word timing` ([entry](log/entries/2026-11-19-1200-add-word-tap-sync-and-whisper-word-timing.md))
-- [2026-11-19 11:35] Move library empty states to AppEmptyState `Move library empty states to AppEmptyState` ([entry](log/entries/2026-11-19-1135-move-library-empty-states-to-app-empty-state.md))
+- [2026-11-19 11:45] Move the library transfer button into the section strip `Move the library transfer button into the section strip` ([entry](log/entries/2026-11-19-1145-move-library-transfer-button-into-section-strip.md))
 
-<!-- 327 entries total: 8 active, 319 archived. -->
+<!-- 328 entries total: 8 active, 320 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)

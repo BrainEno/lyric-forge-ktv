@@ -21,6 +21,9 @@ import 'local_library_explorer_screen.dart';
 /// vertical/horizontal edge. Nothing was removed: all five sections and the
 /// transfer entry are still one press away.
 class LocalMusicLibraryShell extends StatefulWidget {
+  /// The 跨设备传输 button at the end of the section strip.
+  static const transferButtonKey = ValueKey('library-transfer');
+
   final int initialIndex;
 
   /// Supplied by the routing table (`lib/app/local_library_assembly.dart`) and
@@ -146,7 +149,6 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
               selectedIndex: _index,
               onSelected: (index) => setState(() => _index = index),
               onOpenTransfer: _openTransfer,
-              showTransfer: !layout.isCompactOrMedium,
             ),
             Expanded(
               child: IndexedStack(index: _index, children: _pages),
@@ -157,15 +159,10 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
         if (!layout.isCompactOrMedium) {
           return ColoredBox(color: AppColors.bgBase, child: content);
         }
-        return Scaffold(
-          backgroundColor: AppColors.bgBase,
-          body: content,
-          floatingActionButton: FloatingActionButton.small(
-            tooltip: '跨设备传输',
-            onPressed: _openTransfer,
-            child: const Icon(Icons.devices_rounded),
-          ),
-        );
+        // No floating button here: the 40 dp small FAB was under the 48 dp
+        // target size and covered the last rows of every section (audit
+        // L-01). The transfer button stays in the section strip instead.
+        return Scaffold(backgroundColor: AppColors.bgBase, body: content);
       },
     );
   }
@@ -188,14 +185,12 @@ class _SectionStrip extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
   final VoidCallback onOpenTransfer;
-  final bool showTransfer;
 
   const _SectionStrip({
     required this.sections,
     required this.selectedIndex,
     required this.onSelected,
     required this.onOpenTransfer,
-    required this.showTransfer,
   });
 
   @override
@@ -239,14 +234,16 @@ class _SectionStrip extends StatelessWidget {
                 ),
               ),
             ),
-            if (showTransfer) ...[
-              const SizedBox(width: AppSpacing.sm),
-              IconButton.filledTonal(
-                tooltip: '跨设备传输',
-                onPressed: onOpenTransfer,
-                icon: const Icon(Icons.devices_rounded),
+            const SizedBox(width: AppSpacing.sm),
+            IconButton.filledTonal(
+              key: LocalMusicLibraryShell.transferButtonKey,
+              tooltip: '跨设备传输',
+              onPressed: onOpenTransfer,
+              style: IconButton.styleFrom(
+                minimumSize: Size.square(layout.minimumInteractiveExtent),
               ),
-            ],
+              icon: const Icon(Icons.devices_rounded),
+            ),
           ],
         ),
       ),

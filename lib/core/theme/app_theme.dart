@@ -5,6 +5,16 @@ import 'spacing_tokens.dart';
 class AppTheme {
   const AppTheme._();
 
+  /// Chip outline: accent while selected, the subtle border otherwise.
+  static final WidgetStateBorderSide chipSide =
+      WidgetStateBorderSide.resolveWith(
+        (states) => BorderSide(
+          color: states.contains(WidgetState.selected)
+              ? AppColors.accent
+              : AppColors.borderSubtle,
+        ),
+      );
+
   static ThemeData get darkTheme {
     return ThemeData.dark().copyWith(
       scaffoldBackgroundColor: AppColors.bgBase,
@@ -114,6 +124,14 @@ class AppTheme {
         iconColor: AppColors.textSecondary,
         textColor: AppColors.textPrimary,
         selectedTileColor: AppColors.bgHighlight,
+      ),
+      // Chips: a selected chip used to differ from the others only by the
+      // default grey fill, so a row of filter or section chips gave little
+      // sign of which one was on (audit L-03).
+      chipTheme: ChipThemeData(
+        selectedColor: AppColors.accentMuted,
+        checkmarkColor: AppColors.accent,
+        side: chipSide,
       ),
       // Bottom Navigation
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(

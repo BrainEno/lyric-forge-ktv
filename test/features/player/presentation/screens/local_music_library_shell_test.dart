@@ -75,7 +75,65 @@ void main() {
     await pumpAt(tester, const Size(390, 844));
 
     expect(find.byType(ChoiceChip), findsNWidgets(5));
-    // Only the floating button on compact layouts; the strip's icon is wide-only.
     expect(find.byTooltip('跨设备传输'), findsOneWidget);
+  });
+
+  testWidgets('窄屏传输入口在分区条里，不再用会遮挡列表的小浮动按钮', (tester) async {
+    await pumpAt(tester, const Size(390, 844));
+
+    // The 40 dp small FAB covered the last rows and missed the 48 dp target.
+    expect(find.byType(FloatingActionButton), findsNothing);
+    final button = find.byKey(LocalMusicLibraryShell.transferButtonKey);
+    expect(button, findsOneWidget);
+    final size = tester.getSize(button);
+    expect(size.width, greaterThanOrEqualTo(48));
+    expect(size.height, greaterThanOrEqualTo(48));
+    // It shares the strip row with the chips instead of floating over content.
+    expect(
+      tester.getCenter(button).dy,
+      moreOrLessEquals(tester.getCenter(find.text('歌曲')).dy, epsilon: 1),
+    );
+  });
+
+  testWidgets('宽屏传输入口同样在分区条末尾', (tester) async {
+    await pumpAt(tester, const Size(1400, 900));
+
+    final button = find.byKey(LocalMusicLibraryShell.transferButtonKey);
+    expect(button, findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(
+      tester.getTopLeft(button).dx,
+      greaterThan(tester.getTopRight(find.text('歌单')).dx),
+    );
+  });
+
+  testWidgets('点击传输入口打开传输页面', (tester) async {
+    final opened = <String?>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        onGenerateRoute: (settings) {
+          opened.add(settings.name);
+          return MaterialPageRoute<void>(
+            settings: settings,
+            builder: (context) => const Text('传输页面'),
+          );
+        },
+        home: const LocalMusicLibraryShell(
+          sections: [
+            Text('歌曲内容'),
+            Text('艺人内容'),
+            Text('专辑内容'),
+            Text('收藏内容'),
+            Text('歌单内容'),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(LocalMusicLibraryShell.transferButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(opened, hasLength(1));
+    expect(find.text('传输页面'), findsOneWidget);
   });
 }

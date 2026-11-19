@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-19 11:35] Move library empty states to AppEmptyState ([entry](log/entries/2026-11-19-1135-move-library-empty-states-to-app-empty-state.md))
 - [2026-11-19 11:25] Show a page for unknown routes ([entry](log/entries/2026-11-19-1125-show-a-page-for-unknown-routes.md))
 - [2026-11-19 11:15] Add a karaoke wipe to the KTV stage ([entry](log/entries/2026-11-19-1115-add-karaoke-wipe-to-ktv-stage.md))
 - [2026-11-19 11:05] Use radius and type tokens everywhere ([entry](log/entries/2026-11-19-1105-use-radius-and-type-tokens-everywhere.md))
