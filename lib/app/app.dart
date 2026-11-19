@@ -7,6 +7,7 @@ import '../core/navigation/app_navigation_shell.dart';
 import '../core/navigation/current_route_observer.dart';
 import '../core/navigation/routes.dart';
 import '../core/theme/app_theme.dart';
+import '../features/player/presentation/widgets/global_playback_shortcuts.dart';
 import '../features/player/presentation/widgets/global_player_bar.dart';
 import '../features/player/presentation/widgets/mobile_global_player_bar.dart';
 import '../features/player/presentation/widgets/playback_lyrics_availability_sync.dart';
@@ -85,11 +86,17 @@ class ElysiumPlayerApp extends StatelessWidget {
         // Skipped when the shell is built without bootstrap (widget tests that
         // only inspect the MaterialApp): there is no session to listen to yet.
         final shell = child ?? const SizedBox.shrink();
+        //
+        // The global playback shortcuts sit inside it, around the routes, so
+        // focused text fields and dialogs see their keys first.
         final syncedShell = services.isInitialized
             ? PlaybackLyricsAvailabilitySync(
                 lyricsResolver: buildPlaybackLyricsResolver(services),
                 playbackSession: services.playbackSessionService,
-                child: shell,
+                child: GlobalPlaybackShortcuts(
+                  playbackSession: services.playbackSessionService,
+                  child: shell,
+                ),
               )
             : shell;
         return ValueListenableBuilder<String?>(

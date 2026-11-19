@@ -4,6 +4,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
@@ -16,6 +17,7 @@ import '../widgets/playback_artwork.dart';
 import '../widgets/playback_mode_controls.dart';
 import '../widgets/playback_queue_panel.dart';
 import '../widgets/seekable_progress_bar.dart';
+import '../widgets/transport_bar.dart';
 
 /// Full-screen view of the app-scoped playback session.
 ///
@@ -520,61 +522,14 @@ class _TransportControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        IconButton(
-          onPressed: sessionState.canSkipPrevious ? session.skipPrevious : null,
-          tooltip: '上一首',
-          icon: const Icon(Icons.skip_previous_rounded),
-        ),
-        IconButton(
-          onPressed: onSeekBack,
-          tooltip: '后退 10 秒',
-          icon: const Icon(Icons.replay_10_rounded),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        SizedBox(
-          width: 58,
-          height: 58,
-          child: IconButton(
-            onPressed: playback.isBuffering || playback.isLoading
-                ? null
-                : session.togglePlayPause,
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.pureWhite,
-              foregroundColor: AppColors.pureBlack,
-              disabledBackgroundColor: AppColors.textDisabled,
-            ),
-            icon: playback.isBuffering || playback.isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.pureBlack,
-                    ),
-                  )
-                : Icon(
-                    playback.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    size: 34,
-                  ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        IconButton(
-          onPressed: onSeekForward,
-          tooltip: '前进 10 秒',
-          icon: const Icon(Icons.forward_10_rounded),
-        ),
-        IconButton(
-          onPressed: sessionState.canSkipNext ? session.skipNext : null,
-          tooltip: '下一首',
-          icon: const Icon(Icons.skip_next_rounded),
-        ),
-      ],
+    return TransportBar(
+      isPlaying: playback.isPlaying,
+      isBusy: playback.isBuffering || playback.isLoading,
+      onPlayPause: session.togglePlayPause,
+      onPrevious: sessionState.canSkipPrevious ? session.skipPrevious : null,
+      onNext: sessionState.canSkipNext ? session.skipNext : null,
+      onSeekBack: onSeekBack,
+      onSeekForward: onSeekForward,
     );
   }
 }
@@ -586,23 +541,7 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.bgHighlight,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
+    return AppBadge(label: label, emphasized: true);
   }
 }
 

@@ -27,7 +27,9 @@ Future<void> showReferenceAlignmentResultComparison(
             child: Material(
               color: AppColors.bgElevated,
               shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppSpacing.radiusSheet),
+                ),
               ),
               clipBehavior: Clip.antiAlias,
               child: _AlignmentComparisonSheet(

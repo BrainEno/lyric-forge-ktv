@@ -8,6 +8,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_library_browse_item.dart';
 import '../../domain/models/local_media_library_entry.dart';
@@ -437,7 +438,7 @@ class _LocalLibraryExplorerScreenState
               ),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const AppLoadingState()
                   : _songs.isEmpty
                   ? _EmptyLibrary(onFiles: _addFiles, onFolder: _addFolder)
                   : songs.isEmpty
@@ -884,12 +885,12 @@ class _ExplorerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: song.playable ? onPlay : null,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
       child: Container(
         padding: EdgeInsets.all(compact ? AppSpacing.xs : AppSpacing.sm),
         decoration: BoxDecoration(
           color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
           border: Border.all(
             color: song.playable
                 ? AppColors.borderMuted
@@ -936,10 +937,7 @@ class _ExplorerCard extends StatelessWidget {
               ].where((value) => value.isNotEmpty).join(' · '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textTertiary,
-                fontSize: 11,
-              ),
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ),

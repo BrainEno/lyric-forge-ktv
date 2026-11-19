@@ -6,6 +6,8 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_error_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -18,6 +20,7 @@ import '../playback_screen_dependencies.dart';
 import '../widgets/ktv_entry_sheet.dart';
 import '../widgets/playback_error_banner.dart';
 import '../widgets/seekable_progress_bar.dart';
+import '../widgets/transport_bar.dart';
 import 'immersive_ktv_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -172,7 +175,7 @@ class _LoadingState extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: AppColors.bgBase,
-      body: Center(child: CircularProgressIndicator()),
+      body: AppLoadingState(message: '正在准备播放器'),
     );
   }
 }
@@ -184,29 +187,12 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
     return Scaffold(
       backgroundColor: AppColors.bgBase,
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(spec.pageGutter),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-              const SizedBox(height: AppSpacing.md),
-              const Text('加载播放器失败'),
-              const SizedBox(height: AppSpacing.md),
-              FilledButton(
-                onPressed: onRetry,
-                style: FilledButton.styleFrom(
-                  minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
-                ),
-                child: const Text('重试'),
-              ),
-            ],
-          ),
-        ),
+      body: AppErrorState(
+        title: '加载播放器失败',
+        message: '工程或音频暂时无法读取，可以重新加载一次。',
+        onRetry: onRetry,
       ),
     );
   }
@@ -1266,62 +1252,13 @@ class _PlaybackControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    final secondaryExtent = spec.minimumInteractiveExtent;
-    final playSize = compact
-        ? spec.minimumInteractiveExtent
-        : spec.primaryPlayerControlExtent;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: secondaryExtent,
-          height: secondaryExtent,
-          child: IconButton(
-            tooltip: '上一首 / 回到开头',
-            onPressed: canPrevious ? onPrevious : null,
-            icon: const Icon(Icons.skip_previous_rounded),
-            iconSize: compact ? 24 : 30,
-          ),
-        ),
-        SizedBox(width: compact ? AppSpacing.xs : AppSpacing.sm),
-        SizedBox(
-          width: playSize,
-          height: playSize,
-          child: IconButton(
-            tooltip: isPlaying ? '暂停' : '播放',
-            onPressed: isBuffering ? null : onPlayPause,
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.pureWhite,
-              foregroundColor: AppColors.pureBlack,
-            ),
-            icon: isBuffering
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.pureBlack,
-                    ),
-                  )
-                : Icon(
-                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  ),
-          ),
-        ),
-        SizedBox(width: compact ? AppSpacing.xs : AppSpacing.sm),
-        SizedBox(
-          width: secondaryExtent,
-          height: secondaryExtent,
-          child: IconButton(
-            tooltip: '下一首',
-            onPressed: canNext ? onNext : null,
-            icon: const Icon(Icons.skip_next_rounded),
-            iconSize: compact ? 24 : 30,
-          ),
-        ),
-      ],
+    return TransportBar(
+      compact: compact,
+      isPlaying: isPlaying,
+      isBusy: isBuffering,
+      onPlayPause: onPlayPause,
+      onPrevious: canPrevious ? onPrevious : null,
+      onNext: canNext ? onNext : null,
     );
   }
 }

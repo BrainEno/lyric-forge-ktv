@@ -26,6 +26,7 @@ class AppEmptyState extends StatelessWidget {
     this.message,
     this.actions = const [],
     this.density = AppEmptyStateDensity.page,
+    this.iconColor,
   });
 
   final IconData icon;
@@ -38,6 +39,10 @@ class AppEmptyState extends StatelessWidget {
   final List<Widget> actions;
 
   final AppEmptyStateDensity density;
+
+  /// Icon colour; defaults to the tertiary text colour. Error states pass
+  /// [AppColors.error].
+  final Color? iconColor;
 
   /// Upper bound for the text column so long messages stay readable.
   static const double maxContentWidth = 420;
@@ -63,7 +68,11 @@ class AppEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: isPage ? 56 : 36, color: AppColors.textTertiary),
+            Icon(
+              icon,
+              size: isPage ? 56 : 36,
+              color: iconColor ?? AppColors.textTertiary,
+            ),
             SizedBox(height: isPage ? AppSpacing.md : AppSpacing.sm),
             Semantics(
               header: isPage,

@@ -9,6 +9,9 @@ import '../../../../core/navigation/routes.dart';
 import '../project_detail_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_error_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../transcription/domain/models/transcription_degradation.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
@@ -330,7 +333,7 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator());
+    return const AppLoadingState(message: '正在读取工程');
   }
 }
 
@@ -341,36 +344,11 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(spec.pageGutter),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 56, color: AppColors.error),
-            const SizedBox(height: AppSpacing.md),
-            Text('加载工程失败', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '工程文件暂时无法读取，请重新加载。',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton.tonalIcon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('重新加载'),
-              style: FilledButton.styleFrom(
-                minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return AppErrorState(
+      title: '加载工程失败',
+      message: '工程文件暂时无法读取，请重新加载。',
+      retryLabel: '重新加载',
+      onRetry: onRetry,
     );
   }
 }
@@ -699,23 +677,10 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(status);
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withAlpha(24),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Text(
-        _statusLabel(status),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+    return AppBadge(
+      label: _statusLabel(status),
+      color: _statusColor(status),
+      emphasized: true,
     );
   }
 }
@@ -728,33 +693,7 @@ class _MiniPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.hoverOverlay,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColors.textSecondary),
-          const SizedBox(width: AppSpacing.xs),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
-            ),
-          ),
-        ],
-      ),
-    );
+    return AppBadge(label: label, icon: icon);
   }
 }
 
@@ -1017,22 +956,7 @@ class _MetricChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.bgSurface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Text(
-        '$label · $value',
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
-      ),
-    );
+    return AppBadge(label: '$label · $value');
   }
 }
 

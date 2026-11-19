@@ -7,6 +7,7 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_error_state.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -49,17 +50,10 @@ class LyricEditorErrorState extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(title: const Text('歌词校对')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-            const SizedBox(height: AppSpacing.md),
-            const Text('加载歌词工程失败'),
-            const SizedBox(height: AppSpacing.md),
-            FilledButton(onPressed: onRetry, child: const Text('重试')),
-          ],
-        ),
+      body: AppErrorState(
+        title: '加载歌词工程失败',
+        message: '歌词工程暂时无法读取，可以重新加载一次。',
+        onRetry: onRetry,
       ),
     );
   }

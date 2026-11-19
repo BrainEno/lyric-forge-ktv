@@ -364,7 +364,8 @@ class _StatusLine extends StatelessWidget {
         separator,
         item(
           '待复核 $needsReview',
-          needsReview > 0 ? AppColors.accent : AppColors.textTertiary,
+          // Lines waiting for review are a caution, not a success state.
+          needsReview > 0 ? AppColors.warning : AppColors.textTertiary,
           tooltip: review.hasAnyScore
               ? '按证据强度排序：双引擎分歧、时间轴异常、重复、异常时长与低分。'
               : '本稿的识别引擎没有返回分数，队列只按结构证据排序（双引擎分歧、时间轴异常、重复、异常时长）。',

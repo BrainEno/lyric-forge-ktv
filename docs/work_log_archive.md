@@ -84,6 +84,15 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-19 10:55] Use design tokens in lyric editor surfaces ([entry](log/entries/2026-11-19-1055-use-tokens-in-lyric-editor-surfaces.md))
+- [2026-11-19 10:45] Add global playback shortcuts ([entry](log/entries/2026-11-19-1045-add-global-playback-shortcuts.md))
+- [2026-11-19 10:35] Split the recognition settings into section cards ([entry](log/entries/2026-11-19-1035-split-asr-settings-into-cards.md))
+- [2026-11-19 10:25] Add a shared loading state for pages and panes ([entry](log/entries/2026-11-19-1025-add-shared-loading-state.md))
+- [2026-11-19 10:15] Add a shared error state for failed loads ([entry](log/entries/2026-11-19-1015-add-shared-error-state.md))
+- [2026-11-19 10:05] Add a shared transport bar for player screens ([entry](log/entries/2026-11-19-1005-add-shared-transport-bar.md))
+- [2026-11-19 09:55] Use shared badges on player and queue screens ([entry](log/entries/2026-11-19-0955-use-shared-badges-on-player-and-queues.md))
+- [2026-11-19 09:41] Add a shared badge widget ([entry](log/entries/2026-11-19-0941-add-shared-badge-widget.md))
+- [2026-11-18 23:40] Use the shared artwork widget on library screens ([entry](log/entries/2026-11-18-2340-use-shared-artwork-in-library.md))
 - [2026-11-18 23:38] Add a shared artwork widget for player surfaces ([entry](log/entries/2026-11-18-2338-add-shared-artwork-widget.md))
 - [2026-11-18 23:17] Add a shared empty-state widget ([entry](log/entries/2026-11-18-2317-add-shared-empty-state.md))
 - [2026-11-18 23:12] Group the proofreading menu into labelled sections ([entry](log/entries/2026-11-18-2312-group-proofread-menu.md))

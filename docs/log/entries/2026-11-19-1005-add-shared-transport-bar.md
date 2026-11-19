@@ -1,0 +1,13 @@
+# [2026-11-19 10:05] Add a shared transport bar for player screens
+
+- Scope: UI/UX audit C-07. Now Playing, quick play, the project player (three call sites) and the immersive KTV screen each built their own previous / play / next controls: play buttons of 40, 48, 56, 58 or 64 px with icons of 24 to 34 px, spinners of 18 to 24 px, a disabled colour on only two of them, an accent filled button on the KTV screen, and tooltips that were missing or worded differently. `TransportBar` (player presentation layer, since it carries the Chinese tooltips) keeps one look: a white round play button at the layout's primary player extent (48 px when `compact`), icon at 55 % of the button and spinner at 65 % of the icon, secondary buttons at the layout's minimum interactive extent, optional 10-second seek buttons, a single row or a wrapping layout, and tooltips on every button including play/pause.
+- Files:
+  - `lib/features/player/presentation/widgets/transport_bar.dart` (new) and `test/features/player/presentation/widgets/transport_bar_test.dart` (new: callbacks, seek order, disabled skips, busy spinner, extents for phone/wide/compact, wrapping in a narrow panel).
+  - Wrappers kept, bodies replaced: `now_playing_screen.dart` (`_TransportControls`), `quick_play_screen.dart` (`_Transport`, wrapping, panel layout), `player_screen.dart` (`_PlaybackControls`); inline row replaced in `immersive_ktv_screen.dart`.
+- Validation:
+  - No Dart/Flutter toolchain in the sandbox, so `dart format`, `flutter analyze` and the tests run in the PR's Flutter Quality Gate. Lines were measured for the tall-style formatter, including the rule that three levels of nested named-argument calls force the outer call to split. Existing tests were searched for the old tooltips and transport icons; none depend on them.
+  - Work-log `write` + `check` => Python port of `tool/work_log.dart`.
+- Notes:
+  - Visible changes: Now Playing's play button follows the layout (56 px on phones, 64 px elsewhere, instead of a fixed 58) and its skip/seek buttons follow the minimum interactive extent (40 px on wide desktop windows). The project player's skip icons are 24 px instead of 30 and its compact play button is 48 px instead of 40 on wide desktop windows. The KTV screen's play button is white like every other player instead of accent-filled, and its controls gain tooltips. Every previous button says "上一首 / 回到开头".
+  - The global and mobile player bars keep their own compact controls; they sit inside fixed-height bars with a different density and are left for a later pass.
+- Commit: `Add a shared transport bar for player screens`

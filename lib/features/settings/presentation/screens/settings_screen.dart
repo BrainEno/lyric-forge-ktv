@@ -38,34 +38,17 @@ class SettingsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    '设置',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
+                  // The app bar already says 设置; the page opens with what
+                  // it manages instead of repeating the title (audit SE-02).
                   Text(
                     '管理 Elysium Player 的本地运行环境与工作流。',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Container(
-                    padding: EdgeInsets.all(
-                      layout.isCompact ? AppSpacing.md : AppSpacing.lg,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.bgElevated,
-                      borderRadius: BorderRadius.circular(
-                        AppSpacing.radiusXLarge,
-                      ),
-                      border: Border.all(color: AppColors.borderMuted),
-                    ),
-                    child: AiTranscriptionSettingsSection(
-                      dependencies: dependencies.asrRuntimeSetupDependencies,
-                    ),
+                  const SizedBox(height: AppSpacing.lg),
+                  AiTranscriptionSettingsSection(
+                    dependencies: dependencies.asrRuntimeSetupDependencies,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   AsrEndToEndSmokeTestCard(

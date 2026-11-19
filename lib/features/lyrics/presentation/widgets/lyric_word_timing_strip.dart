@@ -181,7 +181,7 @@ class _WordChip extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: AppColors.bgBase,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
             border: Border.all(
               color: long ? AppColors.warning : AppColors.textTertiary,
               width: long ? 1.2 : 0.5,

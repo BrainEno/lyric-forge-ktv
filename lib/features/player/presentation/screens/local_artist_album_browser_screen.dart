@@ -6,6 +6,8 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_error_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -96,7 +98,7 @@ class _LocalArtistAlbumBrowserScreenState
         _error = null;
       });
     } catch (error) {
-      if (mounted) setState(() => _error = '媒体分类加载失败：$error');
+      if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -201,7 +203,7 @@ class _LocalArtistAlbumBrowserScreenState
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingState()
           : _error != null
           ? _CatalogError(message: _error!, onRetry: _reload)
           : _buildContent(),
@@ -772,12 +774,12 @@ class _CatalogCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
       child: Container(
         padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
         decoration: BoxDecoration(
           color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
           border: Border.all(color: AppColors.borderMuted),
         ),
         child: Column(
@@ -833,7 +835,7 @@ class _MiniAlbumCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -847,7 +849,7 @@ class _MiniAlbumCard extends StatelessWidget {
           ),
           Text(
             '${album.songs.length} 首',
-            style: const TextStyle(color: AppColors.textTertiary, fontSize: 12),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
@@ -935,25 +937,6 @@ class _CatalogError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layout = AppResponsive.of(context);
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(layout.pageGutter),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              size: 52,
-              color: AppColors.error,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.md),
-            OutlinedButton(onPressed: onRetry, child: const Text('重试')),
-          ],
-        ),
-      ),
-    );
+    return AppErrorState(title: '媒体分类加载失败', message: message, onRetry: onRetry);
   }
 }

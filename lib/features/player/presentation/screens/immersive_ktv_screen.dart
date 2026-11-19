@@ -26,6 +26,7 @@ import '../widgets/ktv_recording_toolbar.dart';
 import '../widgets/ktv_take_history_sheet.dart';
 import '../widgets/ktv_take_result_sheet.dart';
 import '../widgets/seekable_progress_bar.dart';
+import '../widgets/transport_bar.dart';
 
 /// Immersive lyrics view backed by the app-scoped playback session, and the
 /// only place a KTV take can be recorded, auditioned, exported or managed.
@@ -384,28 +385,13 @@ class _ControlLayer extends StatelessWidget {
               child: Column(
                 children: [
                   SeekableProgressBar(state: playback, onSeek: onSeek),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        onPressed: canPrevious ? onPrevious : null,
-                        icon: const Icon(Icons.skip_previous_rounded),
-                      ),
-                      IconButton.filled(
-                        onPressed: playback.isLoading || playback.isBuffering
-                            ? null
-                            : onPlayPause,
-                        icon: Icon(
-                          playback.isPlaying
-                              ? Icons.pause_rounded
-                              : Icons.play_arrow_rounded,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: canNext ? onNext : null,
-                        icon: const Icon(Icons.skip_next_rounded),
-                      ),
-                    ],
+                  TransportBar(
+                    compact: true,
+                    isPlaying: playback.isPlaying,
+                    isBusy: playback.isLoading || playback.isBuffering,
+                    onPlayPause: onPlayPause,
+                    onPrevious: canPrevious ? onPrevious : null,
+                    onNext: canNext ? onNext : null,
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   toolbar,
