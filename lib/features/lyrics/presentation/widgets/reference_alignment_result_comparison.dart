@@ -347,7 +347,7 @@ class _DiffRow extends StatelessWidget {
       final color = !changed
           ? AppColors.textPrimary
           : showInsertions
-          ? AppColors.accentHover
+          ? AppColors.success
           : AppColors.error;
       spans.add(
         TextSpan(
@@ -355,7 +355,7 @@ class _DiffRow extends StatelessWidget {
           style: TextStyle(
             color: color,
             backgroundColor: changed
-                ? (showInsertions ? AppColors.accent : AppColors.error)
+                ? (showInsertions ? AppColors.success : AppColors.error)
                       .withAlpha(30)
                 : null,
             fontWeight: changed ? FontWeight.w700 : FontWeight.normal,

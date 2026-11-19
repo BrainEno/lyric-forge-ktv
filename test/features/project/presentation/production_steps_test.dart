@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/widgets/production_steps.dart';
 
@@ -143,6 +144,48 @@ void main() {
       expect(find.byIcon(Icons.audio_file_outlined), findsNothing);
       expect(find.byIcon(Icons.edit_note_rounded), findsOneWidget);
       expect(find.byIcon(Icons.ios_share_rounded), findsOneWidget);
+    });
+
+    testWidgets('done steps are green and the current one has the accent', (
+      tester,
+    ) async {
+      final steps = productionStepsFor(ProcessingStage.transcriptionComplete);
+      await _pump(tester, steps);
+
+      BoxDecoration marker(int index) {
+        final container = tester.widget<Container>(
+          find
+              .descendant(
+                of: find.byKey(ProductionSteps.stepKey(index)),
+                matching: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is Container &&
+                      widget.decoration is BoxDecoration &&
+                      (widget.decoration! as BoxDecoration).shape ==
+                          BoxShape.circle,
+                ),
+              )
+              .first,
+        );
+        return container.decoration! as BoxDecoration;
+      }
+
+      expect(ProductionSteps.doneColor, AppColors.success);
+      expect(ProductionSteps.currentColor, AppColors.accent);
+      for (var index = 0; index < steps.length; index++) {
+        final decoration = marker(index);
+        final border = decoration.border! as Border;
+        if (steps[index].isDone) {
+          expect(decoration.color, AppColors.success, reason: '$index');
+        } else {
+          expect(decoration.color, isNot(AppColors.success), reason: '$index');
+        }
+        expect(
+          border.top.color,
+          steps[index].isCurrent ? AppColors.accent : Colors.transparent,
+          reason: '$index',
+        );
+      }
     });
 
     testWidgets('each step reads its position, label and state', (

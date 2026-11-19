@@ -977,11 +977,9 @@ class _DiffLine extends StatelessWidget {
           text: segment.text,
           style: changed
               ? TextStyle(
-                  color: showInsertions
-                      ? AppColors.accentHover
-                      : AppColors.error,
+                  color: showInsertions ? AppColors.success : AppColors.error,
                   backgroundColor:
-                      (showInsertions ? AppColors.accent : AppColors.error)
+                      (showInsertions ? AppColors.success : AppColors.error)
                           .withAlpha(30),
                   fontWeight: showInsertions
                       ? FontWeight.w700

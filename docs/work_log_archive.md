@@ -84,6 +84,11 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-25 12:00] Move the last own loading and error cards to shared states ([entry](log/entries/2026-11-25-1200-move-the-last-own-loading-and-error-cards-to-shared-states.md))
+- [2026-11-25 11:50] Show real covers on the recent listening shelf ([entry](log/entries/2026-11-25-1150-show-real-covers-on-the-recent-listening-shelf.md))
+- [2026-11-25 11:40] Name the reference lyric flows as a pair ([entry](log/entries/2026-11-25-1140-name-the-reference-lyric-flows-as-a-pair.md))
+- [2026-11-25 11:30] Pass the editor groups to the child panes ([entry](log/entries/2026-11-25-1130-pass-the-editor-groups-to-the-child-panes.md))
+- [2026-11-25 11:20] Group the lyric editor inputs ([entry](log/entries/2026-11-25-1120-group-the-lyric-editor-inputs.md))
 - [2026-11-25 11:00] Route the last bare covers through AppArtwork ([entry](log/entries/2026-11-25-1100-route-the-last-bare-covers-through-appartwork.md))
 - [2026-11-25 10:40] Split the dashboard into section widgets ([entry](log/entries/2026-11-25-1040-split-the-dashboard-into-section-widgets.md))
 - [2026-11-25 10:20] Give device transfer one name and two entries ([entry](log/entries/2026-11-25-1020-give-device-transfer-one-name-and-two-entries.md))

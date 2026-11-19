@@ -119,6 +119,15 @@ class ProductionSteps extends StatelessWidget {
   /// Diameter of a step circle.
   static const double markerExtent = 28;
 
+  /// Finished steps and the line between them are green, the status colour
+  /// for "done"; the step to look at now gets the accent ring. Both used to
+  /// be the accent, back when the accent was the same green (audit A-01).
+  static const Color doneColor = AppColors.success;
+  static const Color currentColor = AppColors.accent;
+
+  /// Check mark on a finished step: black on the green is 8.1:1.
+  static const Color onDoneColor = AppColors.pureBlack;
+
   static Key stepKey(int index) => ValueKey('production-step:$index');
 
   /// What a screen reader says for the step at [index].
@@ -216,7 +225,7 @@ class _Line extends StatelessWidget {
     if (value == null) return const SizedBox.shrink();
     return Container(
       height: 2,
-      color: value ? AppColors.accent : AppColors.bgHighlight,
+      color: value ? ProductionSteps.doneColor : AppColors.bgHighlight,
     );
   }
 }
@@ -232,9 +241,9 @@ class _Marker extends StatelessWidget {
     final current = step.isCurrent;
     final Color iconColor;
     if (done) {
-      iconColor = AppColors.onAccent;
+      iconColor = ProductionSteps.onDoneColor;
     } else if (current) {
-      iconColor = AppColors.accent;
+      iconColor = ProductionSteps.currentColor;
     } else {
       iconColor = AppColors.textTertiary;
     }
@@ -244,9 +253,9 @@ class _Marker extends StatelessWidget {
       height: ProductionSteps.markerExtent,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: done ? AppColors.accent : AppColors.bgSurface,
+        color: done ? ProductionSteps.doneColor : AppColors.bgSurface,
         border: Border.all(
-          color: current ? AppColors.accent : Colors.transparent,
+          color: current ? ProductionSteps.currentColor : Colors.transparent,
           width: 2,
         ),
       ),

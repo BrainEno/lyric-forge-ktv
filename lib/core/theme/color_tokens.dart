@@ -1,5 +1,5 @@
-// Spotify-inspired dark theme color tokens
-// Core palette for media-centric, immersive player UI
+// Dark theme colour tokens for Elysium Player: neutral greys, a lavender
+// accent, the app icon's brand colours and the status colours.
 
 import 'package:flutter/material.dart';
 
@@ -22,17 +22,24 @@ abstract class AppColors {
   static const Color textTertiary = Color(0xFF8F8F8F);
   static const Color textDisabled = Color(0xFF535353);
 
-  // Accent (Spotify green as reference, adjusted)
-  static const Color accent = Color(0xFF1DB954);
-  static const Color accentHover = Color(0xFF1ED760);
-  static const Color accentPressed = Color(0xFF169C45);
+  // Accent: Elysium Lavender. The accent used to be Spotify green #1DB954,
+  // the same value as `success`, so "selected", "primary action" and "done"
+  // all looked alike, and nothing tied the interface to the red, black and
+  // paper-white app icon. Lavender is far from every status colour (error
+  // red, warning amber, success green, info blue) and sits beside the icon's
+  // Forge Red without competing with it; red stays reserved for the brand
+  // mark and for errors (audit A-01).
+  // test/core/theme/accent_palette_test.dart pins the contrast numbers.
+  static const Color accent = Color(0xFFB69CFF);
+  static const Color accentHover = Color(0xFFC7B3FF);
+  static const Color accentPressed = Color(0xFF9F84F0);
 
   // Accent at 16 % for selected chips and tabs: white text on it over the
   // elevated background stays above 12:1.
-  static const Color accentMuted = Color(0x291DB954);
+  static const Color accentMuted = Color(0x29B69CFF);
 
-  // Text and icons on accent fills. White on #1DB954 is only 2.6:1; black is
-  // 8.1:1.
+  // Text and icons on accent fills: black on #B69CFF is 9.2:1 (7.0:1 on the
+  // pressed shade); white would be 2.3:1.
   static const Color onAccent = pureBlack;
 
   // Brand: Forge Red and paper white, sampled from the app icon. They draw
@@ -49,6 +56,7 @@ abstract class AppColors {
   // #E22134 is 4.7:1.
   static const Color onError = pureWhite;
   static const Color warning = Color(0xFFFFA42B);
+  // Green now means "done" and nothing else; it is no longer the accent.
   static const Color success = Color(0xFF1DB954);
   static const Color info = Color(0xFF2E77D0);
 

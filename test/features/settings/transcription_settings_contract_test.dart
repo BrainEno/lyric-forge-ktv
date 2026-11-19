@@ -6,9 +6,11 @@ void main() {
   test(
     'desktop settings exposes the complete AI transcription management surface',
     () {
-      final source = File(
+      // The section owns the flows; its four cards live next to it.
+      final source = [
         'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
-      ).readAsStringSync();
+        'lib/features/settings/presentation/widgets/ai_transcription_settings_cards.dart',
+      ].map((path) => File(path).readAsStringSync()).join('\n');
 
       for (final label in const [
         '当前推荐方案',

@@ -70,9 +70,10 @@ void main() {
       final setup = File(
         'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
       ).readAsStringSync();
-      final settings = File(
+      final settings = [
         'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
-      ).readAsStringSync();
+        'lib/features/settings/presentation/widgets/ai_transcription_settings_cards.dart',
+      ].map((path) => File(path).readAsStringSync()).join('\n');
 
       for (final source in [setup, settings]) {
         expect(source, contains('AsrInstallProgressCard('));

@@ -21,6 +21,7 @@ import '../../../transcription/domain/services/transcription_settings_store.dart
 import '../../../transcription/presentation/widgets/asr_runtime_setup_dialog.dart';
 import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
+import '../widgets/project_detail_columns.dart';
 import '../widgets/production_steps.dart';
 import '../widgets/project_audio_sources_section.dart';
 
@@ -451,70 +452,45 @@ class _ProjectDetailContent extends StatelessWidget {
                     children: [
                       _ProjectHero(project: project),
                       SizedBox(height: spec.sectionGap),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final twoPane = spec.supportsTwoPane;
-                          final mainColumn = Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _ProcessingProgress(
-                                stage: project.currentStage,
-                                progress: project.progressPercent,
-                                liveProgress: isTranscribing
-                                    ? liveProgress
-                                    : null,
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              _LyricStatusCard(project: project),
-                            ],
-                          );
-                          final sideColumn = Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _ActionPanel(
-                                project: project,
-                                isDesktop: isDesktop,
-                                isTranscribing: isTranscribing,
-                                isImportingStem: isImportingStem,
-                                isImportingVocal: isImportingVocal,
-                                audioSourcesExpanded: audioSourcesExpanded,
-                                onAudioSourcesExpandedChanged:
-                                    onAudioSourcesExpandedChanged,
-                                onImportAccompaniment: onImportAccompaniment,
-                                onImportVocal: onImportVocal,
-                                onTranscribe: onTranscribe,
-                                onCancelTranscription: onCancelTranscription,
-                                onConfigureTranscription:
-                                    onConfigureTranscription,
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              _ProjectMetadata(project: project),
-                            ],
-                          );
-
-                          if (!twoPane) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                sideColumn,
-                                SizedBox(height: spec.sectionGap),
-                                mainColumn,
-                              ],
-                            );
-                          }
-
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(child: mainColumn),
-                              SizedBox(width: spec.sectionGap),
-                              SizedBox(
-                                width: spec.sidePanelWidth,
-                                child: sideColumn,
-                              ),
-                            ],
-                          );
-                        },
+                      ProjectDetailColumns(
+                        gap: spec.sectionGap,
+                        main: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _ProcessingProgress(
+                              stage: project.currentStage,
+                              progress: project.progressPercent,
+                              liveProgress: isTranscribing
+                                  ? liveProgress
+                                  : null,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _LyricStatusCard(project: project),
+                          ],
+                        ),
+                        side: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _ActionPanel(
+                              project: project,
+                              isDesktop: isDesktop,
+                              isTranscribing: isTranscribing,
+                              isImportingStem: isImportingStem,
+                              isImportingVocal: isImportingVocal,
+                              audioSourcesExpanded: audioSourcesExpanded,
+                              onAudioSourcesExpandedChanged:
+                                  onAudioSourcesExpandedChanged,
+                              onImportAccompaniment: onImportAccompaniment,
+                              onImportVocal: onImportVocal,
+                              onTranscribe: onTranscribe,
+                              onCancelTranscription: onCancelTranscription,
+                              onConfigureTranscription:
+                                  onConfigureTranscription,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            _ProjectMetadata(project: project),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -1237,7 +1213,7 @@ Color _statusColor(ProjectStatus status) {
     ProjectStatus.processing => AppColors.info,
     ProjectStatus.transcribing => AppColors.info,
     ProjectStatus.editing => AppColors.warning,
-    ProjectStatus.ready => AppColors.accent,
+    ProjectStatus.ready => AppColors.success,
     ProjectStatus.error => AppColors.error,
   };
 }

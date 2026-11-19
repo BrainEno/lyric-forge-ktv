@@ -5,7 +5,6 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
@@ -18,9 +17,7 @@ import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../playback_screen_dependencies.dart';
 import '../widgets/ktv_entry_sheet.dart';
-import '../widgets/playback_error_banner.dart';
-import '../widgets/seekable_progress_bar.dart';
-import '../widgets/transport_bar.dart';
+import '../widgets/project_player_transport.dart';
 import 'immersive_ktv_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -505,6 +502,23 @@ class _PlayerWorkspace extends StatelessWidget {
         _audioAssetForSession(project, session)?.availableSources ??
         const <AudioSourceType>[];
 
+    final transport = ProjectPlayerTransportState(
+      project: project,
+      playback: playback,
+      session: session,
+      availableSources: availableSources,
+      ktvMode: ktvMode,
+    );
+    final actions = ProjectPlayerTransportActions(
+      onPlayPause: onPlayPause,
+      onSeek: onSeek,
+      onSwitchSource: onSwitchSource,
+      onSkipPrevious: onSkipPrevious,
+      onSkipNext: onSkipNext,
+      onModeChanged: onModeChanged,
+      onOpenFullScreenKtv: onOpenFullScreenKtv,
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final spec = AppResponsive.fromConstraints(constraints);
@@ -513,19 +527,10 @@ class _PlayerWorkspace extends StatelessWidget {
             children: [
               SizedBox(
                 width: spec.sidePanelWidth,
-                child: _TransportPane(
-                  project: project,
-                  playback: playback,
-                  session: session,
-                  availableSources: availableSources,
-                  ktvMode: ktvMode,
-                  onPlayPause: onPlayPause,
-                  onSeek: onSeek,
-                  onSwitchSource: onSwitchSource,
-                  onSkipPrevious: onSkipPrevious,
-                  onSkipNext: onSkipNext,
-                  onModeChanged: onModeChanged,
-                  onOpenFullScreenKtv: onOpenFullScreenKtv,
+                child: ProjectPlayerTransport(
+                  state: transport,
+                  actions: actions,
+                  layout: ProjectPlayerTransportLayout.sidePane,
                 ),
               ),
               const VerticalDivider(width: 1),
@@ -544,19 +549,14 @@ class _PlayerWorkspace extends StatelessWidget {
 
         return Column(
           children: [
-            _CompactTransportHeader(
-              project: project,
-              playback: playback,
-              session: session,
-              availableSources: availableSources,
-              ktvMode: ktvMode,
-              onPlayPause: onPlayPause,
-              onSeek: onSeek,
-              onSwitchSource: onSwitchSource,
-              onSkipPrevious: onSkipPrevious,
-              onSkipNext: onSkipNext,
-              onModeChanged: onModeChanged,
-              onOpenFullScreenKtv: onOpenFullScreenKtv,
+            ProjectPlayerTransport(
+              state: transport,
+              actions: actions,
+              // Short-ness follows the window, as it always has; the side
+              // pane is already ruled out by this box's width.
+              layout: AppResponsive.of(context).isShort
+                  ? ProjectPlayerTransportLayout.shortHeader
+                  : ProjectPlayerTransportLayout.header,
             ),
             const Divider(height: 1),
             Expanded(
@@ -571,255 +571,6 @@ class _PlayerWorkspace extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-}
-
-class _TransportPane extends StatelessWidget {
-  final ProjectManifest project;
-  final PlaybackState playback;
-  final PlaybackSessionState session;
-  final List<AudioSourceType> availableSources;
-  final bool ktvMode;
-  final VoidCallback onPlayPause;
-  final ValueChanged<Duration> onSeek;
-  final ValueChanged<AudioSourceType> onSwitchSource;
-  final VoidCallback onSkipPrevious;
-  final VoidCallback onSkipNext;
-  final ValueChanged<bool> onModeChanged;
-  final VoidCallback? onOpenFullScreenKtv;
-
-  const _TransportPane({
-    required this.project,
-    required this.playback,
-    required this.session,
-    required this.availableSources,
-    required this.ktvMode,
-    required this.onPlayPause,
-    required this.onSeek,
-    required this.onSwitchSource,
-    required this.onSkipPrevious,
-    required this.onSkipNext,
-    required this.onModeChanged,
-    required this.onOpenFullScreenKtv,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    final padding = spec.pageGutter.clamp(16, 28).toDouble();
-    return ListView(
-      padding: EdgeInsets.all(padding),
-      children: [
-        Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: spec.playerArtworkMaxExtent.clamp(220, 320).toDouble(),
-            ),
-            child: _ProjectArtwork(
-              path: project.audioAsset?.thumbnailPath,
-              loading: playback.isLoading,
-            ),
-          ),
-        ),
-        SizedBox(height: spec.sectionGap),
-        _SongIdentity(project: project),
-        if (playback.error != null) ...[
-          const SizedBox(height: AppSpacing.md),
-          PlaybackErrorBanner(message: playback.error!),
-        ],
-        SizedBox(height: spec.sectionGap),
-        SeekableProgressBar(state: playback, onSeek: onSeek),
-        const SizedBox(height: AppSpacing.md),
-        _PlaybackControls(
-          isPlaying: playback.isPlaying,
-          isBuffering: playback.isBuffering,
-          canPrevious: session.currentItem != null,
-          canNext: session.canSkipNext,
-          onPrevious: onSkipPrevious,
-          onPlayPause: onPlayPause,
-          onNext: onSkipNext,
-        ),
-        if (availableSources.length > 1) ...[
-          const SizedBox(height: AppSpacing.md),
-          _AudioSourceSelector(
-            availableSources: availableSources,
-            currentSource: playback.currentSource,
-            onSourceChanged: onSwitchSource,
-          ),
-        ],
-        SizedBox(height: spec.sectionGap),
-        _PlayerModeControls(
-          ktvMode: ktvMode,
-          hasLyrics: project.hasLyrics,
-          onModeChanged: onModeChanged,
-          onOpenFullScreenKtv: onOpenFullScreenKtv,
-        ),
-      ],
-    );
-  }
-}
-
-class _CompactTransportHeader extends StatelessWidget {
-  final ProjectManifest project;
-  final PlaybackState playback;
-  final PlaybackSessionState session;
-  final List<AudioSourceType> availableSources;
-  final bool ktvMode;
-  final VoidCallback onPlayPause;
-  final ValueChanged<Duration> onSeek;
-  final ValueChanged<AudioSourceType> onSwitchSource;
-  final VoidCallback onSkipPrevious;
-  final VoidCallback onSkipNext;
-  final ValueChanged<bool> onModeChanged;
-  final VoidCallback? onOpenFullScreenKtv;
-
-  const _CompactTransportHeader({
-    required this.project,
-    required this.playback,
-    required this.session,
-    required this.availableSources,
-    required this.ktvMode,
-    required this.onPlayPause,
-    required this.onSeek,
-    required this.onSwitchSource,
-    required this.onSkipPrevious,
-    required this.onSkipNext,
-    required this.onModeChanged,
-    required this.onOpenFullScreenKtv,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    final padding = spec.isCompact ? 12.0 : 16.0;
-
-    if (spec.isShort) {
-      return Padding(
-        padding: EdgeInsets.fromLTRB(padding, 6, padding, 8),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: _ProjectArtwork(
-                    path: project.audioAsset?.thumbnailPath,
-                    loading: playback.isLoading,
-                    compact: true,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(child: _SongIdentity(project: project, compact: true)),
-                const SizedBox(width: AppSpacing.xs),
-                _PlaybackControls(
-                  isPlaying: playback.isPlaying,
-                  isBuffering: playback.isBuffering,
-                  canPrevious: session.currentItem != null,
-                  canNext: session.canSkipNext,
-                  onPrevious: onSkipPrevious,
-                  onPlayPause: onPlayPause,
-                  onNext: onSkipNext,
-                  compact: true,
-                ),
-              ],
-            ),
-            if (playback.error != null) ...[
-              const SizedBox(height: 6),
-              PlaybackErrorBanner(message: playback.error!),
-            ],
-            SeekableProgressBar(state: playback, onSeek: onSeek, compact: true),
-            const SizedBox(height: 2),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (availableSources.length > 1) ...[
-                    _AudioSourceSelector(
-                      availableSources: availableSources,
-                      currentSource: playback.currentSource,
-                      onSourceChanged: onSwitchSource,
-                      compact: true,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                  ],
-                  _PlayerModeControls(
-                    ktvMode: ktvMode,
-                    hasLyrics: project.hasLyrics,
-                    onModeChanged: onModeChanged,
-                    onOpenFullScreenKtv: onOpenFullScreenKtv,
-                    compact: true,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: EdgeInsets.all(padding),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              SizedBox(
-                width: spec.isCompact ? 56 : 64,
-                height: spec.isCompact ? 56 : 64,
-                child: _ProjectArtwork(
-                  path: project.audioAsset?.thumbnailPath,
-                  loading: playback.isLoading,
-                  compact: true,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(child: _SongIdentity(project: project, compact: true)),
-            ],
-          ),
-          if (playback.error != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            PlaybackErrorBanner(message: playback.error!),
-          ],
-          const SizedBox(height: AppSpacing.sm),
-          SeekableProgressBar(state: playback, onSeek: onSeek, compact: true),
-          const SizedBox(height: AppSpacing.xs),
-          _PlaybackControls(
-            isPlaying: playback.isPlaying,
-            isBuffering: playback.isBuffering,
-            canPrevious: session.currentItem != null,
-            canNext: session.canSkipNext,
-            onPrevious: onSkipPrevious,
-            onPlayPause: onPlayPause,
-            onNext: onSkipNext,
-            compact: true,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              if (availableSources.length > 1)
-                _AudioSourceSelector(
-                  availableSources: availableSources,
-                  currentSource: playback.currentSource,
-                  onSourceChanged: onSwitchSource,
-                  compact: true,
-                ),
-              _PlayerModeControls(
-                ktvMode: ktvMode,
-                hasLyrics: project.hasLyrics,
-                onModeChanged: onModeChanged,
-                onOpenFullScreenKtv: onOpenFullScreenKtv,
-                compact: true,
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1135,209 +886,6 @@ class _FocusLyricLine extends StatelessWidget {
   }
 }
 
-class _ProjectArtwork extends StatelessWidget {
-  final String? path;
-  final bool loading;
-  final bool compact;
-
-  const _ProjectArtwork({
-    this.path,
-    required this.loading,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // The shared cover falls back to its placeholder when the file is
-    // missing or cannot be decoded; a raw Image.file showed a broken image
-    // (audit C-04). The accent icon still marks a song that is loading.
-    return AspectRatio(
-      aspectRatio: 1,
-      child: AppArtwork(
-        path: path,
-        borderRadius: compact
-            ? AppSpacing.radiusMedium
-            : AppSpacing.radiusXLarge,
-        placeholderColor: loading ? AppColors.accent : null,
-      ),
-    );
-  }
-}
-
-class _SongIdentity extends StatelessWidget {
-  final ProjectManifest project;
-  final bool compact;
-
-  const _SongIdentity({required this.project, this.compact = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    return Column(
-      crossAxisAlignment: compact
-          ? CrossAxisAlignment.start
-          : CrossAxisAlignment.center,
-      children: [
-        Text(
-          project.name,
-          textAlign: compact ? TextAlign.left : TextAlign.center,
-          maxLines: compact ? 1 : 2,
-          overflow: TextOverflow.ellipsis,
-          style:
-              (compact
-                      ? Theme.of(context).textTheme.titleMedium
-                      : Theme.of(context).textTheme.headlineSmall)
-                  ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        if (!spec.isShort) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            project.artist?.trim().isNotEmpty == true
-                ? project.artist!
-                : '未知艺术家',
-            textAlign: compact ? TextAlign.left : TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-          ),
-        ],
-        if (!compact && project.album?.trim().isNotEmpty == true) ...[
-          const SizedBox(height: 2),
-          Text(
-            project.album!,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _PlaybackControls extends StatelessWidget {
-  final bool isPlaying;
-  final bool isBuffering;
-  final bool canPrevious;
-  final bool canNext;
-  final VoidCallback onPrevious;
-  final VoidCallback onPlayPause;
-  final VoidCallback onNext;
-  final bool compact;
-
-  const _PlaybackControls({
-    required this.isPlaying,
-    required this.isBuffering,
-    required this.canPrevious,
-    required this.canNext,
-    required this.onPrevious,
-    required this.onPlayPause,
-    required this.onNext,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TransportBar(
-      compact: compact,
-      isPlaying: isPlaying,
-      isBusy: isBuffering,
-      onPlayPause: onPlayPause,
-      onPrevious: canPrevious ? onPrevious : null,
-      onNext: canNext ? onNext : null,
-    );
-  }
-}
-
-class _AudioSourceSelector extends StatelessWidget {
-  final List<AudioSourceType> availableSources;
-  final AudioSourceType? currentSource;
-  final ValueChanged<AudioSourceType> onSourceChanged;
-  final bool compact;
-
-  const _AudioSourceSelector({
-    required this.availableSources,
-    required this.currentSource,
-    required this.onSourceChanged,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: AppSpacing.xs,
-      runSpacing: AppSpacing.xs,
-      children: availableSources
-          .map((source) {
-            return ChoiceChip(
-              selected: source == currentSource,
-              onSelected: (_) => onSourceChanged(source),
-              visualDensity: compact ? VisualDensity.compact : null,
-              label: Text(_sourceLabel(source)),
-            );
-          })
-          .toList(growable: false),
-    );
-  }
-}
-
-class _PlayerModeControls extends StatelessWidget {
-  final bool ktvMode;
-  final bool hasLyrics;
-  final ValueChanged<bool> onModeChanged;
-  final VoidCallback? onOpenFullScreenKtv;
-  final bool compact;
-
-  const _PlayerModeControls({
-    required this.ktvMode,
-    required this.hasLyrics,
-    required this.onModeChanged,
-    required this.onOpenFullScreenKtv,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
-      children: [
-        ChoiceChip(
-          selected: !ktvMode,
-          visualDensity: compact ? VisualDensity.compact : null,
-          onSelected: (_) => onModeChanged(false),
-          avatar: const Icon(Icons.library_music_outlined, size: 17),
-          label: const Text('普通'),
-        ),
-        ChoiceChip(
-          selected: ktvMode,
-          visualDensity: compact ? VisualDensity.compact : null,
-          onSelected: hasLyrics ? (_) => onModeChanged(true) : null,
-          avatar: const Icon(Icons.mic_rounded, size: 17),
-          label: const Text('KTV'),
-        ),
-        if (hasLyrics)
-          OutlinedButton.icon(
-            onPressed: onOpenFullScreenKtv,
-            icon: const Icon(Icons.fullscreen_rounded, size: 18),
-            label: Text(spec.isCompact || spec.isShort ? '全屏' : '全屏 KTV'),
-            style: OutlinedButton.styleFrom(
-              minimumSize: Size(0, spec.minimumInteractiveExtent),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
 class _NoLyricsState extends StatelessWidget {
   const _NoLyricsState();
 
@@ -1387,14 +935,6 @@ int? _currentLyricIndex(LyricDocument? document, Duration position) {
     }
   }
   return 0;
-}
-
-String _sourceLabel(AudioSourceType source) {
-  return switch (source) {
-    AudioSourceType.original => '原声',
-    AudioSourceType.instrumental => '伴奏',
-    AudioSourceType.vocals => '人声',
-  };
 }
 
 String _formatTime(Duration value) {
