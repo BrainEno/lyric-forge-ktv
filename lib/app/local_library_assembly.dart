@@ -21,6 +21,7 @@ LocalLibraryDependencies assembleLocalLibraryDependencies(
     playbackSession: services.playbackSessionService,
     audioPlayer: services.audioPlayerService,
     lyricsImport: assembleLyricsImportDependencies(services),
+    lyricsAutoLinker: services.libraryLyricsAutoLinker,
   );
 }
 

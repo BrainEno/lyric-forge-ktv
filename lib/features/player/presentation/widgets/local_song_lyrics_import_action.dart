@@ -11,6 +11,7 @@ import '../../../lyrics/domain/services/lyric_file_import_service.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
+import '../../domain/services/imported_lyrics_project.dart';
 import '../../domain/services/playback_lyrics_project_linker.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
@@ -103,41 +104,15 @@ Future<void> importLyricsForLocalPlaybackItem(
     album: result.album,
   );
 
-  final existingMetadata = Map<String, dynamic>.from(project.metadata);
-  final backups = _nextLyricBackups(project);
   final timed = result.document.metadata['timed'] == true;
-  final importedDocument = result.document.copyWith(
-    metadata: {
-      ...result.document.metadata,
-      'detectedEncoding': result.detectedEncoding,
-      'importedAt': DateTime.now().toIso8601String(),
-    },
-  );
-
-  final updated = project.copyWith(
-    name: item.title,
-    artist: item.artist ?? result.artist,
-    album: project.album ?? result.album,
-    audioAsset: item.audioAsset.copyWith(
-      thumbnailPath: item.artworkPath ?? item.audioAsset.thumbnailPath,
-    ),
-    lyricDocument: importedDocument,
-    status: timed ? ProjectStatus.ready : ProjectStatus.editing,
-    currentStage: timed
-        ? ProcessingStage.lyricsEdited
-        : ProcessingStage.transcriptionComplete,
-    metadata: {
-      ...existingMetadata,
-      'lyricSource': 'imported-file',
-      'lyricImport': {
-        'path': result.sourcePath,
-        'format': result.format.name,
-        'encoding': result.detectedEncoding,
-        'timed': timed,
-        'importedAt': DateTime.now().toIso8601String(),
-      },
-      if (backups.isNotEmpty) 'lyricBackups': backups,
-    },
+  final updated = projectWithImportedLyrics(
+    project,
+    title: item.title,
+    artist: item.artist,
+    audioAsset: item.audioAsset,
+    artworkPath: item.artworkPath,
+    result: result,
+    now: DateTime.now(),
   );
   final savedProject = await projectRepository.updateProject(updated);
 
@@ -510,21 +485,4 @@ bool _samePath(String a, String b) {
   final right = File(b).absolute.path;
   if (Platform.isWindows) return left.toLowerCase() == right.toLowerCase();
   return left == right;
-}
-
-List<Map<String, dynamic>> _nextLyricBackups(ProjectManifest project) {
-  if (!project.hasLyrics) return const [];
-  final existing = <Map<String, dynamic>>[];
-  final raw = project.metadata['lyricBackups'];
-  if (raw is List) {
-    for (final entry in raw) {
-      if (entry is Map) existing.add(Map<String, dynamic>.from(entry));
-    }
-  }
-  existing.insert(0, {
-    'createdAt': DateTime.now().toIso8601String(),
-    'reason': 'replaced-by-import',
-    'document': project.lyricDocument!.toJson(),
-  });
-  return existing.take(3).toList(growable: false);
 }

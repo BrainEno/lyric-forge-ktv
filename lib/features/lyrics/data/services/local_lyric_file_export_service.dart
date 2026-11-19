@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -10,9 +11,27 @@ import '../../domain/services/lyric_file_export_service.dart';
 class LocalLyricFileExportService implements LyricFileExportService {
   const LocalLyricFileExportService({
     this.encoder = const LyricExportEncoder(),
+    this.initialDirectory,
   });
 
   final LyricExportEncoder encoder;
+
+  /// The folder the save dialog opens in: the library folder, so a saved
+  /// file is found and paired with its song (decision D-033). Null, a
+  /// failure or a folder that does not exist leaves the system default.
+  final Future<String?> Function()? initialDirectory;
+
+  Future<String?> _initialDirectory() async {
+    final resolve = initialDirectory;
+    if (resolve == null) return null;
+    try {
+      final path = await resolve();
+      if (path == null || !await Directory(path).exists()) return null;
+      return path;
+    } on Exception {
+      return null;
+    }
+  }
 
   @override
   String encodeLrc(
@@ -61,9 +80,11 @@ class LocalLyricFileExportService implements LyricFileExportService {
         options: options,
         metadata: metadata,
       );
+      final folder = await _initialDirectory();
       return await FilePicker.platform.saveFile(
         dialogTitle: '导出${format.label}',
         fileName: normalizedFileName(suggestedFileName, format.extension),
+        initialDirectory: folder,
         type: FileType.custom,
         allowedExtensions: [format.extension],
         bytes: Uint8List.fromList(utf8.encode(content)),

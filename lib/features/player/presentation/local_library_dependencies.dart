@@ -5,6 +5,7 @@ import '../domain/repositories/local_media_metadata_repository.dart';
 import '../domain/repositories/play_history_repository.dart';
 import '../domain/services/audio_library_import_service.dart';
 import '../domain/services/audio_player_service.dart';
+import '../domain/services/library_lyrics_auto_linker.dart';
 import '../domain/services/local_media_relink_service.dart';
 import '../domain/services/playback_lyrics_availability.dart';
 import '../domain/services/playback_session_service.dart';
@@ -52,6 +53,10 @@ class LocalLibraryDependencies {
   final AudioPlayerService audioPlayer;
   final LyricsImportDependencies lyricsImport;
 
+  /// Pairs lyric files in the library folder with songs when the library
+  /// opens or rescans (decision D-033). Null in tests that do not need it.
+  final LibraryLyricsAutoLinker? lyricsAutoLinker;
+
   const LocalLibraryDependencies({
     required this.libraryRepository,
     required this.collectionRepository,
@@ -62,5 +67,6 @@ class LocalLibraryDependencies {
     required this.playbackSession,
     required this.audioPlayer,
     required this.lyricsImport,
+    this.lyricsAutoLinker,
   });
 }

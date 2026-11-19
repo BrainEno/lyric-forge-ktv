@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-26 11:20] Keep busy spinners visible ([entry](log/entries/2026-11-26-1120-keep-busy-spinners-visible.md))
 - [2026-11-26 11:10] Answer library section presses ([entry](log/entries/2026-11-26-1110-answer-library-section-presses.md))
 - [2026-11-26 11:00] Make navigation presses visible ([entry](log/entries/2026-11-26-1100-make-navigation-presses-visible.md))
 - [2026-11-26 10:50] Show where the player bar links lead ([entry](log/entries/2026-11-26-1050-show-where-the-player-bar-links-lead.md))

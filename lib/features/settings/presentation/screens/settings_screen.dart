@@ -7,12 +7,14 @@ import '../settings_screen_dependencies.dart';
 import '../widgets/ai_transcription_settings_section.dart';
 import '../widgets/asr_end_to_end_smoke_test_card.dart';
 import '../widgets/diagnostics_settings_card.dart';
+import '../widgets/library_folder_settings_card.dart';
+import '../widgets/settings_section_card.dart';
 import '../widgets/settings_columns.dart';
 
 /// The line under the app bar. It names only what the page holds; the
 /// navigation tooltip used to promise playback and storage settings that do
 /// not exist (audit SE-01).
-const String settingsIntro = '本地 AI 识别环境，以及出问题时的诊断与试识别。';
+const String settingsIntro = '曲库目录、本地 AI 识别环境，以及出问题时的诊断与试识别。';
 
 class SettingsScreen extends StatelessWidget {
   final SettingsScreenDependencies dependencies;
@@ -22,6 +24,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final layout = AppResponsive.of(context);
+    final libraryFolder = dependencies.libraryFolder;
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
@@ -57,6 +60,22 @@ class SettingsScreen extends StatelessWidget {
                     primary: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (libraryFolder != null) ...[
+                          const SettingsGroupLabel(
+                            key: ValueKey('settings-group:library'),
+                            label: '音乐库',
+                          ),
+                          SettingsSectionCard(
+                            icon: Icons.folder_special_outlined,
+                            title: LibraryFolderSettingsText.title,
+                            subtitle: LibraryFolderSettingsText.subtitle,
+                            child: LibraryFolderSettingsCard(
+                              settings: libraryFolder,
+                              findLyrics: dependencies.findLibraryLyrics,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                        ],
                         const SettingsGroupLabel(
                           key: ValueKey('settings-group:recognition'),
                           label: 'AI 识别',
