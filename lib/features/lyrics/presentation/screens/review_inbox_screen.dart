@@ -12,6 +12,7 @@ import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/lyric_review_queue.dart';
+import '../controllers/review_inbox_bulk_review.dart';
 
 /// One row of the review inbox: a project plus its review queue.
 class ReviewInboxEntry {
@@ -44,6 +45,17 @@ class ReviewInboxScreen extends StatefulWidget {
 
   const ReviewInboxScreen({super.key, required this.projectRepository});
 
+  static const String markAllReviewedLabel = '全部标为已复核';
+  static const String moreActionsTooltip = '更多操作';
+  static const String undoLabel = '撤销';
+  static const String undoneMessage = '已撤销，复核标记恢复原样';
+  static const String undoConflictMessage = '工程已有新的改动，没有撤销';
+  static const String saveFailedMessage = '没能保存复核标记，请稍后再试';
+
+  static String markedMessage(String name) => '「$name」已全部标为已复核';
+  static String conflictMessage(String name) => '「$name」刚在别处保存过，已重新读取，请再试一次';
+  static String unchangedMessage(String name) => '「$name」的每一行都已确认';
+
   @override
   State<ReviewInboxScreen> createState() => _ReviewInboxScreenState();
 }
@@ -57,10 +69,16 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
   /// finished work (audit R-02).
   bool _showReviewed = false;
 
+  late final ReviewInboxBulkReview _bulkReview;
+
+  /// Project whose 全部标为已复核 is being saved; its menu shows a spinner.
+  String? _savingProjectId;
+
   @override
   void initState() {
     super.initState();
     _projects = widget.projectRepository;
+    _bulkReview = ReviewInboxBulkReview(_projects);
     _entriesFuture = _load();
   }
 
@@ -97,6 +115,77 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
     await future;
   }
 
+  /// Reads the list again without waiting, after a save from this screen.
+  void _reload() {
+    setState(() {
+      _entriesFuture = _load();
+    });
+  }
+
+  /// 全部标为已复核 for one project, after a confirmation (audit R-03).
+  Future<void> _markAllReviewed(ReviewInboxEntry entry) async {
+    final project = entry.project;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => _MarkAllReviewedDialog(entry: entry),
+    );
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _savingProjectId = project.id);
+    BulkReviewResult? result;
+    try {
+      result = await _bulkReview.markAllReviewed(project);
+    } catch (_) {
+      result = null;
+    }
+    if (!mounted) return;
+    setState(() => _savingProjectId = null);
+    messenger.showSnackBar(_resultSnackBar(project, result));
+    if (result != null && result.status != BulkReviewStatus.unchanged) {
+      _reload();
+    }
+  }
+
+  SnackBar _resultSnackBar(ProjectManifest project, BulkReviewResult? result) {
+    if (result == null) {
+      return const SnackBar(content: Text(ReviewInboxScreen.saveFailedMessage));
+    }
+    final message = switch (result.status) {
+      BulkReviewStatus.saved => ReviewInboxScreen.markedMessage(project.name),
+      BulkReviewStatus.conflict => ReviewInboxScreen.conflictMessage(
+        project.name,
+      ),
+      BulkReviewStatus.unchanged => ReviewInboxScreen.unchangedMessage(
+        project.name,
+      ),
+    };
+    return SnackBar(
+      content: Text(message),
+      action: result.canUndo
+          ? SnackBarAction(
+              label: ReviewInboxScreen.undoLabel,
+              onPressed: () => _undo(result),
+            )
+          : null,
+    );
+  }
+
+  Future<void> _undo(BulkReviewResult result) async {
+    final messenger = ScaffoldMessenger.of(context);
+    String message;
+    try {
+      final undone = await _bulkReview.undo(result);
+      message = undone.status == BulkReviewStatus.saved
+          ? ReviewInboxScreen.undoneMessage
+          : ReviewInboxScreen.undoConflictMessage;
+    } catch (_) {
+      message = ReviewInboxScreen.saveFailedMessage;
+    }
+    if (!mounted) return;
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+    _reload();
+  }
+
   void _openImport() {
     Navigator.pushNamed(context, Routes.import);
   }
@@ -123,6 +212,10 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
         key: ValueKey('review-inbox:${entry.project.id}'),
         entry: entry,
         onTap: () => _openEditor(entry.project),
+        saving: _savingProjectId == entry.project.id,
+        onMarkAllReviewed: _savingProjectId == null
+            ? () => _markAllReviewed(entry)
+            : null,
       ),
     );
 
@@ -217,9 +310,21 @@ class _ReviewInboxTile extends StatelessWidget {
   final ReviewInboxEntry entry;
   final VoidCallback onTap;
 
+  /// 全部标为已复核; null disables the menu while another save runs.
+  final VoidCallback? onMarkAllReviewed;
+
+  /// This project's 全部标为已复核 is being saved.
+  final bool saving;
+
   static const double artworkExtent = 44;
 
-  const _ReviewInboxTile({super.key, required this.entry, required this.onTap});
+  const _ReviewInboxTile({
+    super.key,
+    required this.entry,
+    required this.onTap,
+    required this.onMarkAllReviewed,
+    required this.saving,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -286,6 +391,14 @@ class _ReviewInboxTile extends StatelessWidget {
                 // toolbar follows.
                 const SizedBox(width: AppSpacing.xs),
                 _Badge(label: '未评分 $unscored', color: AppColors.textTertiary),
+              ],
+              if (pending > 0) ...[
+                const SizedBox(width: AppSpacing.xs),
+                _TileMenu(
+                  key: ValueKey('review-inbox:actions:${project.id}'),
+                  saving: saving,
+                  onMarkAllReviewed: onMarkAllReviewed,
+                ),
               ],
               const SizedBox(width: AppSpacing.xs),
               const Icon(
@@ -371,6 +484,99 @@ class _ReviewedToggle extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The per-project 更多操作 menu, or a spinner while its save runs.
+class _TileMenu extends StatelessWidget {
+  final bool saving;
+  final VoidCallback? onMarkAllReviewed;
+
+  static const double spinnerSize = 20;
+
+  const _TileMenu({
+    super.key,
+    required this.saving,
+    required this.onMarkAllReviewed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final extent = AppResponsive.of(context).minimumInteractiveExtent;
+    if (saving) {
+      return SizedBox.square(
+        dimension: extent,
+        child: const Center(
+          child: SizedBox.square(
+            dimension: spinnerSize,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              semanticsLabel: '正在保存复核标记',
+            ),
+          ),
+        ),
+      );
+    }
+    final onSelected = onMarkAllReviewed;
+    return PopupMenuButton<VoidCallback>(
+      tooltip: ReviewInboxScreen.moreActionsTooltip,
+      enabled: onSelected != null,
+      icon: const Icon(Icons.more_vert_rounded),
+      onSelected: (action) => action(),
+      itemBuilder: (context) => [
+        if (onSelected != null)
+          PopupMenuItem<VoidCallback>(
+            value: onSelected,
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.done_all_rounded),
+              title: Text(ReviewInboxScreen.markAllReviewedLabel),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Confirms 全部标为已复核 with the numbers it changes.
+class _MarkAllReviewedDialog extends StatelessWidget {
+  final ReviewInboxEntry entry;
+
+  const _MarkAllReviewedDialog({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final queue = entry.queue;
+    return AlertDialog(
+      title: const Text('${ReviewInboxScreen.markAllReviewedLabel}？'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '「${entry.project.name}」的 ${queue.totalLines} 行都会记为人工确认，'
+            '待复核的 ${queue.needsReviewCount} 行会离开队列。',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '之后改动任何一行的文字或时间，那一行会重新回到待复核。',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text(ReviewInboxScreen.markAllReviewedLabel),
+        ),
+      ],
     );
   }
 }

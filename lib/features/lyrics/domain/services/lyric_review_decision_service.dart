@@ -77,6 +77,44 @@ class LyricReviewDecisionService {
     return document.copyWith(metadata: metadata);
   }
 
+  /// Marks every line that has a stable ID as reviewed in one pass.
+  ///
+  /// Decisions that still match their line keep their original timestamp, so
+  /// "when was this confirmed" stays true for lines reviewed earlier one by
+  /// one. Decisions for lines that no longer exist or changed since are
+  /// replaced. Lines without an ID cannot carry a decision and are skipped;
+  /// give them one first with `LyricManualEditMarkerService`'s
+  /// `assignMissingLineIds`. Returns [document] itself when nothing changes.
+  LyricDocument setAllReviewed(LyricDocument document, {DateTime? reviewedAt}) {
+    final existing = _readDecisions(document.metadata[metadataKey]);
+    final stamp = (reviewedAt ?? DateTime.now()).toIso8601String();
+    final decisions = <String, dynamic>{};
+    var changed = false;
+    for (final line in document.lines) {
+      final id = line.id;
+      if (id == null || id.isEmpty) continue;
+      final current = fingerprint(line);
+      final record = existing[id];
+      if (record is Map && record['fingerprint'] == current) {
+        decisions[id] = _stringKeyedRecord(record);
+      } else {
+        changed = true;
+        decisions[id] = <String, dynamic>{
+          'fingerprint': current,
+          'reviewedAt': stamp,
+        };
+      }
+    }
+    if (!changed && decisions.length == existing.length) return document;
+    final metadata = Map<String, dynamic>.from(document.metadata);
+    if (decisions.isEmpty) {
+      metadata.remove(metadataKey);
+    } else {
+      metadata[metadataKey] = decisions;
+    }
+    return document.copyWith(metadata: metadata);
+  }
+
   /// Deterministic 32-bit FNV-1a fingerprint. It is a cache key, not a security
   /// primitive; including the time interval means timing edits require review.
   String fingerprint(LyricLine line) {
