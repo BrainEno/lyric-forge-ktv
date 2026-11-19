@@ -2,39 +2,38 @@
 
 ## 目标
 
-审计路线的第十四轮（第十三轮 PR #485 已合并为 `c4c73dd`）。用户这一轮只说“接着开发下一轮”，所以按第十三轮交接的建议做：T-02 剩下的 v2 命名单独做一轮，再把状态一节里几项“部分 / 待核”收尾。lib+test 代码量按以往要求不少于 800 行。
+审计路线的第十五轮（第十四轮 PR #486 已合并为 `84a50ae`）。按第十四轮交接的“下一步”做：C-03 识别设置再拆、A-04 语义标注走查、编辑器工具栏 / 列表 / 右侧检查面板直接接收两个分组；真机检查在沙箱里做不了，只记录。lib+test 代码量按以往要求不少于 800 行（本轮约 +2800 / −620）。
 
-1. T-02（D-035）：智能校对去掉版本号。四个 lib 文件和九个测试文件 `git mv` 改名（`run_proofread_use_case.dart`、`proofread_review_assembler.dart`、`proofread_document_composer.dart`、`lyric_proofread_dialog.dart` 等），约三十个标识符去掉 `V2`（`LyricProofreadReviewItem`、`ProofreadRunOptions`、`RunProofreadUseCase` …）；编辑器入口按菜单项命名为 `smartProofread` / `onSmartProofread` / `_openSmartProofread`。持久化的 `'whisper-lyrics-v2'` 等没动。新测试 `proofread_naming_test.dart` 防止回退。
-2. E-04：编辑器内容组件的复核队列和播放器参数收成 `LyricReviewControls` 和 `LyricPlaybackControls`（`lyric_editor_review_controls.dart`），筛选后的行、仍有效的选中行、“开始复核”打开哪一行、能否标记复核、播放头所在行和暂停时的拆分点都由它们计算，有单元测试；构造函数从 26 个参数降到 15 个。页面用 `_reviewControls` 组装，仍在 1200 行预算内（1198 行）。
-3. E-06：主题 `labelSmall` 从 10 改为 11，小号徽章不再把字缩到 10；`text_theme_floor_test.dart` 要求主题字号都不小于 11。
-4. S-05：核对后 `lib` 里只剩两处 `CircleAvatar(radius: 24)`，改用新 token `AppSpacing.avatarRadius`；`source_hygiene_test.dart` 也拒绝 `radius: 数字`。
-5. 审计总表状态一节改为“第 14 轮核对”，更新了 T-02、E-02、E-04、E-06、S-04、S-05。
+1. C-03：设置 → 本地识别的安装、暂停、识别已有模型、迁移和删除流程移到 `AiTranscriptionSettingsController`（`ai_transcription_settings_controller.dart`，`ChangeNotifier`，只依赖领域服务），有单元测试；`ai_transcription_settings_section.dart` 从约 590 行降到约 240 行，只留需要 `BuildContext` 的对话框、目录选择和提示条。四个源码契约测试同时读取 section、cards 和 controller。
+2. E-04 后续：`LyricEditorToolbar`、`LyricListPane`、`InspectorPane` 直接接收 `LyricReviewControls` / `LyricPlaybackControls`，自己算选中行、筛选、“显示全部歌词”、复核开关、播放头所在行和带偏移的跳转；内容组件不再拆包。新测试 `lyric_editor_panes_controls_test.dart`。
+3. A-04（D-036）：编辑器每一行对读屏是一个节点，一句话读出行号、时间段、文字和状态，选中是 `selected`，双击 / 右键 / 长按才有的编辑都成了自定义操作（`lyric_row_semantics.dart`）；行内编辑的两个时间、逐字时间小块和全屏 KTV（显示播放控制 / 退出全屏）也有了名字或操作。
+4. 审计总表状态一节改为“第 15 轮核对”：C-03 已处理，E-04 补充，A-04 仍为部分。
 
 ## Git 现场
 
-- 分支：`arena/16f148e6-lyric-forge-ktv`，基于 main `c4c73dd`。
-- 分支 PR #486。
-- 提交：`Drop the version suffix from smart proofreading`、`Group the editor's review and playback inputs`、`Remove the format probe and update the handoff`。
+- 分支：`arena/5f82c3bf-lyric-forge-ktv`，基于 main `84a50ae`。
+- PR #487（squash 合并）。
+- 提交：`Move the recognition settings flows into a controller`、`Give editor rows one spoken label`、`Fix nullable action labels and apply format`、`Remove the format probe and update the handoff`。
 
 ## 已改文件
 
-见工作日志 `2026-12-01-0930`、`2026-12-01-1100` 两条记录；新决定 D-035；审计总表状态一节。
+见工作日志 `2026-12-02-0930`、`2026-12-02-1100` 两条记录；新决定 D-036；审计总表状态一节。
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑，并用了临时探针工作流（合并前删除）。改名后变长或变短的行按 `dart format` 的规则手工重排过，第一次探针仍在三个文件里找出了格式差异（枚举名变短后可以合并的行），已按探针给出的差异修正。工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`（0 错误）。探针结果：格式无差异；analyze 184 条（与基线持平）；全部测试 3467 个通过、2 个跳过；本轮新增、改动和改名的测试文件共 323 个用例全过。
+沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR #487 的 CI 上跑，并用了临时探针工作流（合并前删除）。第一次探针发现新测试里 `CustomSemanticsAction.label` 是可空类型（两处编译错误）、两条新的 lint 提示和三个文件的格式差异，已修正。第二次结果：格式无差异；analyze 183 条（比基线 184 少一条）；全部测试 3541 个通过、2 个跳过；本轮新增和改动的测试文件共 133 个用例全过；Flutter Quality Gate 通过。工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`（0 错误）。
 
 ## 下一步
 
-- 状态一节里还剩：C-03（识别设置约 590 行，可再拆）、A-04（语义标注未全量走查）。
-- `LyricEditorToolbar`、`LyricListPane`、`InspectorPane` 仍各自接收播放和复核的零散参数，可以改为直接接收这两个分组。
-- 在真机上确认：11 号小字和小号徽章的观感；编辑器的筛选、开始复核、跟随播放和拆分行为没有变化。
+- A-04 剩下的无名点击区域（审计脚本找出，未处理）：`dashboard_now_playing.dart:449`、`dashboard_shelves.dart:123/220`、`import_audio_screen.dart:361`、`review_inbox_screen.dart:404`、`local_artist_album_browser_screen.dart:776/837`、`local_collections_screen.dart:1131`、`local_library_explorer_screen.dart:971`、`player_screen.dart:735/877`、`global_player_bar.dart:229`、`mobile_global_player_bar.dart:85`、`playback_queue_panel.dart:248`、`global_transcription_queue_bar.dart:57`、`mobile_remote_grouped_library_screen.dart:483`、`mobile_remote_music_library_screen.dart:698`。行号是第 15 轮开始时的位置。
+- 在真机上确认（第 14、15 轮都没做）：11 号小字和小号徽章；编辑器的筛选、开始复核、跟随播放和拆分；用 TalkBack / VoiceOver 听一遍编辑器行和全屏 KTV 的自定义操作。
+- `ai_transcription_settings_cards.dart` 仍有约 565 行，四张卡可以各自成文件，但目前没有维护上的问题。
 
 ## 已知风险
 
 - 都没有在运行中的应用里看过，详见工作日志。
-- `labelSmall` 用在约 75 处，字号加 1 后，很窄的行可能换行或截断；没有截图测试能发现这一点。
-- 改名只覆盖 `lib` 和 `test`；外部分支或未合并的工作如果还引用旧名，合并时会冲突。
-- 状态一节是按代码和注释核对的，不等于运行验证。
+- 编辑器行改成 `excludeSemantics` 后，行内徽章和试听按钮不再被单独读出；以后用 `find.bySemanticsLabel` 找行内片段的测试会找不到（D-036）。
+- 列表的“显示全部歌词”现在由筛选推出：只要筛选不是“全部”就出现，之前要看调用方是否传入回调。
+- 设置控制器在页面关闭后仍可能有下载或迁移在跑；它在每次 await 后检查 `isDisposed`，不会再通知已销毁的监听者，但后台操作本身不会被取消（与拆分前一致）。
 
-最后更新：2026-12-01 11:30（Asia/Taipei）
+最后更新：2026-12-02 11:30（Asia/Taipei）

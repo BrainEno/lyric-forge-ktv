@@ -5,13 +5,14 @@ import 'package:flutter/services.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../../player/domain/models/playback_state.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/secondary_only_suggestion.dart';
 import '../../domain/services/character_diff_service.dart';
+import '../../domain/services/lyric_review_decision_service.dart';
 import 'lyric_editor_actions.dart';
 import 'lyric_editor_atoms.dart';
+import 'lyric_editor_review_controls.dart';
 import 'lyric_word_timing_strip.dart';
 
 /// Right-hand inspector for the selected line: timestamps, confidence, nudges
@@ -21,17 +22,26 @@ import 'lyric_word_timing_strip.dart';
 /// editor's [LyricLineEditActions] group instead of five loose callbacks
 /// (audit E-04); only splitting stays separate, because the content binds the
 /// paused playhead into it first.
+///
+/// The selection and the review switch come from [LyricReviewControls], and
+/// the playhead, play state and seeking from [LyricPlaybackControls], the same
+/// groups the editor content receives (audit E-04). The pane used to take the
+/// selected index, the reviewed flag, the decision callback, the player
+/// state, the "this is our song" flag, the playhead row and the seek callback
+/// as seven arguments, each worked out by the content first.
 
 class InspectorPane extends StatelessWidget {
   final LyricDocument document;
-  final int? selectedIndex;
+
+  /// The selection, and whether and how its review can be recorded.
+  final LyricReviewControls review;
+
+  /// Play state, playhead and seeking.
+  final LyricPlaybackControls player;
+
+  /// The fallback candidate of the selected row, if any.
   final Map<String, dynamic>? fallbackCandidate;
   final SecondaryOnlySuggestion? secondarySuggestion;
-  final bool isReviewed;
-  final ValueChanged<bool>? onReviewDecision;
-  final PlaybackState playback;
-  final bool playbackBelongsToProject;
-  final int? currentPlaybackLine;
 
   /// Update, delete, merge and the two set-from-playback edits.
   final LyricLineEditActions edits;
@@ -40,9 +50,6 @@ class InspectorPane extends StatelessWidget {
   final void Function(int index, int? textOffset)? onSplitLine;
   final ValueChanged<int> onPreviewLine;
 
-  /// Seeks the project's audio to an audio position (word timing chips).
-  final ValueChanged<Duration>? onSeekPlayback;
-
   /// Opens word timing fine-tuning for the selected row.
   final VoidCallback? onEditWordTiming;
   final bool autofocusText;
@@ -50,43 +57,60 @@ class InspectorPane extends StatelessWidget {
 
   const InspectorPane({
     required this.document,
-    required this.selectedIndex,
+    required this.review,
+    required this.player,
     required this.fallbackCandidate,
     this.secondarySuggestion,
-    required this.isReviewed,
-    required this.onReviewDecision,
-    required this.playback,
-    required this.playbackBelongsToProject,
-    required this.currentPlaybackLine,
     required this.edits,
     this.onSplitLine,
     required this.onPreviewLine,
-    this.onSeekPlayback,
     this.onEditWordTiming,
     required this.autofocusText,
     required this.focusRequestId,
   });
 
+  /// The selected row while it is still a row of [document].
+  int? get selectedIndex => review.selectionWithin(document.lines.length);
+
+  /// Whether the row at [index] carries a recorded review.
+  bool isReviewed(int index) =>
+      const LyricReviewDecisionService().isReviewed(document, index);
+
+  /// What the review switch does for [index]; null when the row is neither
+  /// queued nor reviewed, so there is nothing to record or take back.
+  ValueChanged<bool>? decisionFor(int index) {
+    if (!review.canRecordDecision(index, isReviewed: isReviewed(index))) {
+      return null;
+    }
+    return (reviewed) => review.onDecision(index, reviewed);
+  }
+
+  /// The row at the playhead; null while the player is on another song.
+  int? get currentPlaybackLine {
+    final starts = [for (final line in document.lines) line.startTime];
+    return player.lineAt(starts, offset: _offset);
+  }
+
+  Duration get _offset => document.globalOffset ?? Duration.zero;
+
   @override
   Widget build(BuildContext context) {
     final index = selectedIndex;
-    if (index == null || index < 0 || index >= document.lines.length) {
-      return const NoSelectionInspector();
-    }
+    if (index == null) return const NoSelectionInspector();
 
     final line = document.lines[index];
     final merge = edits.onMergeLineWithNext;
+    final ours = player.belongsToProject;
     return LineInspector(
       key: ValueKey('inspector_${index}_$focusRequestId'),
       index: index,
       line: line,
       fallbackCandidate: fallbackCandidate,
       secondarySuggestion: secondarySuggestion,
-      isReviewed: isReviewed,
-      onReviewDecision: onReviewDecision,
-      isCurrentPlaybackLine:
-          playbackBelongsToProject && currentPlaybackLine == index,
-      isPlaying: playbackBelongsToProject && playback.isPlaying,
+      isReviewed: isReviewed(index),
+      onReviewDecision: decisionFor(index),
+      isCurrentPlaybackLine: currentPlaybackLine == index,
+      isPlaying: player.isPlaying,
       autofocusText: autofocusText,
       onUpdate: (updated) => edits.onUpdateLine(index, updated),
       onDelete: () => edits.onDeleteLine(index),
@@ -97,16 +121,11 @@ class InspectorPane extends StatelessWidget {
           ? null
           : () => merge(index),
       onPreview: () => onPreviewLine(index),
-      onUsePlaybackAsStart: playbackBelongsToProject
+      onUsePlaybackAsStart: ours
           ? () => edits.onSetStartFromPlayback(index)
           : null,
-      onUsePlaybackAsEnd: playbackBelongsToProject
-          ? () => edits.onSetEndFromPlayback(index)
-          : null,
-      onSeekToTime: playbackBelongsToProject && onSeekPlayback != null
-          ? (time) =>
-                onSeekPlayback!(time + (document.globalOffset ?? Duration.zero))
-          : null,
+      onUsePlaybackAsEnd: ours ? () => edits.onSetEndFromPlayback(index) : null,
+      onSeekToTime: ours ? (time) => player.onSeek(time + _offset) : null,
       onEditWordTiming: onEditWordTiming,
     );
   }

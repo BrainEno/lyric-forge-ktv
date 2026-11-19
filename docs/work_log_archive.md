@@ -84,6 +84,8 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-28 13:00] Pair lyric files in the library folder ([entry](log/entries/2026-11-28-1300-pair-lyric-files-in-the-library-folder.md))
+- [2026-11-28 11:00] Add a global bulk review button ([entry](log/entries/2026-11-28-1100-add-a-global-bulk-review-button.md))
 - [2026-11-28 09:30] Keep confirmed proofreading saved ([entry](log/entries/2026-11-28-0930-keep-confirmed-proofreading-saved.md))
 - [2026-11-27 13:00] Share transfer list states ([entry](log/entries/2026-11-27-1300-share-transfer-list-states.md))
 - [2026-11-27 11:30] Lift error text to AA ([entry](log/entries/2026-11-27-1130-lift-error-text-to-aa.md))

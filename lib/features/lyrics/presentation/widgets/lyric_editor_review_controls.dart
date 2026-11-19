@@ -11,6 +11,10 @@ import 'lyric_editor_toolbar.dart';
 // filter shows, which row is selected and where the playhead is from those
 // loose values. Each group now carries its values and answers those
 // questions itself, so the rules can be tested without building the editor.
+//
+// The content no longer unpacks the groups again for its children: the
+// toolbar, the list and the inspector take the same two objects, so a new
+// review or playback input is added in one place instead of four.
 
 /// Where the review queue stands and what the user can do with it.
 @immutable

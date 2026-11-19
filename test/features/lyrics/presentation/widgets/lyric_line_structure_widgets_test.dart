@@ -6,6 +6,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_review_queue
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/recognition_review_summary.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_draft_health_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_review_controls.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_inspector_pane.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_list_pane.dart';
@@ -131,13 +132,27 @@ void main() {
           body: LyricListPane(
             document: document,
             visibleIndices: const [0, 1],
-            reviewPriorityByIndex: const {},
-            filter: LyricReviewFilter.all,
+            review: LyricReviewControls(
+              queue: const LyricReviewQueue(
+                items: [],
+                lowConfidenceIndices: {},
+                totalLines: 2,
+                scoredLines: 2,
+                reviewedLines: 0,
+                confidenceThreshold: 70,
+              ),
+              priorityByIndex: const {},
+              filter: LyricReviewFilter.all,
+              selectedLineIndex: 0,
+              followPlayback: false,
+              onFilterChanged: (_) {},
+              onFollowPlaybackChanged: (_) {},
+              onSelectLine: (_) {},
+              onDecision: (_, _) {},
+            ),
             activeAuditionLineIndex: null,
             auditionPlaying: false,
-            selectedIndex: 0,
             currentPlaybackLine: null,
-            followPlayback: false,
             focusRequestId: 0,
             focusLineIndex: null,
             fallbackCandidateFor: (_) => null,

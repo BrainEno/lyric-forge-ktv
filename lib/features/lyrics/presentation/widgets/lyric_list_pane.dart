@@ -10,28 +10,35 @@ import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
 import '../lyric_review_strings.dart';
 import 'lyric_editor_atoms.dart';
+import 'lyric_editor_review_controls.dart';
 import 'lyric_editor_toolbar.dart';
 import 'lyric_row_audition_button.dart';
+import 'lyric_row_semantics.dart';
 
 /// The editor's scrolling line list: one row per lyric line, in either editable
 /// or review mode.
 ///
 /// Extracted from the editor screen (Phase 4.1) with its parameters unchanged
 /// so the behaviour stayed byte-for-byte while it became testable on its own.
+/// The review queue's priorities, the filter, the follow toggle and the
+/// selection now arrive as the editor's [LyricReviewControls] instead of five
+/// separate arguments (audit E-04); the getters below read them from it.
 
 class LyricListPane extends StatefulWidget {
   final LyricDocument document;
-  final List<int> visibleIndices;
-  final Map<int, LyricReviewPriority> reviewPriorityByIndex;
-  final LyricReviewFilter filter;
 
-  /// Clears the review filter; offered when the filter hides every line.
-  final VoidCallback? onShowAllLines;
+  /// The rows the filter shows, worked out once by the editor because the
+  /// bottom bar counts them too.
+  final List<int> visibleIndices;
+
+  /// Priorities, filter, follow toggle and selection.
+  final LyricReviewControls review;
   final int? activeAuditionLineIndex;
   final bool auditionPlaying;
-  final int? selectedIndex;
+
+  /// The row at the playhead, worked out once by the editor because the
+  /// inspector marks it too.
   final int? currentPlaybackLine;
-  final bool followPlayback;
   final int focusRequestId;
   final int? focusLineIndex;
   final Map<String, dynamic>? Function(int) fallbackCandidateFor;
@@ -40,6 +47,9 @@ class LyricListPane extends StatefulWidget {
   final Set<int> secondarySuggestionIndices;
   final ValueChanged<int>? onPreviewLine;
   final ValueChanged<int> onInsertedLineFocus;
+
+  /// What tapping a row does. On wide layouts this is the review group's
+  /// `onSelectLine`; on narrow ones the editor opens the row in a sheet.
   final ValueChanged<int> onSelectLine;
   final void Function(int, LyricLine) onUpdateLine;
   final ValueChanged<int> onDeleteLine;
@@ -57,14 +67,10 @@ class LyricListPane extends StatefulWidget {
   const LyricListPane({
     required this.document,
     required this.visibleIndices,
-    required this.reviewPriorityByIndex,
-    required this.filter,
-    this.onShowAllLines,
+    required this.review,
     required this.activeAuditionLineIndex,
     required this.auditionPlaying,
-    required this.selectedIndex,
     required this.currentPlaybackLine,
-    required this.followPlayback,
     required this.focusRequestId,
     required this.focusLineIndex,
     required this.fallbackCandidateFor,
@@ -80,6 +86,19 @@ class LyricListPane extends StatefulWidget {
     this.onSetEndFromPlayback,
     this.manuallyEditedLineIndices = const {},
   });
+
+  LyricReviewFilter get filter => review.filter;
+  bool get followPlayback => review.followPlayback;
+
+  /// The selected row while it is still a row of [document].
+  int? get selectedIndex => review.selectionWithin(document.lines.length);
+
+  /// Clears the review filter; offered when the filter hides every line,
+  /// and null while every line is already shown.
+  VoidCallback? get onShowAllLines {
+    if (review.filter == LyricReviewFilter.all) return null;
+    return () => review.onFilterChanged(LyricReviewFilter.all);
+  }
 
   @override
   State<LyricListPane> createState() => _LyricListPaneState();
@@ -452,7 +471,7 @@ class _LyricListPaneState extends State<LyricListPane> {
                   ),
                   isSecondarySuggestion: widget.secondarySuggestionIndices
                       .contains(index),
-                  priority: widget.reviewPriorityByIndex[index],
+                  priority: widget.review.priorityByIndex[index],
                   selected: widget.selectedIndex == index,
                   playing: widget.currentPlaybackLine == index,
                   hasAudio: widget.onPreviewLine != null,
@@ -634,43 +653,22 @@ class _InlineLyricEditorRowState extends State<InlineLyricEditorRow> {
                       ),
                     ),
                   ),
-                  InkWell(
+                  _EditableTimeLink(
+                    start: true,
+                    time: widget.line.startTime,
                     onTap: widget.onEditStartTime,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 4,
-                      ),
-                      child: Text(
-                        formatLyricDuration(widget.line.startTime),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.accent,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
+                  ),
+                  // The arrow is read as part of neither time.
+                  const ExcludeSemantics(
+                    child: Text(
+                      ' → ',
+                      style: TextStyle(color: AppColors.textTertiary),
                     ),
                   ),
-                  const Text(
-                    ' → ',
-                    style: TextStyle(color: AppColors.textTertiary),
-                  ),
-                  InkWell(
+                  _EditableTimeLink(
+                    start: false,
+                    time: widget.line.endTime,
                     onTap: widget.onEditEndTime,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 4,
-                      ),
-                      child: Text(
-                        formatLyricDuration(widget.line.endTime),
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.accent,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ),
                   ),
                   const Spacer(),
                   Text(
@@ -750,6 +748,47 @@ class _InlineLyricEditorRowState extends State<InlineLyricEditorRow> {
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A start or end time in the inline editor that opens the time dialog.
+///
+/// A screen reader used to hear only `00:12.40`, with no hint that it was a
+/// start time or that it could be changed (audit A-04).
+class _EditableTimeLink extends StatelessWidget {
+  final bool start;
+  final Duration time;
+  final VoidCallback? onTap;
+
+  const _EditableTimeLink({
+    required this.start,
+    required this.time,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      button: true,
+      excludeSemantics: true,
+      label: LyricRowSemantics.editableTime(start: start, time: time),
+      onTap: onTap,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Text(
+            formatLyricDuration(time),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.accent,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ),
       ),
@@ -1054,8 +1093,46 @@ class LyricReviewRow extends StatelessWidget {
     });
   }
 
+  /// The row as a screen reader meets it: one node that reads the whole row,
+  /// carries the selection, and lists every gesture-only edit as a custom
+  /// action (audit A-04). The pieces inside are not read one by one.
   @override
   Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      button: true,
+      selected: selected,
+      label: LyricRowSemantics.rowLabel(
+        index: index,
+        line: line,
+        playing: playing,
+        isReviewed: isReviewed,
+        priority: priority,
+        hasCandidate: fallbackCandidate != null,
+        isSecondarySuggestion: isSecondarySuggestion,
+        isManuallyEdited: isManuallyEdited,
+      ),
+      onTap: onTap,
+      onLongPress: onLongPress,
+      customSemanticsActions: LyricRowSemantics.rowActions(
+        onAudition: hasAudio ? onPreview : null,
+        auditionPlaying: auditionIsPlaying,
+        onEditText: onDoubleTap,
+        onEditStart: onEditStartTime,
+        onEditEnd: onEditEndTime,
+        onStartFromPlayback: onSetStartFromPlayback,
+        onEndFromPlayback: onSetEndFromPlayback,
+        onSplit: onSplit,
+        onMerge: onMergeWithNext,
+        onCopy: onCopy,
+        onDelete: onDelete,
+      ),
+      child: _buildRow(context),
+    );
+  }
+
+  Widget _buildRow(BuildContext context) {
     final spec = AppResponsive.of(context);
     final background = selected
         ? AppColors.bgSurface

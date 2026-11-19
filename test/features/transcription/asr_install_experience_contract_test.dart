@@ -73,6 +73,7 @@ void main() {
       final settings = [
         'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
         'lib/features/settings/presentation/widgets/ai_transcription_settings_cards.dart',
+        'lib/features/settings/presentation/widgets/ai_transcription_settings_controller.dart',
       ].map((path) => File(path).readAsStringSync()).join('\n');
 
       for (final source in [setup, settings]) {

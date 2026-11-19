@@ -3,7 +3,7 @@
 > 证据类型说明：本次全部问题来自**静态代码审计**（文件+行号可复核）；对比度为 WCAG 公式计算值；控件尺寸为代码 token 值。
 > **无运行截图证据**（环境原因见 `environment-diagnostic.md`），"截图"列一律为"无（静态）"，不得视为已运行验证。
 > 统计：**P0 × 0 · P1 × 4 · P2 × 18 · P3 × 21 · 合计 43**（2026-11-18 更正：T-01 由 P2 降为 P3）
-> **当前状态见文末「处理状态（第 14 轮核对）」。**下面各表保留审计时的原始描述，只有部分行补了处理记录；一行没写“已完成”不代表还没处理。
+> **当前状态见文末「处理状态（第 15 轮核对）」。**下面各表保留审计时的原始描述，只有部分行补了处理记录；一行没写“已完成”不代表还没处理。
 
 ## P1 —— 重大问题
 
@@ -76,9 +76,9 @@
 - 传输：T-01/02
 - 全局：B-01/02、A-01/02/03/04、S-01/04/05
 
-## 处理状态（第 14 轮核对）
+## 处理状态（第 15 轮核对）
 
-2026-11-30 按代码逐条核对，2026-12-01（第 14 轮）更新 T-02、E-02、E-04、E-06、S-04、S-05 六行。“依据”是能在仓库里复核的位置：多数是代码里写明 `audit <ID>` 的注释，或替代掉问题的共享组件。仍然**没有**运行截图，“已处理”指代码层面，不代表在运行的应用里看过。
+2026-11-30 按代码逐条核对，2026-12-01（第 14 轮）更新 T-02、E-02、E-04、E-06、S-04、S-05 六行，2026-12-02（第 15 轮）更新 C-03、E-04、A-04 三行。“依据”是能在仓库里复核的位置：多数是代码里写明 `audit <ID>` 的注释，或替代掉问题的共享组件。仍然**没有**运行截图，“已处理”指代码层面，不代表在运行的应用里看过。
 
 | ID | 状态 | 依据 |
 |---|---|---|
@@ -88,7 +88,7 @@
 | S-01 | 已处理 | `app_theme.dart` 不再声明未打包的 Inter，使用系统字体 |
 | C-01 | 已处理 | `dashboard_screen.dart`（audit C-01） |
 | C-02 | 已处理 | 校对菜单按 `LyricProofreadGroup` 分组（`lyric_proofread_menu_button.dart`） |
-| C-03 | 部分 | 卡片拆到 `ai_transcription_settings_cards.dart`，`ai_transcription_settings_section.dart` 从 1008 行降到约 590 行 |
+| C-03 | 已处理 | 卡片拆到 `ai_transcription_settings_cards.dart`；第 15 轮把安装、暂停、识别已有模型、迁移和删除流程移到 `ai_transcription_settings_controller.dart`（`ChangeNotifier`，有单元测试），`ai_transcription_settings_section.dart` 从约 590 行降到约 240 行，只留需要 `BuildContext` 的对话框、目录选择和提示条 |
 | C-04 | 已处理 | `core/widgets/app_artwork.dart` |
 | C-05 | 已处理 | `core/widgets/app_badge.dart` |
 | C-06 | 已处理 | `app_empty_state.dart`、`app_error_state.dart`、`app_loading_state.dart`；第 10、13 轮把传输页也换了过来 |
@@ -108,7 +108,7 @@
 | T-02 | 已处理 | 手机端三屏（第 10 轮）、桌面传输中心（第 13 轮）；第 14 轮去掉智能校对的 v2 文件名和类名（D-035），`proofread_naming_test.dart` 防止回退 |
 | D-06 | 已处理 | `dashboard_screen.dart` 从 1623 行拆到约 525 行，组件在 `home/presentation/widgets/` |
 | E-03 | 已处理 | 见上表（第 12 轮） |
-| E-04 | 已处理 | 参数按关注点分组（`lyric_editor_actions.dart`）；第 14 轮把复核队列和播放器的 13 个参数收成 `LyricReviewControls`、`LyricPlaybackControls`（`lyric_editor_review_controls.dart`），构造函数从 26 个参数降到 15 个，筛选、选中和播放行的规则有单元测试 |
+| E-04 | 已处理 | 参数按关注点分组（`lyric_editor_actions.dart`）；第 14 轮把复核队列和播放器的 13 个参数收成 `LyricReviewControls`、`LyricPlaybackControls`（`lyric_editor_review_controls.dart`），构造函数从 26 个参数降到 15 个，筛选、选中和播放行的规则有单元测试；第 15 轮工具栏、列表和右侧检查面板也直接接收这两个对象（`lyric_editor_panes_controls_test.dart`） |
 | E-05 | 已处理 | `line_inspector_sheet.dart`（audit E-05） |
 | E-06 | 已处理 | 第 14 轮 `labelSmall` 从 10 改为 11，小号徽章不再缩到 10；`text_theme_floor_test.dart` 要求主题字号不小于 11 |
 | L-03 | 已处理 | `app_theme.dart` 选中 chip 填充（audit L-03） |
@@ -125,4 +125,4 @@
 | R-04 | 已处理 | `route_not_found_screen.dart`，未知路由不再静默回首页 |
 | S-04 | 已处理 | `lyric_proofread_dialog.dart` 已不用 Material amber/green |
 | S-05 | 已处理 | 第 14 轮核对：`lib` 里只剩两处 `CircleAvatar(radius: 24)`，已改用 `AppSpacing.avatarRadius`；`source_hygiene_test.dart` 拒绝 `circular(数字)`、`fontSize: 数字` 和 `radius: 数字` |
-| A-04 | 部分 | `Semantics` 从 2 处增加到约 30 处（如 `player_bar_semantics.dart`），未做全量走查 |
+| A-04 | 部分 | `Semantics` 从 2 处增加到约 30 处（如 `player_bar_semantics.dart`）。第 15 轮按“可点但没有名字”的控件走查了一遍：编辑器每一行合成一个节点，读出行号、时间段、文字和状态（正在播放、待复核、已复核等），选中是真正的 selected 状态，双击/右键/长按才有的编辑都成了自定义操作（`lyric_row_semantics.dart`）；行内编辑的两个时间、逐字时间小块、全屏 KTV（单击显示控制、双击退出）也有了名字或操作。仍未处理：曲库、播放条和传输页里约 15 处没有名字的 `InkWell`/`GestureDetector`（见 `docs/handoff.md`）；也没在 TalkBack/VoiceOver 上实际听过 |

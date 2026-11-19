@@ -41,6 +41,9 @@ void main() {
       await File(
         'lib/features/settings/presentation/widgets/ai_transcription_settings_cards.dart',
       ).readAsString(),
+      await File(
+        'lib/features/settings/presentation/widgets/ai_transcription_settings_controller.dart',
+      ).readAsString(),
     ].join('\n');
     final card = await File(
       'lib/features/transcription/presentation/widgets/asr_storage_preflight_card.dart',

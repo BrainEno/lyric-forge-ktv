@@ -119,15 +119,6 @@ class LyricEditorContent extends StatelessWidget {
 
   Duration get _offset => document.globalOffset ?? Duration.zero;
 
-  /// What the inspector's review switch does for [index], or null when the
-  /// row can be neither marked nor unmarked.
-  ValueChanged<bool>? _decide(int? index) {
-    if (index == null) return null;
-    final reviewed = _isLineReviewed(index);
-    if (!review.canRecordDecision(index, isReviewed: reviewed)) return null;
-    return (value) => review.onDecision(index, value);
-  }
-
   /// The row at the playhead, or null when the player is on another song.
   int? _currentPlaybackLineIndex() {
     final starts = [for (final line in document.lines) line.startTime];
@@ -368,16 +359,9 @@ class LyricEditorContent extends StatelessWidget {
               children: [
                 LyricEditorToolbar(
                   document: document,
-                  playback: player.state,
-                  playbackBelongsToProject: player.belongsToProject,
-                  review: review.queue,
-                  filter: review.filter,
-                  followPlayback: review.followPlayback,
-                  onFilterChanged: review.onFilterChanged,
-                  onFollowPlaybackChanged: review.onFollowPlaybackChanged,
+                  player: player,
+                  review: review,
                   onUpdateOffset: edits.onUpdateOffset,
-                  onTogglePlayback: player.onToggle,
-                  onSeekPlayback: player.onSeek,
                   audition: audition,
                   proofread: proofread,
                 ),
@@ -424,19 +408,14 @@ class LyricEditorContent extends StatelessWidget {
                             final listPane = LyricListPane(
                               document: document,
                               visibleIndices: visibleIndices,
-                              selectedIndex: selectedIndex,
+                              review: review,
                               currentPlaybackLine: currentPlaybackLine,
-                              followPlayback: review.followPlayback,
                               focusRequestId: focusRequestId,
                               focusLineIndex: focusLineIndex,
                               fallbackCandidateFor: _fallbackCandidateFor,
                               secondarySuggestionIndices: secondarySuggestions
                                   .keys
                                   .toSet(),
-                              reviewPriorityByIndex: review.priorityByIndex,
-                              filter: review.filter,
-                              onShowAllLines: () =>
-                                  review.onFilterChanged(LyricReviewFilter.all),
                               activeAuditionLineIndex: audition.activeLineIndex,
                               auditionPlaying: audition.playing,
                               onPreviewLine: project.audioAsset == null
@@ -485,25 +464,17 @@ class LyricEditorContent extends StatelessWidget {
                                   width: layout.sidePanelWidth,
                                   child: InspectorPane(
                                     document: document,
-                                    selectedIndex: selectedIndex,
+                                    review: review,
+                                    player: player,
                                     fallbackCandidate: selectedIndex == null
                                         ? null
                                         : _fallbackCandidateFor(selectedIndex),
                                     secondarySuggestion: selectedIndex == null
                                         ? null
                                         : secondarySuggestions[selectedIndex],
-                                    isReviewed:
-                                        selectedIndex != null &&
-                                        _isLineReviewed(selectedIndex),
-                                    onReviewDecision: _decide(selectedIndex),
-                                    playback: player.state,
-                                    playbackBelongsToProject:
-                                        player.belongsToProject,
-                                    currentPlaybackLine: currentPlaybackLine,
                                     edits: edits,
                                     onSplitLine: _splitLine,
                                     onPreviewLine: audition.onPreviewLine,
-                                    onSeekPlayback: player.onSeek,
                                     onEditWordTiming: _batchTool(
                                       LyricBatchTextTool.wordTimingEdit,
                                     ),

@@ -1,10 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_review_queue.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_decision_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_review_controls.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_list_pane.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
+
+/// The review group the editor would pass for [document].
+LyricReviewControls reviewFor(
+  LyricDocument document, {
+  LyricReviewFilter filter = LyricReviewFilter.all,
+  Map<int, LyricReviewPriority> priorities = const {},
+  int? selectedLine,
+  bool followPlayback = false,
+  ValueChanged<LyricReviewFilter>? onFilterChanged,
+  ValueChanged<int>? onSelectLine,
+}) {
+  final count = document.lines.length;
+  return LyricReviewControls(
+    queue: LyricReviewQueue(
+      items: priorities.values.toList(),
+      lowConfidenceIndices: const {},
+      totalLines: count,
+      scoredLines: count,
+      reviewedLines: 0,
+      confidenceThreshold: 70,
+    ),
+    priorityByIndex: priorities,
+    filter: filter,
+    selectedLineIndex: selectedLine,
+    followPlayback: followPlayback,
+    onFilterChanged: onFilterChanged ?? (_) {},
+    onFollowPlaybackChanged: (_) {},
+    onSelectLine: onSelectLine ?? (_) {},
+    onDecision: (_, _) {},
+  );
+}
 
 void main() {
   late List<int> selected;
@@ -19,6 +52,7 @@ void main() {
     Map<String, dynamic>? candidate,
     Size? viewport,
     VoidCallback? onShowAllLines,
+    int? selectedLine,
   }) {
     return MaterialApp(
       builder: viewport == null
@@ -33,14 +67,18 @@ void main() {
           child: LyricListPane(
             document: document,
             visibleIndices: visibleIndices,
-            reviewPriorityByIndex: priorities,
-            filter: filter,
-            onShowAllLines: onShowAllLines,
+            review: reviewFor(
+              document,
+              filter: filter,
+              priorities: priorities,
+              selectedLine: selectedLine,
+              onFilterChanged: (value) {
+                if (value == LyricReviewFilter.all) onShowAllLines?.call();
+              },
+            ),
             activeAuditionLineIndex: null,
             auditionPlaying: false,
-            selectedIndex: null,
             currentPlaybackLine: null,
-            followPlayback: false,
             focusRequestId: 0,
             focusLineIndex: null,
             fallbackCandidateFor: (_) => candidate,
@@ -224,7 +262,7 @@ void main() {
     );
 
     expect(find.text('当前筛选下没有待处理歌词'), findsOneWidget);
-    // Without a host callback there is nothing to offer.
+    // Every line is already shown, so there is nothing to go back to.
     expect(find.text('显示全部歌词'), findsNothing);
   });
 
