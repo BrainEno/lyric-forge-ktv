@@ -29,6 +29,7 @@ import '../controllers/lyric_batch_text_tools_coordinator.dart';
 import '../controllers/lyric_export_coordinator.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
+import '../widgets/lyric_editor_actions.dart';
 import '../widgets/lyric_editor_atoms.dart';
 import '../widgets/lyric_editor_content.dart';
 import '../widgets/lyric_editor_toolbar.dart';
@@ -1070,18 +1071,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                         hasChanges: editorState.hasChanges,
                         reviewPriorityByIndex: _reviewPriorityByIndex,
                         reviewQueue: _reviewQueue,
-                        activeAuditionLineIndex: _activeAuditionLineIndex,
-                        auditionPlaying:
-                            playbackBelongsToProject && playback.isPlaying,
-                        loopCurrentLineAudition: _audition.loopEnabled,
-                        onLoopCurrentLineAuditionChanged: (value) {
-                          _audition.loopEnabled = value;
-                          _showEditHint(
-                            value
-                                ? LyricReviewStrings.loopCurrentLineEnabled
-                                : LyricReviewStrings.loopCurrentLineDisabled,
-                          );
-                        },
                         followPlayback: _followPlayback,
                         selectedLineIndex: editorState.selectedLineIndex,
                         filter: _filter,
@@ -1102,60 +1091,49 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                             ),
                         onSave: () => _saveChanges(project),
                         isSaving: _saveInFlight != null,
-                        onUndo: _undo,
-                        onRedo: _redo,
-                        canUndo: editorState.canUndo,
-                        canRedo: editorState.canRedo,
-                        undoLabel: editorState.undoLabel,
-                        redoLabel: editorState.redoLabel,
+                        history: LyricUndoRedoControls(
+                          onUndo: _undo,
+                          onRedo: _redo,
+                          canUndo: editorState.canUndo,
+                          canRedo: editorState.canRedo,
+                          undoLabel: editorState.undoLabel,
+                          redoLabel: editorState.redoLabel,
+                        ),
+                        proofread: LyricProofreadActions.forDocument(
+                          hasLines: document.lines.isNotEmpty,
+                          proofreadV2Running: _proofreadV2InProgress,
+                          alignment: editorState.alignmentSnapshot,
+                          canRestore: canRestore,
+                          referenceAlignment: () =>
+                              _openReferenceAlignment(project),
+                          referenceProofread: () =>
+                              _openReferenceProofread(project),
+                          proofreadV2: () => _openProofreadV2(project),
+                          undoAlignment: _undoAlignmentApply,
+                          viewComparison: () =>
+                              _showAlignmentComparison(project),
+                          restoreAlignment: _restoreAlignmentBackup,
+                          unifyChineseScript: _openChineseScriptUnification,
+                          batchTextTool: (tool) => _batchTools.open(
+                            tool,
+                            project: project,
+                            document: _editingDocument,
+                          ),
+                        ),
+                        edits: _lineEditActions,
+                        audition: LyricAuditionControls(
+                          onPreviewLine: (index) =>
+                              _previewLine(project, index),
+                          activeLineIndex: _activeAuditionLineIndex,
+                          playing:
+                              playbackBelongsToProject && playback.isPlaying,
+                          loopCurrentLine: _audition.loopEnabled,
+                          onLoopCurrentLineChanged: _setLoopCurrentLine,
+                        ),
                         onExport: () => _exportLyrics(project),
-                        onReferenceAlignment: document.lines.isEmpty
-                            ? null
-                            : () => _openReferenceAlignment(project),
-                        onReferenceProofread: document.lines.isEmpty
-                            ? null
-                            : () => _openReferenceProofread(project),
-                        onProofreadV2:
-                            document.lines.isEmpty || _proofreadV2InProgress
-                            ? null
-                            : () => _openProofreadV2(project),
-                        onUndoReferenceAlignment:
-                            editorState.alignmentSnapshot == null
-                            ? null
-                            : _undoAlignmentApply,
-                        onViewAlignmentComparison:
-                            editorState.alignmentSnapshot == null ||
-                                editorState
-                                    .alignmentSnapshot!
-                                    .isReferenceProofread
-                            ? null
-                            : () => _showAlignmentComparison(project),
-                        onRestoreAlignment: canRestore
-                            ? _restoreAlignmentBackup
-                            : null,
-                        onUnifyChineseScript: document.lines.isEmpty
-                            ? null
-                            : _openChineseScriptUnification,
-                        onBatchTextTool: document.lines.isEmpty
-                            ? null
-                            : (tool) => _batchTools.open(
-                                tool,
-                                project: project,
-                                document: _editingDocument,
-                              ),
-                        onAddLine: _addNewLine,
-                        onInsertAtPlayback: _insertLineAtPlayback,
                         onSeekPlayback: _seekPlayback,
                         focusRequestId: _focusRequestId,
                         focusLineIndex: _focusLineIndex,
-                        onUpdateLine: _updateLine,
-                        onDeleteLine: _deleteLine,
-                        onSplitLine: _splitLine,
-                        onMergeLineWithNext: _mergeLineWithNext,
-                        onUpdateOffset: _updateGlobalOffset,
-                        onPreviewLine: (index) => _previewLine(project, index),
-                        onSetStartFromPlayback: _setLineStartFromPlayback,
-                        onSetEndFromPlayback: _setLineEndFromPlayback,
                         onTogglePlayback: () => _togglePlayback(project),
                         manuallyEditedLineIndices: _manuallyEditedLineIndices,
                       );
@@ -1165,6 +1143,27 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
               ),
         );
       },
+    );
+  }
+
+  LyricLineEditActions get _lineEditActions => LyricLineEditActions(
+    onAddLine: _addNewLine,
+    onInsertAtPlayback: _insertLineAtPlayback,
+    onUpdateLine: _updateLine,
+    onDeleteLine: _deleteLine,
+    onSplitLine: _splitLine,
+    onMergeLineWithNext: _mergeLineWithNext,
+    onUpdateOffset: _updateGlobalOffset,
+    onSetStartFromPlayback: _setLineStartFromPlayback,
+    onSetEndFromPlayback: _setLineEndFromPlayback,
+  );
+
+  void _setLoopCurrentLine(bool value) {
+    _audition.loopEnabled = value;
+    _showEditHint(
+      value
+          ? LyricReviewStrings.loopCurrentLineEnabled
+          : LyricReviewStrings.loopCurrentLineDisabled,
     );
   }
 

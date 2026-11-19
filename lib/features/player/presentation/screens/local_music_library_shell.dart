@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/routes.dart';
+import '../../../../core/navigation/transfer_entry.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../local_library_dependencies.dart';
@@ -100,14 +100,7 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
     }
   }
 
-  void _openTransfer() {
-    Navigator.pushNamed(
-      context,
-      AppResponsive.isDesktopTarget()
-          ? Routes.mediaSharing
-          : Routes.remoteLibrary,
-    );
-  }
+  void _openTransfer() => TransferEntry.open(context);
 
   /// Built once per dependency object: the sections live in an `IndexedStack`,
   /// so rebuilding them on every parent frame would throw away their scroll
@@ -237,12 +230,12 @@ class _SectionStrip extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             IconButton.filledTonal(
               key: LocalMusicLibraryShell.transferButtonKey,
-              tooltip: '跨设备传输',
+              tooltip: TransferEntry.label,
               onPressed: onOpenTransfer,
               style: IconButton.styleFrom(
                 minimumSize: Size.square(layout.minimumInteractiveExtent),
               ),
-              icon: const Icon(Icons.devices_rounded),
+              icon: const Icon(TransferEntry.icon),
             ),
           ],
         ),

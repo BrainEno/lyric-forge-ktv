@@ -92,7 +92,13 @@ class _RemoteMediaArtworkState extends State<RemoteMediaArtwork> {
         height: widget.extent,
         color: AppColors.bgSurface,
         child: localExists
-            ? Image.file(local, fit: BoxFit.cover)
+            ? Image.file(
+                local,
+                fit: BoxFit.cover,
+                // A downloaded cover that cannot be decoded falls back like a
+                // failed download does (audit C-04).
+                errorBuilder: (_, _, _) => _Fallback(icon: widget.fallbackIcon),
+              )
             : _remoteImage(),
       ),
     );

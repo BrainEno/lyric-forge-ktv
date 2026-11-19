@@ -2,34 +2,34 @@
 
 ## 目标
 
-审计路线的第五轮（PR #476 已合并为 `2fb8680`）。用户取消了每个提交的规模约定，这一轮继续多做几个任务：
+审计路线的第六轮（PR #477 已合并为 `aa71744`）。每轮多做几个任务，lib+test 代码量至少 800 行：
 
-1. P-02 工程详情：人声/伴奏导入收进“伴奏与人声”折叠行，行内显示已有哪些音轨。
-2. A-04 播放条读屏标注：两个播放条的标题区读作一个按钮“正在播放：歌名，歌手”；加载时播放键读“正在加载”；队列按钮读“播放队列，N 首”并报告展开状态；音乐库搜索的清除按钮补上提示。
-3. E-05 窄屏行检查器：底部面板从固定 88% 改为先开到 62%，显示上一行/下一行，可拖动到 40% 或 92%，加关闭按钮并避开键盘。
-4. SE-06 设置页宽屏双栏：内容宽 ≥1080 时“AI 识别”在左（3:2），“故障排查”在右，跨断点缩放时保留状态。
-5. P-01 工程详情的制作进度：最后一种自制 pill（`_StagePill`）换成连线步骤条，完成/当前/未开始一眼可分，手机上不再横向滚动，读屏读“第 N 步，共 5 步”。
+1. N-01 播放入口拆分意图：`PlaybackDestination` 统一规则；首页“打开音乐/选择音乐”去音乐库，最近播放恢复到本地播放器，正在播放卡片按歌曲类型打开对应播放器；`/quick-play` 深链用同一规则。
+2. L-02 传输入口：`TransferEntry` 统一名称“跨设备传输”、图标和路由；首页头部去掉桌面端“远程音乐库”按钮，改为“更多”菜单第一项（手机也有）；两个传输页标题统一。
+3. D-06 首页拆分：`dashboard_screen.dart` 从约 1600 行降到约 520 行，播放区、后台任务卡、列表区和公共外观拆到 `home/presentation/widgets/` 四个文件，行为不变，新增列表区组件测试。
+4. C-04 封面收敛：工程播放器、工程详情、歌曲信息对话框、手机下载列表四处裸 `Image.file` 改用 `AppArtwork`（无法解码时显示统一占位）；远程封面本地分支补 `errorBuilder`；新增架构测试防回退。
+5. E-04 歌词编辑器参数分组：`LyricEditorContent` 50 个参数中 31 个归入 `LyricUndoRedoControls`、`LyricProofreadActions`、`LyricLineEditActions`、`LyricAuditionControls` 四个不可变对象，剩 23 个；页面用三个构建方法组装，可用性规则不变。
 
 ## Git 现场
 
-- 分支：`arena/1cf88c2c-lyric-forge-ktv`，基于 main `2fb8680`。
-- 提交：`Fold track imports on the project page`；`Label the player bars for screen readers`；`Let the narrow line inspector sheet resize`；`Put settings groups side by side on wide windows`；`Show production progress as connected steps`；另有两个测试/行为修正提交。
+- 分支：`arena/5b49c7af-lyric-forge-ktv`，基于 main `aa71744`。
+- 提交：`Give each player entry its own route`；`Give device transfer one name and two entries`；`Split the dashboard into section widgets`；`Route the last bare covers through AppArtwork`；`Group the lyric editor inputs`。
 
 ## 已改文件
 
-见工作日志 `2026-11-24-1210-fold-track-imports-on-the-project-page.md`（工程详情的伴奏与人声折叠）和 `2026-11-24-1220-label-the-player-bars-for-screen-readers.md`（播放条读屏标注）、`2026-11-24-1240-let-the-narrow-line-inspector-sheet-resize.md`（窄屏行检查器）、`2026-11-24-1300-put-settings-groups-side-by-side-on-wide-windows.md`（设置页双栏）、`2026-11-24-1320-show-production-progress-as-connected-steps.md`（制作进度步骤条）。
+见工作日志 `2026-11-25-1000-give-each-player-entry-its-own-route.md`（播放入口拆分）、`2026-11-25-1020-give-device-transfer-one-name-and-two-entries.md`（传输入口）、`2026-11-25-1040-split-the-dashboard-into-section-widgets.md`（首页拆分）、`2026-11-25-1100-route-the-last-bare-covers-through-appartwork.md`（封面收敛）、`2026-11-25-1120-group-the-lyric-editor-inputs.md`（编辑器参数分组）。
 
 ## 检查结果
 
-沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。注意：CI 在 `flutter pub get` 之后才运行 `dart format`，排查格式问题以 pub get 之后的结果为准。
+沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行；本轮 CI（Flutter Quality Gate）全绿。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。注意：CI 在 `flutter pub get` 之后才运行 `dart format`，排查格式问题以 pub get 之后的结果为准。
 
 ## 下一步
 
-- 审计剩余项：L-02（传输入口收敛）、P-03、N-01（`/quick-play` 意图拆分）、D-06（dashboard 拆文件）、E-04（编辑器构造参数对象化）、B-01/B-02、S-01 字体、播放条紧凑控件。
-- 临时 probe 工作流已删除；以后需要时可在推送前临时加回，合并前删掉。
+- 剩余审计项：P-03（工程详情宽屏，需运行验证）、B-01 品牌红色、S-01 字体、T-02 传输子域简化；编辑器子面板继续改用分组参数（E-04 后续）。
 
 ## 已知风险
 
 - 没有在运行中的应用里看过。详见工作日志。
+- 首页拆分和编辑器参数分组是脚本改写，依赖 CI 的 analyze 与现有页面测试兜底。
 
-最后更新：2026-11-24 13:20（Asia/Taipei）
+最后更新：2026-11-25 11:20（Asia/Taipei）

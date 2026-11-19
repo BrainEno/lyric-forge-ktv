@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +8,7 @@ import '../../../../core/navigation/routes.dart';
 import '../project_detail_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../../core/widgets/app_error_state.dart';
@@ -656,9 +656,6 @@ class _ProjectArtwork extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
-    final path = project.audioAsset?.thumbnailPath;
-    final file = path == null ? null : File(path);
-    final hasArtwork = file != null && file.existsSync();
     final size = spec.isShort
         ? 96.0
         : compact
@@ -667,22 +664,12 @@ class _ProjectArtwork extends StatelessWidget {
         ? 180.0
         : 164.0;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: const BoxDecoration(gradient: AppColors.playerGradient),
-        child: hasArtwork
-            ? Image.file(file, fit: BoxFit.cover)
-            : Center(
-                child: Icon(
-                  Icons.album_rounded,
-                  size: size * 0.42,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-      ),
+    // Shared cover: same placeholder as the library and the player, and no
+    // broken image when the thumbnail cannot be decoded (audit C-04).
+    return AppArtwork(
+      path: project.audioAsset?.thumbnailPath,
+      size: size,
+      borderRadius: AppSpacing.radiusLarge,
     );
   }
 }

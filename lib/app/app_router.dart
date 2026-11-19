@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/diagnostics/app_logger.dart';
+import '../core/navigation/playback_destination.dart';
 import '../core/navigation/route_not_found_screen.dart';
 import '../core/navigation/routes.dart';
 import '../features/home/presentation/screens/dashboard_screen.dart';
@@ -83,37 +84,32 @@ class AppRouter {
         return _fadeRoute(_libraryShell(4), settings);
 
       case Routes.quickPlay:
+        // The same rules the dashboard uses before it pushes, so a bare
+        // `/quick-play` lands where a tap would (audit N-01).
         final history = settings.arguments is PlayHistory
             ? settings.arguments as PlayHistory
             : null;
-        if (history != null) {
-          return _fadeRoute(
-            QuickPlayScreen(
-              initialHistory: history,
-              dependencies: assembleLocalLibraryDependencies(services),
-            ),
-            settings,
-          );
-        }
         final current =
             services.playbackSessionService.currentState.currentItem;
-        if (current?.isRemoteStream == true) {
-          return _fadeRoute(
-            NowPlayingScreen(
-              dependencies: assembleNowPlayingDependencies(services),
-            ),
-            settings,
-          );
-        }
-        if (current != null) {
-          return _fadeRoute(
-            QuickPlayScreen(
-              dependencies: assembleLocalLibraryDependencies(services),
-            ),
-            settings,
-          );
-        }
-        return _fadeRoute(_libraryShell(0), settings);
+        final destination = PlaybackDestination.resolve(
+          hasCurrent: current != null,
+          projectId: current?.projectId,
+          isRemoteStream: current?.isRemoteStream ?? false,
+          resumingHistory: history != null,
+        );
+        final screen = switch (destination) {
+          PlaybackDestination.nowPlaying => NowPlayingScreen(
+            dependencies: assembleNowPlayingDependencies(services),
+          ),
+          PlaybackDestination.library => _libraryShell(0),
+          // A local song, a resumed history entry, or a project song, which
+          // the local player hands over to its project player.
+          _ => QuickPlayScreen(
+            initialHistory: history,
+            dependencies: assembleLocalLibraryDependencies(services),
+          ),
+        };
+        return _fadeRoute(screen, settings);
 
       case Routes.nowPlaying:
         return _fadeRoute(

@@ -98,4 +98,30 @@ void main() {
     expect(image.image, isA<NetworkImage>());
     expect((image.image as NetworkImage).url, 'https://example.com/cover.jpg');
   });
+
+  // The project player, project detail, metadata dialog and download list
+  // used a bare Image.file, which paints a broken image for a cover that
+  // exists but cannot be decoded. They now use AppArtwork (audit C-04).
+  testWidgets('a cover file that cannot be decoded shows the placeholder', (
+    tester,
+  ) async {
+    final dir = Directory.systemTemp.createTempSync('app_artwork_broken');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final cover = File('${dir.path}${Platform.pathSeparator}broken.jpg')
+      ..writeAsBytesSync(const [1, 2, 3, 4, 5, 6, 7, 8]);
+    final placeholder = find.byIcon(Icons.album_rounded);
+
+    await tester.runAsync(() async {
+      await tester.pumpWidget(_host(AppArtwork(path: cover.path, size: 80)));
+      expect(find.byType(Image), findsOneWidget);
+      for (var i = 0; i < 40 && placeholder.evaluate().isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await tester.pump();
+      }
+    });
+    await tester.pump();
+
+    expect(placeholder, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
