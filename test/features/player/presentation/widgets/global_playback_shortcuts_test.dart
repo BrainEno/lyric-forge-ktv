@@ -20,10 +20,8 @@ class _FakeSession implements PlaybackSessionService {
   final List<String> calls = [];
 
   @override
-  PlaybackSessionState get currentState => PlaybackSessionState(
-    queue: queue,
-    currentIndex: queue.isEmpty ? -1 : 0,
-  );
+  PlaybackSessionState get currentState =>
+      PlaybackSessionState(queue: queue, currentIndex: queue.isEmpty ? -1 : 0);
 
   @override
   PlaybackState get playbackState {
@@ -59,10 +57,8 @@ Future<void> _pump(
 }) {
   return tester.pumpWidget(
     MaterialApp(
-      builder: (context, child) => GlobalPlaybackShortcuts(
-        playbackSession: session,
-        child: child!,
-      ),
+      builder: (context, child) =>
+          GlobalPlaybackShortcuts(playbackSession: session, child: child!),
       home: Scaffold(
         body: Column(
           children: [
