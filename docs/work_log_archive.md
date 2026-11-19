@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-24 12:40] Let the narrow line inspector sheet resize ([entry](log/entries/2026-11-24-1240-let-the-narrow-line-inspector-sheet-resize.md))
 - [2026-11-24 12:20] Label the player bars for screen readers ([entry](log/entries/2026-11-24-1220-label-the-player-bars-for-screen-readers.md))
 - [2026-11-24 12:10] Fold track imports on the project page ([entry](log/entries/2026-11-24-1210-fold-track-imports-on-the-project-page.md))
 - [2026-11-24 12:00] Issue cleanup: logged best-effort steps, ASR endpoints, one resumable downloader ([entry](log/entries/2026-11-24-1200-issue-cleanup-errors-endpoints-downloads.md))

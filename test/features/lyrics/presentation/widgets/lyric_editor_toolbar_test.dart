@@ -3,7 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_review_queue.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_actions.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
@@ -83,7 +86,11 @@ void main() {
     LyricReviewQueue? review,
     LyricReviewFilter filter = LyricReviewFilter.all,
     bool followPlayback = true,
-    VoidCallback? onProofreadV2 = _noop,
+    LyricProofreadActions proofread = const LyricProofreadActions(
+      onProofreadV2: _noop,
+    ),
+    bool loopCurrentLine = false,
+    ValueChanged<bool>? onLoopChanged,
   }) {
     return MaterialApp(
       home: Scaffold(
@@ -94,19 +101,17 @@ void main() {
           review: review ?? _queue(),
           filter: filter,
           onFilterChanged: (value) => selectedFilter = value,
-          loopCurrentLineAudition: false,
-          onLoopCurrentLineAuditionChanged: (_) {},
           followPlayback: followPlayback,
           onFollowPlaybackChanged: (_) {},
           onUpdateOffset: (value) => updatedOffset = value,
           onTogglePlayback: () => calls.add('play'),
           onSeekPlayback: (_) {},
-          onReferenceAlignment: null,
-          onReferenceProofread: null,
-          onProofreadV2: onProofreadV2,
-          onUndoReferenceAlignment: null,
-          onViewAlignmentComparison: null,
-          onRestoreAlignment: null,
+          audition: LyricAuditionControls(
+            onPreviewLine: (_) {},
+            loopCurrentLine: loopCurrentLine,
+            onLoopCurrentLineChanged: onLoopChanged ?? (_) {},
+          ),
+          proofread: proofread,
         ),
       ),
     );
@@ -254,19 +259,15 @@ void main() {
             review: _queue(needsReview: 0, lowConfidence: 0, totalLines: 1),
             filter: LyricReviewFilter.all,
             onFilterChanged: (_) {},
-            loopCurrentLineAudition: false,
-            onLoopCurrentLineAuditionChanged: (_) {},
             followPlayback: true,
             onFollowPlaybackChanged: (_) {},
             onUpdateOffset: (value) => updatedOffset = value,
             onTogglePlayback: () {},
             onSeekPlayback: (_) {},
-            onReferenceAlignment: null,
-            onReferenceProofread: null,
-            onProofreadV2: null,
-            onUndoReferenceAlignment: null,
-            onViewAlignmentComparison: null,
-            onRestoreAlignment: null,
+            audition: LyricAuditionControls(
+              onPreviewLine: (_) {},
+              onLoopCurrentLineChanged: (_) {},
+            ),
           ),
         ),
       ),
@@ -294,6 +295,69 @@ void main() {
       const Size(1280, 900),
     );
     expect(find.text('循环本行'), findsOneWidget);
+  });
+
+  testWidgets('循环本行开关读写试听分组', (tester) async {
+    bool? toggled;
+    await pumpAt(
+      tester,
+      buildToolbar(
+        filter: LyricReviewFilter.needsReview,
+        loopCurrentLine: true,
+        onLoopChanged: (value) => toggled = value,
+      ),
+      const Size(1280, 900),
+    );
+
+    final chip = tester.widget<FilterChip>(
+      find.ancestor(of: find.text('循环本行'), matching: find.byType(FilterChip)),
+    );
+    expect(chip.selected, isTrue);
+
+    await tester.tap(find.text('循环本行'));
+    await tester.pumpAndSettle();
+    expect(toggled, isFalse);
+  });
+
+  testWidgets('校对分组原样交给菜单：批量工具按种类回调', (tester) async {
+    final tools = <LyricBatchTextTool>[];
+    await pumpAt(
+      tester,
+      buildToolbar(
+        proofread: LyricProofreadActions(
+          onReferenceAlignment: () => calls.add('alignment'),
+          onBatchTextTool: tools.add,
+        ),
+      ),
+      // Tall enough for the whole menu, so every entry can be tapped.
+      const Size(1280, 2400),
+    );
+
+    await tester.tap(find.text('校对'));
+    await tester.pumpAndSettle();
+    // Only the tools the group offers are listed; 智能校对 is not among them.
+    expect(find.text('智能校对'), findsNothing);
+    await tester.tap(find.text(LyricTapSyncStrings.actionTitle));
+    await tester.pumpAndSettle();
+    expect(tools, [LyricBatchTextTool.tapSync]);
+
+    await tester.tap(find.text('校对'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('参考歌词纠正'));
+    await tester.pumpAndSettle();
+    expect(calls, ['alignment']);
+  });
+
+  testWidgets('没有可用的校对工具时不显示校对菜单', (tester) async {
+    await pumpAt(
+      tester,
+      buildToolbar(proofread: LyricProofreadActions.none),
+      const Size(1280, 900),
+    );
+
+    expect(find.text('校对'), findsNothing);
+    // play, filter, follow, offset
+    expect(tester.widgetList(_interactiveControls).length, 4);
   });
 
   testWidgets('更多的入口按可用性出现', (tester) async {

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import 'lyric_asr_loop_dialog.dart';
+import 'lyric_batch_text_edit.dart';
+import 'lyric_editor_actions.dart';
 import 'lyric_find_replace_dialog.dart';
 import 'lyric_missed_repeat_dialog.dart';
 import 'lyric_pace_check_dialog.dart';
@@ -101,6 +103,46 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.onRestoreBackup,
     this.compact = false,
   });
+
+  /// The menu for the editor's [actions] group.
+  ///
+  /// The toolbar and the narrow app bar used to spell out the same twenty
+  /// arguments each, mapping every batch tool to its callback by hand, so a
+  /// new tool had to be wired in three places (audit E-04). The mapping now
+  /// lives here once.
+  factory LyricProofreadMenuButton.forActions(
+    LyricProofreadActions actions, {
+    Key? key,
+    bool compact = false,
+  }) {
+    final open = actions.onBatchTextTool;
+    VoidCallback? tool(LyricBatchTextTool value) =>
+        open == null ? null : () => open(value);
+    return LyricProofreadMenuButton(
+      key: key,
+      compact: compact,
+      onProofreadV2: actions.onProofreadV2,
+      onReferenceAlignment: actions.onReferenceAlignment,
+      onReferenceProofread: actions.onReferenceProofread,
+      onUnifyChineseScript: actions.onUnifyChineseScript,
+      onRepetitionConsistency: tool(LyricBatchTextTool.repetitionConsistency),
+      onTextCleanup: tool(LyricBatchTextTool.textCleanup),
+      onAsrLoopCheck: tool(LyricBatchTextTool.asrLoopCheck),
+      onMissedRepeatCheck: tool(LyricBatchTextTool.missedRepeatCheck),
+      onSpanRecognition: tool(LyricBatchTextTool.spanRecognition),
+      onLineStructure: tool(LyricBatchTextTool.lineStructure),
+      onTimelineRepair: tool(LyricBatchTextTool.timelineRepair),
+      onTimingShift: tool(LyricBatchTextTool.timingShift),
+      onPaceCheck: tool(LyricBatchTextTool.paceCheck),
+      onTapSync: tool(LyricBatchTextTool.tapSync),
+      onWordTap: tool(LyricBatchTextTool.wordTap),
+      onWordTimingCheck: tool(LyricBatchTextTool.wordTimingCheck),
+      onFindReplace: tool(LyricBatchTextTool.findReplace),
+      onViewComparison: actions.onViewAlignmentComparison,
+      onUndoAlignment: actions.onUndoReferenceAlignment,
+      onRestoreBackup: actions.onRestoreAlignment,
+    );
+  }
 
   /// 智能校对: builds a proposal from the ASR evidence without writing it.
   final VoidCallback? onProofreadV2;
