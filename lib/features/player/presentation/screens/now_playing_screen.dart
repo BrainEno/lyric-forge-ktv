@@ -4,7 +4,6 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
@@ -14,10 +13,11 @@ import '../../domain/services/playback_session_service.dart';
 import '../playback_screen_dependencies.dart';
 import '../widgets/now_playing_lyrics_project_action.dart';
 import '../widgets/playback_artwork.dart';
+import '../widgets/playback_facts.dart';
 import '../widgets/playback_mode_controls.dart';
 import '../widgets/playback_queue_panel.dart';
 import '../widgets/seekable_progress_bar.dart';
-import '../widgets/transport_bar.dart';
+import '../widgets/session_transport_bar.dart';
 
 /// Full-screen view of the app-scoped playback session.
 ///
@@ -282,7 +282,7 @@ class _NowPlayingCard extends StatelessWidget {
     final albumText = album is String && album.trim().isNotEmpty
         ? album.trim()
         : null;
-    final source = _sourcePresentation(item);
+    final origin = PlaybackOrigin.of(item);
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -307,7 +307,7 @@ class _NowPlayingCard extends StatelessWidget {
               lyricsResolver: lyricsResolver,
               immersiveKtv: immersiveKtv,
               album: albumText,
-              source: source,
+              origin: origin,
               sessionState: sessionState,
               playback: playback,
               session: session,
@@ -365,7 +365,7 @@ class _NowPlayingDetails extends StatelessWidget {
   final PlaybackLyricsResolver lyricsResolver;
   final ImmersiveKtvDependencies immersiveKtv;
   final String? album;
-  final ({String label, String chip}) source;
+  final PlaybackOrigin origin;
   final PlaybackSessionState sessionState;
   final PlaybackState playback;
   final PlaybackSessionService session;
@@ -378,7 +378,7 @@ class _NowPlayingDetails extends StatelessWidget {
     required this.lyricsResolver,
     required this.immersiveKtv,
     required this.album,
-    required this.source,
+    required this.origin,
     required this.sessionState,
     required this.playback,
     required this.session,
@@ -390,13 +390,12 @@ class _NowPlayingDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final artist = item.artist?.trim();
-    final format = item.audioAsset.format.trim().toUpperCase();
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          source.label,
+          origin.label,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
             color: AppColors.accent,
             fontWeight: FontWeight.w800,
@@ -434,22 +433,14 @@ class _NowPlayingDetails extends StatelessWidget {
           ),
         ],
         const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: [
-            if (format.isNotEmpty) _InfoChip(format),
-            _InfoChip(source.chip),
-            if (item.hasLyrics) const _InfoChip('LYRICS'),
-          ],
-        ),
+        PlaybackFactBadges(item: item, showMissingLyrics: false),
         const SizedBox(height: AppSpacing.md),
         SeekableProgressBar(state: playback, onSeek: session.seek),
         const SizedBox(height: AppSpacing.sm),
-        _TransportControls(
-          sessionState: sessionState,
-          playback: playback,
+        SessionTransportBar(
           session: session,
+          playback: playback,
+          queue: sessionState,
           onSeekBack: onSeekBack,
           onSeekForward: onSeekForward,
         ),
@@ -503,54 +494,4 @@ class _PlaybackArtwork extends StatelessWidget {
       child: PlaybackArtwork(item: item, borderRadius: AppSpacing.radiusXLarge),
     );
   }
-}
-
-class _TransportControls extends StatelessWidget {
-  final PlaybackSessionState sessionState;
-  final PlaybackState playback;
-  final PlaybackSessionService session;
-  final VoidCallback onSeekBack;
-  final VoidCallback onSeekForward;
-
-  const _TransportControls({
-    required this.sessionState,
-    required this.playback,
-    required this.session,
-    required this.onSeekBack,
-    required this.onSeekForward,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TransportBar(
-      isPlaying: playback.isPlaying,
-      isBusy: playback.isBuffering || playback.isLoading,
-      onPlayPause: session.togglePlayPause,
-      onPrevious: sessionState.canSkipPrevious ? session.skipPrevious : null,
-      onNext: sessionState.canSkipNext ? session.skipNext : null,
-      onSeekBack: onSeekBack,
-      onSeekForward: onSeekForward,
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  final String label;
-
-  const _InfoChip(this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    return AppBadge(label: label, emphasized: true);
-  }
-}
-
-({String label, String chip}) _sourcePresentation(PlaybackItem item) {
-  if (item.projectId != null) {
-    return (label: '歌词工程', chip: 'PROJECT');
-  }
-  if (item.isRemoteStream) {
-    return (label: '桌面音乐库', chip: 'REMOTE');
-  }
-  return (label: '本地音乐', chip: 'LOCAL');
 }

@@ -9,7 +9,6 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
-import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/play_history.dart';
@@ -21,9 +20,10 @@ import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_media_metadata_dialog.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
+import '../widgets/playback_facts.dart';
 import '../widgets/playback_queue_panel.dart';
 import '../widgets/seekable_progress_bar.dart';
-import '../widgets/transport_bar.dart';
+import '../widgets/session_transport_bar.dart';
 
 /// Primary local-music player.
 ///
@@ -343,7 +343,6 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
                 session: _session,
                 collectionRepository: widget.dependencies.collectionRepository,
                 item: localItem,
-                format: _extension(file.path).toUpperCase(),
                 fileName: _fileName(file.path),
                 isLoading: _isLoading,
                 error: _error,
@@ -446,7 +445,6 @@ class _PlayerWorkspace extends StatelessWidget {
   final PlaybackSessionService session;
   final LocalMediaCollectionRepository collectionRepository;
   final PlaybackItem item;
-  final String format;
   final String fileName;
   final bool isLoading;
   final String? error;
@@ -460,7 +458,6 @@ class _PlayerWorkspace extends StatelessWidget {
     required this.session,
     required this.collectionRepository,
     required this.item,
-    required this.format,
     required this.fileName,
     required this.isLoading,
     required this.error,
@@ -483,7 +480,6 @@ class _PlayerWorkspace extends StatelessWidget {
             final player = _PlayerCard(
               layout: layout,
               item: item,
-              format: format,
               fileName: fileName,
               state: state,
               isLoading: isLoading,
@@ -585,7 +581,6 @@ class _PlayerWorkspace extends StatelessWidget {
 class _PlayerCard extends StatelessWidget {
   final AppLayoutSpec layout;
   final PlaybackItem item;
-  final String format;
   final String fileName;
   final PlaybackState state;
   final bool isLoading;
@@ -600,7 +595,6 @@ class _PlayerCard extends StatelessWidget {
   const _PlayerCard({
     required this.layout,
     required this.item,
-    required this.format,
     required this.fileName,
     required this.state,
     required this.isLoading,
@@ -641,7 +635,6 @@ class _PlayerCard extends StatelessWidget {
     final details = _PlayerDetails(
       layout: layout,
       item: item,
-      format: format,
       fileName: fileName,
       state: state,
       error: error,
@@ -689,7 +682,6 @@ class _PlayerCard extends StatelessWidget {
 class _PlayerDetails extends StatelessWidget {
   final AppLayoutSpec layout;
   final PlaybackItem item;
-  final String format;
   final String fileName;
   final PlaybackState state;
   final String? error;
@@ -703,7 +695,6 @@ class _PlayerDetails extends StatelessWidget {
   const _PlayerDetails({
     required this.layout,
     required this.item,
-    required this.format,
     required this.fileName,
     required this.state,
     required this.error,
@@ -757,15 +748,7 @@ class _PlayerDetails extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.xs,
-          children: [
-            _InfoChip(label: format.isEmpty ? 'AUDIO' : format),
-            _InfoChip(label: item.hasLyrics ? '已有歌词' : '未添加歌词'),
-            const _InfoChip(label: 'LOCAL'),
-          ],
-        ),
+        PlaybackFactBadges(item: item),
         const SizedBox(height: AppSpacing.xs),
         Text(
           fileName,
@@ -795,12 +778,13 @@ class _PlayerDetails extends StatelessWidget {
           thumbColor: AppColors.pureWhite,
         ),
         const SizedBox(height: AppSpacing.md),
-        _Transport(
+        SessionTransportBar(
           layout: layout,
-          state: state,
+          wrap: true,
           session: session,
-          onSkipBack: onSkipBack,
-          onSkipForward: onSkipForward,
+          playback: state,
+          onSeekBack: onSkipBack,
+          onSeekForward: onSkipForward,
         ),
         const SizedBox(height: AppSpacing.md),
         Row(
@@ -878,49 +862,6 @@ class _Artwork extends StatelessWidget {
               ),
             )
           : AppArtwork(path: path, borderRadius: AppSpacing.radiusXLarge),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  final String label;
-
-  const _InfoChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppBadge(label: label, emphasized: true);
-  }
-}
-
-class _Transport extends StatelessWidget {
-  final AppLayoutSpec layout;
-  final PlaybackState state;
-  final PlaybackSessionService session;
-  final VoidCallback onSkipBack;
-  final VoidCallback onSkipForward;
-
-  const _Transport({
-    required this.layout,
-    required this.state,
-    required this.session,
-    required this.onSkipBack,
-    required this.onSkipForward,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final queue = session.currentState;
-    return TransportBar(
-      layout: layout,
-      wrap: true,
-      isPlaying: state.isPlaying,
-      isBusy: state.isBuffering || state.isLoading,
-      onPlayPause: session.togglePlayPause,
-      onPrevious: queue.canSkipPrevious ? session.skipPrevious : null,
-      onNext: queue.canSkipNext ? session.skipNext : null,
-      onSeekBack: onSkipBack,
-      onSeekForward: onSkipForward,
     );
   }
 }

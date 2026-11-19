@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-25 10:40] Split the dashboard into section widgets ([entry](log/entries/2026-11-25-1040-split-the-dashboard-into-section-widgets.md))
 - [2026-11-25 10:20] Give device transfer one name and two entries ([entry](log/entries/2026-11-25-1020-give-device-transfer-one-name-and-two-entries.md))
 - [2026-11-25 10:00] Give each player entry its own route ([entry](log/entries/2026-11-25-1000-give-each-player-entry-its-own-route.md))
 - [2026-11-24 13:20] Show production progress as connected steps ([entry](log/entries/2026-11-24-1320-show-production-progress-as-connected-steps.md))
