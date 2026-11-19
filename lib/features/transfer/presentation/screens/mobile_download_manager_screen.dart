@@ -332,7 +332,10 @@ class _MobileDownloadManagerScreenState
               ),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.sm),
-                Text(_error!, style: const TextStyle(color: AppColors.error)),
+                Text(
+                  _error!,
+                  style: const TextStyle(color: AppColors.errorText),
+                ),
               ],
               const SizedBox(height: AppSpacing.md),
               if (_loading && _downloads.isEmpty)

@@ -207,7 +207,7 @@ class LyricTapTransportError extends StatelessWidget {
           const Icon(
             Icons.error_outline_rounded,
             size: 16,
-            color: AppColors.error,
+            color: AppColors.errorText,
           ),
           const SizedBox(width: 6),
           Expanded(
@@ -215,7 +215,7 @@ class LyricTapTransportError extends StatelessWidget {
               text,
               style: Theme.of(
                 context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.error),
+              ).textTheme.bodySmall?.copyWith(color: AppColors.errorText),
             ),
           ),
         ],

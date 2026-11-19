@@ -207,7 +207,7 @@ class _Metric extends StatelessWidget {
           Text(
             value,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: emphasis ? AppColors.error : null,
+              color: emphasis ? AppColors.errorText : null,
               fontWeight: FontWeight.w800,
             ),
           ),

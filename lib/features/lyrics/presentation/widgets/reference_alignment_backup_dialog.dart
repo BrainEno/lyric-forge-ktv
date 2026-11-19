@@ -141,15 +141,15 @@ class ReferenceAlignmentBackupDialog extends StatelessWidget {
                     const Icon(
                       Icons.warning_amber_rounded,
                       size: 18,
-                      color: AppColors.error,
+                      color: AppColors.errorText,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
                         '将覆盖当前编辑中的歌词，恢复后不会自动保存。',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: AppColors.error),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.errorText,
+                        ),
                       ),
                     ),
                   ],

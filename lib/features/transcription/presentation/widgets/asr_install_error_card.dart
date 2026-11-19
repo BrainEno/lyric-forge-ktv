@@ -27,7 +27,7 @@ class AsrInstallErrorCard extends StatelessWidget {
             children: [
               const Icon(
                 Icons.error_outline_rounded,
-                color: AppColors.error,
+                color: AppColors.errorText,
                 size: 20,
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -35,7 +35,7 @@ class AsrInstallErrorCard extends StatelessWidget {
                 child: Text(
                   '暂时无法完成准备',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.error,
+                    color: AppColors.errorText,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -46,9 +46,9 @@ class AsrInstallErrorCard extends StatelessWidget {
           SelectionArea(
             child: Text(
               message,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -58,9 +58,9 @@ class AsrInstallErrorCard extends StatelessWidget {
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: message));
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('诊断详情已复制')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('诊断详情已复制')));
               },
               icon: const Icon(Icons.copy_rounded, size: 16),
               label: const Text('复制诊断详情'),

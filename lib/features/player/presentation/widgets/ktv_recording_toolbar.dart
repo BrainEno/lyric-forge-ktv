@@ -79,7 +79,7 @@ class KtvRecordingToolbar extends StatelessWidget {
                     child: Text(
                       formatRecordingTime(recording.recordedDuration),
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppColors.error,
+                        color: AppColors.errorText,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -172,7 +172,7 @@ class KtvRecordingIndicator extends StatelessWidget {
                       ? Icons.fiber_manual_record_rounded
                       : Icons.graphic_eq_rounded,
                   size: 14,
-                  color: AppColors.error,
+                  color: AppColors.errorText,
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(

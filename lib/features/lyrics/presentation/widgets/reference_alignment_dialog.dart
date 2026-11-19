@@ -484,14 +484,14 @@ class _ReferenceAlignmentDialogState extends State<ReferenceAlignmentDialog> {
                       const Icon(
                         Icons.error_outline_rounded,
                         size: 18,
-                        color: AppColors.error,
+                        color: AppColors.errorText,
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Expanded(
                         child: Text(
                           _error!,
                           style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppColors.error),
+                              ?.copyWith(color: AppColors.errorText),
                         ),
                       ),
                     ],

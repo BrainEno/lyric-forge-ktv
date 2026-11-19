@@ -572,3 +572,16 @@
 - 影响：所有用 `AppColors.accent` 和主题主色的地方（主按钮、滑块、进度、选中态、KTV 已唱部分）一起变色；进行中的状态继续用强调色。
 - 状态：生效
 - 来源：用户决定；[工作日志](log/entries/2026-11-26-0900-switch-the-accent-to-elysium-lavender.md)
+
+## D-032 错误文字使用更亮的 `errorText`，红色填充保持不变
+
+- 日期：2026-11-27
+- 背景：错误色 `#E22134` 直接用作文字时，在 bgBase 上只有 4.0:1、在 bgSurface 上只有 3.2:1，达不到正文 4.5:1 的要求；失败提示反而是屏幕上最难读的文字。19 个文件里有 31 处把它当作文字或小图标颜色。
+- 决定：
+  - 新增 `AppColors.errorText = #FF8585`（与错误色同一色相）：bgBase 8.0:1、bgElevated 7.6:1、bgSurface 6.3:1、bgHighlight 4.6:1，在 14–20 透明度的红色错误横幅里也高于 4.5:1。
+  - 错误消息文字、错误横幅里的小图标、危险操作的文字按钮（`foregroundColor`）和输入框的错误提示（`inputDecorationTheme.errorStyle`）一律用 `errorText`。
+  - `AppColors.error` 只用于填充、边框、底色、大号状态图标和徽标，`colorScheme.error` 不变，填充上的白字仍为 4.7:1。
+  - `test/core/theme/error_text_contrast_test.dart` 固定对比度、色相要求，并扫描 `lib/features` 防止再把填充红用作文字。
+- 影响：所有错误提示文字变亮；红色按钮、录音状态、错误横幅底色和边框外观不变。
+- 状态：生效
+- 来源：UI/UX 审计第 10 轮；[工作日志](log/entries/2026-11-27-1130-lift-error-text-to-aa.md)

@@ -60,7 +60,16 @@ abstract class AppColors {
   static const Color brandPaper = Color(0xFFF6F2E8);
 
   // Semantic colors
+  // Error fills, borders, tints and large status icons.
   static const Color error = Color(0xFFE22134);
+
+  // Error messages and the small icons beside them. #E22134 as text was
+  // 4.0:1 on bgBase and 3.2:1 on bgSurface, under the 4.5:1 that body text
+  // needs, so failures were the hardest lines on screen to read. This
+  // lighter red of the same hue is 8.0:1 on bgBase, 6.3:1 on bgSurface and
+  // still 4.6:1 on bgHighlight and inside the red-tinted error banners.
+  // test/core/theme/error_text_contrast_test.dart pins the numbers.
+  static const Color errorText = Color(0xFFFF8585);
 
   // Text and icons on error fills (destructive buttons, recording). White on
   // #E22134 is 4.7:1.

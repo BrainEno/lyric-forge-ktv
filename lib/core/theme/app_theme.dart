@@ -400,6 +400,8 @@ class AppTheme {
           vertical: AppSpacing.md,
         ),
         hintStyle: const TextStyle(color: AppColors.textTertiary, fontSize: 14),
+        // Field errors are text too; the error border keeps the fill red.
+        errorStyle: const TextStyle(color: AppColors.errorText),
       ),
       // List Tiles
       listTileTheme: const ListTileThemeData(

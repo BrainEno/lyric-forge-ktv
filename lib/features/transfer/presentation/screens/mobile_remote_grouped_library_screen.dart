@@ -367,7 +367,7 @@ class _MobileRemoteGroupedLibraryScreenState
                       const SizedBox(height: AppSpacing.sm),
                       Text(
                         _error!,
-                        style: const TextStyle(color: AppColors.error),
+                        style: const TextStyle(color: AppColors.errorText),
                       ),
                     ],
                     const SizedBox(height: AppSpacing.md),

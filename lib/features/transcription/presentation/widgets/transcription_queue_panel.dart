@@ -345,7 +345,7 @@ class _EnvironmentBlockedCard extends StatelessWidget {
           const Icon(
             Icons.health_and_safety_outlined,
             size: 20,
-            color: AppColors.error,
+            color: AppColors.errorText,
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -355,7 +355,7 @@ class _EnvironmentBlockedCard extends StatelessWidget {
                 Text(
                   '识别环境需要修复',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: AppColors.error,
+                    color: AppColors.errorText,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -527,7 +527,9 @@ class _QueueItemTile extends StatelessWidget {
                   maxLines: failed ? 2 : 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: failed ? AppColors.error : AppColors.textTertiary,
+                    color: failed
+                        ? AppColors.errorText
+                        : AppColors.textTertiary,
                   ),
                 ),
                 if (running) ...[
