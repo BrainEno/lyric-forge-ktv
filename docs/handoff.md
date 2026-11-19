@@ -20,7 +20,7 @@
 ## Git 现场
 
 - 分支：`arena/abbb9c6e-lyric-forge-ktv`，基于 main `fb33769`。
-- 提交：`Add a shared badge widget`；`Use shared badges on player and queue screens`；`Add a shared transport bar for player screens`；`Add a shared error state for failed loads`；`Add a shared loading state for pages and panes`；`Remove the temporary format probe`；`Split the recognition settings into section cards`；`Add global playback shortcuts`；`Use design tokens in lyric editor surfaces`；`Use radius and type tokens everywhere`。
+- 提交：`Add a shared badge widget`；`Use shared badges on player and queue screens`；`Add a shared transport bar for player screens`；`Add a shared error state for failed loads`；`Add a shared loading state for pages and panes`；`Remove the temporary format probe`；`Split the recognition settings into section cards`；`Add global playback shortcuts`；`Use design tokens in lyric editor surfaces`；`Use radius and type tokens everywhere`；`Format the playback shortcut test`；`Remove the temporary format probe`。
 
 ## 已改文件
 
@@ -28,7 +28,7 @@
 
 ## 检查结果
 
-沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。第一次提交的格式问题（测试里的 `MaterialApp` 嵌套需要拆行）靠一个临时格式探针工作流定位，已修复，探针已删除。
+沙箱没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上运行。本地按字符数检查了行长度，用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。第一次提交的格式问题（测试里的 `MaterialApp` 嵌套需要拆行）靠一个临时格式探针工作流定位，已修复，探针已删除。第二轮同样用临时探针定位到快捷键测试里两处 `=>` 换行，已修复并删除探针；修复后的提交上 format、analyze、全部测试和工作日志门禁均通过。
 
 ## 下一步
 
