@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-26 09:00] Switch the accent to Elysium Lavender ([entry](log/entries/2026-11-26-0900-switch-the-accent-to-elysium-lavender.md))
 - [2026-11-25 12:30] Mark a whole project reviewed from the inbox ([entry](log/entries/2026-11-25-1230-mark-a-whole-project-reviewed-from-the-inbox.md))
 - [2026-11-25 12:20] Share the playback facts and session transport ([entry](log/entries/2026-11-25-1220-share-the-playback-facts-and-session-transport.md))
 - [2026-11-25 12:10] Draw the brand mark from the app icon ([entry](log/entries/2026-11-25-1210-draw-the-brand-mark-from-the-app-icon.md))

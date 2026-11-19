@@ -14,41 +14,31 @@ Widget _host(Widget child) => MaterialApp(
 );
 
 double _pulseScale(WidgetTester tester, PlayerBarLink link) {
-  final transform = tester.widget<Transform>(
-    find
-        .ancestor(of: find.byKey(link.key), matching: find.byType(Transform))
-        .first,
+  final transforms = find.ancestor(
+    of: find.byKey(link.key),
+    matching: find.byType(Transform),
   );
+  final transform = tester.widget<Transform>(transforms.first);
   return transform.transform.getMaxScaleOnAxis();
 }
 
 Color? _fill(WidgetTester tester, PlayerBarLink link) {
-  return tester
-      .widget<Material>(
-        find
-            .descendant(
-              of: find.byKey(link.key),
-              matching: find.byType(Material),
-            )
-            .first,
-      )
-      .color;
+  final materials = find.descendant(
+    of: find.byKey(link.key),
+    matching: find.byType(Material),
+  );
+  return tester.widget<Material>(materials.first).color;
 }
 
 /// The `selected` flag announced around [link].
 bool? _selectedSemantics(WidgetTester tester, PlayerBarLink link) {
-  final semantics = tester.widget<Semantics>(
-    find
-        .ancestor(
-          of: find.byKey(link.key),
-          matching: find.byWidgetPredicate(
-            (widget) =>
-                widget is Semantics && widget.properties.selected != null,
-          ),
-        )
-        .first,
+  final candidates = find.ancestor(
+    of: find.byKey(link.key),
+    matching: find.byWidgetPredicate(
+      (widget) => widget is Semantics && widget.properties.selected != null,
+    ),
   );
-  return semantics.properties.selected;
+  return tester.widget<Semantics>(candidates.first).properties.selected;
 }
 
 void main() {
