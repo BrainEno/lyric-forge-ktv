@@ -17,6 +17,7 @@ import 'playback_action_feedback.dart';
 import 'playback_artwork.dart';
 import 'playback_mode_controls.dart';
 import 'playback_queue_panel.dart';
+import 'player_bar_destination_button.dart';
 import 'player_bar_semantics.dart';
 import 'seekable_progress_bar.dart';
 
@@ -61,6 +62,13 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
     ).showSnackBar(SnackBar(content: Text('已加入“${playlist.name}”')));
   }
 
+  /// Opens [link] unless its page is already the one on screen.
+  void _openLink(BuildContext context, PlayerBarLink link) {
+    final current = AppChromeScope.routeOf(context)?.value;
+    if (link.isOpenAt(current)) return;
+    AppChromeScope.pushNamed<void>(context, link.route);
+  }
+
   Future<void> _importLyrics(BuildContext context, PlaybackItem item) {
     return importLyricsForLocalPlaybackItem(
       _host(context),
@@ -85,10 +93,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
   ) async {
     switch (value) {
       case 'library':
-        AppChromeScope.pushNamed<void>(context, Routes.library);
+        _openLink(context, PlayerBarLink.library);
         return;
       case 'collections':
-        AppChromeScope.pushNamed<void>(context, Routes.collections);
+        _openLink(context, PlayerBarLink.collections);
         return;
       case 'playlist':
         if (!item.isRemoteStream) await _addToPlaylist(context, item);
@@ -262,24 +270,8 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                             ),
                             if (!compact)
-                              IconButton(
-                                tooltip: '音乐库',
-                                onPressed: () => AppChromeScope.pushNamed<void>(
-                                  context,
-                                  Routes.library,
-                                ),
-                                icon: const Icon(Icons.library_music_rounded),
-                              ),
-                            if (!compact)
-                              IconButton(
-                                tooltip: '收藏与播放列表',
-                                onPressed: () => AppChromeScope.pushNamed<void>(
-                                  context,
-                                  Routes.collections,
-                                ),
-                                icon: const Icon(
-                                  Icons.collections_bookmark_outlined,
-                                ),
+                              PlayerBarLinks(
+                                onOpen: (link) => _openLink(context, link),
                               ),
                             if (localSong)
                               LocalFavoriteButton(

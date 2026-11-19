@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-25 12:30] Mark a whole project reviewed from the inbox ([entry](log/entries/2026-11-25-1230-mark-a-whole-project-reviewed-from-the-inbox.md))
 - [2026-11-25 12:20] Share the playback facts and session transport ([entry](log/entries/2026-11-25-1220-share-the-playback-facts-and-session-transport.md))
 - [2026-11-25 12:10] Draw the brand mark from the app icon ([entry](log/entries/2026-11-25-1210-draw-the-brand-mark-from-the-app-icon.md))
 - [2026-11-25 12:00] Move the last own loading and error cards to shared states ([entry](log/entries/2026-11-25-1200-move-the-last-own-loading-and-error-cards-to-shared-states.md))
