@@ -277,7 +277,7 @@ class _KtvTakeHistorySheetState extends State<KtvTakeHistorySheet> {
         else if (_error != null)
           _HistoryNotice(
             icon: Icons.error_outline_rounded,
-            color: AppColors.error,
+            color: AppColors.errorText,
             message: '读取演唱历史失败：$_error',
           )
         else if (takes.isEmpty)

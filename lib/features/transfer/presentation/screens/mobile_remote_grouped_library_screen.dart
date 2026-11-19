@@ -14,6 +14,7 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/remote_audio_track.dart';
 import '../../domain/services/media_hub_client_service.dart';
 import '../widgets/remote_media_artwork.dart';
+import '../widgets/transfer_list_states.dart';
 import 'remote_catalog_utils.dart';
 
 /// How [MobileRemoteGroupedLibraryScreen] groups the desktop tracks.
@@ -365,26 +366,24 @@ class _MobileRemoteGroupedLibraryScreenState
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        _error!,
-                        style: const TextStyle(color: AppColors.error),
+                      TransferErrorBanner(
+                        message: _error!,
+                        onDismiss: () => setState(() => _error = null),
                       ),
                     ],
                     const SizedBox(height: AppSpacing.md),
                     if (_loading && _tracks.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(AppSpacing.xl),
-                        child: Center(child: CircularProgressIndicator()),
+                      const TransferListLoading(
+                        message: TransferListText.libraryLoading,
                       )
                     else if (groups.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(AppSpacing.xl),
-                        child: Center(
-                          child: Text(
-                            '没有匹配内容',
-                            style: TextStyle(color: AppColors.textSecondary),
-                          ),
-                        ),
+                      TransferEmptyResult(
+                        icon: _fallbackIcon,
+                        noun: _title,
+                        emptyTitle: TransferListText.libraryEmptyTitle,
+                        emptyMessage: TransferListText.libraryEmptyMessage,
+                        query: _searchController.text,
+                        onClearSearch: _searchController.clear,
                       )
                     else
                       GridView.builder(

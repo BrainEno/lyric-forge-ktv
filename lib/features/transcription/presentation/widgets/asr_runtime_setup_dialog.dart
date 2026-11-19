@@ -223,16 +223,14 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
     setState(() {
       _scanningExisting = true;
       _error = null;
-      _existingModelMessage = '正在常见磁盘位置查找已有 ASRRuntime…此步骤不会下载。';
+      _existingModelMessage = AsrFolderText.scanning;
     });
     try {
       final result = await _managedStorageService.discoverAndAdoptExisting();
       if (!mounted) return;
       if (result == null) {
         setState(() {
-          _existingModelMessage =
-              '没有在常见位置找到已有 ASRRuntime。可以粘贴包含已有模型的磁盘或文件夹路径，'
-              '也可以继续校验并补齐当前目录中缺失的组件。';
+          _existingModelMessage = AsrFolderText.notFound;
         });
         return;
       }
@@ -265,7 +263,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
       return;
     }
     final path = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择磁盘、Models、LyricForge 或已有的 ASRRuntime',
+      dialogTitle: AsrFolderText.pickExistingTitle,
     );
     if (path == null || path.trim().isEmpty || !mounted) return;
     await _adoptExistingPath(path);
@@ -278,7 +276,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
     setState(() {
       _scanningExisting = true;
       _error = null;
-      _existingModelMessage = '正在从 $path 识别已有 ASRRuntime…此步骤不会下载。';
+      _existingModelMessage = AsrFolderText.checkingPath(path);
     });
     try {
       final result = await _managedStorageService.adoptExistingAt(path);
@@ -286,7 +284,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _existingModelMessage = '没有从该路径识别到已有 ASRRuntime，当前目录未改变。';
+        _existingModelMessage = AsrFolderText.pathNotRecognised;
         _error = '识别已有模型失败：$error';
       });
     } finally {
@@ -322,7 +320,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   Future<void> _changeManagedStorageLocation() async {
     if (_installing || _runtimeManager.isInstalling) return;
     final parent = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择磁盘 / 父文件夹、LyricForge 文件夹或已有的 ASRRuntime',
+      dialogTitle: AsrFolderText.pickNewParentTitle,
     );
     if (parent == null || parent.trim().isEmpty || !mounted) return;
 

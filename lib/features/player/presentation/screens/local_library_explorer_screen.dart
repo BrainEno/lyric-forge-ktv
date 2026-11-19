@@ -433,7 +433,7 @@ class _LocalLibraryExplorerScreenState
                 padding: EdgeInsets.symmetric(horizontal: layout.pageGutter),
                 child: Text(
                   _error!,
-                  style: const TextStyle(color: AppColors.error),
+                  style: const TextStyle(color: AppColors.errorText),
                 ),
               ),
             Expanded(

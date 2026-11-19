@@ -22,6 +22,7 @@ import '../../domain/services/media_hub_client_service.dart';
 import '../../domain/services/media_hub_connection_store.dart';
 import '../../domain/services/media_transfer_queue_service.dart';
 import '../widgets/remote_media_artwork.dart';
+import '../widgets/transfer_list_states.dart';
 import 'remote_catalog_utils.dart';
 
 /// Songs tab of [MobileRemoteLibraryShell]: the flat desktop track list
@@ -144,6 +145,8 @@ class _MobileRemoteMusicLibraryScreenState
     _pairingController.text = value.trim();
     await _connectRaw(value.trim());
   }
+
+  void _dismissError() => setState(() => _error = null);
 
   Future<void> _paste() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
@@ -483,7 +486,10 @@ class _MobileRemoteMusicLibraryScreenState
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: AppSpacing.sm),
-                  Text(_error!, style: const TextStyle(color: AppColors.error)),
+                  TransferErrorBanner(
+                    message: _error!,
+                    onDismiss: _dismissError,
+                  ),
                 ],
                 const SizedBox(height: AppSpacing.md),
                 OutlinedButton.icon(
@@ -604,23 +610,28 @@ class _MobileRemoteMusicLibraryScreenState
           ),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text(_error!, style: const TextStyle(color: AppColors.error)),
+            TransferErrorBanner(message: _error!, onDismiss: _dismissError),
           ],
           const SizedBox(height: AppSpacing.md),
           if (_busy && _tracks.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(AppSpacing.xl),
-              child: Center(child: CircularProgressIndicator()),
-            )
+            const TransferListLoading(message: TransferListText.libraryLoading)
           else if (visible.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(AppSpacing.xl),
-              child: Center(
-                child: Text(
-                  '没有匹配的歌曲',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ),
+            TransferEmptyResult(
+              icon: Icons.library_music_outlined,
+              noun: '歌曲',
+              emptyTitle: TransferListText.libraryEmptyTitle,
+              emptyMessage: TransferListText.libraryEmptyMessage,
+              query: _searchController.text,
+              onClearSearch: _searchController.clear,
+              filteredTitle: switch (_filter) {
+                _RemoteLibraryFilter.all => null,
+                _RemoteLibraryFilter.downloaded =>
+                  TransferListText.downloadedFilterTitle,
+                _RemoteLibraryFilter.lyrics =>
+                  TransferListText.lyricsFilterTitle,
+              },
+              onShowAll: () =>
+                  setState(() => _filter = _RemoteLibraryFilter.all),
             )
           else
             for (final track in visible) ...[

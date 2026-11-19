@@ -357,7 +357,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
               ),
               child: Text(
                 _error!,
-                style: const TextStyle(color: AppColors.error),
+                style: const TextStyle(color: AppColors.errorText),
               ),
             ),
           Expanded(
@@ -1185,7 +1185,9 @@ class _PlaylistCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: missing > 0 ? AppColors.error : AppColors.textTertiary,
+                color: missing > 0
+                    ? AppColors.errorText
+                    : AppColors.textTertiary,
               ),
             ),
           ],

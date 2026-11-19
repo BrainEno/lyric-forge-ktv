@@ -363,7 +363,7 @@ class _ReadinessOnboarding extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(
                       context,
-                    ).textTheme.bodySmall?.copyWith(color: AppColors.error),
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.errorText),
                   ),
                 ),
               ],

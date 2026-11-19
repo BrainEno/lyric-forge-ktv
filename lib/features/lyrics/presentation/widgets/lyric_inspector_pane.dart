@@ -549,7 +549,7 @@ class _LineInspectorState extends State<LineInspector> {
             icon: const Icon(Icons.delete_outline_rounded),
             label: const Text('删除这一行'),
             style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.error,
+              foregroundColor: AppColors.errorText,
               minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
             ),
           ),
@@ -895,7 +895,7 @@ class SecondarySuggestionCard extends StatelessWidget {
                 key: const ValueKey('secondary_suggestion_reject'),
                 onPressed: onReject,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
+                  foregroundColor: AppColors.errorText,
                   minimumSize: Size(0, minHeight),
                 ),
                 child: const Text('不补入，删除这一行'),

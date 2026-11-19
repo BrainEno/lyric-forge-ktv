@@ -2,38 +2,37 @@
 
 ## 目标
 
-审计路线的第九轮（第八轮 PR #480 已合并为 `7742df3`）。每轮多做几个任务，lib+test 代码量至少 800 行。用户反馈：淡紫按钮上有些部分对比度差；底部的音乐库、收藏、播放列表等点击后没什么反馈。
+审计路线的第十轮（第九轮 PR #481 已合并为 `e4aa1f7`）。每轮多做几个任务，lib+test 代码量至少 800 行。用户确认自己的模型目录是 `D:\Models\LyricForge\ASRRuntime`，即 B-02 遗留问题里的 “LyricForge ASRRuntime” 是真实的目录名。
 
-1. 淡紫按钮前景色：图标按钮主题设了灰色前景，连填充（淡紫）和色调图标按钮也被涂成灰色（灰配淡紫约 1.1:1）；容器色没设，选中的筛选标签是黑字配半透明紫（1.57:1），色调按钮、分段按钮和导航指示器都和主按钮一样亮。现在补齐了容器色：深紫 `#3A2E66` 配浅紫 `#E8DEFF`（9.3:1），描边灰 `#7A7A7A`；主题里的图标按钮不再设前景色。
-2. 外壳组件拿不到 Navigator：播放条、转写队列条和导航都在 `MaterialApp.builder` 里，位于 Navigator 旁边而不是下面，直接用 `Navigator.of`、`showDialog` 会报错或拿错上下文。新增 `AppChromeScope`（`pushNamed`、`contextOf`）、`destination_navigation.dart`（再点当前目的地不再重复压页面）和 `lib/app/app_chrome.dart`。桌面端外壳的 `Overlay(initialEntries:)` 只读一次初始项，导航栏一直高亮第一个页面、全屏播放器上播放条也不隐藏；现在只建一次 OverlayEntry 并自己监听路由。移动端外壳原来没有 Overlay，底部导航长按提示会抛 “No Overlay widget found”，现在共用同一个 Overlay 宿主。
-3. 播放条上的链接（音乐库、收藏、歌单等）：`PlayerBarDestinationButton` 用深紫底标出当前所在页面，点击时图标弹一下（`AppTapPulse`）并给选择触感；已在该页面时只弹一下，不再重复打开。
-4. 导航栏和侧栏：每次点击图标弹一下并给触感，再点当前目的地不再重复压页面；指示器为深紫、选中图标浅紫、选中文字白色加粗。
-5. 音乐库分区条：分区图标点击时弹一下并给触感（包括再点当前分区）；内容切换时 220 ms 淡入上移（减少动态效果时直接切换）；从别处打开分区时，窄屏分区条会滚到该分区。
-6. 忙碌状态的转圈：按钮里的转圈统一用 `AppButtonSpinner`，跟随按钮图标颜色。填充/色调按钮禁用时为 `#8F8F8F` 配 `#3E3E3E`（3.3:1，原来约 2.2:1）。三个播放圆钮共用 `AppTheme.playDisc`，加载时保持浅灰底黑色转圈（10:1，原来桌面端是透明底 1.1:1，移动端和传输条是 `#535353` 底 2.7:1）。首页播放按钮缓冲时保持淡紫底黑色转圈。
-7. 收藏爱心：点击后立即填充（淡紫）或清空，填充时弹一下并给触感，写入失败再恢复并提示；不再在每次写入时变灰。
+1. 模型目录写成路径：存储层本来就能找到 `D:\Models\LyricForge\ASRRuntime`（盘符根、`Models/LyricForge/ASRRuntime` 候选、自动查找、粘贴路径），问题出在文案。界面原来把它写成 “LyricForge ASRRuntime”（像产品名）和 “已有的 ASRRuntime”（不说在哪）。新增 `AsrFolderText`：按平台分隔符写成路径（Windows `LyricForge\ASRRuntime`，其他平台 `LyricForge/ASRRuntime`），卡片、粘贴弹窗和“没找到”提示里给出完整示例（`D:\Models\LyricForge\ASRRuntime`、`/Volumes/Data/Models/…`、`/mnt/data/Models/…`）；按钮改为“浏览模型文件夹”“粘贴已有模型文件夹的路径”。安装弹窗和设置页原来各存一份文案，现在共用。设置页通过 `asr_existing_model_actions.dart` 的 export 拿到它，没有新增跨功能的 presentation 依赖。
+2. 全屏 KTV：原来任何按键都只会唤出控件。现在空格播放/暂停（只在全屏界面本身有焦点时，Tab 到按钮后空格仍按按钮），←/→（含 Shift）快退/快进 5 秒且可按住连发，Ctrl/⌘+←/→ 切歌；处理了的按键会唤出控件，没有歌曲时按键交给上层。点击歌词会把焦点从按钮收回。控件层：标题加粗、下面显示歌手，上下两组控件后面各有黑到透明的渐变遮罩（不拦截点击），退出按钮提示“退出全屏 KTV（Esc）”，桌面端底部显示按键说明。歌词加载失败改用 `AppErrorState`，可以重试。
+3. 错误文字对比度（D-032）：错误红 `#E22134` 当文字时在 bgBase 上 4.0:1、bgSurface 上 3.2:1，不到 4.5:1。新增 `AppColors.errorText = #FF8585`（同色相）：bgBase 8.0:1、bgSurface 6.3:1、bgHighlight 4.6:1，在红色错误横幅里也高于 4.5:1。19 个文件 31 处错误文字、旁边的小图标、危险操作的文字按钮和输入框错误提示都改用它；填充、边框、底色、大图标、徽标和 `colorScheme.error` 仍用 `AppColors.error`。
+4. 传输子域（T-02 第一部分）：手机端歌曲、艺人/专辑、下载管理三屏各自画红字、裸转圈和“没有匹配…”。新增 `transfer_list_states.dart`：`TransferErrorBanner`（带底色的横幅、可关闭、读屏会播报）、`TransferListLoading`（说明正在读取什么）、`TransferEmptyResult`（按原因给标题：搜索无结果时引用关键词并提供“清除搜索”，歌曲列表的筛选无结果时提供“显示全部”，真的为空时说明怎样添加）。
 
 ## Git 现场
 
-- 分支：`arena/595833ba-lyric-forge-ktv`，基于 main `7742df3`，PR #481。
-- 提交：`Give lavender buttons readable foregrounds`、`Let the app chrome reach the navigator`、`Show where the player bar links lead`、`Make navigation presses visible`、`Answer library section presses`、`Keep busy spinners visible`、`Answer the favourite heart at once`、`Remove the format probe and update the handoff`。
+- 分支：`arena/7600048b-lyric-forge-ktv`，基于 main `e4aa1f7`，PR #482。
+- 提交：`Name the model folder as a path`、`Give fullscreen KTV keys and scrims`、`Lift error text to AA`、`Share transfer list states`、`Remove the format probe and update the handoff`。
 
 ## 已改文件
 
-见工作日志 `2026-11-26-1030` 至 `2026-11-26-1130` 的七条记录。
+见工作日志 `2026-11-27-0930` 至 `2026-11-27-1300` 的四条记录；决定见 D-032；审计总表 `artifacts/ui-audit/reports/issues.md` 已更新 B-02、K-01（11-19 已完成逐字扫光）和 T-02 的进度。
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑。本轮同样用了临时探针工作流（合并前已删除）。靠它修掉了：几处格式问题，移动端外壳缺 Overlay 导致的三个测试失败（也是真实的崩溃），以及三个脉冲测试少等了一帧（点击后的那一帧才开始计时）。最后一次探针：3207 个测试全部通过，analyze 仍是基线的 186 条提示。行长度在本地按字符数检查过；工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。
+沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑。本轮同样用了临时探针工作流（合并前已删除）。靠它修掉了：设置页直接引用新文案文件触发的跨功能依赖基线测试失败（改为经现有文件 export），几处格式问题（包括被改动文件里原有的格式欠账），以及四条多余 import 的 analyze 提示。最后一次探针：3287 个测试全部通过，analyze 回到基线的 186 条提示。行长度在本地按字符数检查过；工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。
 
 ## 下一步
 
-- 剩余审计项：沉浸式 KTV 控件，T-02/T-03（传输子域体量），B-02 的文档残留（迁移弹窗里的 “LyricForge ASRRuntime” 是不是真实的目录名，需要确认）。
-- 在真机上确认触感和弹跳的力度是否合适（`AppTapPulse.defaultPeakScale` 为 1.18，分区和爱心为 1.3–1.35）。
+- T-02 剩余：桌面传输中心和 v2 命名；审计总表里没有 T-03 条目。
+- 小尾巴：`local_collections_screen.dart` 里 `onReorder` 的弃用提示；`reference_alignment_review`、`review_inbox` 里还有两处强调色用法待复查。
+- 在真机上确认全屏 KTV 的按键和遮罩深浅（`ImmersiveKtvScreen.scrimAlpha` 为 0.72），以及新错误红在各页面上的观感。
+- 待用户决定：R-03 全局批量复核按钮。
 
 ## 已知风险
 
 - 都没有在运行中的应用里看过，详见工作日志。
-- 移动端外壳现在也包在 Overlay 里；`test/widget_test.dart` 原来专门断言移动端没有 Overlay（原因没有记录），已改为断言有外壳 Overlay。如果移动端出现输入法或焦点问题，先查这里。
-- 收藏爱心改为乐观更新；如果存储很慢，连续点击在写入完成前会被忽略。
+- 全屏 KTV 的方向键现在总是快进/快退，Tab 到按钮后也不再做方向焦点移动；进度条获得焦点时仍由进度条自己处理方向键。
+- 设置页的 “测试识别” 卡片 `_Notice` 用传入颜色做底色、文字保持白色，所以仍传 `AppColors.error`，在来源扫描测试里列为例外。
 
-最后更新：2026-11-26 11:40（Asia/Taipei）
+最后更新：2026-11-27 13:30（Asia/Taipei）

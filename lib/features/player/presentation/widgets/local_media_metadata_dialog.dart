@@ -317,7 +317,7 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
                         ),
                         child: Text(
                           _error!,
-                          style: const TextStyle(color: AppColors.error),
+                          style: const TextStyle(color: AppColors.errorText),
                         ),
                       ),
                     ],

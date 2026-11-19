@@ -431,7 +431,7 @@ class _EmptyPlayer extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.error),
+            style: const TextStyle(color: AppColors.errorText),
           ),
         if (message != null && isLoading) const SizedBox(height: AppSpacing.md),
         if (isLoading) const CircularProgressIndicator(),
@@ -767,7 +767,10 @@ class _PlayerDetails extends StatelessWidget {
               color: AppColors.error.withAlpha(18),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
             ),
-            child: Text(error!, style: const TextStyle(color: AppColors.error)),
+            child: Text(
+              error!,
+              style: const TextStyle(color: AppColors.errorText),
+            ),
           ),
         ],
         SizedBox(height: layout.isShort ? AppSpacing.md : AppSpacing.xl),

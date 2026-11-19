@@ -1006,9 +1006,9 @@ class LyricReviewRow extends StatelessWidget {
             leading: Icon(
               Icons.delete_outline_rounded,
               size: 18,
-              color: AppColors.error,
+              color: AppColors.errorText,
             ),
-            title: Text('删除此行', style: TextStyle(color: AppColors.error)),
+            title: Text('删除此行', style: TextStyle(color: AppColors.errorText)),
             dense: true,
             contentPadding: EdgeInsets.zero,
           ),

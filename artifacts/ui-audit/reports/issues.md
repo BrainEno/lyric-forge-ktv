@@ -9,7 +9,7 @@
 | ID | 页面 | 类别 | 位置 | 现象 | 影响 | 实测/计算数据 | 截图 | 改进建议 | 优先级 |
 |---|---|---|---|---|---|---|---|---|---|
 | B-01 | 全局 | 视觉/品牌 | color_tokens.dart:29；assets/images/icon.png；app_navigation_shell.dart:108 | 图标=红/黑/米白+"F"+均衡器条；UI=Spotify 绿 #1DB954+深灰；导航品牌位用原生 graphic_eq 图标 | 产品零识别度，图标与 UI 像两个产品 | 图标已目视确认；accent 值硬证 | 无（静态） | 制定品牌映射方案（见总报告 §8），红色作为强行动/焦点锚点 | 高 |
-| B-02 | 全局 | 品牌一致性 | app.dart:67；dashboard_screen.dart:333,291；settings_screen.dart:48 | **更正（2026-11-18）：**产品名是 Elysium Player。应用界面一直用 Elysium Player，README 和多份文档写的 LyricForge KTV 才是错的；审计时把方向判反了 | 文档与产品名不一致 | 4 处实证 | 无（静态） | 已按 D-030 把文档、导出标记和界面统一为 Elysium Player；LyricForge 只保留为目录名等内部标识 | 高 |
+| B-02 | 全局 | 品牌一致性 | app.dart:67；dashboard_screen.dart:333,291；settings_screen.dart:48 | **更正（2026-11-18）：**产品名是 Elysium Player。应用界面一直用 Elysium Player，README 和多份文档写的 LyricForge KTV 才是错的；审计时把方向判反了 | 文档与产品名不一致 | 4 处实证 | 无（静态） | 已按 D-030 把文档、导出标记和界面统一为 Elysium Player；LyricForge 只保留为目录名等内部标识。**第 10 轮：**用户确认模型目录 `D:\Models\LyricForge\ASRRuntime` 是真实路径；界面不再把它写成 “LyricForge ASRRuntime” 这样的名称，而是按平台写成路径（`LyricForge\ASRRuntime`）并给出完整示例 | 高 |
 | A-01 | 全局 | 无障碍 | app_theme.dart elevatedButtonTheme、snackBarTheme | 白字 #FFF 于 accent #1DB954 之上 | 主按钮/SnackBar 文字对比度不足 | **计算 2.59:1**，AA 需 4.5:1 | 无（静态） | accent 压暗（如 #14833B 计算约 4.6:1）或按钮用黑字/深色底 | 高 |
 | S-01 | 全局 | 视觉/字体 | app_theme.dart:195；pubspec.yaml fonts 段（全注释） | 声明 fontFamily:'Inter' 但未打包字体 | 设计意图从未生效；中英混排回退系统字体，跨平台字形不一致 | 实证：assets 无字体文件 | 无（静态） | 打包 Inter（OFL 许可）+ 配置 CJK fallback 链，或删除声明改用系统字 | 高 |
 
@@ -32,7 +32,7 @@
 | I-01 | 导入 | 信息架构 | transcription_ready_import_screen.dart:165 | 第一阶段标题"批量导入"实为环境准备 | 预期错配 | 实证 | 无 | 改题「准备识别环境」 | 中 |
 | SE-01 | 设置 | 信息架构 | settings_screen.dart vs app_destinations.dart:63 | 承诺"播放/识别/存储"实仅识别+诊断 | 找不到播放/存储设置 | 实证 | 无 | 分区化设置 | 中 |
 | P-01 | 工程详情 | 一致性 | project_detail_screen.dart:695+ | 5 种 pill 组件同页 | 视觉噪音 | 实证 | 无 | 并入 AppBadge | 中 |
-| K-01 | KTV 舞台 | 视觉/功能呈现 | fullscreen_ktv_lyric_stage.dart | 仅行级高亮，无逐字着色（静态推断，需运行确认） | KTV 核心体验平淡 | 代码未见逐字渲染 | 无 | 用已有逐字 timing 渲染 Karaoke 扫光 | 高 |
+| K-01 | KTV 舞台 | 视觉/功能呈现 | fullscreen_ktv_lyric_stage.dart | 仅行级高亮，无逐字着色（静态推断，需运行确认） | KTV 核心体验平淡 | 代码未见逐字渲染 | 无 | 用已有逐字 timing 渲染 Karaoke 扫光。**已完成（2026-11-19）：**KTV 舞台按逐字时间扫光（工作日志 `2026-11-19-1115`）；第 10 轮补了全屏 KTV 的键盘控制、控件遮罩和统一错误状态 | 高 |
 | A-02 | 播放器族 | 无障碍 | 全局 | 仅歌词编辑器有快捷键（Ctrl+S/Z/Y/H） | 桌面播放无空格/方向键 | 实证 | 无 | 全局播放快捷键 | 中 |
 | A-03 | 全局 | 无障碍 | color_tokens.dart textTertiary | #6A6A6A 大量 12px 说明文字 | 弱视力可读性差 | **计算 3.46:1** < 4.5 | 无 | 提亮至 ≈#8A8A8A（计算 4.6:1） | 中 |
 
@@ -57,7 +57,7 @@
 | R-01 | 校对收件箱 | 一致性 | review_inbox_screen.dart:207 | 固定歌词图标块，无封面 | 实证 | 接 AppArtwork | 低 |
 | R-02 | 校对收件箱 | 信息架构 | 同上 | 已复核工程无归档 | 实证 | 过滤/折叠 | 低 |
 | R-04 | 路由 | 工程债 | app_router.dart default | 未知路由静默回首页 | 实证 | 加日志/提示 | 低 |
-| T-02 | 传输 | 工程债 | transfer/*（8 屏 ~2900 行+命名 v2） | 子域体量 vs 频次不匹配 | 实证 | 文档化/简化 | 低 |
+| T-02 | 传输 | 工程债 | transfer/*（8 屏 ~2900 行+命名 v2） | 子域体量 vs 频次不匹配 | 实证 | 文档化/简化。**第 10 轮：**手机端歌曲、艺人/专辑和下载管理三屏改用共享的错误横幅、加载和空状态（`transfer_list_states.dart`）；桌面传输中心和 v2 命名仍待处理 | 低 |
 | S-04 | 歌词编辑器 | 主题 | lyric_proofread_v2_dialog.dart:692,802 | 评级色用 Material amber/green 绕 token | 实证 | 入 AppColors 语义色 | 低 |
 | S-05 | 全局 | 主题 | 9 文件 13 处 | 圆角字面量未走 token | 实证 | 换 AppSpacing.radius* | 低 |
 | A-04 | 全局 | 无障碍 | 全项目 | Semantics 仅 2 处 | 实证 | 核心控件补语义标注 | 低 |

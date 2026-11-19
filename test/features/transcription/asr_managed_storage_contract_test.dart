@@ -59,7 +59,8 @@ void main() {
     expect(setup, contains('showAsrExistingModelPathDialog(context)'));
     expect(setup, contains('AsrExistingModelCard'));
     expect(setup, contains('onChangeLocation:'));
-    expect(setup, contains('已有的 ASRRuntime'));
+    expect(setup, contains('AsrFolderText.pickExistingTitle'));
+    expect(setup, contains('AsrFolderText.notFound'));
     expect(setup, contains('result.adoptedExisting'));
     expect(setup, contains('此步骤不会下载'));
 
@@ -74,7 +75,8 @@ void main() {
     expect(settings, contains('showAsrExistingModelPathDialog(context)'));
     expect(settings, contains('AsrExistingModelCard'));
     expect(settings, contains('正在迁移'));
-    expect(settings, contains('已有的 ASRRuntime'));
+    expect(settings, contains('AsrFolderText.pickExistingTitle'));
+    expect(settings, contains('AsrFolderText.moveConfirmation('));
     expect(settings, contains('result.adoptedExisting'));
     expect(settings, contains('if (repaired.isConfigured)'));
     expect(settings, contains('_settingsStore.save(repaired)'));
@@ -83,7 +85,7 @@ void main() {
 
     expect(existingActions, contains('一键识别已有模型'));
     expect(existingActions, contains('粘贴路径识别'));
-    expect(existingActions, contains('不会开始下载'));
+    expect(existingActions, contains('AsrFolderText.cardMessage'));
     expect(existingActions, contains('showAsrExistingModelPathDialog'));
 
     expect(card, contains('VoidCallback? onChangeLocation'));

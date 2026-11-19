@@ -10,8 +10,8 @@ import '../../../transcription/domain/services/asr_managed_storage_service.dart'
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/asr_storage_preflight_service.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
-import '../../../transcription/presentation/widgets/asr_existing_model_actions.dart';
 import '../../../transcription/presentation/transcription_screen_dependencies.dart';
+import '../../../transcription/presentation/widgets/asr_existing_model_actions.dart';
 import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
 import 'ai_transcription_settings_cards.dart';
 
@@ -262,16 +262,14 @@ class _AiTranscriptionSettingsSectionState
     setState(() {
       _scanningExisting = true;
       _error = null;
-      _existingModelMessage = '正在常见磁盘位置查找已有 ASRRuntime…此步骤不会下载。';
+      _existingModelMessage = AsrFolderText.scanning;
     });
     try {
       final result = await _managedStorageService.discoverAndAdoptExisting();
       if (!mounted) return;
       if (result == null) {
         setState(() {
-          _existingModelMessage =
-              '没有在常见位置找到已有 ASRRuntime。可以粘贴包含已有模型的磁盘或文件夹路径，'
-              '也可以继续在当前目录校验并补齐缺失组件。';
+          _existingModelMessage = AsrFolderText.notFound;
         });
         return;
       }
@@ -294,7 +292,7 @@ class _AiTranscriptionSettingsSectionState
   Future<void> _browseExistingModel() async {
     if (_busy || _runtimeManager.isInstalling) return;
     final path = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择磁盘、Models、LyricForge 或已有的 ASRRuntime',
+      dialogTitle: AsrFolderText.pickExistingTitle,
     );
     if (path == null || path.trim().isEmpty || !mounted) return;
     await _adoptExistingPath(path);
@@ -305,7 +303,7 @@ class _AiTranscriptionSettingsSectionState
     setState(() {
       _scanningExisting = true;
       _error = null;
-      _existingModelMessage = '正在从 $path 识别已有 ASRRuntime…此步骤不会下载。';
+      _existingModelMessage = AsrFolderText.checkingPath(path);
     });
     try {
       final result = await _managedStorageService.adoptExistingAt(path);
@@ -313,7 +311,7 @@ class _AiTranscriptionSettingsSectionState
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _existingModelMessage = '没有从该路径识别到已有 ASRRuntime，当前目录未改变。';
+        _existingModelMessage = AsrFolderText.pathNotRecognised;
         _error = '识别已有模型失败：$error';
       });
     } finally {
@@ -352,7 +350,7 @@ class _AiTranscriptionSettingsSectionState
 
   Future<void> _changeManagedStorageLocation() async {
     final parent = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择磁盘 / 父文件夹、LyricForge 文件夹或已有的 ASRRuntime',
+      dialogTitle: AsrFolderText.pickNewParentTitle,
     );
     if (parent == null || parent.trim().isEmpty || !mounted) return;
     await _moveManagedStorage(parent: parent);
@@ -376,9 +374,7 @@ class _AiTranscriptionSettingsSectionState
         builder: (context) => AlertDialog(
           title: Text(useDefault ? '迁回默认位置？' : '迁移识别环境？'),
           content: Text(
-            '当前托管环境约 ${AsrSettingsText.formatBytes(bytes)}。如果所选位置已有 LyricForge ASRRuntime，'
-            '会直接识别并使用其中的模型，不复制、不删除当前目录；否则会先完整复制并核对文件数量与总大小，'
-            '确认新目录完整后才切换路径并清理旧目录。操作期间不会启动识别任务。',
+            AsrFolderText.moveConfirmation(AsrSettingsText.formatBytes(bytes)),
           ),
           actions: [
             TextButton(
