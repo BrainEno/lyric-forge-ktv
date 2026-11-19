@@ -111,11 +111,12 @@ class PlaybackQueuePanel extends StatelessWidget {
                     ),
                     buildDefaultDragHandles: false,
                     itemCount: state.queue.length,
-                    onReorder: (oldIndex, newIndex) {
-                      var target = newIndex;
-                      if (target > oldIndex) target -= 1;
-                      if (target < 0 || target >= state.queue.length) return;
-                      session.moveItem(oldIndex, target);
+                    // The new index already accounts for the moved row.
+                    onReorderItem: (oldIndex, newIndex) {
+                      if (newIndex < 0 || newIndex >= state.queue.length) {
+                        return;
+                      }
+                      session.moveItem(oldIndex, newIndex);
                     },
                     itemBuilder: (context, index) {
                       final item = state.queue[index];

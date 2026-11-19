@@ -4,6 +4,10 @@ enum LocalLibrarySmartView {
   recentlyPlayed,
   withLyrics,
   withoutLyrics,
+
+  /// Songs whose lyrics were paired from a lyric file's name (D-034), so the
+  /// user can check those guesses in one place.
+  autoPairedLyrics,
   editedMetadata,
   missingFiles,
 }
@@ -26,6 +30,7 @@ class LocalLibraryBrowseItem {
   final DateTime addedAt;
   final DateTime? lastPlayedAt;
   final bool hasLyrics;
+  final bool hasAutoPairedLyrics;
   final bool hasUserOverride;
   final bool isMissing;
 
@@ -39,6 +44,7 @@ class LocalLibraryBrowseItem {
     this.playlistNames = const [],
     this.lastPlayedAt,
     this.hasLyrics = false,
+    this.hasAutoPairedLyrics = false,
     this.hasUserOverride = false,
     this.isMissing = false,
   });
@@ -50,24 +56,21 @@ class LocalLibraryBrowseItem {
   }
 
   String get searchText => <String>[
-        title,
-        artist ?? '',
-        album ?? '',
-        ...genres,
-        ...playlistNames,
-        fileName,
-        sourcePath,
-      ].join('\n').toLowerCase();
+    title,
+    artist ?? '',
+    album ?? '',
+    ...genres,
+    ...playlistNames,
+    fileName,
+    sourcePath,
+  ].join('\n').toLowerCase();
 
   bool matchesQuery(String query) {
     final normalized = query.trim().toLowerCase();
     return normalized.isEmpty || searchText.contains(normalized);
   }
 
-  bool matchesSmartView(
-    LocalLibrarySmartView view, {
-    DateTime? now,
-  }) {
+  bool matchesSmartView(LocalLibrarySmartView view, {DateTime? now}) {
     switch (view) {
       case LocalLibrarySmartView.all:
         return true;
@@ -80,6 +83,8 @@ class LocalLibraryBrowseItem {
         return hasLyrics;
       case LocalLibrarySmartView.withoutLyrics:
         return !hasLyrics;
+      case LocalLibrarySmartView.autoPairedLyrics:
+        return hasLyrics && hasAutoPairedLyrics;
       case LocalLibrarySmartView.editedMetadata:
         return hasUserOverride;
       case LocalLibrarySmartView.missingFiles:
@@ -96,11 +101,13 @@ List<T> queryLocalLibrary<T>({
   LocalLibrarySortMode sortMode = LocalLibrarySortMode.title,
   DateTime? now,
 }) {
-  final result = items.where((item) {
-    final value = browseItem(item);
-    return value.matchesSmartView(smartView, now: now) &&
-        value.matchesQuery(query);
-  }).toList(growable: false);
+  final result = items
+      .where((item) {
+        final value = browseItem(item);
+        return value.matchesSmartView(smartView, now: now) &&
+            value.matchesQuery(query);
+      })
+      .toList(growable: false);
 
   int compareNullable(String? a, String? b) {
     final left = a?.trim().toLowerCase() ?? '';

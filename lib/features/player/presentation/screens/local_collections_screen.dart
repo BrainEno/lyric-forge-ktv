@@ -287,7 +287,8 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     int oldIndex,
     int newIndex,
   ) async {
-    if (newIndex > oldIndex) newIndex -= 1;
+    // [ReorderableListView.onReorderItem] already gives the index after the
+    // moved song is taken out of the list.
     if (newIndex == oldIndex) return;
     await _withWork(() async {
       await _collections.moveInPlaylist(playlist.id, oldIndex, newIndex);
@@ -519,7 +520,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
                     spec.sectionGap,
                   ),
                   itemCount: songs.length,
-                  onReorder: (oldIndex, newIndex) =>
+                  onReorderItem: (oldIndex, newIndex) =>
                       _moveInPlaylist(playlist, oldIndex, newIndex),
                   itemBuilder: (context, index) {
                     final song = songs[index];
