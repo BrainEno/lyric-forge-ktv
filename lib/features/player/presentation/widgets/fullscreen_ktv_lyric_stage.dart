@@ -50,9 +50,8 @@ class FullscreenKtvLyricStage extends StatelessWidget {
             emptyMessage,
             key: const ValueKey('fullscreen-ktv-empty-lyrics'),
             textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(color: AppColors.textTertiary),
+            style: Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(color: AppColors.textTertiary),
           ),
         ),
       );

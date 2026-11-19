@@ -28,7 +28,7 @@ List<double> _sung(
 List<Color?> _spanColors(WidgetTester tester) {
   final text = tester.widget<Text>(find.byKey(const ValueKey('line')));
   return [
-    for (final span in text.textSpan!.children!)
+    for (final span in (text.textSpan! as TextSpan).children!)
       (span as TextSpan).style?.color,
   ];
 }
@@ -86,10 +86,10 @@ void main() {
         startTime: Duration.zero,
         endTime: Duration.zero,
       );
-      expect(
-        _sung(open, 1500, fallbackEnd: const Duration(seconds: 2)),
-        [1, 0.5],
-      );
+      expect(_sung(open, 1500, fallbackEnd: const Duration(seconds: 2)), [
+        1,
+        0.5,
+      ]);
       expect(_sung(open, 1), [1, 1], reason: 'no end at all: sung at once');
     });
   });
