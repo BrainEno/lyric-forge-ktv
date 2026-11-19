@@ -101,7 +101,7 @@ abstract final class LyricRowSemantics {
     ];
     return {
       for (final (label, callback) in entries)
-        if (callback != null) CustomSemanticsAction(label: label): callback,
+        CustomSemanticsAction(label: label): ?callback,
     };
   }
 

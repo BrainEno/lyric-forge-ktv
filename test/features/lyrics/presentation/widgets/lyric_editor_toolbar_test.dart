@@ -226,7 +226,7 @@ void main() {
         LyricReviewPriority(
           lineIndex: 0,
           score: 40,
-          reasons: const [
+          reasons: [
             LyricReviewPriorityReason(
               LyricReviewPriorityReasonCode.enginesDifferClearly,
             ),

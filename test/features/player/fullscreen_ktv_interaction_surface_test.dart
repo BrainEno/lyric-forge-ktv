@@ -7,10 +7,7 @@ import 'package:lyric_forge_ktv/features/player/presentation/widgets/fullscreen_
 void main() {
   testWidgets('controls hide after idle and reveal on tap', (tester) async {
     await tester.pumpWidget(
-      _TestApp(
-        hideDelay: const Duration(milliseconds: 100),
-        onExit: () {},
-      ),
+      _TestApp(hideDelay: const Duration(milliseconds: 100), onExit: () {}),
     );
 
     expect(find.text('controls-visible'), findsOneWidget);
@@ -173,10 +170,7 @@ class _TestApp extends StatelessWidget {
   final Duration hideDelay;
   final VoidCallback onExit;
 
-  const _TestApp({
-    required this.hideDelay,
-    required this.onExit,
-  });
+  const _TestApp({required this.hideDelay, required this.onExit});
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +183,9 @@ class _TestApp extends StatelessWidget {
             return SizedBox.expand(
               child: Column(
                 children: [
-                  Text(controlsVisible ? 'controls-visible' : 'controls-hidden'),
+                  Text(
+                    controlsVisible ? 'controls-visible' : 'controls-hidden',
+                  ),
                   const Expanded(child: Center(child: Text('lyrics'))),
                 ],
               ),

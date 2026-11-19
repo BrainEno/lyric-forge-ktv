@@ -223,9 +223,7 @@ void main() {
       expect(find.byType(NoSelectionInspector), findsOneWidget);
     });
 
-    testWidgets('a queued row can be marked through the group', (
-      tester,
-    ) async {
+    testWidgets('a queued row can be marked through the group', (tester) async {
       final inspector = await pump(
         tester,
         review: _review(selected: 1, calls: calls),

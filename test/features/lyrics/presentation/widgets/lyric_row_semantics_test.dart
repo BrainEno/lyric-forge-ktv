@@ -101,7 +101,7 @@ Semantics _semanticsStartingWith(WidgetTester tester, String prefix) {
 
 List<String> _actionLabels(Semantics semantics) => [
   for (final action in semantics.properties.customSemanticsActions!.keys)
-    action.label,
+    action.label!,
 ];
 
 void main() {
@@ -216,7 +216,7 @@ void main() {
           onAudition: () {},
           auditionPlaying: playing,
         );
-        return actions.keys.single.label;
+        return actions.keys.single.label!;
       }
 
       expect(audition(playing: false), LyricRowSemantics.auditionPlay);
@@ -396,7 +396,9 @@ void main() {
     ) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(
-        MaterialApp(home: Scaffold(body: LyricWordTimingStrip(line: timed))),
+        MaterialApp(
+          home: Scaffold(body: LyricWordTimingStrip(line: timed)),
+        ),
       );
 
       final chip = _semanticsStartingWith(tester, '我，');
