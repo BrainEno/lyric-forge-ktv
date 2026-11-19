@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-19 10:15] Add a shared error state for failed loads ([entry](log/entries/2026-11-19-1015-add-shared-error-state.md))
 - [2026-11-19 10:05] Add a shared transport bar for player screens ([entry](log/entries/2026-11-19-1005-add-shared-transport-bar.md))
 - [2026-11-19 09:55] Use shared badges on player and queue screens ([entry](log/entries/2026-11-19-0955-use-shared-badges-on-player-and-queues.md))
 - [2026-11-19 09:41] Add a shared badge widget ([entry](log/entries/2026-11-19-0941-add-shared-badge-widget.md))

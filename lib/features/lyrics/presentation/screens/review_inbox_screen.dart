@@ -5,6 +5,7 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/lyric_review_queue.dart';
@@ -110,7 +111,7 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
           future: _entriesFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const AppLoadingState(message: '正在读取歌词工程');
             }
             if (snapshot.hasError) {
               return _Message(

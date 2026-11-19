@@ -7,6 +7,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_error_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -202,7 +203,7 @@ class _LocalArtistAlbumBrowserScreenState
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppLoadingState()
           : _error != null
           ? _CatalogError(message: _error!, onRetry: _reload)
           : _buildContent(),

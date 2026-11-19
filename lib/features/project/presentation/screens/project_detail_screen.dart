@@ -11,6 +11,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_error_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../transcription/domain/models/transcription_degradation.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
@@ -332,7 +333,7 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator());
+    return const AppLoadingState(message: '正在读取工程');
   }
 }
 

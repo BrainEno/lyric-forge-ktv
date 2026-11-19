@@ -7,6 +7,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -360,7 +361,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
             ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const AppLoadingState()
                 : widget.view == LocalCollectionView.favorites
                 ? _buildFavorites(spec)
                 : _buildPlaylists(spec),

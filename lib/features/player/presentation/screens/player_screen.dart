@@ -7,6 +7,7 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_error_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -174,7 +175,7 @@ class _LoadingState extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: AppColors.bgBase,
-      body: Center(child: CircularProgressIndicator()),
+      body: AppLoadingState(message: '正在准备播放器'),
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_library_browse_item.dart';
 import '../../domain/models/local_media_library_entry.dart';
@@ -437,7 +438,7 @@ class _LocalLibraryExplorerScreenState
               ),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const AppLoadingState()
                   : _songs.isEmpty
                   ? _EmptyLibrary(onFiles: _addFiles, onFolder: _addFolder)
                   : songs.isEmpty
