@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-25 11:50] Show real covers on the recent listening shelf ([entry](log/entries/2026-11-25-1150-show-real-covers-on-the-recent-listening-shelf.md))
 - [2026-11-25 11:40] Name the reference lyric flows as a pair ([entry](log/entries/2026-11-25-1140-name-the-reference-lyric-flows-as-a-pair.md))
 - [2026-11-25 11:30] Pass the editor groups to the child panes ([entry](log/entries/2026-11-25-1130-pass-the-editor-groups-to-the-child-panes.md))
 - [2026-11-25 11:20] Group the lyric editor inputs ([entry](log/entries/2026-11-25-1120-group-the-lyric-editor-inputs.md))
