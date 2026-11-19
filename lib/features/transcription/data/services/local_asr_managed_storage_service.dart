@@ -206,7 +206,7 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
           (configured.securityScopedBookmark?.trim().isNotEmpty ?? false);
       if (!_samePath(best.path, fallback.path) && !alreadyAuthorized) {
         throw FileSystemException(
-          '已找到已有 ASRRuntime，但 macOS 需要先通过“粘贴路径识别”或“浏览已有 ASRRuntime”授权该文件夹',
+          '已找到已有 ASRRuntime，但 macOS 需要先通过“粘贴路径识别”或“浏览模型文件夹”授权该文件夹',
           best.path,
         );
       }

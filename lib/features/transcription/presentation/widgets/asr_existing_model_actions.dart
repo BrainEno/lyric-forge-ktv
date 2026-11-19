@@ -3,12 +3,17 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../asr_folder_text.dart';
+
+// Settings reaches the copy through this file, its one way into the
+// transcription presentation layer (see the feature dependency baseline).
+export '../asr_folder_text.dart' show AsrFolderText;
 
 /// A single low-friction entry point for reusing models that an older
 /// Elysium Player install already downloaded somewhere else on this computer.
 ///
-/// The actions deliberately do not ask the user to understand the internal
-/// `LyricForge/ASRRuntime` layout. Automatic discovery is primary; pasting a
+/// Automatic discovery is primary; the copy names the folder as the path it
+/// is on disk (see [AsrFolderText]) for the two fallbacks, pasting a
 /// path and browsing are fallbacks. Recognition switches only the managed
 /// root pointer and never starts a download by itself.
 class AsrExistingModelCard extends StatelessWidget {
@@ -60,9 +65,7 @@ class AsrExistingModelCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '先在本机查找以前的 LyricForge ASRRuntime 并原地使用。此步骤只识别'
-                      '已有文件：不复制、不删除，也不会开始下载。识别后若仍有组件缺失，'
-                      '下方会单独列出原因。',
+                      AsrFolderText.cardMessage,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                         height: 1.45,
@@ -93,7 +96,7 @@ class AsrExistingModelCard extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: SelectableText(
-                    message ?? '正在查找已有 ASRRuntime…（不会下载）',
+                    message ?? AsrFolderText.scanningFallback,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                       height: 1.4,
@@ -121,7 +124,7 @@ class AsrExistingModelCard extends StatelessWidget {
               TextButton.icon(
                 onPressed: scanning ? null : onBrowse,
                 icon: const Icon(Icons.folder_open_rounded, size: 18),
-                label: const Text('浏览已有 ASRRuntime'),
+                label: const Text(AsrFolderText.browseLabel),
               ),
             ],
           ),
@@ -177,7 +180,7 @@ class _AsrExistingModelPathDialogState
 
   Future<void> _browse() async {
     final selected = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择磁盘、Models、LyricForge 或已有的 ASRRuntime',
+      dialogTitle: AsrFolderText.pickExistingTitle,
     );
     if (!mounted || selected == null || selected.trim().isEmpty) return;
     _controller.text = selected;
@@ -187,7 +190,7 @@ class _AsrExistingModelPathDialogState
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('粘贴已有 ASRRuntime 路径'),
+      title: const Text(AsrFolderText.pasteTitle),
       content: SizedBox(
         width: 560,
         child: Column(
@@ -195,8 +198,7 @@ class _AsrExistingModelPathDialogState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              '可以粘贴整盘、Models 容器、LyricForge、ASRRuntime，或 ASRRuntime '
-              '内部的任意模型文件夹/文件；Elysium Player 会自动向上或向下找到已有环境。',
+              AsrFolderText.pasteExplanation,
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
@@ -207,10 +209,10 @@ class _AsrExistingModelPathDialogState
               autofocus: true,
               maxLines: 2,
               onSubmitted: (_) => _submit(),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: '已有模型路径',
-                hintText: r'例如 D:\、D:\Models 或 D:\Models\LyricForge\ASRRuntime',
-                prefixIcon: Icon(Icons.folder_open_rounded),
+                hintText: AsrFolderText.pasteHint,
+                prefixIcon: const Icon(Icons.folder_open_rounded),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
