@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_destinations.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_navigation_shell.dart';
 import 'package:lyric_forge_ktv/core/navigation/routes.dart';
+import 'package:lyric_forge_ktv/core/widgets/app_brand_mark.dart';
 
 void main() {
   late List<AppDestination> selected;
@@ -39,6 +40,26 @@ void main() {
       expect(find.text(destination.label), findsWidgets);
     }
     expect(find.text('内容'), findsOneWidget);
+  });
+
+  testWidgets('侧边栏顶部是应用图标的品牌标记', (tester) async {
+    await pumpAt(tester, buildShell(), const Size(1400, 900));
+
+    expect(
+      find.descendant(
+        of: find.byType(NavigationRail),
+        matching: find.byType(AppBrandMark),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.graphic_eq_rounded), findsNothing);
+    expect(find.byTooltip('Elysium Player'), findsOneWidget);
+  });
+
+  testWidgets('窄屏底部导航不带品牌标记', (tester) async {
+    await pumpAt(tester, buildShell(), const Size(390, 844));
+
+    expect(find.byType(AppBrandMark), findsNothing);
   });
 
   testWidgets('窄屏用底部导航，四个去向都在', (tester) async {

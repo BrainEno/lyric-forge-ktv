@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../diagnostics/app_build_info.dart';
 import '../layout/app_responsive.dart';
 import '../theme/color_tokens.dart';
+import '../widgets/app_brand_mark.dart';
 import 'app_destinations.dart';
 
 /// Persistent top-level navigation: a rail on wide windows, a bottom bar on
@@ -109,9 +111,14 @@ class AppNavigationRail extends StatelessWidget {
             groupAlignment: -0.9,
             onDestinationSelected: (index) =>
                 onSelect(AppDestination.values[index]),
+            // The brand mark from the app icon, not a generic Material
+            // icon (audit B-01).
             leading: const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
-              child: Icon(Icons.graphic_eq_rounded, size: 28),
+              child: Tooltip(
+                message: appDisplayName,
+                child: AppBrandMark(size: 28),
+              ),
             ),
             destinations: [
               for (final destination in AppDestination.values)
