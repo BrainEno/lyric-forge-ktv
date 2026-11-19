@@ -19,6 +19,7 @@ import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
 import 'line_inspector_sheet.dart';
 import 'lyric_batch_text_edit.dart';
+import 'lyric_editor_actions.dart';
 import 'lyric_editor_atoms.dart';
 import 'lyric_editor_toolbar.dart';
 import 'lyric_edit_shortcuts.dart';
@@ -68,10 +69,6 @@ class LyricEditorContent extends StatelessWidget {
   final bool hasChanges;
   final Map<int, LyricReviewPriority> reviewPriorityByIndex;
   final LyricReviewQueue reviewQueue;
-  final int? activeAuditionLineIndex;
-  final bool auditionPlaying;
-  final bool loopCurrentLineAudition;
-  final ValueChanged<bool> onLoopCurrentLineAuditionChanged;
   final bool followPlayback;
   final int? selectedLineIndex;
   final LyricReviewFilter filter;
@@ -86,44 +83,16 @@ class LyricEditorContent extends StatelessWidget {
 
   /// A save is in flight: save actions are disabled and leaving waits.
   final bool isSaving;
-  final VoidCallback onUndo;
-  final VoidCallback onRedo;
-  final bool canUndo;
-  final bool canRedo;
-  final String? undoLabel;
-  final String? redoLabel;
-  final VoidCallback onExport;
-  final VoidCallback? onReferenceAlignment;
-  final VoidCallback? onReferenceProofread;
-  final VoidCallback? onProofreadV2;
-  final VoidCallback? onUndoReferenceAlignment;
-  final VoidCallback? onViewAlignmentComparison;
-  final VoidCallback? onRestoreAlignment;
-  final VoidCallback? onUnifyChineseScript;
 
-  /// Opens one of the batch text tools (find-and-replace, repeated-line
-  /// consistency, text clean-up); null while there are no lyrics.
-  final ValueChanged<LyricBatchTextTool>? onBatchTextTool;
-  final VoidCallback onAddLine;
-  final VoidCallback onInsertAtPlayback;
+  // Grouped inputs, see lyric_editor_actions.dart (audit E-04).
+  final LyricEditHistory history;
+  final LyricProofreadActions proofread;
+  final LyricLineEditActions edits;
+  final LyricAuditionControls audition;
+  final VoidCallback onExport;
   final ValueChanged<Duration> onSeekPlayback;
   final int focusRequestId;
   final int? focusLineIndex;
-  final void Function(int, LyricLine) onUpdateLine;
-  final ValueChanged<int> onDeleteLine;
-
-  /// Splits a row at a text offset (null: the natural break nearest the sung
-  /// middle). The third argument is the paused playhead on the timeline when
-  /// this project's audio is paused, which then marks the audible break.
-  final void Function(int index, int? textOffset, Duration? playhead)?
-  onSplitLine;
-
-  /// Merges a row with the one after it.
-  final ValueChanged<int>? onMergeLineWithNext;
-  final ValueChanged<Duration> onUpdateOffset;
-  final ValueChanged<int> onPreviewLine;
-  final ValueChanged<int> onSetStartFromPlayback;
-  final ValueChanged<int> onSetEndFromPlayback;
   final VoidCallback onTogglePlayback;
   final Set<int> manuallyEditedLineIndices;
 
@@ -136,10 +105,6 @@ class LyricEditorContent extends StatelessWidget {
     required this.hasChanges,
     required this.reviewPriorityByIndex,
     required this.reviewQueue,
-    required this.activeAuditionLineIndex,
-    required this.auditionPlaying,
-    required this.loopCurrentLineAudition,
-    required this.onLoopCurrentLineAuditionChanged,
     required this.followPlayback,
     required this.selectedLineIndex,
     required this.filter,
@@ -149,34 +114,14 @@ class LyricEditorContent extends StatelessWidget {
     required this.onReviewDecision,
     required this.onSave,
     this.isSaving = false,
-    required this.onUndo,
-    required this.onRedo,
-    required this.canUndo,
-    required this.canRedo,
-    required this.undoLabel,
-    required this.redoLabel,
+    required this.history,
+    this.proofread = LyricProofreadActions.none,
+    required this.edits,
+    required this.audition,
     required this.onExport,
-    required this.onReferenceAlignment,
-    required this.onReferenceProofread,
-    required this.onProofreadV2,
-    required this.onUndoReferenceAlignment,
-    required this.onViewAlignmentComparison,
-    required this.onRestoreAlignment,
-    this.onUnifyChineseScript,
-    this.onBatchTextTool,
-    required this.onAddLine,
-    required this.onInsertAtPlayback,
     required this.onSeekPlayback,
     required this.focusRequestId,
     required this.focusLineIndex,
-    required this.onUpdateLine,
-    required this.onDeleteLine,
-    this.onSplitLine,
-    this.onMergeLineWithNext,
-    required this.onUpdateOffset,
-    required this.onPreviewLine,
-    required this.onSetStartFromPlayback,
-    required this.onSetEndFromPlayback,
     required this.onTogglePlayback,
     this.manuallyEditedLineIndices = const {},
   });
@@ -276,9 +221,9 @@ class LyricEditorContent extends StatelessWidget {
                     _currentPlaybackLineIndex() == index,
                 isPlaying: playbackBelongsToProject && playback.isPlaying,
                 autofocusText: autofocusText,
-                onUpdate: (updated) => onUpdateLine(index, updated),
+                onUpdate: (updated) => edits.onUpdateLine(index, updated),
                 onDelete: () {
-                  onDeleteLine(index);
+                  edits.onDeleteLine(index);
                   Navigator.of(sheetContext).pop();
                 },
                 // The sheet shows one row; after a structural edit it would
@@ -292,26 +237,28 @@ class LyricEditorContent extends StatelessWidget {
                 onMergeWithNext: _mergeWithNextFor(index) == null
                     ? null
                     : () {
-                        onMergeLineWithNext!(index);
+                        edits.onMergeLineWithNext!(index);
                         Navigator.of(sheetContext).pop();
                       },
-                onPreview: () => onPreviewLine(index),
+                onPreview: () => audition.onPreviewLine(index),
                 onUsePlaybackAsStart: playbackBelongsToProject
-                    ? () => onSetStartFromPlayback(index)
+                    ? () => edits.onSetStartFromPlayback(index)
                     : null,
                 onUsePlaybackAsEnd: playbackBelongsToProject
-                    ? () => onSetEndFromPlayback(index)
+                    ? () => edits.onSetEndFromPlayback(index)
                     : null,
                 onSeekToTime: playbackBelongsToProject
                     ? (time) => onSeekPlayback(
                         time + (document.globalOffset ?? Duration.zero),
                       )
                     : null,
-                onEditWordTiming: onBatchTextTool == null
+                onEditWordTiming: proofread.onBatchTextTool == null
                     ? null
                     : () {
                         Navigator.of(sheetContext).pop();
-                        onBatchTextTool!(LyricBatchTextTool.wordTimingEdit);
+                        proofread.onBatchTextTool!(
+                          LyricBatchTextTool.wordTimingEdit,
+                        );
                       },
               ),
             ),
@@ -329,7 +276,7 @@ class LyricEditorContent extends StatelessWidget {
   /// passed along as the audible break; while audio plays it is not, because
   /// a moving playhead says nothing about where the line should end.
   void Function(int index, int? textOffset)? get _splitLine {
-    final split = onSplitLine;
+    final split = edits.onSplitLine;
     if (split == null) return null;
     return (index, textOffset) {
       Duration? playhead;
@@ -344,7 +291,7 @@ class LyricEditorContent extends StatelessWidget {
 
   /// Merge is offered only when there is a next row.
   ValueChanged<int>? _mergeWithNextFor(int index) =>
-      index + 1 < document.lines.length ? onMergeLineWithNext : null;
+      index + 1 < document.lines.length ? edits.onMergeLineWithNext : null;
 
   /// Pops this editor once. A second completion (for example a shared save
   /// finishing for two back requests) must not pop the route below it.
@@ -356,7 +303,7 @@ class LyricEditorContent extends StatelessWidget {
 
   /// A menu callback for [tool], or null when the tools are unavailable.
   VoidCallback? _batchTool(LyricBatchTextTool tool) {
-    final open = onBatchTextTool;
+    final open = proofread.onBatchTextTool;
     return open == null ? null : () => open(tool);
   }
 
@@ -401,8 +348,8 @@ class LyricEditorContent extends StatelessWidget {
         }
       },
       child: LyricEditShortcuts(
-        onUndo: onUndo,
-        onRedo: onRedo,
+        onUndo: history.onUndo,
+        onRedo: history.onRedo,
         onSave: isSaving ? null : _requestSave,
         onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
         child: Scaffold(
@@ -428,10 +375,10 @@ class LyricEditorContent extends StatelessWidget {
               if (spec.isCompactOrMedium || spec.isShort)
                 LyricProofreadMenuButton(
                   compact: true,
-                  onProofreadV2: onProofreadV2,
-                  onReferenceAlignment: onReferenceAlignment,
-                  onReferenceProofread: onReferenceProofread,
-                  onUnifyChineseScript: onUnifyChineseScript,
+                  onProofreadV2: proofread.onProofreadV2,
+                  onReferenceAlignment: proofread.onReferenceAlignment,
+                  onReferenceProofread: proofread.onReferenceProofread,
+                  onUnifyChineseScript: proofread.onUnifyChineseScript,
                   onRepetitionConsistency: _batchTool(
                     LyricBatchTextTool.repetitionConsistency,
                   ),
@@ -455,19 +402,19 @@ class LyricEditorContent extends StatelessWidget {
                     LyricBatchTextTool.wordTimingCheck,
                   ),
                   onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
-                  onViewComparison: onViewAlignmentComparison,
-                  onUndoAlignment: onUndoReferenceAlignment,
-                  onRestoreBackup: onRestoreAlignment,
+                  onViewComparison: proofread.onViewAlignmentComparison,
+                  onUndoAlignment: proofread.onUndoReferenceAlignment,
+                  onRestoreBackup: proofread.onRestoreAlignment,
                 ),
               LyricEditorOverflowMenu(
-                onUndo: canUndo ? onUndo : null,
-                onRedo: canRedo ? onRedo : null,
-                undoLabel: canUndo ? undoLabel : null,
-                redoLabel: canRedo ? redoLabel : null,
+                onUndo: history.undoOrNull,
+                onRedo: history.redoOrNull,
+                undoLabel: history.availableUndoLabel,
+                redoLabel: history.availableRedoLabel,
                 canExport: document.lines.isNotEmpty,
                 onExport: onExport,
                 onInsertAtPlayback: playbackBelongsToProject
-                    ? onInsertAtPlayback
+                    ? edits.onInsertAtPlayback
                     : null,
                 onOpenPlayer: project.canPlay
                     ? () => Navigator.pushNamed(
@@ -508,27 +455,28 @@ class LyricEditorContent extends StatelessWidget {
                   playbackBelongsToProject: playbackBelongsToProject,
                   review: reviewQueue,
                   filter: filter,
-                  loopCurrentLineAudition: loopCurrentLineAudition,
+                  loopCurrentLineAudition: audition.loopCurrentLine,
                   onLoopCurrentLineAuditionChanged:
-                      onLoopCurrentLineAuditionChanged,
+                      audition.onLoopCurrentLineChanged,
                   followPlayback: followPlayback,
                   onFilterChanged: onFilterChanged,
                   onFollowPlaybackChanged: onFollowPlaybackChanged,
-                  onUpdateOffset: onUpdateOffset,
+                  onUpdateOffset: edits.onUpdateOffset,
                   onTogglePlayback: onTogglePlayback,
                   onSeekPlayback: onSeekPlayback,
-                  onReferenceAlignment: onReferenceAlignment,
-                  onReferenceProofread: onReferenceProofread,
-                  onProofreadV2: onProofreadV2,
-                  onUndoReferenceAlignment: onUndoReferenceAlignment,
-                  onViewAlignmentComparison: onViewAlignmentComparison,
-                  onRestoreAlignment: onRestoreAlignment,
-                  onUnifyChineseScript: onUnifyChineseScript,
-                  onBatchTextTool: onBatchTextTool,
+                  onReferenceAlignment: proofread.onReferenceAlignment,
+                  onReferenceProofread: proofread.onReferenceProofread,
+                  onProofreadV2: proofread.onProofreadV2,
+                  onUndoReferenceAlignment: proofread.onUndoReferenceAlignment,
+                  onViewAlignmentComparison:
+                      proofread.onViewAlignmentComparison,
+                  onRestoreAlignment: proofread.onRestoreAlignment,
+                  onUnifyChineseScript: proofread.onUnifyChineseScript,
+                  onBatchTextTool: proofread.onBatchTextTool,
                 ),
                 Expanded(
                   child: document.lines.isEmpty
-                      ? _EmptyLyricsState(onAddLine: onAddLine)
+                      ? _EmptyLyricsState(onAddLine: edits.onAddLine)
                       : LayoutBuilder(
                           builder: (context, constraints) {
                             final layout = AppResponsive.fromConstraints(
@@ -542,11 +490,11 @@ class LyricEditorContent extends StatelessWidget {
                                 recognitionSummary.hasRecognitionData
                                 ? LyricRecognitionSummaryCard(
                                     summary: recognitionSummary,
-                                    health: onBatchTextTool == null
+                                    health: proofread.onBatchTextTool == null
                                         ? null
                                         : const LyricDraftHealthService()
                                               .cached(document),
-                                    onOpenBatchTool: onBatchTextTool,
+                                    onOpenBatchTool: proofread.onBatchTextTool,
                                     onStartReview: reviewQueue.isEmpty
                                         ? null
                                         : () {
@@ -586,11 +534,11 @@ class LyricEditorContent extends StatelessWidget {
                               filter: filter,
                               onShowAllLines: () =>
                                   onFilterChanged(LyricReviewFilter.all),
-                              activeAuditionLineIndex: activeAuditionLineIndex,
-                              auditionPlaying: auditionPlaying,
+                              activeAuditionLineIndex: audition.activeLineIndex,
+                              auditionPlaying: audition.playing,
                               onPreviewLine: project.audioAsset == null
                                   ? null
-                                  : onPreviewLine,
+                                  : audition.onPreviewLine,
                               onInsertedLineFocus: twoPane
                                   ? onSelectLine
                                   : (index) => _showInspectorSheet(
@@ -602,16 +550,16 @@ class LyricEditorContent extends StatelessWidget {
                                   ? onSelectLine
                                   : (index) =>
                                         _showInspectorSheet(context, index),
-                              onUpdateLine: onUpdateLine,
-                              onDeleteLine: onDeleteLine,
+                              onUpdateLine: edits.onUpdateLine,
+                              onDeleteLine: edits.onDeleteLine,
                               onSplitLine: _splitLine,
-                              onMergeLineWithNext: onMergeLineWithNext,
+                              onMergeLineWithNext: edits.onMergeLineWithNext,
                               onSetStartFromPlayback: project.audioAsset == null
                                   ? null
-                                  : onSetStartFromPlayback,
+                                  : edits.onSetStartFromPlayback,
                               onSetEndFromPlayback: project.audioAsset == null
                                   ? null
-                                  : onSetEndFromPlayback,
+                                  : edits.onSetEndFromPlayback,
                               manuallyEditedLineIndices:
                                   manuallyEditedLineIndices,
                             );
@@ -660,14 +608,16 @@ class LyricEditorContent extends StatelessWidget {
                                     playbackBelongsToProject:
                                         playbackBelongsToProject,
                                     currentPlaybackLine: currentPlaybackLine,
-                                    onUpdateLine: onUpdateLine,
-                                    onDeleteLine: onDeleteLine,
+                                    onUpdateLine: edits.onUpdateLine,
+                                    onDeleteLine: edits.onDeleteLine,
                                     onSplitLine: _splitLine,
-                                    onMergeLineWithNext: onMergeLineWithNext,
-                                    onPreviewLine: onPreviewLine,
+                                    onMergeLineWithNext:
+                                        edits.onMergeLineWithNext,
+                                    onPreviewLine: audition.onPreviewLine,
                                     onSetStartFromPlayback:
-                                        onSetStartFromPlayback,
-                                    onSetEndFromPlayback: onSetEndFromPlayback,
+                                        edits.onSetStartFromPlayback,
+                                    onSetEndFromPlayback:
+                                        edits.onSetEndFromPlayback,
                                     onSeekPlayback: onSeekPlayback,
                                     onEditWordTiming: _batchTool(
                                       LyricBatchTextTool.wordTimingEdit,
@@ -687,7 +637,7 @@ class LyricEditorContent extends StatelessWidget {
                   totalLines: document.lines.length,
                   visibleLines: visibleIndices.length,
                   hasChanges: hasChanges,
-                  onAddLine: onAddLine,
+                  onAddLine: edits.onAddLine,
                 ),
               ],
             ),

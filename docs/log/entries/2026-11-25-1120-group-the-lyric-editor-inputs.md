@@ -1,0 +1,14 @@
+# [2026-11-25 11:20] Group the lyric editor inputs
+
+- Scope: UI/UX audit E-04. `LyricEditorContent` took 50 constructor arguments (44 at audit time) and the lyric editor screen built it in one 110-line call where undo, proofreading tools, row edits and audition settings were interleaved, so a new tool meant threading a callback through three places and reading past dozens of unrelated ones. Thirty-one of them now travel in four immutable groups in `lyric_editor_actions.dart`: `LyricEditHistory` (undo/redo, availability and labels, with `undoOrNull` and `availableUndoLabel` replacing the inline `canUndo ? … : null` checks), `LyricProofreadActions` (reference alignment and its follow-ups, proofread, script unification, batch text tools; `none` when nothing applies), `LyricLineEditActions` (add, insert, update, delete, split, merge, offset, start/end from playback) and `LyricAuditionControls` (preview, active row, playing, loop). The content takes 23 arguments. The screen builds the proofreading group in `_proofreadActions`, the row edits in `_lineEditActions` and the audition group in `_auditionControls`, with the same availability rules as before (alignment follow-ups stay available without lyrics).
+- Files:
+  - `lib/features/lyrics/presentation/widgets/lyric_editor_actions.dart` (new).
+  - `lib/features/lyrics/presentation/widgets/lyric_editor_content.dart` (fields and constructor grouped; reads `history.`, `proofread.`, `edits.`, `audition.`).
+  - `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart` (call site and three builders).
+  - `test/features/lyrics/presentation/widgets/lyric_editor_actions_test.dart` (new: undo/redo gating and labels, raw callbacks for shortcuts, `none`, batch tool routing, row edit pass-through and optional split/merge, audition defaults).
+- Validation:
+  - No Dart/Flutter toolchain in the sandbox; the field rewrite was scripted (every reference inside `LyricEditorContent` rewritten, named-argument labels left alone) and `dart format`, `flutter analyze` and the existing lyric editor screen tests run in the PR's Flutter Quality Gate.
+  - Work-log `write` + `check` => Python port of `tool/work_log.dart`.
+- Notes:
+  - The child panes (`LyricInspectorPane`, `LyricListPane`, the proofread menu) keep their own flat parameters; passing the groups further down is a follow-up.
+- Commit: `Group the lyric editor inputs`
