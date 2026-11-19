@@ -1,0 +1,33 @@
+name: Temporary format probe
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Report format diffs as annotations
+        run: |
+          base=4969c1c1b7898ff09609715c30cecefbbb4c1bae
+          files=$(git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.dart')
+          n=0
+          for f in $files; do
+            cp "$f" /tmp/orig.dart
+            dart format "$f" >/dev/null
+            if ! diff -q /tmp/orig.dart "$f" >/dev/null; then
+              d=$(git diff -- "$f" | head -c 3500 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+              echo "::warning title=fmt $n::$d"
+              n=$((n+1))
+            fi
+          done
+          if [ "$n" = 0 ]; then echo "::notice title=fmt-ok::NO FORMAT DIFF"; fi
