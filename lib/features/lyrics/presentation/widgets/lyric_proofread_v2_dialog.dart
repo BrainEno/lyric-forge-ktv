@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
+import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/proofreading/project_proofread_evidence.dart';
 import '../../domain/proofreading/proofread_result.dart';
@@ -682,7 +683,7 @@ class _LyricProofreadV2ReviewDialogState
         : '${(diagnostics.lineCoverage * 100).round()}%';
     return Container(
       key: const ValueKey('forced_alignment_diagnostics'),
-      margin: const EdgeInsets.only(top: 8),
+      margin: const EdgeInsets.only(top: AppSpacing.sm),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: AppColors.bgBase,
@@ -691,7 +692,7 @@ class _LyricProofreadV2ReviewDialogState
               ? AppColors.textTertiary
               : AppColors.warning,
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

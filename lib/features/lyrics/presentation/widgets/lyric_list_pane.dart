@@ -669,10 +669,7 @@ class _InlineLyricEditorRowState extends State<InlineLyricEditorRow> {
                   const Spacer(),
                   Text(
                     '按回车保存 · Esc 取消',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textTertiary,
-                      fontSize: 10,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall,
                   ),
                 ],
               ),

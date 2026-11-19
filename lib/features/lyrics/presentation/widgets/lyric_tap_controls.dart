@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/diagnostics/app_logger.dart';
 import '../../../../core/diagnostics/best_effort.dart';
 import '../../../../core/theme/color_tokens.dart';
+import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
 
 /// Reads "now" on the song timeline for the tap-to-sync dialogs.
@@ -111,7 +112,7 @@ class LyricTapPad extends StatelessWidget {
       color: enabled
           ? AppColors.accent.withValues(alpha: 0.18)
           : AppColors.bgSurface,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
       child: Listener(
         key: padKey,
         behavior: HitTestBehavior.opaque,
