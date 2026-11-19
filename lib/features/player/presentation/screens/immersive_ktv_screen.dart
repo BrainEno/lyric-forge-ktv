@@ -167,8 +167,9 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
       await _recording.startRecording(project);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('KTV 录音失败：$error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('KTV 录音失败：$error')));
     }
   }
 

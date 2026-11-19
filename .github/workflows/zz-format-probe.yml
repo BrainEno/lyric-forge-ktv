@@ -18,6 +18,9 @@ jobs:
       - uses: ./.github/actions/setup-flutter
       - name: Report format diffs as annotations
         run: |
+          # Resolve packages first: CI formats after pub get, and the formatter
+          # picks a different style without the package config.
+          flutter pub get --enforce-lockfile >/dev/null
           base=4969c1c1b7898ff09609715c30cecefbbb4c1bae
           files=$(git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.dart')
           n=0
