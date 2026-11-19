@@ -4,7 +4,9 @@ import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_badge.dart';
 
 Widget _host(Widget child) {
-  return MaterialApp(home: Scaffold(body: Center(child: child)));
+  return MaterialApp(
+    home: Scaffold(body: Center(child: child)),
+  );
 }
 
 BoxDecoration _decoration(WidgetTester tester) {
