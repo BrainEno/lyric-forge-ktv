@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-19 12:00] Add word-by-word tap-to-sync and Whisper word timing ([entry](log/entries/2026-11-19-1200-add-word-tap-sync-and-whisper-word-timing.md))
 - [2026-11-19 11:55] Add a button spinner that follows the label ([entry](log/entries/2026-11-19-1155-add-a-button-spinner-that-follows-the-label.md))
 - [2026-11-19 11:45] Move the library transfer button into the section strip ([entry](log/entries/2026-11-19-1145-move-library-transfer-button-into-section-strip.md))
 - [2026-11-19 11:35] Move library empty states to AppEmptyState ([entry](log/entries/2026-11-19-1135-move-library-empty-states-to-app-empty-state.md))

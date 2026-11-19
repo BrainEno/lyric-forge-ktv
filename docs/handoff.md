@@ -5,15 +5,16 @@
 审计路线的下一轮（PR #475 已合并为 `0b4c337`）。这一轮多做几个任务：
 
 1. I-01/I-02 导入流程：环境检查页改名“准备识别环境”，两页都显示“1 准备识别环境 — 2 选择歌曲”步骤条；导入页三个卖点胶囊改成一行说明。
+2. R-01/R-02 校对收件箱：每行显示歌曲封面；有待复核工程时，已复核的工程折叠在“已复核的工程 · N 个”下面。
 
 ## Git 现场
 
 - 分支：`arena/8d29a47a-lyric-forge-ktv`，基于 main `0b4c337`。
-- 提交：`Name the import steps`。
+- 提交：`Name the import steps`；`Fold reviewed projects in the review inbox`。
 
 ## 已改文件
 
-见工作日志 `2026-11-19-1205-name-the-import-steps.md`（步骤条组件、环境检查页、导入页）。
+见工作日志 `2026-11-19-1205-name-the-import-steps.md`（步骤条组件、环境检查页、导入页）和 `2026-11-19-1210-fold-reviewed-projects-in-the-review-inbox.md`（校对收件箱）。
 
 ## 检查结果
 
@@ -27,4 +28,4 @@
 
 - 没有在运行中的应用里看过。详见工作日志。
 
-最后更新：2026-11-19 12:05（Asia/Taipei）
+最后更新：2026-11-19 12:10（Asia/Taipei）
