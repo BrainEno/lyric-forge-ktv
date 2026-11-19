@@ -91,7 +91,12 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
       entries.add(
         ReviewInboxEntry(
           project: project,
-          queue: LyricReviewQueue.build(document),
+          // The editor counts with the audio length (lines past the end of
+          // the song need review); the inbox must report the same number.
+          queue: LyricReviewQueue.build(
+            document,
+            audioDuration: project.audioAsset?.duration,
+          ),
         ),
       );
     }
@@ -190,8 +195,12 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
     Navigator.pushNamed(context, Routes.import);
   }
 
-  void _openEditor(ProjectManifest project) {
-    Navigator.pushNamed(context, Routes.lyricEditorPath(project.id));
+  /// Opens the editor and reads the list again when it closes. The inbox
+  /// used to keep its old copy, so lines confirmed and saved in the editor
+  /// still showed as waiting here, which read as "the save did not stick".
+  Future<void> _openEditor(ProjectManifest project) async {
+    await Navigator.pushNamed(context, Routes.lyricEditorPath(project.id));
+    if (mounted) _reload();
   }
 
   /// Summary line, the projects that still need review, then the reviewed
@@ -262,7 +271,10 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
         child: FutureBuilder<List<ReviewInboxEntry>>(
           future: _entriesFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            // A reload after a save keeps the current list on screen until
+            // the new one arrives instead of flashing the spinner.
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
               return const AppLoadingState(message: '正在读取歌词工程');
             }
             if (snapshot.hasError) {

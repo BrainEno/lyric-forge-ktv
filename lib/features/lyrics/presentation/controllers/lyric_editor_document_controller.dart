@@ -7,6 +7,7 @@ import '../../domain/models/lyric_edit_history.dart';
 import '../../domain/services/lyric_indexed_review_metadata.dart';
 import '../../domain/services/lyric_line_structure_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
+import '../../domain/services/lyric_metadata_json_sanitizer.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_timeline_insertion_service.dart';
 
@@ -197,13 +198,17 @@ class LyricEditorDocumentController extends ChangeNotifier {
 
   /// The document as it should be written to disk, with this session's manual
   /// edit marks persisted into its metadata.
+  ///
+  /// The metadata is passed through [LyricMetadataJsonSanitizer]: a tool that
+  /// left a `Set` or an enum in it must not make a proofread draft unsavable.
   LyricDocument documentForSave() {
     final document = _document;
     if (document == null) {
       throw StateError('Nothing to save: no document is loaded.');
     }
+    final metadata = markerService.persist(document, _manuallyEditedLineIds);
     return document.copyWith(
-      metadata: markerService.persist(document, _manuallyEditedLineIds),
+      metadata: const LyricMetadataJsonSanitizer().sanitize(metadata),
     );
   }
 

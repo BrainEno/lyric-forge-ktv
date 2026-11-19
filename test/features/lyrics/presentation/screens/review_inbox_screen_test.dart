@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lyric_forge_ktv/core/widgets/app_artwork.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_manual_edit_marker_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_decision_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/screens/review_inbox_screen.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
@@ -13,6 +16,7 @@ ProjectManifest _project({
   String? artist,
   DateTime? updatedAt,
   List<LyricLine>? lines,
+  AudioAsset? audioAsset,
 }) {
   final at = updatedAt ?? DateTime(2026, 11, 1);
   return ProjectManifest(
@@ -21,6 +25,7 @@ ProjectManifest _project({
     artist: artist,
     createdAt: at,
     updatedAt: at,
+    audioAsset: audioAsset,
     lyricDocument: lines == null
         ? null
         : LyricDocument(language: 'zh', lines: lines),
@@ -182,6 +187,63 @@ void main() {
 
     expect(pushedRoutes, ['/project/abc/lyrics']);
     expect(find.text('编辑器'), findsOneWidget);
+  });
+
+  testWidgets('从编辑器返回后重新读取，刚保存的确认会反映在列表里', (tester) async {
+    repository = _FakeProjectRepository([
+      _project(id: 'p', name: '夜曲', lines: [_line('第 1 行', confidence: 20)]),
+    ]);
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+    expect(find.text('待复核 1'), findsOneWidget);
+
+    await tester.tap(find.text('夜曲'));
+    await tester.pumpAndSettle();
+    expect(find.text('编辑器'), findsOneWidget);
+
+    // What the editor does: confirm the line, then save.
+    final stored = repository.projects.single;
+    final document = const LyricManualEditMarkerService().assignMissingLineIds(
+      stored.lyricDocument!,
+    );
+    repository.projects[0] = stored.copyWith(
+      lyricDocument: const LyricReviewDecisionService().setAllReviewed(
+        document,
+      ),
+      revision: stored.revision + 1,
+    );
+    final readsBefore = repository.calls;
+
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await tester.pumpAndSettle();
+
+    expect(repository.calls, readsBefore + 1);
+    expect(find.text('待复核 1'), findsNothing);
+    expect(find.text('已复核'), findsOneWidget);
+    expect(find.textContaining('暂时没有待复核的行'), findsOneWidget);
+  });
+
+  testWidgets('和编辑器一样按音频时长计算待复核', (tester) async {
+    repository = _FakeProjectRepository([
+      _project(
+        id: 'p',
+        name: '尾部超出',
+        lines: [_line('开头'), _line('超出音频', startSeconds: 8)],
+        audioAsset: const AudioAsset(
+          originalPath: 'song.wav',
+          format: 'wav',
+          duration: Duration(seconds: 5),
+        ),
+      ),
+    ]);
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    // The second line starts after the song ends: the editor queues it, so
+    // the inbox must not call the project fully reviewed.
+    expect(find.text('待复核 1'), findsOneWidget);
+    expect(find.text('已复核'), findsNothing);
   });
 
   testWidgets('未评分的工程显示未评分而不是低置信度 0', (tester) async {

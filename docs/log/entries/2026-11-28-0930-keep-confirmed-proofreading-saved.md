@@ -1,0 +1,21 @@
+# [2026-11-28 09:30] Keep confirmed proofreading saved
+
+- Scope: User report "确认校对成功的歌词似乎没法保存". No SDK in the sandbox, so the save path was traced by reading it end to end; four defects together explain a confirmed proofread that looks unsaved or truly cannot be saved:
+  - The review inbox and the project page kept the copy they read before opening the editor. Lines confirmed and saved there still showed "待复核 N" after returning, which reads as a lost save. Both now await the editor route and read the project again. The inbox also counts with the audio length, as the editor does, so the two never disagree about what still needs review.
+  - `FileProjectRepository` wrote the new manifest into memory before encoding the store. A metadata value without a JSON form (a `Set`, an enum, `NaN`) failed the encode after the revision had already moved on: the editor reported "保存失败", its next save met a phantom conflict, and every later save of any project failed on the same value. The store is now encoded first; a failed encode raises `ProjectRepositoryException` with nothing changed, and a failed disk write puts the old manifest back unless a later save replaced it.
+  - New `LyricMetadataJsonSanitizer`; `LyricEditorDocumentController.documentForSave` passes metadata through it, so a tool that left a `Set`, enum, `Duration`, `DateTime` or non-finite number in the document can no longer make a proofread draft unsavable. JSON metadata is returned as the same map.
+  - Every save replaced the editor's project future with a completed one, and the `FutureBuilder` showed the loading state for a frame, tearing down and rebuilding every pane. The editor, inbox and project page now keep their content while a refresh with existing data is pending.
+- Files:
+  - `lib/features/project/data/repositories/file_project_repository.dart`.
+  - `lib/features/lyrics/domain/services/lyric_metadata_json_sanitizer.dart` (new).
+  - `lib/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart`.
+  - `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart` (1191 lines, under the 1200 budget), `review_inbox_screen.dart`.
+  - `lib/features/project/presentation/screens/project_detail_screen.dart`.
+  - Tests: `test/file_project_repository_test.dart` (unencodable save leaves memory, disk and later saves intact), `test/features/lyrics/domain/services/lyric_metadata_json_sanitizer_test.dart` (new), `test/features/lyrics/presentation/controllers/lyric_editor_save_payload_test.dart` (new: applied proofread encodes, confirmations survive a JSON round trip), `test/features/lyrics/presentation/screens/lyric_editor_save_and_return_test.dart` (no loading flash on save; odd metadata saves to a JSON-encoding store), `test/features/lyrics/presentation/screens/review_inbox_screen_test.dart` (reload after the editor closes; audio-length count).
+- Validation:
+  - No Dart/Flutter toolchain in the sandbox; `dart format`, `flutter analyze` and the tests run in the PR's Flutter Quality Gate and a temporary probe workflow.
+  - Work-log `write` + `check` => Python port of `tool/work_log.dart`.
+- Notes:
+  - Which value broke the user's encode is not known; the sanitizer and the encode-first write cover the class of failure rather than one key.
+  - The applied-proposal snackbar still says the draft is not written yet; saving stays an explicit step by design.
+- Commit: `Keep confirmed proofreading saved`
