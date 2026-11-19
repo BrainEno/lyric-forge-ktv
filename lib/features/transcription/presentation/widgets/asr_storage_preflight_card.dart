@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../domain/services/asr_storage_preflight_service.dart';
 
 class AsrStoragePreflightCard extends StatelessWidget {
@@ -19,25 +20,7 @@ class AsrStoragePreflightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading && result == null) {
-      return Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-          border: Border.all(color: AppColors.borderMuted),
-        ),
-        child: const Row(
-          children: [
-            SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: AppSpacing.sm),
-            Expanded(child: Text('正在检查安装磁盘可用空间…')),
-          ],
-        ),
-      );
+      return const AppInlineLoading(message: '正在检查安装磁盘可用空间…', framed: true);
     }
 
     final value = result;

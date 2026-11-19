@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/proofreading/forced_alignment_language.dart';
 import '../../domain/proofreading/forced_alignment_proofread_service.dart';
@@ -467,14 +468,8 @@ class _LyricSpanRecognitionDialogState
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             if (_running) ...[
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              Text(
-                _mode == LyricSpanMode.realign ? '正在重新对齐…' : '正在重新识别…',
-                style: theme.textTheme.bodySmall,
+              AppInlineLoading(
+                message: _mode == LyricSpanMode.realign ? '正在重新对齐…' : '正在重新识别…',
               ),
               TextButton(
                 key: const ValueKey('span_cancel_run'),

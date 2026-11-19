@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_managed_storage_service.dart';
 import '../../domain/services/asr_runtime_manager.dart';
@@ -498,7 +499,10 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                       ready: ready,
                     )
                   else if (_loading)
-                    const _LoadingCard(),
+                    const AppInlineLoading(
+                      message: '正在检测电脑配置和已有模型…',
+                      framed: true,
+                    ),
                   if (status != null) ...[
                     const SizedBox(height: AppSpacing.md),
                     _ComponentsCard(
@@ -844,32 +848,6 @@ class _ProfileSummary extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LoadingCard extends StatelessWidget {
-  const _LoadingCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      ),
-      child: const Row(
-        children: [
-          SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          SizedBox(width: AppSpacing.sm),
-          Expanded(child: Text('正在检测电脑配置和已有模型…')),
         ],
       ),
     );
