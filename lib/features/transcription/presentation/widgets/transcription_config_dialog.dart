@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../lyrics/domain/models/chinese_script_preference.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_download_connection_checker.dart';
@@ -495,11 +496,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                       ? null
                       : _testDownloadConnection,
                   icon: _testingDownloadConnection
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const AppButtonSpinner(size: 16)
                       : const Icon(Icons.network_check_rounded, size: 18),
                   label: Text(
                     _testingDownloadConnection ? '正在测试模型源连接…' : '测试下载连接',

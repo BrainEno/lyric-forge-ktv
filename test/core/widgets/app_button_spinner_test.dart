@@ -39,10 +39,9 @@ void main() {
   ) async {
     await tester.pumpWidget(_button(enabled: false));
 
-    final color = spinnerIn(tester).color;
-    expect(color, isNotNull);
-    expect(color, isNot(AppColors.pureWhite));
-    expect(color!.a, lessThan(1), reason: 'disabled foreground is translucent');
+    // The theme's disabled grey, the same as the label, not white or the
+    // accent.
+    expect(spinnerIn(tester).color, AppColors.textTertiary);
   });
 
   testWidgets('falls back to the ambient icon colour outside buttons', (

@@ -8,6 +8,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
@@ -488,11 +489,7 @@ class _MobileRemoteMusicLibraryScreenState
                 OutlinedButton.icon(
                   onPressed: _busy ? null : _connectRaw,
                   icon: _busy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const AppButtonSpinner()
                       : const Icon(Icons.link_rounded),
                   label: Text(_busy ? '连接中…' : '使用配对信息连接'),
                 ),
@@ -776,11 +773,7 @@ class _RemoteTrackTile extends StatelessWidget {
                     ? null
                     : onDownload,
                 icon: transferring
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const AppButtonSpinner(size: 20)
                     : Icon(
                         downloaded || completed
                             ? Icons.download_done_rounded

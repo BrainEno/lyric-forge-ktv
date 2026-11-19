@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../domain/models/ktv_microphone_state.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
@@ -131,13 +132,7 @@ class KtvMicrophoneSheet extends StatelessWidget {
                                       microphoneService.refreshInputDevices(),
                                     ),
                               icon: microphone.isRefreshingInputDevices
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
+                                  ? const AppButtonSpinner()
                                   : const Icon(Icons.refresh_rounded),
                             ),
                           ),
@@ -218,13 +213,7 @@ class KtvMicrophoneSheet extends StatelessWidget {
                                 );
                               },
                         secondary: microphone.isStarting
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
+                            ? const AppButtonSpinner(size: 22)
                             : Icon(
                                 microphone.isMonitoring
                                     ? Icons.hearing_rounded

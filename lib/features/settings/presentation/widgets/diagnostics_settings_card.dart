@@ -10,6 +10,7 @@ import '../../../../core/diagnostics/diagnostics_report.dart';
 import '../../../../core/diagnostics/operation_timings.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 
 /// Saves [bytes] under a user-chosen name; returns the path, or null when the
 /// user cancelled.
@@ -287,12 +288,8 @@ class _DiagnosticsSettingsCardState extends State<DiagnosticsSettingsCard> {
     );
   }
 
-  Widget _busyIcon(_Busy kind, IconData icon) => _busy == kind
-      ? const SizedBox.square(
-          dimension: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        )
-      : Icon(icon);
+  Widget _busyIcon(_Busy kind, IconData icon) =>
+      _busy == kind ? const AppButtonSpinner(size: 16) : Icon(icon);
 
   static String _summaryLine(DiagnosticsSummary summary) {
     final parts = <String>[

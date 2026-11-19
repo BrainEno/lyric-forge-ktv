@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/services/reference_lyric_text_parser.dart';
 
@@ -518,11 +519,7 @@ class _ReferenceAlignmentDialogState extends State<ReferenceAlignmentDialog> {
             minimumSize: Size(0, spec.minimumInteractiveExtent),
           ),
           icon: _busy
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const AppButtonSpinner(size: 16)
               : const Icon(Icons.auto_fix_high_rounded),
           label: Text(_busy ? '解析中…' : '开始对齐'),
         ),

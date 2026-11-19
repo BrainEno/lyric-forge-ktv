@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/app_chrome_scope.dart';
 import '../../../../core/navigation/routes.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_button_spinner.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
@@ -134,21 +136,9 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                                           context,
                                           _session.togglePlayPause,
                                         ),
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: AppColors.pureWhite,
-                                    foregroundColor: AppColors.pureBlack,
-                                    disabledBackgroundColor:
-                                        AppColors.textDisabled,
-                                  ),
+                                  style: AppTheme.playDisc,
                                   icon: busy
-                                      ? const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: AppColors.pureBlack,
-                                          ),
-                                        )
+                                      ? const AppButtonSpinner()
                                       : Icon(
                                           playback.isPlaying
                                               ? Icons.pause_rounded

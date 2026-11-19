@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-26 09:40] Split the AI transcription settings into cards ([entry](log/entries/2026-11-26-0940-split-the-ai-transcription-settings-into-cards.md))
 - [2026-11-26 09:20] Give the project player one transport ([entry](log/entries/2026-11-26-0920-give-the-project-player-one-transport.md))
 - [2026-11-26 09:00] Switch the accent to Elysium Lavender ([entry](log/entries/2026-11-26-0900-switch-the-accent-to-elysium-lavender.md))
 - [2026-11-25 12:30] Mark a whole project reviewed from the inbox ([entry](log/entries/2026-11-25-1230-mark-a-whole-project-reviewed-from-the-inbox.md))

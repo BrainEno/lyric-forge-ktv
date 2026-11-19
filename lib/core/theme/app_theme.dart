@@ -63,6 +63,47 @@ class AppTheme {
         ),
       );
 
+  /// Filled and tonal buttons while disabled: the same grey on grey as
+  /// [accentFill], and nothing for the enabled states, which fall through to
+  /// the colour scheme.
+  ///
+  /// Material's default disabled colours are white at 12 % and 38 %, which
+  /// leaves the label, and the spinner of a busy button, at 2.2:1.
+  static final WidgetStateProperty<Color?> disabledFill =
+      WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? AppColors.bgHighlight
+            : null,
+      );
+  static final WidgetStateProperty<Color?> disabledForeground =
+      WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? AppColors.textTertiary
+            : null,
+      );
+
+  /// The white play/pause disc of the player bars and the transport.
+  ///
+  /// The disc is disabled only while playback loads, and then shows a black
+  /// spinner. The disabled disc used to be transparent (desktop bar) or
+  /// #535353 (mobile bar, transport), leaving that spinner at 1.1:1 or 2.7:1;
+  /// it now stays light grey, 10:1 under black.
+  static final ButtonStyle playDisc = IconButton.styleFrom(
+    backgroundColor: AppColors.pureWhite,
+    foregroundColor: AppColors.pureBlack,
+    disabledBackgroundColor: AppColors.textSecondary,
+    disabledForegroundColor: AppColors.pureBlack,
+  );
+
+  /// A filled (accent) icon button that is disabled only while it works,
+  /// like the dashboard play button during buffering. It keeps the accent
+  /// disc under a black spinner (9.2:1) rather than turning into the grey of
+  /// an unavailable control, which read as "cannot play" instead of "loading".
+  static final ButtonStyle busyAccentDisc = IconButton.styleFrom(
+    disabledBackgroundColor: AppColors.accent,
+    disabledForegroundColor: AppColors.onAccent,
+  );
+
   /// Navigation labels: grey, and bold white for the chosen destination.
   static const TextStyle navigationLabel = TextStyle(
     fontSize: 12,
@@ -164,12 +205,18 @@ class AppTheme {
           ),
         ),
       ),
-      // Filled and tonal buttons share this theme, so it sets no colours:
-      // filled takes the accent and black from primary/onPrimary, tonal the
-      // deep lavender and light lavender from the containers. It only makes
-      // the press visible on both.
+      // Filled and tonal buttons share this theme, so it sets no enabled
+      // colours: filled takes the accent and black from primary/onPrimary,
+      // tonal the deep lavender and light lavender from the containers. It
+      // makes the press visible on both and gives both the readable disabled
+      // grey of the elevated button.
       filledButtonTheme: FilledButtonThemeData(
-        style: ButtonStyle(overlayColor: fillOverlay),
+        style: ButtonStyle(
+          backgroundColor: disabledFill,
+          foregroundColor: disabledForeground,
+          iconColor: disabledForeground,
+          overlayColor: fillOverlay,
+        ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: ButtonStyle(
