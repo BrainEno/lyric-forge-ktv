@@ -7,6 +7,7 @@ import '../settings_screen_dependencies.dart';
 import '../widgets/ai_transcription_settings_section.dart';
 import '../widgets/asr_end_to_end_smoke_test_card.dart';
 import '../widgets/diagnostics_settings_card.dart';
+import '../widgets/settings_columns.dart';
 
 /// The line under the app bar. It names only what the page holds; the
 /// navigation tooltip used to promise playback and storage settings that do
@@ -52,28 +53,41 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  const SettingsGroupLabel(
-                    key: ValueKey('settings-group:recognition'),
-                    label: 'AI 识别',
-                  ),
-                  AiTranscriptionSettingsSection(
-                    dependencies: dependencies.asrRuntimeSetupDependencies,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  // Diagnostics first: exporting a report is what support
-                  // asks for. The trial run used to sit between the
-                  // recognition settings and diagnostics as if it were a
-                  // setting (audit SE-05).
-                  const SettingsGroupLabel(
-                    key: ValueKey('settings-group:troubleshooting'),
-                    label: '故障排查',
-                  ),
-                  DiagnosticsSettingsCard(
-                    diagnostics: dependencies.diagnostics,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  AsrEndToEndSmokeTestCard(
-                    smokeTestService: dependencies.smokeTestService,
+                  SettingsColumns(
+                    primary: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SettingsGroupLabel(
+                          key: ValueKey('settings-group:recognition'),
+                          label: 'AI 识别',
+                        ),
+                        AiTranscriptionSettingsSection(
+                          dependencies:
+                              dependencies.asrRuntimeSetupDependencies,
+                        ),
+                      ],
+                    ),
+                    // Diagnostics first: exporting a report is what support
+                    // asks for. The trial run used to sit between the
+                    // recognition settings and diagnostics as if it were a
+                    // setting (audit SE-05). On wide windows this group is
+                    // the right-hand column (audit SE-06).
+                    secondary: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SettingsGroupLabel(
+                          key: ValueKey('settings-group:troubleshooting'),
+                          label: '故障排查',
+                        ),
+                        DiagnosticsSettingsCard(
+                          diagnostics: dependencies.diagnostics,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        AsrEndToEndSmokeTestCard(
+                          smokeTestService: dependencies.smokeTestService,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

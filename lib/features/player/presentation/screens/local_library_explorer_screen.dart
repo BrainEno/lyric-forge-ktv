@@ -594,6 +594,7 @@ class _ExplorerHeader extends StatelessWidget {
             suffixIcon: query.isEmpty
                 ? null
                 : IconButton(
+                    tooltip: '清除搜索',
                     onPressed: onClearQuery,
                     icon: const Icon(Icons.close_rounded),
                   ),

@@ -148,6 +148,10 @@ class LineInspector extends StatefulWidget {
   /// Opens word timing fine-tuning (逐字微调) for this row; null hides it.
   final VoidCallback? onEditWordTiming;
 
+  /// Drives the inspector's scroll view; the narrow-screen sheet passes its
+  /// drag controller so pulling the list down at the top resizes the sheet.
+  final ScrollController? scrollController;
+
   const LineInspector({
     super.key,
     required this.index,
@@ -168,6 +172,7 @@ class LineInspector extends StatefulWidget {
     this.onUsePlaybackAsEnd,
     this.onSeekToTime,
     this.onEditWordTiming,
+    this.scrollController,
   });
 
   @override
@@ -330,6 +335,7 @@ class _LineInspectorState extends State<LineInspector> {
     return Container(
       color: AppColors.bgElevated,
       child: ListView(
+        controller: widget.scrollController,
         padding: EdgeInsets.all(inspectorPadding),
         children: [
           Row(

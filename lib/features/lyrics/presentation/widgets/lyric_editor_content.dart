@@ -17,6 +17,7 @@ import '../../domain/models/secondary_only_suggestion.dart';
 import '../../domain/services/lyric_draft_health_service.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
+import 'line_inspector_sheet.dart';
 import 'lyric_batch_text_edit.dart';
 import 'lyric_editor_atoms.dart';
 import 'lyric_editor_toolbar.dart';
@@ -240,20 +241,23 @@ class LyricEditorContent extends StatelessWidget {
       useSafeArea: true,
       backgroundColor: AppColors.bgElevated,
       builder: (sheetContext) {
-        final sheetSpec = AppResponsive.of(sheetContext);
-        final heightFactor = sheetSpec.isShort ? 0.96 : 0.88;
         final isReviewed = _isLineReviewed(index);
         final canRecordDecision =
             isReviewed || reviewPriorityByIndex.containsKey(index);
-        return FractionallySizedBox(
-          heightFactor: heightFactor,
-          child: Center(
+        return LineInspectorSheet(
+          editingText: autofocusText,
+          previousLine: index > 0 ? document.lines[index - 1].text : null,
+          nextLine: index + 1 < document.lines.length
+              ? document.lines[index + 1].text
+              : null,
+          inspectorBuilder: (scrollController) => Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 maxWidth: spec.isCompact ? double.infinity : 720,
               ),
               child: LineInspector(
                 key: ValueKey('sheet_inspector_$index'),
+                scrollController: scrollController,
                 index: index,
                 line: document.lines[index],
                 fallbackCandidate: _fallbackCandidateFor(index),
