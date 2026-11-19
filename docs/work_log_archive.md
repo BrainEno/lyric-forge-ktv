@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-28 09:30] Keep confirmed proofreading saved ([entry](log/entries/2026-11-28-0930-keep-confirmed-proofreading-saved.md))
 - [2026-11-27 13:00] Share transfer list states ([entry](log/entries/2026-11-27-1300-share-transfer-list-states.md))
 - [2026-11-27 11:30] Lift error text to AA ([entry](log/entries/2026-11-27-1130-lift-error-text-to-aa.md))
 - [2026-11-27 10:30] Give fullscreen KTV keys and scrims ([entry](log/entries/2026-11-27-1030-give-fullscreen-ktv-keys-and-scrims.md))

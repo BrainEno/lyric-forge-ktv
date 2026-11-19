@@ -33,6 +33,10 @@ abstract class AppSpacing {
   static const double iconSizeMedium = unit * 6;
   static const double iconSizeLarge = unit * 8;
 
+  /// Round leading icons on cards, as in the download manager and the
+  /// remote library's connection card.
+  static const double avatarRadius = unit * 6;
+
   // Border radius
   static const double radiusSmall = unit;
   static const double radiusMedium = unit * 2;

@@ -32,6 +32,7 @@ import '../lyric_review_strings.dart';
 import '../widgets/lyric_editor_actions.dart';
 import '../widgets/lyric_editor_atoms.dart';
 import '../widgets/lyric_editor_content.dart';
+import '../widgets/lyric_editor_review_controls.dart';
 import '../widgets/lyric_editor_toolbar.dart';
 import '../widgets/lyric_proofread_dialog.dart';
 import '../widgets/project_save_conflict_dialog.dart';
@@ -1071,31 +1072,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                       return LyricEditorContent(
                         project: project,
                         document: document,
-                        playback: playback,
-                        playbackBelongsToProject: playbackBelongsToProject,
                         hasChanges: editorState.hasChanges,
-                        reviewPriorityByIndex: _reviewPriorityByIndex,
-                        reviewQueue: _reviewQueue,
-                        followPlayback: _followPlayback,
-                        selectedLineIndex: editorState.selectedLineIndex,
-                        filter: _filter,
-                        onFilterChanged: (value) => setState(() {
-                          _filter = value;
-                          if (value != LyricReviewFilter.needsReview) {
-                            _audition.loopEnabled = false;
-                          }
-                        }),
-                        onFollowPlaybackChanged: (value) =>
-                            setState(() => _followPlayback = value),
-                        onSelectLine: _editor.select,
-                        onReviewDecision: (index, reviewed) =>
-                            _setLineReviewDecision(
-                              project,
-                              index,
-                              reviewed: reviewed,
-                            ),
                         onSave: () => _saveChanges(project),
                         isSaving: _saveInFlight != null,
+                        player: LyricPlaybackControls(
+                          state: playback,
+                          belongsToProject: playbackBelongsToProject,
+                          onSeek: _seekPlayback,
+                          onToggle: () => _togglePlayback(project),
+                        ),
+                        review: _reviewControls(project),
                         history: LyricUndoRedoControls(
                           onUndo: _undo,
                           onRedo: _redo,
@@ -1136,10 +1122,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                           onLoopCurrentLineChanged: _setLoopCurrentLine,
                         ),
                         onExport: () => _exportLyrics(project),
-                        onSeekPlayback: _seekPlayback,
                         focusRequestId: _focusRequestId,
                         focusLineIndex: _focusLineIndex,
-                        onTogglePlayback: () => _togglePlayback(project),
                         manuallyEditedLineIndices: _manuallyEditedLineIndices,
                       );
                     },
@@ -1148,6 +1132,27 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
               ),
         );
       },
+    );
+  }
+
+  LyricReviewControls _reviewControls(ProjectManifest project) {
+    return LyricReviewControls(
+      queue: _reviewQueue,
+      priorityByIndex: _reviewPriorityByIndex,
+      filter: _filter,
+      selectedLineIndex: _selectedLineIndex,
+      followPlayback: _followPlayback,
+      onFilterChanged: (value) => setState(() {
+        _filter = value;
+        if (value != LyricReviewFilter.needsReview) {
+          _audition.loopEnabled = false;
+        }
+      }),
+      onFollowPlaybackChanged: (value) =>
+          setState(() => _followPlayback = value),
+      onSelectLine: _editor.select,
+      onDecision: (index, reviewed) =>
+          _setLineReviewDecision(project, index, reviewed: reviewed),
     );
   }
 

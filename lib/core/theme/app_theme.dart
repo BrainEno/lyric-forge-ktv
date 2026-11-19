@@ -587,8 +587,10 @@ class AppTheme {
         letterSpacing: 0.5,
         height: 1.4,
       ),
+      // The smallest style, used for captions and badges; 11 is the floor for
+      // text people are expected to read (UI audit E-06).
       labelSmall: baseTextStyle.copyWith(
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
         height: 1.4,

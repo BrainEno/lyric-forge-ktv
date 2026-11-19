@@ -531,7 +531,7 @@ class _MobileRemoteMusicLibraryScreenState
             child: Row(
               children: [
                 const CircleAvatar(
-                  radius: 24,
+                  radius: AppSpacing.avatarRadius,
                   backgroundColor: AppColors.bgHighlight,
                   child: Icon(Icons.computer_rounded, color: AppColors.accent),
                 ),
