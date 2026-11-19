@@ -44,7 +44,7 @@ jobs:
           mapfile -t files < <(git diff --name-only --diff-filter=AM "$BASE" HEAD -- 'lib/*.dart' 'test/*.dart')
           flutter analyze --no-fatal-infos --no-fatal-warnings > /tmp/ana.txt 2>&1 || true
           for f in "${files[@]}"; do
-            grep -F "$f" /tmp/ana.txt | head -20 | while read -r line; do
+            { grep -F "$f" /tmp/ana.txt || true; } | head -20 | while read -r line; do
               echo "::warning title=ana::$line"
             done
           done
@@ -56,7 +56,7 @@ jobs:
           mapfile -t tests < <(git diff --name-only --diff-filter=AM "$BASE" HEAD -- 'test/**_test.dart' 'test/*_test.dart' | sort -u)
           if (( ${#tests[@]} == 0 )); then echo "::notice title=test-tail::no tests"; exit 0; fi
           flutter test --no-pub "${tests[@]}" > /tmp/test.txt 2>&1 || true
-          grep -E "\[E\]|Expected:|Actual:|Which:|EXCEPTION|══╡|^  [a-z].*_test\.dart|Error:" /tmp/test.txt | head -60 | while read -r line; do
+          { grep -E "\[E\]|Expected:|Actual:|Which:|EXCEPTION|══╡|^  [a-z].*_test\.dart|Error:" /tmp/test.txt || true; } | head -60 | while read -r line; do
             echo "::warning title=test::$line"
           done
           echo "::notice title=test-tail::$(tail -1 /tmp/test.txt)"
