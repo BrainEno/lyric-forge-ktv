@@ -9,11 +9,42 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
+import 'settings_section_card.dart';
 
+/// Picks the audio file for a trial run; null when the user cancels.
+typedef SmokeTestAudioPicker = Future<String?> Function();
+
+/// 试识别一首歌: runs one real song through the production recognition path
+/// and opens the result in the lyric editor.
+///
+/// It used to be a developer smoke test placed between the recognition
+/// settings and diagnostics, titled 真实音频端到端自检 and explained in terms
+/// of runtime, production ASR and pipelines (audit SE-05). It now sits under
+/// 故障排查 and says in plain words what it does and does not prove.
 class AsrEndToEndSmokeTestCard extends StatefulWidget {
   final AsrEndToEndSmokeTestService smokeTestService;
 
-  const AsrEndToEndSmokeTestCard({super.key, required this.smokeTestService});
+  /// Replaces the system file dialog; tests pass a fixed path.
+  final SmokeTestAudioPicker? pickAudio;
+
+  /// Overrides the platform check (Windows and macOS only).
+  final bool? desktopSupported;
+
+  const AsrEndToEndSmokeTestCard({
+    super.key,
+    required this.smokeTestService,
+    this.pickAudio,
+    this.desktopSupported,
+  });
+
+  static const List<String> audioExtensions = [
+    'mp3',
+    'flac',
+    'wav',
+    'm4a',
+    'aac',
+    'ogg',
+  ];
 
   @override
   State<AsrEndToEndSmokeTestCard> createState() =>
@@ -29,7 +60,8 @@ class _AsrEndToEndSmokeTestCardState extends State<AsrEndToEndSmokeTestCard> {
   bool _running = false;
   String? _error;
 
-  bool get _desktopSupported => Platform.isWindows || Platform.isMacOS;
+  bool get _desktopSupported =>
+      widget.desktopSupported ?? (Platform.isWindows || Platform.isMacOS);
 
   @override
   void initState() {
@@ -47,23 +79,28 @@ class _AsrEndToEndSmokeTestCardState extends State<AsrEndToEndSmokeTestCard> {
     super.dispose();
   }
 
+  Future<String?> _pickWithSystemDialog() async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: AsrEndToEndSmokeTestCard.audioExtensions,
+      allowMultiple: false,
+      dialogTitle: '选择一首歌试识别',
+    );
+    if (picked == null || picked.files.isEmpty) return null;
+    return picked.files.single.path ?? '';
+  }
+
   Future<void> _runSmokeTest() async {
     if (!_desktopSupported || _running) return;
 
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg'],
-      allowMultiple: false,
-      dialogTitle: '选择一首真实音频进行 ASR 端到端自检',
-    );
-    if (picked == null || picked.files.isEmpty) return;
-
-    final path = picked.files.single.path;
-    if (path == null || path.trim().isEmpty) {
+    final path = await (widget.pickAudio ?? _pickWithSystemDialog)();
+    if (path == null) return;
+    if (path.trim().isEmpty) {
       if (!mounted) return;
-      setState(() => _error = '没有取得所选音频的本地路径');
+      setState(() => _error = '没有取得所选歌曲的文件路径');
       return;
     }
+    if (!mounted) return;
 
     setState(() {
       _running = true;
@@ -72,7 +109,7 @@ class _AsrEndToEndSmokeTestCardState extends State<AsrEndToEndSmokeTestCard> {
       _progress = const AsrEndToEndSmokeProgress(
         stage: AsrEndToEndSmokeStage.validatingAudio,
         progress: 0,
-        message: '准备开始端到端自检',
+        message: '正在准备试识别',
       );
     });
 
@@ -83,7 +120,7 @@ class _AsrEndToEndSmokeTestCardState extends State<AsrEndToEndSmokeTestCard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'ASR 运行链路完成：生成 ${result.lyricLineCount} 行歌词。此自检不评估歌词完整率或识别准确率。',
+            '试识别完成，生成了 ${result.lyricLineCount} 行歌词。请在校对页检查内容是否准确。',
           ),
         ),
       );
@@ -96,7 +133,7 @@ class _AsrEndToEndSmokeTestCardState extends State<AsrEndToEndSmokeTestCard> {
       setState(() => _error = error.toString());
     } catch (error) {
       if (!mounted) return;
-      setState(() => _error = 'ASR 端到端自检失败：$error');
+      setState(() => _error = '试识别失败：$error');
     } finally {
       if (mounted) setState(() => _running = false);
     }
@@ -108,132 +145,96 @@ class _AsrEndToEndSmokeTestCardState extends State<AsrEndToEndSmokeTestCard> {
 
   @override
   Widget build(BuildContext context) {
-    final progress = _progress?.progress.clamp(0.0, 1.0).toDouble() ?? 0;
+    final text = Theme.of(context).textTheme;
+    final progress = _progress;
     final result = _lastResult;
+    final error = _error;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-        border: Border.all(color: AppColors.borderMuted),
-      ),
+    return SettingsSectionCard(
+      icon: Icons.fact_check_outlined,
+      title: '试识别一首歌',
+      subtitle:
+          '选一首本机歌曲完整跑一遍识别：需要时自动准备识别环境，生成歌词后打开校对页。'
+          '它只确认识别能正常工作，不代表歌词准确。',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withAlpha(24),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-                ),
-                child: const Icon(Icons.fact_check_outlined),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '真实音频端到端自检',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      '选择一首本机真实音频。应用会检查并自动准备 runtime / 模型，创建工程，执行生产 ASR，验证已生成可编辑歌词，然后自动打开歌词校对页。此自检只确认运行链路能工作，不评估漏词、错词或时间戳准确率；请在编辑器中人工检查。',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Text(
+            _desktopSupported
+                ? '第一次可能需要下载几 GB 的识别模型。试识别生成的工程会保留在工程列表里，可以直接检查或删除。'
+                : '试识别目前只能在 Windows 和 macOS 电脑上使用。',
+            style: text.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.bgBase,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-              border: Border.all(color: AppColors.borderMuted),
-            ),
-            child: Text(
-              _desktopSupported
-                  ? '首次运行可能需要下载数 GB 的识别 runtime 与模型。自检会保留生成的“· ASR 自检”工程，便于你直接检查歌词和时间轴；显示运行链路完成不代表识别完整或准确。'
-                  : '真实 ASR 自检目前只在 Windows / macOS 桌面端开放。',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
-            ),
-          ),
-          if (_running && _progress != null) ...[
+          if (_running && progress != null) ...[
             const SizedBox(height: AppSpacing.md),
-            LinearProgressIndicator(value: progress),
+            LinearProgressIndicator(
+              value: progress.progress.clamp(0.0, 1.0).toDouble(),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              _progress!.message,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              progress.message,
+              style: text.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ],
-          if (_error != null) ...[
+          if (error != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.error.withAlpha(18),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-                border: Border.all(color: AppColors.error.withAlpha(90)),
-              ),
-              child: Text(_error!),
-            ),
+            _Notice(message: error, color: AppColors.error),
           ],
           if (result != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.success.withAlpha(18),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-                border: Border.all(color: AppColors.success.withAlpha(90)),
-              ),
-              child: Text(
-                '上次运行链路完成（非识别质量评分）：${result.projectName} · ${result.lyricLineCount} 行歌词'
-                '${result.environmentInstalled ? ' · 本次自动准备了识别环境' : ' · 使用已有识别环境'}',
-              ),
-            ),
+            _Notice(message: lastRunSummary(result), color: AppColors.success),
           ],
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: [
-              FilledButton.icon(
+              FilledButton.tonalIcon(
                 onPressed: !_desktopSupported || _running
                     ? null
                     : _runSmokeTest,
                 icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('选择真实音频并开始自检'),
+                label: const Text('选择歌曲开始试识别'),
               ),
               if (_running)
                 OutlinedButton.icon(
                   onPressed: _cancel,
                   icon: const Icon(Icons.stop_rounded),
-                  label: const Text('取消自检'),
+                  label: const Text('取消试识别'),
                 ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// One line about the last finished trial run.
+String lastRunSummary(AsrEndToEndSmokeResult result) {
+  final environment = result.environmentInstalled
+      ? '本次自动准备了识别环境'
+      : '使用了已有的识别环境';
+  return '上次试识别：${result.projectName} · '
+      '${result.lyricLineCount} 行歌词 · $environment';
+}
+
+class _Notice extends StatelessWidget {
+  const _Notice({required this.message, required this.color});
+
+  final String message;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: color.withAlpha(18),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+        border: Border.all(color: color.withAlpha(90)),
+      ),
+      child: Text(message),
     );
   }
 }

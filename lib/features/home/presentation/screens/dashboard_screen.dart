@@ -7,6 +7,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../../player/domain/models/play_history.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/repositories/play_history_repository.dart';
@@ -169,6 +170,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 children: [
                                   _Header(
                                     isDesktop: _isDesktop,
+                                    // The idle hero already offers this.
+                                    showOpenMusic: session.currentItem != null,
                                     onOpenMusic: _openLocalPlayer,
                                     onImport: () => Navigator.pushNamed(
                                       context,
@@ -216,11 +219,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ? AppSpacing.xl
                                         : AppSpacing.xxxl,
                                   ),
-                                  _SectionHeader(
+                                  const _SectionHeader(
                                     title: '最近播放',
                                     subtitle: '继续你最近听过的本地音乐',
-                                    action: '打开音乐',
-                                    onAction: _openLocalPlayer,
                                   ),
                                   const SizedBox(height: AppSpacing.md),
                                   FutureBuilder<List<PlayHistory>>(
@@ -234,6 +235,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       }
                                       if (snapshot.hasError) {
                                         return _EmptyCard(
+                                          isError: true,
                                           icon: Icons.error_outline_rounded,
                                           title: '播放记录加载失败',
                                           message: '播放记录暂时无法读取，可以重新加载一次。',
@@ -247,7 +249,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           icon: Icons.headphones_rounded,
                                           title: '还没有播放记录',
                                           message: '打开一首本地音乐后，会从这里快速继续。',
-                                          action: '选择音乐',
+                                          action: session.currentItem == null
+                                              ? null
+                                              : '选择音乐',
                                           onAction: _openLocalPlayer,
                                         );
                                       }
@@ -283,6 +287,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       }
                                       if (snapshot.hasError) {
                                         return _EmptyCard(
+                                          isError: true,
                                           icon: Icons.error_outline_rounded,
                                           title: '最近工程加载失败',
                                           message: '工程文件暂时无法读取，可以重新加载一次。',
@@ -334,8 +339,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+/// Page title and the global actions.
+///
+/// 打开音乐 used to appear here, in the idle hero, beside 最近播放 and on the
+/// empty history card at the same time (audit C-01). The header now offers it
+/// only while something is playing, when the hero shows the current song
+/// instead of its own button.
 class _Header extends StatelessWidget {
   final bool isDesktop;
+  final bool showOpenMusic;
   final VoidCallback onOpenMusic;
   final VoidCallback onImport;
   final VoidCallback onRemote;
@@ -344,6 +356,7 @@ class _Header extends StatelessWidget {
 
   const _Header({
     required this.isDesktop,
+    required this.showOpenMusic,
     required this.onOpenMusic,
     required this.onImport,
     required this.onRemote,
@@ -385,17 +398,19 @@ class _Header extends StatelessWidget {
           runSpacing: AppSpacing.sm,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                minimumSize: Size(
-                  layout.minimumInteractiveExtent,
-                  layout.minimumInteractiveExtent,
+            if (showOpenMusic)
+              OutlinedButton.icon(
+                key: const ValueKey('dashboard:header-open-music'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: Size(
+                    layout.minimumInteractiveExtent,
+                    layout.minimumInteractiveExtent,
+                  ),
                 ),
+                onPressed: onOpenMusic,
+                icon: const Icon(Icons.library_music_rounded, size: 18),
+                label: const Text('打开音乐'),
               ),
-              onPressed: onOpenMusic,
-              icon: const Icon(Icons.library_music_rounded, size: 18),
-              label: const Text('打开音乐'),
-            ),
             if (isDesktop)
               SizedBox(
                 width: layout.minimumInteractiveExtent,
@@ -1117,14 +1132,14 @@ class _BackgroundWorkCard extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
-  final String action;
-  final VoidCallback onAction;
+  final String? action;
+  final VoidCallback? onAction;
 
   const _SectionHeader({
     required this.title,
     required this.subtitle,
-    required this.action,
-    required this.onAction,
+    this.action,
+    this.onAction,
   });
 
   @override
@@ -1148,13 +1163,16 @@ class _SectionHeader extends StatelessWidget {
         ),
       ],
     );
+    final label = action;
+    if (label == null) return info;
+    final button = TextButton(onPressed: onAction, child: Text(label));
     if (layout.isCompact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           info,
           const SizedBox(height: AppSpacing.xs),
-          TextButton(onPressed: onAction, child: Text(action)),
+          button,
         ],
       );
     }
@@ -1162,7 +1180,7 @@ class _SectionHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Expanded(child: info),
-        TextButton(onPressed: onAction, child: Text(action)),
+        button,
       ],
     );
   }
@@ -1460,12 +1478,18 @@ class _Eyebrow extends StatelessWidget {
   }
 }
 
+/// Dashboard card for an empty or failed shelf. The layout comes from the
+/// shared [AppEmptyState] inline density; this only adds the card frame and
+/// the error colour.
 class _EmptyCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
-  final String action;
+
+  /// Button label; null leaves the card without an action.
+  final String? action;
   final VoidCallback onAction;
+  final bool isError;
 
   const _EmptyCard({
     required this.icon,
@@ -1473,6 +1497,7 @@ class _EmptyCard extends StatelessWidget {
     required this.message,
     required this.action,
     required this.onAction,
+    this.isError = false,
   });
 
   @override
@@ -1480,58 +1505,24 @@ class _EmptyCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final layout = AppResponsive.fromConstraints(constraints);
-        final info = Row(
-          children: [
-            Icon(
-              icon,
-              size: layout.isCompact ? 34 : 42,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    message,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
+        final label = action;
         return Container(
           width: double.infinity,
           padding: EdgeInsets.all(
             layout.isCompact ? AppSpacing.md : AppSpacing.xl,
           ),
           decoration: _cardDecoration(),
-          child: layout.isCompactOrMedium || layout.isShort
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    info,
-                    const SizedBox(height: AppSpacing.md),
-                    OutlinedButton(onPressed: onAction, child: Text(action)),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: info),
-                    const SizedBox(width: AppSpacing.md),
-                    OutlinedButton(onPressed: onAction, child: Text(action)),
-                  ],
-                ),
+          child: AppEmptyState(
+            density: AppEmptyStateDensity.inline,
+            icon: icon,
+            iconColor: isError ? AppColors.error : null,
+            title: title,
+            message: message,
+            actions: [
+              if (label != null)
+                OutlinedButton(onPressed: onAction, child: Text(label)),
+            ],
+          ),
         );
       },
     );

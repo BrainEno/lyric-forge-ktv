@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:lyric_forge_ktv/core/widgets/app_artwork.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/screens/review_inbox_screen.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
@@ -132,8 +133,15 @@ void main() {
 
     // The project list is filtered, not padded with empty entries.
     expect(find.text('还没有歌词'), findsNothing);
-    expect(find.text('干净的工程'), findsOneWidget);
     expect(find.text('应该先看的工程'), findsOneWidget);
+
+    // Fully reviewed projects are folded while others still wait.
+    expect(find.text('干净的工程'), findsNothing);
+    expect(find.text('已复核的工程 · 1 个'), findsOneWidget);
+    await tester.tap(find.text('已复核的工程 · 1 个'));
+    await tester.pumpAndSettle();
+    expect(find.text('干净的工程'), findsOneWidget);
+    expect(find.text('收起已复核的工程'), findsOneWidget);
 
     // Most outstanding work first, even though it was updated a month earlier.
     final first = tester.getTopLeft(find.text('应该先看的工程')).dy;
@@ -202,5 +210,59 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('恢复了'), findsOneWidget);
+  });
+
+  testWidgets('全部复核完时直接列出，不需要展开', (tester) async {
+    repository = _FakeProjectRepository([
+      _project(id: 'a', name: '第一首', lines: [_line('月亮')]),
+      _project(id: 'b', name: '第二首', lines: [_line('星星')]),
+    ]);
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    expect(find.text('第一首'), findsOneWidget);
+    expect(find.text('第二首'), findsOneWidget);
+    expect(find.textContaining('已复核的工程'), findsNothing);
+    expect(find.textContaining('暂时没有待复核的行'), findsOneWidget);
+  });
+
+  testWidgets('收起后已复核的工程再次隐藏', (tester) async {
+    repository = _FakeProjectRepository([
+      _project(id: 'a', name: '待处理', lines: [_line('第 1 行', confidence: 20)]),
+      _project(id: 'b', name: '已完成', lines: [_line('星星')]),
+    ]);
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    final toggle = find.byKey(const ValueKey('review-inbox:reviewed-toggle'));
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(find.text('已完成'), findsOneWidget);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(find.text('已完成'), findsNothing);
+    expect(find.text('待处理'), findsOneWidget);
+  });
+
+  testWidgets('每一行用歌曲封面位，没有封面时显示歌词占位', (tester) async {
+    repository = _FakeProjectRepository([
+      _project(id: 'a', name: '没有封面', lines: [_line('月亮')]),
+    ]);
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    final artwork = tester.widget<AppArtwork>(
+      find.descendant(
+        of: find.byKey(const ValueKey('review-inbox:a')),
+        matching: find.byType(AppArtwork),
+      ),
+    );
+    expect(artwork.path, isNull);
+    expect(artwork.placeholderIcon, Icons.lyrics_outlined);
+    expect(find.byIcon(Icons.lyrics_outlined), findsOneWidget);
   });
 }

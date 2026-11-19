@@ -580,6 +580,8 @@ class LyricEditorContent extends StatelessWidget {
                                   .toSet(),
                               reviewPriorityByIndex: reviewPriorityByIndex,
                               filter: filter,
+                              onShowAllLines: () =>
+                                  onFilterChanged(LyricReviewFilter.all),
                               activeAuditionLineIndex: activeAuditionLineIndex,
                               auditionPlaying: auditionPlaying,
                               onPreviewLine: project.audioAsset == null

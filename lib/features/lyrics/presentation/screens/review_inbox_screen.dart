@@ -4,7 +4,10 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
@@ -19,6 +22,9 @@ class ReviewInboxEntry {
 
   /// The queue count is only meaningful when the project actually has lyrics.
   bool get hasLyrics => project.hasLyrics && queue.totalLines > 0;
+
+  /// Whether every line has been confirmed, so nothing waits for review.
+  bool get isFullyReviewed => queue.needsReviewCount == 0;
 }
 
 /// 「校对」destination: pick a project, land in its lyric editor.
@@ -45,6 +51,11 @@ class ReviewInboxScreen extends StatefulWidget {
 class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
   late final ProjectRepository _projects;
   late Future<List<ReviewInboxEntry>> _entriesFuture;
+
+  /// Whether the folded 已复核 group is open. Reviewed projects used to sit in
+  /// the same list as the ones still waiting, so the list kept growing with
+  /// finished work (audit R-02).
+  bool _showReviewed = false;
 
   @override
   void initState() {
@@ -86,8 +97,56 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
     await future;
   }
 
+  void _openImport() {
+    Navigator.pushNamed(context, Routes.import);
+  }
+
   void _openEditor(ProjectManifest project) {
     Navigator.pushNamed(context, Routes.lyricEditorPath(project.id));
+  }
+
+  /// Summary line, the projects that still need review, then the reviewed
+  /// ones. Those are folded behind a toggle while anything else is waiting;
+  /// when everything is reviewed they are the list.
+  List<Widget> _rows(BuildContext context, List<ReviewInboxEntry> entries) {
+    final pending = entries.where((entry) => !entry.isFullyReviewed).toList();
+    final reviewed = entries.where((entry) => entry.isFullyReviewed).toList();
+    final totalPending = pending.fold<int>(
+      0,
+      (sum, entry) => sum + entry.queue.needsReviewCount,
+    );
+    final showReviewed = pending.isEmpty || _showReviewed;
+
+    Widget tile(ReviewInboxEntry entry) => Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: _ReviewInboxTile(
+        key: ValueKey('review-inbox:${entry.project.id}'),
+        entry: entry,
+        onTap: () => _openEditor(entry.project),
+      ),
+    );
+
+    return [
+      Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: Text(
+          totalPending == 0
+              ? '${entries.length} 个工程，暂时没有待复核的行'
+              : '${entries.length} 个工程，共 $totalPending 行待复核',
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+        ),
+      ),
+      ...pending.map(tile),
+      if (pending.isNotEmpty && reviewed.isNotEmpty)
+        _ReviewedToggle(
+          count: reviewed.length,
+          expanded: _showReviewed,
+          onToggle: () => setState(() => _showReviewed = !_showReviewed),
+        ),
+      if (showReviewed) ...reviewed.map(tile),
+    ];
   }
 
   @override
@@ -114,60 +173,37 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
               return const AppLoadingState(message: '正在读取歌词工程');
             }
             if (snapshot.hasError) {
-              return _Message(
-                icon: Icons.error_outline_rounded,
+              return AppErrorState(
                 title: '工程列表加载失败',
                 message: '歌词工程暂时无法读取，可以重新加载一次。',
-                action: '重试',
-                onAction: _refresh,
+                onRetry: _refresh,
               );
             }
             final entries = snapshot.data ?? const <ReviewInboxEntry>[];
             if (entries.isEmpty) {
-              return _Message(
+              return AppEmptyState(
                 icon: Icons.playlist_add_check_circle_outlined,
                 title: '还没有可校对的歌词',
                 message: '导入并识别一首歌之后，它的歌词会出现在这里，并标出还有多少行需要复核。',
-                action: '去导入',
-                onAction: () => Navigator.pushNamed(context, Routes.import),
+                actions: [
+                  FilledButton.tonal(
+                    onPressed: _openImport,
+                    child: const Text('去导入'),
+                  ),
+                ],
               );
             }
-            final totalPending = entries.fold<int>(
-              0,
-              (sum, entry) => sum + entry.queue.needsReviewCount,
-            );
             return RefreshIndicator(
               onRefresh: _refresh,
               color: AppColors.accent,
               backgroundColor: AppColors.bgElevated,
-              child: ListView.separated(
+              child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.symmetric(
                   horizontal: layout.pageGutter,
                   vertical: AppSpacing.md,
                 ),
-                itemCount: entries.length + 1,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(height: AppSpacing.sm),
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                      child: Text(
-                        totalPending == 0
-                            ? '${entries.length} 个工程，暂时没有待复核的行'
-                            : '${entries.length} 个工程，共 $totalPending 行待复核',
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(color: AppColors.textSecondary),
-                      ),
-                    );
-                  }
-                  final entry = entries[index - 1];
-                  return _ReviewInboxTile(
-                    entry: entry,
-                    onTap: () => _openEditor(entry.project),
-                  );
-                },
+                children: _rows(context, entries),
               ),
             );
           },
@@ -181,7 +217,9 @@ class _ReviewInboxTile extends StatelessWidget {
   final ReviewInboxEntry entry;
   final VoidCallback onTap;
 
-  const _ReviewInboxTile({required this.entry, required this.onTap});
+  static const double artworkExtent = 44;
+
+  const _ReviewInboxTile({super.key, required this.entry, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -200,18 +238,14 @@ class _ReviewInboxTile extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.bgSurface,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-                ),
-                child: const Icon(
-                  Icons.lyrics_outlined,
-                  size: 22,
-                  color: AppColors.textSecondary,
-                ),
+              // The song's cover when the project has one, so the list reads
+              // like the music it holds rather than a column of identical
+              // lyric icons (audit R-01).
+              AppArtwork(
+                path: project.audioAsset?.thumbnailPath,
+                size: _ReviewInboxTile.artworkExtent,
+                borderRadius: AppSpacing.radiusMedium,
+                placeholderIcon: Icons.lyrics_outlined,
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -287,52 +321,53 @@ class _Badge extends StatelessWidget {
   }
 }
 
-class _Message extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String message;
-  final String action;
-  final VoidCallback onAction;
+/// Opens and closes the folded group of fully reviewed projects.
+class _ReviewedToggle extends StatelessWidget {
+  final int count;
+  final bool expanded;
+  final VoidCallback onToggle;
 
-  const _Message({
-    required this.icon,
-    required this.title,
-    required this.message,
-    required this.action,
-    required this.onAction,
+  const _ReviewedToggle({
+    required this.count,
+    required this.expanded,
+    required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Padding(
-          padding: EdgeInsets.all(spec.pageGutter.clamp(16, 32).toDouble()),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 40, color: AppColors.textTertiary),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              FilledButton.tonal(onPressed: onAction, child: Text(action)),
-            ],
+    final layout = AppResponsive.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Semantics(
+        button: true,
+        expanded: expanded,
+        child: InkWell(
+          key: const ValueKey('review-inbox:reviewed-toggle'),
+          onTap: onToggle,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: layout.minimumInteractiveExtent,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  expanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    expanded ? '收起已复核的工程' : '已复核的工程 · $count 个',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

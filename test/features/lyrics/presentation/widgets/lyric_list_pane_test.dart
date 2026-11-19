@@ -18,6 +18,7 @@ void main() {
     Map<int, LyricReviewPriority> priorities = const {},
     Map<String, dynamic>? candidate,
     Size? viewport,
+    VoidCallback? onShowAllLines,
   }) {
     return MaterialApp(
       builder: viewport == null
@@ -34,6 +35,7 @@ void main() {
             visibleIndices: visibleIndices,
             reviewPriorityByIndex: priorities,
             filter: filter,
+            onShowAllLines: onShowAllLines,
             activeAuditionLineIndex: null,
             auditionPlaying: false,
             selectedIndex: null,
@@ -222,6 +224,45 @@ void main() {
     );
 
     expect(find.text('当前筛选下没有待处理歌词'), findsOneWidget);
+    // Without a host callback there is nothing to offer.
+    expect(find.text('显示全部歌词'), findsNothing);
+  });
+
+  testWidgets('筛选把所有行藏起来时可以一键回到全部歌词', (tester) async {
+    var showAll = 0;
+    await tester.pumpWidget(
+      host(
+        document: _document(3),
+        visibleIndices: const [],
+        filter: LyricReviewFilter.lowConfidence,
+        onShowAllLines: () => showAll++,
+      ),
+    );
+
+    expect(find.text('换一个筛选条件，或回到全部歌词继续校对。'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('lyric-list:show-all')));
+    expect(showAll, 1);
+  });
+
+  testWidgets('复核队列清空时也提供回到全部歌词', (tester) async {
+    var showAll = 0;
+    await tester.pumpWidget(
+      host(
+        document: _document(3),
+        visibleIndices: const [],
+        filter: LyricReviewFilter.needsReview,
+        onShowAllLines: () => showAll++,
+      ),
+    );
+
+    expect(find.text('暂未发现明显风险行'), findsOneWidget);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.check_circle_outline_rounded)).size,
+      56,
+    );
+    await tester.tap(find.text('显示全部歌词'));
+    expect(showAll, 1);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('超过 8 行时提供搜索框，可过滤到匹配行', (tester) async {

@@ -8,6 +8,11 @@ import '../widgets/ai_transcription_settings_section.dart';
 import '../widgets/asr_end_to_end_smoke_test_card.dart';
 import '../widgets/diagnostics_settings_card.dart';
 
+/// The line under the app bar. It names only what the page holds; the
+/// navigation tooltip used to promise playback and storage settings that do
+/// not exist (audit SE-01).
+const String settingsIntro = '本地 AI 识别环境，以及出问题时的诊断与试识别。';
+
 class SettingsScreen extends StatelessWidget {
   final SettingsScreenDependencies dependencies;
 
@@ -41,26 +46,65 @@ class SettingsScreen extends StatelessWidget {
                   // The app bar already says 设置; the page opens with what
                   // it manages instead of repeating the title (audit SE-02).
                   Text(
-                    '管理 Elysium Player 的本地运行环境与工作流。',
+                    settingsIntro,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.xl),
+                  const SettingsGroupLabel(
+                    key: ValueKey('settings-group:recognition'),
+                    label: 'AI 识别',
+                  ),
                   AiTranscriptionSettingsSection(
                     dependencies: dependencies.asrRuntimeSetupDependencies,
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  // Diagnostics first: exporting a report is what support
+                  // asks for. The trial run used to sit between the
+                  // recognition settings and diagnostics as if it were a
+                  // setting (audit SE-05).
+                  const SettingsGroupLabel(
+                    key: ValueKey('settings-group:troubleshooting'),
+                    label: '故障排查',
+                  ),
+                  DiagnosticsSettingsCard(
+                    diagnostics: dependencies.diagnostics,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   AsrEndToEndSmokeTestCard(
                     smokeTestService: dependencies.smokeTestService,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  DiagnosticsSettingsCard(
-                    diagnostics: dependencies.diagnostics,
-                  ),
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small heading above a group of settings cards.
+class SettingsGroupLabel extends StatelessWidget {
+  const SettingsGroupLabel({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: AppSpacing.xs,
+        bottom: AppSpacing.sm,
+      ),
+      child: Semantics(
+        header: true,
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

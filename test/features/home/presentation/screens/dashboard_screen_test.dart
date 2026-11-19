@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
+import 'package:lyric_forge_ktv/core/widgets/app_empty_state.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/dashboard_dependencies.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/screens/dashboard_screen.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/play_history.dart';
@@ -9,6 +11,7 @@ import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dar
 import 'package:lyric_forge_ktv/features/player/domain/repositories/play_history_repository.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/audio_player_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
@@ -65,6 +68,79 @@ void main() {
     expect(find.text('打开一首本地音乐后，会从这里快速继续。'), findsOneWidget);
     expect(projects.calls, 1);
     expect(history.calls, 1);
+    // Both shelves use the shared inline empty state.
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is AppEmptyState &&
+            widget.density == AppEmptyStateDensity.inline,
+      ),
+      findsNWidgets(2),
+    );
+  });
+
+  testWidgets('nothing playing: the hero is the only way to open music', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    expect(find.text('选择音乐开始播放'), findsOneWidget);
+    expect(find.text('打开音乐'), findsNothing);
+    expect(find.text('选择音乐'), findsNothing);
+    // The project shelf keeps its own action.
+    expect(find.widgetWithText(TextButton, '批量导入'), findsOneWidget);
+  });
+
+  testWidgets('while playing, the header offers to open other music', (
+    WidgetTester tester,
+  ) async {
+    playbackSession.state = const PlaybackSessionState(
+      queue: [
+        PlaybackItem(
+          id: 'song',
+          title: '正在播放的歌',
+          audioAsset: AudioAsset(
+            originalPath: '/music/song.mp3',
+            format: 'mp3',
+          ),
+        ),
+      ],
+      currentIndex: 0,
+    );
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    expect(find.text('选择音乐开始播放'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('dashboard:header-open-music')),
+      findsOneWidget,
+    );
+    expect(find.text('打开音乐'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed shelves use the error colour, empty ones stay muted', (
+    WidgetTester tester,
+  ) async {
+    projects.failuresRemaining = 1;
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    final failed = tester.widget<AppEmptyState>(
+      find.ancestor(
+        of: find.text('最近工程加载失败'),
+        matching: find.byType(AppEmptyState),
+      ),
+    );
+    final empty = tester.widget<AppEmptyState>(
+      find.ancestor(
+        of: find.text('还没有播放记录'),
+        matching: find.byType(AppEmptyState),
+      ),
+    );
+    expect(failed.iconColor, AppColors.error);
+    expect(empty.iconColor, isNull);
   });
 
   testWidgets('history read failure is not presented as an empty history', (
@@ -198,8 +274,10 @@ class _TestPlayHistoryRepository implements PlayHistoryRepository {
 }
 
 class _TestPlaybackSessionService implements PlaybackSessionService {
+  PlaybackSessionState state = const PlaybackSessionState();
+
   @override
-  PlaybackSessionState get currentState => const PlaybackSessionState();
+  PlaybackSessionState get currentState => state;
 
   @override
   PlaybackState get playbackState => const PlaybackState.idle();
