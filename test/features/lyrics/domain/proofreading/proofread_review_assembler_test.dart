@@ -6,12 +6,12 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_align
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
-import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_v2_review_assembler.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_assembler.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/reference_first_pipeline.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 void main() {
-  const assembler = ProofreadV2ReviewAssembler();
+  const assembler = ProofreadReviewAssembler();
 
   LyricLine row(
     String text,
@@ -61,7 +61,7 @@ void main() {
       ], offset: const Duration(milliseconds: 250));
     });
 
-    ProofreadV2ReviewAssembly assemble({
+    ProofreadReviewAssembly assemble({
       LyricSourceStrategy strategy = LyricSourceStrategy.referenceFirst,
       Set<int> protected = const {},
       List<String> warnings = const [],
@@ -111,7 +111,7 @@ void main() {
         expect(interpolated.verdict, LyricProofreadReviewVerdict.amber);
         expect(
           interpolated.referenceReasons,
-          contains(LyricProofreadV2ReferenceReason.interpolatedTiming),
+          contains(LyricProofreadReferenceReason.interpolatedTiming),
         );
       },
     );
@@ -123,7 +123,7 @@ void main() {
       expect(locked.verdict, LyricProofreadReviewVerdict.locked);
       expect(
         locked.referenceReasons,
-        contains(LyricProofreadV2ReferenceReason.protectedLine),
+        contains(LyricProofreadReferenceReason.protectedLine),
       );
     });
 
@@ -148,19 +148,19 @@ void main() {
         assemble(
           strategy: LyricSourceStrategy.auto,
         ).explanations.map((explanation) => explanation.code),
-        contains(LyricProofreadV2ExplanationCode.automaticReferenceCoverage),
+        contains(LyricProofreadExplanationCode.automaticReferenceCoverage),
       );
       expect(
         assemble(
           strategy: LyricSourceStrategy.referenceFirst,
         ).explanations.map((explanation) => explanation.code),
         isNot(
-          contains(LyricProofreadV2ExplanationCode.automaticReferenceCoverage),
+          contains(LyricProofreadExplanationCode.automaticReferenceCoverage),
         ),
       );
       expect(
         assemble().explanations.map((explanation) => explanation.code),
-        contains(LyricProofreadV2ExplanationCode.referenceFirstGuidance),
+        contains(LyricProofreadExplanationCode.referenceFirstGuidance),
       );
     });
 
@@ -169,12 +169,12 @@ void main() {
       final warningExplanation = withWarning.explanations.singleWhere(
         (explanation) =>
             explanation.code ==
-            LyricProofreadV2ExplanationCode.referenceInputWarnings,
+            LyricProofreadExplanationCode.referenceInputWarnings,
       );
       expect(warningExplanation.referenceWarningCount, 1);
       expect(
         assemble().explanations.map((explanation) => explanation.code),
-        isNot(contains(LyricProofreadV2ExplanationCode.referenceInputWarnings)),
+        isNot(contains(LyricProofreadExplanationCode.referenceInputWarnings)),
       );
     });
   });
@@ -189,7 +189,7 @@ void main() {
       ]);
     });
 
-    ProofreadV2ReviewAssembly assemble({
+    ProofreadReviewAssembly assemble({
       Set<int> protected = const {},
       bool forcedAlignment = false,
       bool hasSecondary = false,
@@ -266,7 +266,7 @@ void main() {
     test('forced alignment emits typed hints based on word evidence', () {
       final withoutTokens = assemble(forcedAlignment: true);
       expect(withoutTokens.items.first.alignmentHints, {
-        LyricProofreadV2AlignmentHint.wordTimingMissing,
+        LyricProofreadAlignmentHint.wordTimingMissing,
       });
 
       final wordToken = TimedLyricToken(
@@ -287,12 +287,12 @@ void main() {
         ),
       );
       expect(withTokens.items.first.alignmentHints, {
-        LyricProofreadV2AlignmentHint.wordTimingAvailable,
+        LyricProofreadAlignmentHint.wordTimingAvailable,
       });
       expect(
         withTokens.explanations.map((explanation) => explanation.code),
         contains(
-          LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
+          LyricProofreadExplanationCode.forcedAlignmentEvidenceAvailable,
         ),
       );
 
@@ -303,23 +303,23 @@ void main() {
     test('explanation codes identify the active ASR evidence path', () {
       expect(
         assemble().explanations.map((explanation) => explanation.code),
-        contains(LyricProofreadV2ExplanationCode.missingSecondaryTranscript),
+        contains(LyricProofreadExplanationCode.missingSecondaryTranscript),
       );
       expect(
         assemble(
           hasSecondary: true,
         ).explanations.map((explanation) => explanation.code),
-        contains(LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence),
+        contains(LyricProofreadExplanationCode.secondaryTranscriptEvidence),
       );
       expect(
         assemble(
           fellBack: true,
         ).explanations.map((explanation) => explanation.code),
-        contains(LyricProofreadV2ExplanationCode.automaticFallbackToAsr),
+        contains(LyricProofreadExplanationCode.automaticFallbackToAsr),
       );
       expect(
         assemble().explanations.map((explanation) => explanation.code),
-        contains(LyricProofreadV2ExplanationCode.asrFirstConservativeTiming),
+        contains(LyricProofreadExplanationCode.asrFirstConservativeTiming),
       );
     });
 
@@ -334,7 +334,7 @@ void main() {
       );
       expect(
         unavailable.explanations.map((explanation) => explanation.code),
-        contains(LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable),
+        contains(LyricProofreadExplanationCode.forcedAlignmentUnavailable),
       );
 
       final diagnosticsMissing = assemble(
@@ -347,7 +347,7 @@ void main() {
       expect(
         diagnosticsMissing.explanations.map((explanation) => explanation.code),
         contains(
-          LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing,
+          LyricProofreadExplanationCode.forcedAlignmentDiagnosticsMissing,
         ),
       );
       expect(diagnosticsMissing.alignmentDiagnostics, isNull);
@@ -355,10 +355,10 @@ void main() {
   });
 
   group('summary', () {
-    LyricProofreadV2ReviewItem item(
+    LyricProofreadReviewItem item(
       LyricProofreadReviewVerdict verdict,
       int index,
-    ) => LyricProofreadV2ReviewItem(
+    ) => LyricProofreadReviewItem(
       proposalIndex: index,
       sourceIndex: index,
       proposedLine: const LyricLine(
@@ -380,7 +380,7 @@ void main() {
           item(LyricProofreadReviewVerdict.locked, 3),
         ],
         droppedItems: [
-          const LyricProofreadV2DroppedItem(
+          const LyricProofreadDroppedItem(
             sourceIndex: 9,
             line: LyricLine(
               text: 'dropped',
@@ -419,7 +419,7 @@ void main() {
   test('reference reason codes preserve every pipeline reason', () {
     for (final reason in ReferenceFirstReason.values) {
       expect(
-        ProofreadV2ReviewAssembler.referenceReasonCode(reason).name,
+        ProofreadReviewAssembler.referenceReasonCode(reason).name,
         reason.name,
       );
     }

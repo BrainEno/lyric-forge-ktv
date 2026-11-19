@@ -9,11 +9,12 @@ import 'app_services.dart';
 
 /// Builds what the lyric editor needs, including the forced-alignment runner.
 ///
-/// The runner used to be constructed inside `_openProofreadV2`: it loaded the
-/// saved transcription settings, resolved the hardware profile, inspected the
-/// runtime components and only then called the native aligner — four service
-/// lookups and three error messages buried in a dialog handler, where the only
-/// way to test them was to open the editor on a machine with a real runtime.
+/// The runner used to be constructed inside `_openSmartProofread`: it loaded
+/// the saved transcription settings, resolved the hardware profile, inspected
+/// the runtime components and only then called the native aligner — four
+/// service lookups and three error messages buried in a dialog handler, where
+/// the only way to test them was to open the editor on a machine with a real
+/// runtime.
 ///
 /// It lives here because it is assembly: the editor asks for word-level timing
 /// and gets either spans or an error it can show. The `qwenRuntime` +

@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
-import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_v2_document_composer.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_document_composer.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 void main() {
-  const composer = ProofreadV2DocumentComposer();
+  const composer = ProofreadDocumentComposer();
 
   LyricLine line(
     String text,
@@ -21,13 +21,13 @@ void main() {
     id: id,
   );
 
-  LyricProofreadV2ReviewItem item({
+  LyricProofreadReviewItem item({
     required int proposalIndex,
     required int? sourceIndex,
     required LyricLine proposed,
     required LyricLine? original,
     required LyricProofreadReviewVerdict verdict,
-  }) => LyricProofreadV2ReviewItem(
+  }) => LyricProofreadReviewItem(
     proposalIndex: proposalIndex,
     sourceIndex: sourceIndex,
     proposedLine: proposed,
@@ -35,10 +35,10 @@ void main() {
     verdict: verdict,
   );
 
-  LyricProofreadV2Selection selection({
+  LyricProofreadSelection selection({
     Set<int> accepted = const {},
     Set<int> restored = const {},
-  }) => LyricProofreadV2Selection(
+  }) => LyricProofreadSelection(
     acceptedProposalIndices: accepted,
     restoredDraftIndices: restored,
   );
@@ -248,7 +248,7 @@ void main() {
         ),
       ];
       final dropped = [
-        LyricProofreadV2DroppedItem(sourceIndex: 1, line: before.lines[1]),
+        LyricProofreadDroppedItem(sourceIndex: 1, line: before.lines[1]),
       ];
 
       final withoutRestore = composer.compose(
@@ -305,7 +305,7 @@ void main() {
             ),
           ],
           droppedItems: [
-            LyricProofreadV2DroppedItem(sourceIndex: 1, line: before.lines[1]),
+            LyricProofreadDroppedItem(sourceIndex: 1, line: before.lines[1]),
           ],
           selection: selection(restored: {1}),
           effectiveStrategy: LyricSourceStrategy.referenceFirst,
@@ -455,7 +455,7 @@ void main() {
           ),
         ],
         droppedItems: [
-          LyricProofreadV2DroppedItem(sourceIndex: 2, line: before.lines[2]),
+          LyricProofreadDroppedItem(sourceIndex: 2, line: before.lines[2]),
         ],
         selection: selection(accepted: {0, 1}),
         effectiveStrategy: LyricSourceStrategy.referenceFirst,

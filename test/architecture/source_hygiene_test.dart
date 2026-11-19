@@ -69,10 +69,11 @@ void main() {
   });
 
   test('corner radii and font sizes come from the theme outside it', () {
-    // A number straight inside `circular(` or after `fontSize:`; computed
-    // values (`size / 2`, `compact ? ... : ...`) are left alone.
+    // A number straight inside `circular(`, or after `fontSize:` or
+    // `radius:` (CircleAvatar); computed values (`size / 2`,
+    // `compact ? ... : ...`) are left alone.
     final literal = RegExp(
-      r'\b(?:Border)?Radius\.circular\(\s*\d|\bfontSize:\s*\d',
+      r'\b(?:Border)?Radius\.circular\(\s*\d|\b(?:fontSize|radius):\s*\d',
     );
     final files = _dartFiles(
       'lib',

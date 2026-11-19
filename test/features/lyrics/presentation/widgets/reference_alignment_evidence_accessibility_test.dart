@@ -6,7 +6,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_align
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/reference_forced_alignment_planner.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_review_strings.dart';
-import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_dialog.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 void main() {
@@ -60,13 +60,13 @@ void main() {
                 body: Builder(
                   builder: (context) => FilledButton(
                     onPressed: () async {
-                      await showLyricProofreadV2ReviewDialog(
+                      await showLyricProofreadReviewDialog(
                         context,
                         summary: '参考歌词优先',
                         explanation:
                             LyricReviewStrings.referenceAlignmentSummary(plan),
                         items: [
-                          LyricProofreadV2ReviewItem(
+                          LyricProofreadReviewItem(
                             proposalIndex: 0,
                             sourceIndex: 0,
                             originalLine: original,

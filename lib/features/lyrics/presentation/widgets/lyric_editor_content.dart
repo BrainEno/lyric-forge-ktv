@@ -8,19 +8,17 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
-import '../../../player/domain/models/playback_state.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
-import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/recognition_review_summary.dart';
 import '../../domain/models/secondary_only_suggestion.dart';
 import '../../domain/services/lyric_draft_health_service.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
-import '../../domain/services/lyric_review_priority_service.dart';
 import 'line_inspector_sheet.dart';
 import 'lyric_batch_text_edit.dart';
 import 'lyric_editor_actions.dart';
 import 'lyric_editor_atoms.dart';
+import 'lyric_editor_review_controls.dart';
 import 'lyric_editor_toolbar.dart';
 import 'lyric_edit_shortcuts.dart';
 import 'lyric_inspector_pane.dart';
@@ -64,18 +62,7 @@ class LyricEditorErrorState extends StatelessWidget {
 class LyricEditorContent extends StatelessWidget {
   final ProjectManifest project;
   final LyricDocument document;
-  final PlaybackState playback;
-  final bool playbackBelongsToProject;
   final bool hasChanges;
-  final Map<int, LyricReviewPriority> reviewPriorityByIndex;
-  final LyricReviewQueue reviewQueue;
-  final bool followPlayback;
-  final int? selectedLineIndex;
-  final LyricReviewFilter filter;
-  final ValueChanged<LyricReviewFilter> onFilterChanged;
-  final ValueChanged<bool> onFollowPlaybackChanged;
-  final ValueChanged<int> onSelectLine;
-  final void Function(int, bool) onReviewDecision;
 
   /// Completes with `true` only when the current draft reached disk and the
   /// editor is clean; the save-and-leave path waits for it before popping.
@@ -84,45 +71,35 @@ class LyricEditorContent extends StatelessWidget {
   /// A save is in flight: save actions are disabled and leaving waits.
   final bool isSaving;
 
-  // Grouped inputs, see lyric_editor_actions.dart (audit E-04).
+  // Grouped inputs, see lyric_editor_actions.dart and
+  // lyric_editor_review_controls.dart (audit E-04).
+  final LyricPlaybackControls player;
+  final LyricReviewControls review;
   final LyricUndoRedoControls history;
   final LyricProofreadActions proofread;
   final LyricLineEditActions edits;
   final LyricAuditionControls audition;
   final VoidCallback onExport;
-  final ValueChanged<Duration> onSeekPlayback;
   final int focusRequestId;
   final int? focusLineIndex;
-  final VoidCallback onTogglePlayback;
   final Set<int> manuallyEditedLineIndices;
 
   const LyricEditorContent({
     super.key,
     required this.project,
     required this.document,
-    required this.playback,
-    required this.playbackBelongsToProject,
     required this.hasChanges,
-    required this.reviewPriorityByIndex,
-    required this.reviewQueue,
-    required this.followPlayback,
-    required this.selectedLineIndex,
-    required this.filter,
-    required this.onFilterChanged,
-    required this.onFollowPlaybackChanged,
-    required this.onSelectLine,
-    required this.onReviewDecision,
     required this.onSave,
     this.isSaving = false,
+    required this.player,
+    required this.review,
     required this.history,
     this.proofread = LyricProofreadActions.none,
     required this.edits,
     required this.audition,
     required this.onExport,
-    required this.onSeekPlayback,
     required this.focusRequestId,
     required this.focusLineIndex,
-    required this.onTogglePlayback,
     this.manuallyEditedLineIndices = const {},
   });
 
@@ -140,36 +117,21 @@ class LyricEditorContent extends StatelessWidget {
   bool _isLineReviewed(int index) =>
       const LyricReviewDecisionService().isReviewed(document, index);
 
-  int? _currentPlaybackLineIndex() {
-    if (!playbackBelongsToProject || document.lines.isEmpty) return null;
-    final offset = document.globalOffset ?? Duration.zero;
-    for (var index = document.lines.length - 1; index >= 0; index--) {
-      final shifted = document.lines[index].startTime + offset;
-      final effective = shifted.isNegative ? Duration.zero : shifted;
-      if (playback.position >= effective) return index;
-    }
-    return 0;
+  Duration get _offset => document.globalOffset ?? Duration.zero;
+
+  /// What the inspector's review switch does for [index], or null when the
+  /// row can be neither marked nor unmarked.
+  ValueChanged<bool>? _decide(int? index) {
+    if (index == null) return null;
+    final reviewed = _isLineReviewed(index);
+    if (!review.canRecordDecision(index, isReviewed: reviewed)) return null;
+    return (value) => review.onDecision(index, value);
   }
 
-  List<int> _visibleIndices() {
-    final indices = <int>[];
-    for (var index = 0; index < document.lines.length; index++) {
-      final include = switch (filter) {
-        LyricReviewFilter.all => true,
-        LyricReviewFilter.needsReview => reviewQueue.needsReview(index),
-        LyricReviewFilter.lowConfidence => reviewQueue.isLowConfidence(index),
-      };
-      if (include) indices.add(index);
-    }
-    if (filter != LyricReviewFilter.all) {
-      indices.sort((left, right) {
-        final byPriority = (reviewPriorityByIndex[right]?.score ?? 0).compareTo(
-          reviewPriorityByIndex[left]?.score ?? 0,
-        );
-        return byPriority != 0 ? byPriority : left.compareTo(right);
-      });
-    }
-    return indices;
+  /// The row at the playhead, or null when the player is on another song.
+  int? _currentPlaybackLineIndex() {
+    final starts = [for (final line in document.lines) line.startTime];
+    return player.lineAt(starts, offset: _offset);
   }
 
   Future<void> _showInspectorSheet(
@@ -178,7 +140,7 @@ class LyricEditorContent extends StatelessWidget {
     bool autofocusText = false,
   }) async {
     if (index < 0 || index >= document.lines.length) return;
-    onSelectLine(index);
+    review.onSelectLine(index);
     final spec = AppResponsive.of(context);
     await showModalBottomSheet<void>(
       context: context,
@@ -187,8 +149,10 @@ class LyricEditorContent extends StatelessWidget {
       backgroundColor: AppColors.bgElevated,
       builder: (sheetContext) {
         final isReviewed = _isLineReviewed(index);
-        final canRecordDecision =
-            isReviewed || reviewPriorityByIndex.containsKey(index);
+        final canRecordDecision = review.canRecordDecision(
+          index,
+          isReviewed: isReviewed,
+        );
         return LineInspectorSheet(
           editingText: autofocusText,
           previousLine: index > 0 ? document.lines[index - 1].text : null,
@@ -212,14 +176,12 @@ class LyricEditorContent extends StatelessWidget {
                 isReviewed: isReviewed,
                 onReviewDecision: canRecordDecision
                     ? (reviewed) {
-                        onReviewDecision(index, reviewed);
+                        review.onDecision(index, reviewed);
                         Navigator.of(sheetContext).pop();
                       }
                     : null,
-                isCurrentPlaybackLine:
-                    playbackBelongsToProject &&
-                    _currentPlaybackLineIndex() == index,
-                isPlaying: playbackBelongsToProject && playback.isPlaying,
+                isCurrentPlaybackLine: _currentPlaybackLineIndex() == index,
+                isPlaying: player.isPlaying,
                 autofocusText: autofocusText,
                 onUpdate: (updated) => edits.onUpdateLine(index, updated),
                 onDelete: () {
@@ -241,16 +203,14 @@ class LyricEditorContent extends StatelessWidget {
                         Navigator.of(sheetContext).pop();
                       },
                 onPreview: () => audition.onPreviewLine(index),
-                onUsePlaybackAsStart: playbackBelongsToProject
+                onUsePlaybackAsStart: player.belongsToProject
                     ? () => edits.onSetStartFromPlayback(index)
                     : null,
-                onUsePlaybackAsEnd: playbackBelongsToProject
+                onUsePlaybackAsEnd: player.belongsToProject
                     ? () => edits.onSetEndFromPlayback(index)
                     : null,
-                onSeekToTime: playbackBelongsToProject
-                    ? (time) => onSeekPlayback(
-                        time + (document.globalOffset ?? Duration.zero),
-                      )
+                onSeekToTime: player.belongsToProject
+                    ? (time) => player.onSeek(time + _offset)
                     : null,
                 onEditWordTiming: proofread.onBatchTextTool == null
                     ? null
@@ -278,15 +238,8 @@ class LyricEditorContent extends StatelessWidget {
   void Function(int index, int? textOffset)? get _splitLine {
     final split = edits.onSplitLine;
     if (split == null) return null;
-    return (index, textOffset) {
-      Duration? playhead;
-      if (playbackBelongsToProject && !playback.isPlaying) {
-        final shifted =
-            playback.position - (document.globalOffset ?? Duration.zero);
-        playhead = shifted.isNegative ? Duration.zero : shifted;
-      }
-      split(index, textOffset, playhead);
-    };
+    return (index, textOffset) =>
+        split(index, textOffset, player.pausedPlayhead(offset: _offset));
   }
 
   /// Merge is offered only when there is a next row.
@@ -311,18 +264,14 @@ class LyricEditorContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     final currentPlaybackLine = _currentPlaybackLineIndex();
-    final visibleIndices = _visibleIndices();
+    final visibleIndices = review.visibleIndices(document.lines.length);
     final secondarySuggestions = SecondaryOnlySuggestion.resolve(document);
     final recognitionSummary = RecognitionReviewSummary.fromDocument(
       document,
-      reviewQueue,
+      review.queue,
     );
-    final selectedIndex =
-        selectedLineIndex != null &&
-            selectedLineIndex! >= 0 &&
-            selectedLineIndex! < document.lines.length
-        ? selectedLineIndex
-        : null;
+    final selectedIndex = review.selectionWithin(document.lines.length);
+    final firstQueued = review.firstQueuedLine;
 
     return PopScope(
       canPop: !hasChanges && !isSaving,
@@ -381,7 +330,7 @@ class LyricEditorContent extends StatelessWidget {
                 redoLabel: history.availableRedoLabel,
                 canExport: document.lines.isNotEmpty,
                 onExport: onExport,
-                onInsertAtPlayback: playbackBelongsToProject
+                onInsertAtPlayback: player.belongsToProject
                     ? edits.onInsertAtPlayback
                     : null,
                 onOpenPlayer: project.canPlay
@@ -419,16 +368,16 @@ class LyricEditorContent extends StatelessWidget {
               children: [
                 LyricEditorToolbar(
                   document: document,
-                  playback: playback,
-                  playbackBelongsToProject: playbackBelongsToProject,
-                  review: reviewQueue,
-                  filter: filter,
-                  followPlayback: followPlayback,
-                  onFilterChanged: onFilterChanged,
-                  onFollowPlaybackChanged: onFollowPlaybackChanged,
+                  playback: player.state,
+                  playbackBelongsToProject: player.belongsToProject,
+                  review: review.queue,
+                  filter: review.filter,
+                  followPlayback: review.followPlayback,
+                  onFilterChanged: review.onFilterChanged,
+                  onFollowPlaybackChanged: review.onFollowPlaybackChanged,
                   onUpdateOffset: edits.onUpdateOffset,
-                  onTogglePlayback: onTogglePlayback,
-                  onSeekPlayback: onSeekPlayback,
+                  onTogglePlayback: player.onToggle,
+                  onSeekPlayback: player.onSeek,
                   audition: audition,
                   proofread: proofread,
                 ),
@@ -453,23 +402,19 @@ class LyricEditorContent extends StatelessWidget {
                                         : const LyricDraftHealthService()
                                               .cached(document),
                                     onOpenBatchTool: proofread.onBatchTextTool,
-                                    onStartReview: reviewQueue.isEmpty
+                                    onStartReview: firstQueued == null
                                         ? null
                                         : () {
-                                            onFilterChanged(
+                                            review.onFilterChanged(
                                               LyricReviewFilter.needsReview,
                                             );
-                                            final first = reviewQueue
-                                                .items
-                                                .first
-                                                .lineIndex;
                                             if (twoPane) {
-                                              onSelectLine(first);
+                                              review.onSelectLine(firstQueued);
                                             } else {
                                               unawaited(
                                                 _showInspectorSheet(
                                                   context,
-                                                  first,
+                                                  firstQueued,
                                                 ),
                                               );
                                             }
@@ -481,31 +426,31 @@ class LyricEditorContent extends StatelessWidget {
                               visibleIndices: visibleIndices,
                               selectedIndex: selectedIndex,
                               currentPlaybackLine: currentPlaybackLine,
-                              followPlayback: followPlayback,
+                              followPlayback: review.followPlayback,
                               focusRequestId: focusRequestId,
                               focusLineIndex: focusLineIndex,
                               fallbackCandidateFor: _fallbackCandidateFor,
                               secondarySuggestionIndices: secondarySuggestions
                                   .keys
                                   .toSet(),
-                              reviewPriorityByIndex: reviewPriorityByIndex,
-                              filter: filter,
+                              reviewPriorityByIndex: review.priorityByIndex,
+                              filter: review.filter,
                               onShowAllLines: () =>
-                                  onFilterChanged(LyricReviewFilter.all),
+                                  review.onFilterChanged(LyricReviewFilter.all),
                               activeAuditionLineIndex: audition.activeLineIndex,
                               auditionPlaying: audition.playing,
                               onPreviewLine: project.audioAsset == null
                                   ? null
                                   : audition.onPreviewLine,
                               onInsertedLineFocus: twoPane
-                                  ? onSelectLine
+                                  ? review.onSelectLine
                                   : (index) => _showInspectorSheet(
                                       context,
                                       index,
                                       autofocusText: true,
                                     ),
                               onSelectLine: twoPane
-                                  ? onSelectLine
+                                  ? review.onSelectLine
                                   : (index) =>
                                         _showInspectorSheet(context, index),
                               onUpdateLine: edits.onUpdateLine,
@@ -550,26 +495,15 @@ class LyricEditorContent extends StatelessWidget {
                                     isReviewed:
                                         selectedIndex != null &&
                                         _isLineReviewed(selectedIndex),
-                                    onReviewDecision:
-                                        selectedIndex != null &&
-                                            (_isLineReviewed(selectedIndex) ||
-                                                reviewPriorityByIndex
-                                                    .containsKey(selectedIndex))
-                                        ? (reviewed) {
-                                            onReviewDecision(
-                                              selectedIndex,
-                                              reviewed,
-                                            );
-                                          }
-                                        : null,
-                                    playback: playback,
+                                    onReviewDecision: _decide(selectedIndex),
+                                    playback: player.state,
                                     playbackBelongsToProject:
-                                        playbackBelongsToProject,
+                                        player.belongsToProject,
                                     currentPlaybackLine: currentPlaybackLine,
                                     edits: edits,
                                     onSplitLine: _splitLine,
                                     onPreviewLine: audition.onPreviewLine,
-                                    onSeekPlayback: onSeekPlayback,
+                                    onSeekPlayback: player.onSeek,
                                     onEditWordTiming: _batchTool(
                                       LyricBatchTextTool.wordTimingEdit,
                                     ),

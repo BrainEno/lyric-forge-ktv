@@ -260,7 +260,7 @@ class _MobileDownloadManagerScreenState
                 child: Row(
                   children: [
                     const CircleAvatar(
-                      radius: 24,
+                      radius: AppSpacing.avatarRadius,
                       backgroundColor: AppColors.bgHighlight,
                       child: Icon(
                         Icons.download_done_rounded,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/theme/app_theme.dart';
 import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_badge.dart';
 
@@ -71,20 +72,29 @@ void main() {
     );
   });
 
-  testWidgets('small badges use a smaller label and icon', (tester) async {
+  testWidgets('small badges keep a readable label and use a smaller icon', (
+    tester,
+  ) async {
     await tester.pumpWidget(
-      _host(
-        const AppBadge(
-          label: '副歌',
-          icon: Icons.star_rounded,
-          size: AppBadgeSize.small,
-          emphasized: true,
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: const Scaffold(
+          body: Center(
+            child: AppBadge(
+              label: '副歌',
+              icon: Icons.star_rounded,
+              size: AppBadgeSize.small,
+              emphasized: true,
+            ),
+          ),
         ),
       ),
     );
 
     final style = tester.widget<Text>(find.textContaining('副歌')).style;
-    expect(style?.fontSize, 10);
+    // 10 was too small to read (UI audit E-06); the theme's smallest label
+    // is the floor.
+    expect(style?.fontSize, 11);
     expect(style?.fontWeight, FontWeight.w700);
     expect(tester.widget<Icon>(find.byIcon(Icons.star_rounded)).size, 12);
   });

@@ -11,19 +11,19 @@ import 'reference_forced_alignment_planner.dart';
 /// Building this is pure: it reads pipeline output and the draft and produces
 /// review rows plus typed explanation data. Presentation owns the wording;
 /// the dialog, snackbars and undo-able commit stay in the caller.
-class ProofreadV2ReviewAssembly {
+class ProofreadReviewAssembly {
   final LyricDocument proposalDocument;
-  final List<LyricProofreadV2ReviewItem> items;
-  final List<LyricProofreadV2DroppedItem> droppedItems;
-  final List<LyricProofreadV2Explanation> explanations;
+  final List<LyricProofreadReviewItem> items;
+  final List<LyricProofreadDroppedItem> droppedItems;
+  final List<LyricProofreadExplanation> explanations;
   final ProofreadAlignmentDiagnostics? alignmentDiagnostics;
   final ReferenceForcedAlignmentPlan? referenceAlignmentPlan;
 
-  ProofreadV2ReviewAssembly({
+  ProofreadReviewAssembly({
     required this.proposalDocument,
-    required List<LyricProofreadV2ReviewItem> items,
-    required List<LyricProofreadV2DroppedItem> droppedItems,
-    required List<LyricProofreadV2Explanation> explanations,
+    required List<LyricProofreadReviewItem> items,
+    required List<LyricProofreadDroppedItem> droppedItems,
+    required List<LyricProofreadExplanation> explanations,
     this.alignmentDiagnostics,
     this.referenceAlignmentPlan,
   }) : items = List.unmodifiable(items),
@@ -37,10 +37,10 @@ class ProofreadV2ReviewAssembly {
 /// rows may reorder and drop draft lines, ASR rows stay one-to-one with the
 /// draft — so they get separate entry points instead of a shared branch that
 /// would have to guess which index space it is in.
-class ProofreadV2ReviewAssembler {
-  const ProofreadV2ReviewAssembler();
+class ProofreadReviewAssembler {
+  const ProofreadReviewAssembler();
 
-  ProofreadV2ReviewAssembly referenceFirst({
+  ProofreadReviewAssembly referenceFirst({
     required LyricDocument draft,
     required ReferenceFirstPipelineResult result,
     required LyricSourceStrategy requestedStrategy,
@@ -54,7 +54,7 @@ class ProofreadV2ReviewAssembler {
               const <ReferenceForcedTimingProposal>[])
         proposal.referenceIndex: proposal,
     };
-    return ProofreadV2ReviewAssembly(
+    return ProofreadReviewAssembly(
       referenceAlignmentPlan: referenceAlignmentPlan,
       proposalDocument: result.proposedDocument.copyWith(
         globalOffset: Duration.zero,
@@ -70,7 +70,7 @@ class ProofreadV2ReviewAssembler {
                     sourceIndex < draft.lines.length
                 ? draft.lines[sourceIndex]
                 : null;
-            return LyricProofreadV2ReviewItem(
+            return LyricProofreadReviewItem(
               proposalIndex: index,
               sourceIndex: sourceIndex,
               proposedLine: row.line,
@@ -92,43 +92,42 @@ class ProofreadV2ReviewAssembler {
       ],
       droppedItems: [
         for (final row in result.droppedLines)
-          LyricProofreadV2DroppedItem(
+          LyricProofreadDroppedItem(
             sourceIndex: row.draftIndex,
             line: row.line,
           ),
       ],
       explanations: [
         if (requestedStrategy == LyricSourceStrategy.auto)
-          LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.automaticReferenceCoverage,
+          LyricProofreadExplanation(
+            LyricProofreadExplanationCode.automaticReferenceCoverage,
             referenceCoveragePercent: (result.tokenCoverage * 100).round(),
           ),
-        const LyricProofreadV2Explanation(
-          LyricProofreadV2ExplanationCode.referenceFirstGuidance,
+        const LyricProofreadExplanation(
+          LyricProofreadExplanationCode.referenceFirstGuidance,
         ),
         if (requestedForcedAlignment && referenceAlignmentPlan == null)
-          const LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference,
+          const LyricProofreadExplanation(
+            LyricProofreadExplanationCode.forcedAlignmentIgnoredByReference,
           ),
         if (hasSecondaryTranscript)
-          const LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode
-                .secondaryTranscriptIgnoredByReference,
+          const LyricProofreadExplanation(
+            LyricProofreadExplanationCode.secondaryTranscriptIgnoredByReference,
           ),
         if (result.tokenDpBudgetExceeded)
-          const LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.referenceAlignmentBudgetExceeded,
+          const LyricProofreadExplanation(
+            LyricProofreadExplanationCode.referenceAlignmentBudgetExceeded,
           ),
         if (result.warnings.isNotEmpty)
-          LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.referenceInputWarnings,
+          LyricProofreadExplanation(
+            LyricProofreadExplanationCode.referenceInputWarnings,
             referenceWarningCount: result.warnings.length,
           ),
       ],
     );
   }
 
-  ProofreadV2ReviewAssembly asrFirst({
+  ProofreadReviewAssembly asrFirst({
     required LyricDocument draft,
     required ProofreadResult result,
     required bool usedForcedAlignment,
@@ -137,14 +136,14 @@ class ProofreadV2ReviewAssembler {
     bool hasReference = false,
     ForcedAlignmentProofreadOutcome? alignmentOutcome,
   }) {
-    return ProofreadV2ReviewAssembly(
+    return ProofreadReviewAssembly(
       proposalDocument: result.proposedDocument,
       alignmentDiagnostics: result.alignmentDiagnostics,
       items: [
         for (var index = 0; index < result.lines.length; index++)
           () {
             final row = result.lines[index];
-            return LyricProofreadV2ReviewItem(
+            return LyricProofreadReviewItem(
               proposalIndex: index,
               sourceIndex: index,
               proposedLine: row.line,
@@ -160,8 +159,8 @@ class ProofreadV2ReviewAssembler {
               alignmentHints: {
                 if (usedForcedAlignment)
                   row.tokens.isEmpty
-                      ? LyricProofreadV2AlignmentHint.wordTimingMissing
-                      : LyricProofreadV2AlignmentHint.wordTimingAvailable,
+                      ? LyricProofreadAlignmentHint.wordTimingMissing
+                      : LyricProofreadAlignmentHint.wordTimingAvailable,
               },
               alignmentTokens: row.tokens,
             );
@@ -169,55 +168,55 @@ class ProofreadV2ReviewAssembler {
       ],
       droppedItems: [
         for (final row in result.droppedLines)
-          LyricProofreadV2DroppedItem(
+          LyricProofreadDroppedItem(
             sourceIndex: row.sourceIndex,
             line: row.line,
           ),
       ],
       explanations: [
         if (autoFellBackToAsr)
-          const LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.automaticFallbackToAsr,
+          const LyricProofreadExplanation(
+            LyricProofreadExplanationCode.automaticFallbackToAsr,
           ),
         if (hasReference)
-          const LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.referenceIgnoredByAsr,
+          const LyricProofreadExplanation(
+            LyricProofreadExplanationCode.referenceIgnoredByAsr,
           ),
-        LyricProofreadV2Explanation(
+        LyricProofreadExplanation(
           hasSecondaryTranscript
-              ? LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence
-              : LyricProofreadV2ExplanationCode.missingSecondaryTranscript,
+              ? LyricProofreadExplanationCode.secondaryTranscriptEvidence
+              : LyricProofreadExplanationCode.missingSecondaryTranscript,
         ),
-        const LyricProofreadV2Explanation(
-          LyricProofreadV2ExplanationCode.asrFirstConservativeTiming,
+        const LyricProofreadExplanation(
+          LyricProofreadExplanationCode.asrFirstConservativeTiming,
         ),
         if (alignmentOutcome != null && result.alignmentDiagnostics == null)
-          LyricProofreadV2Explanation(
+          LyricProofreadExplanation(
             alignmentOutcome.alignmentAvailable
-                ? LyricProofreadV2ExplanationCode
+                ? LyricProofreadExplanationCode
                       .forcedAlignmentDiagnosticsMissing
-                : LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable,
+                : LyricProofreadExplanationCode.forcedAlignmentUnavailable,
           ),
         if (alignmentOutcome != null &&
             alignmentOutcome.alignmentAvailable &&
             result.lines.any((line) => line.tokens.isNotEmpty))
-          const LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
+          const LyricProofreadExplanation(
+            LyricProofreadExplanationCode.forcedAlignmentEvidenceAvailable,
           ),
       ],
     );
   }
 
   /// Structured strategy and verdict counts for the dialog header.
-  LyricProofreadV2ReviewSummary summary({
+  LyricProofreadReviewSummary summary({
     required LyricSourceStrategy effectiveStrategy,
-    required List<LyricProofreadV2ReviewItem> items,
-    required List<LyricProofreadV2DroppedItem> droppedItems,
+    required List<LyricProofreadReviewItem> items,
+    required List<LyricProofreadDroppedItem> droppedItems,
     double? referenceCoverage,
   }) {
     int count(LyricProofreadReviewVerdict verdict) =>
         items.where((item) => item.verdict == verdict).length;
-    return LyricProofreadV2ReviewSummary(
+    return LyricProofreadReviewSummary(
       effectiveStrategy: effectiveStrategy,
       greenCount: count(LyricProofreadReviewVerdict.green),
       amberCount: count(LyricProofreadReviewVerdict.amber),
@@ -227,30 +226,30 @@ class ProofreadV2ReviewAssembler {
     );
   }
 
-  static LyricProofreadV2ReferenceReason referenceReasonCode(
+  static LyricProofreadReferenceReason referenceReasonCode(
     ReferenceFirstReason reason,
   ) {
     return switch (reason) {
       ReferenceFirstReason.lowConfidenceAlignment =>
-        LyricProofreadV2ReferenceReason.lowConfidenceAlignment,
+        LyricProofreadReferenceReason.lowConfidenceAlignment,
       ReferenceFirstReason.ambiguousAlignment =>
-        LyricProofreadV2ReferenceReason.ambiguousAlignment,
+        LyricProofreadReferenceReason.ambiguousAlignment,
       ReferenceFirstReason.structuralMismatch =>
-        LyricProofreadV2ReferenceReason.structuralMismatch,
+        LyricProofreadReferenceReason.structuralMismatch,
       ReferenceFirstReason.referenceTimestamp =>
-        LyricProofreadV2ReferenceReason.referenceTimestamp,
+        LyricProofreadReferenceReason.referenceTimestamp,
       ReferenceFirstReason.mappedAsrTiming =>
-        LyricProofreadV2ReferenceReason.mappedAsrTiming,
+        LyricProofreadReferenceReason.mappedAsrTiming,
       ReferenceFirstReason.interpolatedTiming =>
-        LyricProofreadV2ReferenceReason.interpolatedTiming,
+        LyricProofreadReferenceReason.interpolatedTiming,
       ReferenceFirstReason.estimatedTailTiming =>
-        LyricProofreadV2ReferenceReason.estimatedTailTiming,
+        LyricProofreadReferenceReason.estimatedTailTiming,
       ReferenceFirstReason.timelineAdjusted =>
-        LyricProofreadV2ReferenceReason.timelineAdjusted,
+        LyricProofreadReferenceReason.timelineAdjusted,
       ReferenceFirstReason.protectedLine =>
-        LyricProofreadV2ReferenceReason.protectedLine,
+        LyricProofreadReferenceReason.protectedLine,
       ReferenceFirstReason.referenceImportWarning =>
-        LyricProofreadV2ReferenceReason.referenceImportWarning,
+        LyricProofreadReferenceReason.referenceImportWarning,
     };
   }
 }

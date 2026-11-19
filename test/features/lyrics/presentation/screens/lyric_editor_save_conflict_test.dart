@@ -1427,7 +1427,7 @@ void main() {
     );
     await tester.pump();
     Navigator.of(tester.element(find.text('智能校对提案复核'))).pop(
-      LyricProofreadV2Selection(
+      LyricProofreadSelection(
         acceptedProposalIndices: {0},
         restoredDraftIndices: {},
       ),
@@ -1514,7 +1514,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('智能校对提案复核'), findsOneWidget);
     Navigator.of(tester.element(find.text('智能校对提案复核'))).pop(
-      LyricProofreadV2Selection(
+      LyricProofreadSelection(
         acceptedProposalIndices: {0},
         restoredDraftIndices: {},
       ),
@@ -1616,7 +1616,7 @@ void main() {
     );
     await tester.pump();
     Navigator.of(tester.element(find.text('智能校对提案复核'))).pop(
-      LyricProofreadV2Selection(
+      LyricProofreadSelection(
         acceptedProposalIndices: {0, 1},
         restoredDraftIndices: {},
       ),

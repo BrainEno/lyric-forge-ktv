@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
-import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_dialog.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 void main() {
@@ -28,14 +28,14 @@ void main() {
                 body: Builder(
                   builder: (context) => FilledButton(
                     onPressed: () async {
-                      await showLyricProofreadV2ReviewDialog(
+                      await showLyricProofreadReviewDialog(
                         context,
                         summary:
                             '策略：参考歌词优先 · 参考覆盖率 100% · 绿色 1 · 琥珀色 0 · 受保护 0 · 灰色 0',
                         explanation:
                             '自动策略计算参考文本覆盖率 100%。参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。本次选择了参考歌词优先，ForcedAligner 未运行；参考优先暂不支持强制对齐。本次选择了参考歌词优先，第二份 ASR 转写稿未参与本次复核。',
                         items: [
-                          LyricProofreadV2ReviewItem(
+                          LyricProofreadReviewItem(
                             proposalIndex: 0,
                             sourceIndex: 0,
                             originalLine: const LyricLine(

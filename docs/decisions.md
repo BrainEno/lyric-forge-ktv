@@ -612,3 +612,16 @@
 - 影响：音乐库多一个智能列表、卡片上的歌词标记和一个菜单项；歌曲本地资料多两个键。指纹只看歌词行，所以校对状态、查看记录等其他保存不算“改过歌词”。
 - 状态：生效
 - 来源：第 11 轮交接的后续建议（第 12 轮）；[工作日志](log/entries/2026-11-29-0930-let-the-library-take-back-paired-lyrics.md)
+
+## D-035 智能校对的代码名不带版本号
+
+- 日期：2026-12-01
+- 背景：菜单早就不显示版本号（审计 E-02），也不存在第一版，但 `lib/features/lyrics/` 下智能校对的四个文件、九个测试文件和约三十个标识符仍叫 `*_v2`、`*V2*`。读代码的人会去找并不存在的“第一版”，新代码也照着继续加 V2（审计 T-02）。
+- 决定：
+  - 领域类型和文件去掉版本号：`LyricProofreadReviewItem`、`LyricProofreadExplanation`、`ProofreadRunOptions`、`RunProofreadUseCase`、`proofread_review_assembler.dart`、`lyric_proofread_dialog.dart` 等。
+  - 编辑器里的入口按菜单项“智能校对”命名：`smartProofread`、`onSmartProofread`、`_openSmartProofread`、`runSmartProofread`，避免和“参考歌词校对”的 `referenceProofread` 混淆。
+  - 持久化的标识（`'whisper-lyrics-v2'` 配置 id、模型完整性标记）不改；历史工作日志和评审保留旧名。
+  - `test/architecture/proofread_naming_test.dart` 防止版本号回到文件名和标识符里。
+- 影响：只改名字，行为和界面文字不变；以后新增的校对代码不再带版本号。
+- 状态：生效
+- 来源：第 13 轮交接的后续建议（第 14 轮）；[工作日志](log/entries/2026-12-01-0930-drop-the-version-suffix-from-smart-proofreading.md)

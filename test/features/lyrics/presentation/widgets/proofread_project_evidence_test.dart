@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/project_proofread_evidence.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
-import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_dialog.dart';
 
 void main() {
   Future<void> open(
     WidgetTester tester, {
     required bool enabled,
-    required ValueChanged<ProofreadV2RunOptions?> onResult,
+    required ValueChanged<ProofreadRunOptions?> onResult,
     ProjectProofreadEvidenceHint? hint,
     double scale = 1,
   }) async {
@@ -27,7 +27,7 @@ void main() {
             builder: (context) => Scaffold(
               body: ElevatedButton(
                 onPressed: () async => onResult(
-                  await showProofreadV2RunOptionsDialog(
+                  await showProofreadRunOptionsDialog(
                     context,
                     allowProjectEvidence: enabled,
                     projectEvidenceHint: hint,
@@ -56,7 +56,7 @@ void main() {
     testWidgets(
       'project evidence is explicit and excludes retained pasted text at scale $scale',
       (tester) async {
-        ProofreadV2RunOptions? result;
+        ProofreadRunOptions? result;
         await open(
           tester,
           enabled: true,
@@ -88,7 +88,7 @@ void main() {
   testWidgets(
     'switching back restores manual text; reference suppresses project option',
     (tester) async {
-      ProofreadV2RunOptions? result;
+      ProofreadRunOptions? result;
       await open(tester, enabled: true, onResult: (value) => result = value);
       final field = find.byKey(
         const ValueKey('secondary_asr_transcript_input'),
@@ -122,7 +122,7 @@ void main() {
   testWidgets(
     'matching project snapshot is preselected with verification copy',
     (tester) async {
-      ProofreadV2RunOptions? result;
+      ProofreadRunOptions? result;
       await open(
         tester,
         enabled: true,
@@ -154,7 +154,7 @@ void main() {
   testWidgets('edited-draft and unverified snapshots are not auto-selected', (
     tester,
   ) async {
-    ProofreadV2RunOptions? result;
+    ProofreadRunOptions? result;
     await open(
       tester,
       enabled: true,

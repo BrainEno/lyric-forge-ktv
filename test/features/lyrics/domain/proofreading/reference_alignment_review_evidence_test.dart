@@ -8,9 +8,9 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_align
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
-import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_v2_document_composer.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_document_composer.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/reference_forced_alignment_planner.dart';
-import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/run_proofread_v2_use_case.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/run_proofread_use_case.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
@@ -84,13 +84,13 @@ class Spy {
 
 void main() {
   late Spy spy;
-  late RunProofreadV2UseCase useCase;
+  late RunProofreadUseCase useCase;
   setUp(() {
     spy = Spy();
-    useCase = RunProofreadV2UseCase(runner: spy.run);
+    useCase = RunProofreadUseCase(runner: spy.run);
   });
 
-  Future<ProofreadV2RunResult> run({
+  Future<ProofreadRunResult> run({
     bool alignment = true,
     LyricSourceStrategy strategy = LyricSourceStrategy.referenceFirst,
     ReferenceLyricInput? refs,
@@ -175,22 +175,22 @@ void main() {
     () async {
       final ordinary = await run(alignment: false);
       final withEvidence = await run();
-      const composer = ProofreadV2DocumentComposer();
+      const composer = ProofreadDocumentComposer();
       for (final selection in [
-        LyricProofreadV2Selection(
+        LyricProofreadSelection(
           acceptedProposalIndices: {},
           restoredDraftIndices: {},
         ),
-        LyricProofreadV2Selection(
+        LyricProofreadSelection(
           acceptedProposalIndices: {0},
           restoredDraftIndices: {},
         ),
-        LyricProofreadV2Selection(
+        LyricProofreadSelection(
           acceptedProposalIndices: {0, 1},
           restoredDraftIndices: {},
         ),
       ]) {
-        LyricDocument compose(ProofreadV2RunResult result) => composer.compose(
+        LyricDocument compose(ProofreadRunResult result) => composer.compose(
           before: draft,
           proposalDocument: result.assembly.proposalDocument,
           items: result.assembly.items,
@@ -233,12 +233,12 @@ void main() {
         changed.referenceTimingEvidence!.start,
         const Duration(milliseconds: 500),
       );
-      final selection = LyricProofreadV2Selection(
+      final selection = LyricProofreadSelection(
         acceptedProposalIndices: {changed.proposalIndex},
         restoredDraftIndices: {},
       );
-      LyricDocument compose(ProofreadV2RunResult result) =>
-          const ProofreadV2DocumentComposer().compose(
+      LyricDocument compose(ProofreadRunResult result) =>
+          const ProofreadDocumentComposer().compose(
             before: draft,
             proposalDocument: result.assembly.proposalDocument,
             items: result.assembly.items,
@@ -346,7 +346,7 @@ void main() {
     expect(result.assembly.referenceAlignmentPlan, isNull);
     expect(
       result.assembly.explanations.map((e) => e.code),
-      contains(LyricProofreadV2ExplanationCode.referenceIgnoredByAsr),
+      contains(LyricProofreadExplanationCode.referenceIgnoredByAsr),
     );
   });
 
@@ -395,7 +395,7 @@ void main() {
         reference: reference(['hello world']),
         useForcedAlignment: true,
       ),
-      throwsA(isA<ProofreadV2MissingAudioException>()),
+      throwsA(isA<ProofreadMissingAudioException>()),
     );
     await expectLater(
       run(source: draft.copyWith(language: 'unknown')),

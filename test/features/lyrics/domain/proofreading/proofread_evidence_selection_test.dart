@@ -6,7 +6,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_li
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
-import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/run_proofread_v2_use_case.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/run_proofread_use_case.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
@@ -33,19 +33,19 @@ const audio = AudioAsset(
   duration: Duration(seconds: 4),
 );
 
-Set<LyricProofreadV2ExplanationCode> codes(ProofreadV2RunResult result) =>
+Set<LyricProofreadExplanationCode> codes(ProofreadRunResult result) =>
     result.assembly.explanations.map((e) => e.code).toSet();
 
 void main() {
   late int calls;
   late String? alignedText;
   late String? alignedPath;
-  late RunProofreadV2UseCase useCase;
+  late RunProofreadUseCase useCase;
   setUp(() {
     calls = 0;
     alignedText = null;
     alignedPath = null;
-    useCase = RunProofreadV2UseCase(
+    useCase = RunProofreadUseCase(
       runner:
           ({
             required audioPath,
@@ -89,25 +89,21 @@ void main() {
               codes(run),
               contains(
                 hasSecondary
-                    ? LyricProofreadV2ExplanationCode
-                          .secondaryTranscriptEvidence
-                    : LyricProofreadV2ExplanationCode
-                          .missingSecondaryTranscript,
+                    ? LyricProofreadExplanationCode.secondaryTranscriptEvidence
+                    : LyricProofreadExplanationCode.missingSecondaryTranscript,
+              ),
+            );
+            expect(
+              codes(run),
+              isNot(
+                contains(LyricProofreadExplanationCode.automaticFallbackToAsr),
               ),
             );
             expect(
               codes(run),
               isNot(
                 contains(
-                  LyricProofreadV2ExplanationCode.automaticFallbackToAsr,
-                ),
-              ),
-            );
-            expect(
-              codes(run),
-              isNot(
-                contains(
-                  LyricProofreadV2ExplanationCode
+                  LyricProofreadExplanationCode
                       .forcedAlignmentIgnoredByReference,
                 ),
               ),
@@ -116,7 +112,7 @@ void main() {
               codes(run),
               isNot(
                 contains(
-                  LyricProofreadV2ExplanationCode
+                  LyricProofreadExplanationCode
                       .secondaryTranscriptIgnoredByReference,
                 ),
               ),
@@ -150,8 +146,7 @@ void main() {
             expect(run.assembly.referenceAlignmentPlan != null, alignment);
             expect(
               codes(run).contains(
-                LyricProofreadV2ExplanationCode
-                    .forcedAlignmentIgnoredByReference,
+                LyricProofreadExplanationCode.forcedAlignmentIgnoredByReference,
               ),
               isFalse,
             );
@@ -161,7 +156,7 @@ void main() {
             }
             expect(
               codes(run).contains(
-                LyricProofreadV2ExplanationCode
+                LyricProofreadExplanationCode
                     .secondaryTranscriptIgnoredByReference,
               ),
               hasSecondary,
@@ -169,21 +164,21 @@ void main() {
             expect(
               codes(run),
               contains(
-                LyricProofreadV2ExplanationCode.automaticReferenceCoverage,
+                LyricProofreadExplanationCode.automaticReferenceCoverage,
               ),
             );
             expect(
               codes(run),
               isNot(
                 contains(
-                  LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence,
+                  LyricProofreadExplanationCode.secondaryTranscriptEvidence,
                 ),
               ),
             );
             expect(
               codes(run),
               isNot(
-                contains(LyricProofreadV2ExplanationCode.referenceIgnoredByAsr),
+                contains(LyricProofreadExplanationCode.referenceIgnoredByAsr),
               ),
             );
             expect(draft.lines.single.text, 'hello world');
@@ -207,20 +202,18 @@ void main() {
             );
             expect(
               codes(run),
-              contains(LyricProofreadV2ExplanationCode.automaticFallbackToAsr),
+              contains(LyricProofreadExplanationCode.automaticFallbackToAsr),
             );
             expect(
               codes(run),
-              contains(LyricProofreadV2ExplanationCode.referenceIgnoredByAsr),
+              contains(LyricProofreadExplanationCode.referenceIgnoredByAsr),
             );
             expect(
               codes(run),
               contains(
                 hasSecondary
-                    ? LyricProofreadV2ExplanationCode
-                          .secondaryTranscriptEvidence
-                    : LyricProofreadV2ExplanationCode
-                          .missingSecondaryTranscript,
+                    ? LyricProofreadExplanationCode.secondaryTranscriptEvidence
+                    : LyricProofreadExplanationCode.missingSecondaryTranscript,
               ),
             );
             expect(
@@ -228,9 +221,8 @@ void main() {
               isNot(
                 contains(
                   hasSecondary
-                      ? LyricProofreadV2ExplanationCode
-                            .missingSecondaryTranscript
-                      : LyricProofreadV2ExplanationCode
+                      ? LyricProofreadExplanationCode.missingSecondaryTranscript
+                      : LyricProofreadExplanationCode
                             .secondaryTranscriptEvidence,
                 ),
               ),
@@ -240,7 +232,7 @@ void main() {
               codes(run),
               isNot(
                 contains(
-                  LyricProofreadV2ExplanationCode
+                  LyricProofreadExplanationCode
                       .forcedAlignmentIgnoredByReference,
                 ),
               ),
@@ -249,7 +241,7 @@ void main() {
               codes(run),
               isNot(
                 contains(
-                  LyricProofreadV2ExplanationCode
+                  LyricProofreadExplanationCode
                       .secondaryTranscriptIgnoredByReference,
                 ),
               ),
@@ -269,7 +261,7 @@ void main() {
             reference: reference('hello world'),
             useForcedAlignment: true,
           ),
-          throwsA(isA<ProofreadV2MissingAudioException>()),
+          throwsA(isA<ProofreadMissingAudioException>()),
         );
         expect(calls, 0);
       },
@@ -285,13 +277,11 @@ void main() {
         );
         expect(
           codes(run),
-          contains(LyricProofreadV2ExplanationCode.referenceIgnoredByAsr),
+          contains(LyricProofreadExplanationCode.referenceIgnoredByAsr),
         );
         expect(
           codes(run),
-          isNot(
-            contains(LyricProofreadV2ExplanationCode.automaticFallbackToAsr),
-          ),
+          isNot(contains(LyricProofreadExplanationCode.automaticFallbackToAsr)),
         );
       },
     );
@@ -305,14 +295,14 @@ void main() {
             strategy: LyricSourceStrategy.auto,
             useForcedAlignment: true,
           ),
-          throwsA(isA<ProofreadV2MissingAudioException>()),
+          throwsA(isA<ProofreadMissingAudioException>()),
         );
         expect(calls, 0);
       },
     );
 
     test('busy forced aligner remains a retryable failure', () async {
-      final busy = RunProofreadV2UseCase(
+      final busy = RunProofreadUseCase(
         runner:
             ({
               required audioPath,

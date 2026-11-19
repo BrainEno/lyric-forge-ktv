@@ -16,8 +16,8 @@ void main() {
     );
   });
 
-  test('formats structured Proofread V2 summary data with existing copy', () {
-    const summary = LyricProofreadV2ReviewSummary(
+  test('formats structured smart proofreading summary data', () {
+    const summary = LyricProofreadReviewSummary(
       effectiveStrategy: LyricSourceStrategy.referenceFirst,
       greenCount: 2,
       amberCount: 1,
@@ -27,7 +27,7 @@ void main() {
     );
 
     expect(
-      LyricReviewStrings.proofreadV2Summary(summary),
+      LyricReviewStrings.proofreadSummary(summary),
       '策略：参考歌词优先 · 参考覆盖率 88% · 绿色 2 · 琥珀色 1 · 受保护 1 · 灰色 1',
     );
   });
@@ -41,7 +41,7 @@ void main() {
     expect(labels.keys.toSet(), LyricSourceStrategy.values.toSet());
 
     for (final entry in labels.entries) {
-      final summary = LyricProofreadV2ReviewSummary(
+      final summary = LyricProofreadReviewSummary(
         effectiveStrategy: entry.key,
         greenCount: 0,
         amberCount: 1,
@@ -50,27 +50,27 @@ void main() {
         referenceCoverage: null,
       );
       expect(
-        LyricReviewStrings.proofreadV2Summary(summary),
+        LyricReviewStrings.proofreadSummary(summary),
         '策略：${entry.value} · 绿色 0 · 琥珀色 1 · 受保护 0 · 灰色 0',
       );
     }
   });
 
   test('maps every reference-first reason to its existing Chinese label', () {
-    const labels = <LyricProofreadV2ReferenceReason, String>{
-      LyricProofreadV2ReferenceReason.lowConfidenceAlignment: '对齐置信度低',
-      LyricProofreadV2ReferenceReason.ambiguousAlignment: '对齐存在歧义',
-      LyricProofreadV2ReferenceReason.structuralMismatch: '行结构不匹配',
-      LyricProofreadV2ReferenceReason.referenceTimestamp: '参考时间戳',
-      LyricProofreadV2ReferenceReason.mappedAsrTiming: '沿用 ASR 时间',
-      LyricProofreadV2ReferenceReason.interpolatedTiming: '插值时间需复核',
-      LyricProofreadV2ReferenceReason.estimatedTailTiming: '尾部估算时间需复核',
-      LyricProofreadV2ReferenceReason.timelineAdjusted: '时间轴已调整，需复核',
-      LyricProofreadV2ReferenceReason.protectedLine: '手动编辑保护',
-      LyricProofreadV2ReferenceReason.referenceImportWarning: '参考输入含警告',
+    const labels = <LyricProofreadReferenceReason, String>{
+      LyricProofreadReferenceReason.lowConfidenceAlignment: '对齐置信度低',
+      LyricProofreadReferenceReason.ambiguousAlignment: '对齐存在歧义',
+      LyricProofreadReferenceReason.structuralMismatch: '行结构不匹配',
+      LyricProofreadReferenceReason.referenceTimestamp: '参考时间戳',
+      LyricProofreadReferenceReason.mappedAsrTiming: '沿用 ASR 时间',
+      LyricProofreadReferenceReason.interpolatedTiming: '插值时间需复核',
+      LyricProofreadReferenceReason.estimatedTailTiming: '尾部估算时间需复核',
+      LyricProofreadReferenceReason.timelineAdjusted: '时间轴已调整，需复核',
+      LyricProofreadReferenceReason.protectedLine: '手动编辑保护',
+      LyricProofreadReferenceReason.referenceImportWarning: '参考输入含警告',
     };
 
-    expect(labels.keys.toSet(), LyricProofreadV2ReferenceReason.values.toSet());
+    expect(labels.keys.toSet(), LyricProofreadReferenceReason.values.toSet());
     for (final entry in labels.entries) {
       expect(LyricReviewStrings.referenceReason(entry.key), entry.value);
     }
@@ -104,12 +104,12 @@ void main() {
   });
 
   test('maps ForcedAligner supplemental hints to their existing labels', () {
-    const labels = <LyricProofreadV2AlignmentHint, String>{
-      LyricProofreadV2AlignmentHint.wordTimingAvailable: '词级对齐 2 词',
-      LyricProofreadV2AlignmentHint.wordTimingMissing: '缺少词级对齐证据',
+    const labels = <LyricProofreadAlignmentHint, String>{
+      LyricProofreadAlignmentHint.wordTimingAvailable: '词级对齐 2 词',
+      LyricProofreadAlignmentHint.wordTimingMissing: '缺少词级对齐证据',
     };
 
-    expect(labels.keys.toSet(), LyricProofreadV2AlignmentHint.values.toSet());
+    expect(labels.keys.toSet(), LyricProofreadAlignmentHint.values.toSet());
     for (final entry in labels.entries) {
       expect(
         LyricReviewStrings.alignmentHint(entry.key, wordCount: 2),
@@ -118,128 +118,127 @@ void main() {
     }
   });
 
-  test('maps every Proofread V2 explanation code to the existing wording', () {
+  test('maps every explanation code to the existing wording', () {
     const explanations =
-        <LyricProofreadV2ExplanationCode, LyricProofreadV2Explanation>{
-          LyricProofreadV2ExplanationCode.automaticReferenceCoverage:
-              LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode.automaticReferenceCoverage,
+        <LyricProofreadExplanationCode, LyricProofreadExplanation>{
+          LyricProofreadExplanationCode.automaticReferenceCoverage:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.automaticReferenceCoverage,
                 referenceCoveragePercent: 73,
               ),
-          LyricProofreadV2ExplanationCode.referenceFirstGuidance:
-              LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode.referenceFirstGuidance,
+          LyricProofreadExplanationCode.referenceFirstGuidance:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.referenceFirstGuidance,
               ),
-          LyricProofreadV2ExplanationCode
-              .referenceAlignmentBudgetExceeded: LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.referenceAlignmentBudgetExceeded,
-          ),
-          LyricProofreadV2ExplanationCode.referenceInputWarnings:
-              LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode.referenceInputWarnings,
+          LyricProofreadExplanationCode.referenceAlignmentBudgetExceeded:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.referenceAlignmentBudgetExceeded,
+              ),
+          LyricProofreadExplanationCode.referenceInputWarnings:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.referenceInputWarnings,
                 referenceWarningCount: 2,
               ),
-          LyricProofreadV2ExplanationCode
-              .forcedAlignmentIgnoredByReference: LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference,
+          LyricProofreadExplanationCode.forcedAlignmentIgnoredByReference:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.forcedAlignmentIgnoredByReference,
+              ),
+          LyricProofreadExplanationCode
+              .secondaryTranscriptIgnoredByReference: LyricProofreadExplanation(
+            LyricProofreadExplanationCode.secondaryTranscriptIgnoredByReference,
           ),
-          LyricProofreadV2ExplanationCode.secondaryTranscriptIgnoredByReference:
-              LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode
-                    .secondaryTranscriptIgnoredByReference,
+          LyricProofreadExplanationCode.referenceIgnoredByAsr:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.referenceIgnoredByAsr,
               ),
-          LyricProofreadV2ExplanationCode.referenceIgnoredByAsr:
-              LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode.referenceIgnoredByAsr,
+          LyricProofreadExplanationCode.automaticFallbackToAsr:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.automaticFallbackToAsr,
               ),
-          LyricProofreadV2ExplanationCode.automaticFallbackToAsr:
-              LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode.automaticFallbackToAsr,
+          LyricProofreadExplanationCode.missingSecondaryTranscript:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.missingSecondaryTranscript,
               ),
-          LyricProofreadV2ExplanationCode.missingSecondaryTranscript:
-              LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode.missingSecondaryTranscript,
+          LyricProofreadExplanationCode.secondaryTranscriptEvidence:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.secondaryTranscriptEvidence,
               ),
-          LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence:
-              LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence,
+          LyricProofreadExplanationCode.asrFirstConservativeTiming:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.asrFirstConservativeTiming,
               ),
-          LyricProofreadV2ExplanationCode.asrFirstConservativeTiming:
-              LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode.asrFirstConservativeTiming,
+          LyricProofreadExplanationCode.forcedAlignmentEvidenceAvailable:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.forcedAlignmentEvidenceAvailable,
               ),
-          LyricProofreadV2ExplanationCode
-              .forcedAlignmentEvidenceAvailable: LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
-          ),
-          LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable:
-              LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable,
+          LyricProofreadExplanationCode.forcedAlignmentUnavailable:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.forcedAlignmentUnavailable,
               ),
-          LyricProofreadV2ExplanationCode
-              .forcedAlignmentDiagnosticsMissing: LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing,
-          ),
+          LyricProofreadExplanationCode.forcedAlignmentDiagnosticsMissing:
+              LyricProofreadExplanation(
+                LyricProofreadExplanationCode.forcedAlignmentDiagnosticsMissing,
+              ),
         };
-    const labels = <LyricProofreadV2ExplanationCode, String>{
-      LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference:
+    const labels = <LyricProofreadExplanationCode, String>{
+      LyricProofreadExplanationCode.forcedAlignmentIgnoredByReference:
           '本次选择了参考歌词优先，ForcedAligner 未运行；参考优先暂不支持强制对齐。',
-      LyricProofreadV2ExplanationCode.secondaryTranscriptIgnoredByReference:
+      LyricProofreadExplanationCode.secondaryTranscriptIgnoredByReference:
           '本次选择了参考歌词优先，第二份 ASR 转写稿未参与本次复核。',
-      LyricProofreadV2ExplanationCode.referenceIgnoredByAsr:
+      LyricProofreadExplanationCode.referenceIgnoredByAsr:
           '本次 ASR 优先未用参考歌词替换草稿文字或时间；在自动策略中仅用于覆盖率判断。',
-      LyricProofreadV2ExplanationCode.automaticReferenceCoverage:
+      LyricProofreadExplanationCode.automaticReferenceCoverage:
           '自动策略计算参考文本覆盖率 73%。',
-      LyricProofreadV2ExplanationCode.referenceFirstGuidance:
+      LyricProofreadExplanationCode.referenceFirstGuidance:
           '参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。',
-      LyricProofreadV2ExplanationCode.referenceAlignmentBudgetExceeded:
+      LyricProofreadExplanationCode.referenceAlignmentBudgetExceeded:
           '词级对齐达到计算预算上限，覆盖率不能作为完整证据。',
-      LyricProofreadV2ExplanationCode.referenceInputWarnings:
+      LyricProofreadExplanationCode.referenceInputWarnings:
           '参考输入包含 2 条冲突或警告，相关行会要求复核。',
-      LyricProofreadV2ExplanationCode.automaticFallbackToAsr:
+      LyricProofreadExplanationCode.automaticFallbackToAsr:
           '自动策略因参考文本覆盖率低于 25% 而退回 ASR 优先。',
-      LyricProofreadV2ExplanationCode.missingSecondaryTranscript:
+      LyricProofreadExplanationCode.missingSecondaryTranscript:
           '未提供第二份 ASR 转写稿，因此只标记当前草稿风险。',
-      LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence:
+      LyricProofreadExplanationCode.secondaryTranscriptEvidence:
           '已将第二份带时间戳的转写稿作为独立证据；文本分歧仍需逐行复核。',
-      LyricProofreadV2ExplanationCode.asrFirstConservativeTiming:
+      LyricProofreadExplanationCode.asrFirstConservativeTiming:
           'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
-      LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable:
+      LyricProofreadExplanationCode.forcedAlignmentEvidenceAvailable:
           'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
-      LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable:
+      LyricProofreadExplanationCode.forcedAlignmentUnavailable:
           'ForcedAligner 强制对齐不可用；已保留现有歌词文字和时间戳，请手动复核时间。',
-      LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing:
+      LyricProofreadExplanationCode.forcedAlignmentDiagnosticsMissing:
           'ForcedAligner 强制对齐已完成，但未返回逐行诊断；请手动复核时间。',
     };
 
     expect(
       explanations.keys.toSet(),
-      LyricProofreadV2ExplanationCode.values.toSet(),
+      LyricProofreadExplanationCode.values.toSet(),
     );
-    expect(labels.keys.toSet(), LyricProofreadV2ExplanationCode.values.toSet());
+    expect(labels.keys.toSet(), LyricProofreadExplanationCode.values.toSet());
     for (final entry in explanations.entries) {
       expect(
-        LyricReviewStrings.proofreadV2Explanation(entry.value),
+        LyricReviewStrings.proofreadExplanation(entry.value),
         labels[entry.key],
       );
     }
   });
 
-  test('joins Proofread V2 explanations in the provided order', () {
+  test('joins smart proofreading explanations in the provided order', () {
     const explanations = [
-      LyricProofreadV2Explanation(
-        LyricProofreadV2ExplanationCode.referenceFirstGuidance,
+      LyricProofreadExplanation(
+        LyricProofreadExplanationCode.referenceFirstGuidance,
       ),
-      LyricProofreadV2Explanation(
-        LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing,
+      LyricProofreadExplanation(
+        LyricProofreadExplanationCode.forcedAlignmentDiagnosticsMissing,
       ),
-      LyricProofreadV2Explanation(
-        LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
+      LyricProofreadExplanation(
+        LyricProofreadExplanationCode.forcedAlignmentEvidenceAvailable,
       ),
     ];
 
     expect(
-      LyricReviewStrings.proofreadV2Explanations(explanations),
+      LyricReviewStrings.proofreadExplanations(explanations),
       '参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。 '
       'ForcedAligner 强制对齐已完成，但未返回逐行诊断；请手动复核时间。 '
       'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',

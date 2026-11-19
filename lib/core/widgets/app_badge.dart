@@ -94,9 +94,10 @@ class AppBadge extends StatelessWidget {
     final background = tint?.withAlpha(tintAlpha) ?? AppColors.hoverOverlay;
     final small = size == AppBadgeSize.small;
     final text = Theme.of(context).textTheme;
+    // Small badges keep the theme's smallest label (11, UI audit E-06) and
+    // save room with tighter padding and a smaller icon instead.
     final textStyle = text.labelSmall?.copyWith(
       color: foreground,
-      fontSize: small ? 10 : null,
       fontWeight: emphasized ? FontWeight.w700 : null,
     );
 
