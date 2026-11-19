@@ -429,6 +429,35 @@ void main() {
       expect(importer.imported, [file]);
     });
 
+    test('counts the songs whose lyrics were paired on their own', () async {
+      library.entries.add(_entry('/music/晴天.mp3'));
+      files.byFolder['/曲库'] = [file, '/曲库/晴天.lrc'];
+      importer.results['/曲库/晴天.lrc'] = _result('/曲库/晴天.lrc');
+      final shared = linker();
+      expect(await shared.autoPairedCount(), 0);
+
+      await shared.linkAll();
+      expect(await shared.autoPairedCount(), 2);
+
+      await shared.unpair(song);
+      expect(await shared.autoPairedCount(), 1);
+    });
+
+    test('the count skips hand links and removed songs', () async {
+      final shared = linker();
+      await shared.linkAll();
+      metadata.stored['/music/手工.mp3'] = LocalMediaMetadata(
+        sourcePath: '/music/手工.mp3',
+        updatedAt: DateTime(2026),
+        metadata: const {'linkedProjectId': 'p-9', 'hasLyrics': true},
+      );
+      library.entries.add(_entry('/music/手工.mp3'));
+      expect(await shared.autoPairedCount(), 1);
+
+      library.entries.removeWhere((entry) => entry.sourcePath == song);
+      expect(await shared.autoPairedCount(), 0);
+    });
+
     test('linking the song by hand drops the old record', () async {
       await linker().linkAll();
       expect(LibraryLyricsPairing.of(metadata.stored[song]), isNotNull);

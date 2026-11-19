@@ -84,6 +84,8 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-27 11:30] Lift error text to AA ([entry](log/entries/2026-11-27-1130-lift-error-text-to-aa.md))
+- [2026-11-27 10:30] Give fullscreen KTV keys and scrims ([entry](log/entries/2026-11-27-1030-give-fullscreen-ktv-keys-and-scrims.md))
 - [2026-11-27 09:30] Name the model folder as a path ([entry](log/entries/2026-11-27-0930-name-the-model-folder-as-a-path.md))
 - [2026-11-26 11:30] Answer the favourite heart at once ([entry](log/entries/2026-11-26-1130-answer-the-favourite-heart-at-once.md))
 - [2026-11-26 11:20] Keep busy spinners visible ([entry](log/entries/2026-11-26-1120-keep-busy-spinners-visible.md))

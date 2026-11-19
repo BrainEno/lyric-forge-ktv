@@ -35,7 +35,15 @@ class LocalLibraryExplorerScreen extends StatefulWidget {
   /// (`lib/app/local_library_assembly.dart`).
   final LocalLibraryDependencies dependencies;
 
-  const LocalLibraryExplorerScreen({super.key, required this.dependencies});
+  /// The smart view the list opens with, for example 自动配对 when the
+  /// 曲库目录 settings card links here; null opens 全部.
+  final LocalLibrarySmartView? initialSmartView;
+
+  const LocalLibraryExplorerScreen({
+    super.key,
+    required this.dependencies,
+    this.initialSmartView,
+  });
 
   @override
   State<LocalLibraryExplorerScreen> createState() =>
@@ -61,7 +69,8 @@ class _LocalLibraryExplorerScreenState
   String _query = '';
   String? _error;
   List<LocalStoreLoadIssue> _storeIssues = const [];
-  LocalLibrarySmartView _smartView = LocalLibrarySmartView.all;
+  late LocalLibrarySmartView _smartView =
+      widget.initialSmartView ?? LocalLibrarySmartView.all;
   LocalLibrarySortMode _sortMode = LocalLibrarySortMode.title;
 
   @override

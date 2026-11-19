@@ -15,6 +15,10 @@ void main() {
   String? nextPick;
   late int finds;
   Completer<String>? findGate;
+  late int autoPaired;
+  late int counts;
+  late int opens;
+  Completer<void>? openGate;
 
   LibraryFolderSettings settings() => LibraryFolderSettings(
     store: store,
@@ -34,17 +38,39 @@ void main() {
     return '已为 2 首歌配上歌词文件';
   }
 
-  Widget host({bool withFinder = true}) => MaterialApp(
+  Future<int> countAutoPaired() async {
+    counts++;
+    return autoPaired;
+  }
+
+  Future<void> openAutoPaired() async {
+    opens++;
+    await openGate?.future;
+  }
+
+  Widget host({
+    bool withFinder = true,
+    bool withCount = false,
+    bool withOpen = true,
+  }) => MaterialApp(
     home: Scaffold(
       body: SingleChildScrollView(
         child: LibraryFolderSettingsCard(
           settings: settings(),
           pickFolder: pick,
           findLyrics: withFinder ? findLyricFiles : null,
+          countAutoPaired: withCount ? countAutoPaired : null,
+          openAutoPaired: withOpen ? openAutoPaired : null,
         ),
       ),
     ),
   );
+
+  String? autoPairedLine(WidgetTester tester) {
+    final line = find.byKey(LibraryFolderSettingsCard.autoPairedKey);
+    if (line.evaluate().isEmpty) return null;
+    return tester.widget<Text>(line).data;
+  }
 
   Finder button(String label) => find.ancestor(
     of: find.text(label),
@@ -65,6 +91,10 @@ void main() {
     nextPick = null;
     finds = 0;
     findGate = null;
+    autoPaired = 0;
+    counts = 0;
+    opens = 0;
+    openGate = null;
   });
 
   testWidgets('shows the default folder and where it comes from', (
@@ -192,6 +222,119 @@ void main() {
     expect(message.data, LibraryFolderSettingsText.saveFailed);
     expect(message.style?.color, AppColors.errorText);
     expect(shownPath(tester), '/home/me/Music');
+  });
+
+  group('automatic pairings (D-034)', () {
+    testWidgets('says how many songs were paired and links to them', (
+      tester,
+    ) async {
+      autoPaired = 3;
+      await tester.pumpWidget(host(withCount: true));
+      await tester.pumpAndSettle();
+
+      expect(autoPairedLine(tester), '已自动配对 3 首歌');
+      expect(counts, 1);
+
+      await tester.tap(button(LibraryFolderSettingsText.openAutoPaired));
+      await tester.pumpAndSettle();
+      expect(opens, 1);
+    });
+
+    testWidgets('coming back from the library counts again', (tester) async {
+      autoPaired = 2;
+      openGate = Completer<void>();
+      await tester.pumpWidget(host(withCount: true));
+      await tester.pumpAndSettle();
+
+      await tester.tap(button(LibraryFolderSettingsText.openAutoPaired));
+      await tester.pumpAndSettle();
+      // The user unpairs one song in the library, then comes back.
+      autoPaired = 1;
+      expect(autoPairedLine(tester), '已自动配对 2 首歌');
+
+      openGate!.complete();
+      await tester.pumpAndSettle();
+
+      expect(counts, 2);
+      expect(autoPairedLine(tester), '已自动配对 1 首歌');
+    });
+
+    testWidgets('with none yet there is nothing to open', (tester) async {
+      await tester.pumpWidget(host(withCount: true));
+      await tester.pumpAndSettle();
+
+      expect(autoPairedLine(tester), LibraryFolderSettingsText.noneAutoPaired);
+      expect(find.text(LibraryFolderSettingsText.openAutoPaired), findsNothing);
+    });
+
+    testWidgets('pairing now updates the count', (tester) async {
+      await tester.pumpWidget(host(withCount: true));
+      await tester.pumpAndSettle();
+      expect(autoPairedLine(tester), LibraryFolderSettingsText.noneAutoPaired);
+
+      autoPaired = 2;
+      await tester.tap(button(LibraryFolderSettingsText.findNow));
+      await tester.pumpAndSettle();
+
+      expect(finds, 1);
+      expect(autoPairedLine(tester), '已自动配对 2 首歌');
+      expect(
+        find.text(LibraryFolderSettingsText.openAutoPaired),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('going back to the default does not count again', (
+      tester,
+    ) async {
+      store.folder = '/mnt/曲库';
+      await tester.pumpWidget(host(withCount: true));
+      await tester.pumpAndSettle();
+
+      await tester.tap(button(LibraryFolderSettingsText.reset));
+      await tester.pumpAndSettle();
+
+      expect(counts, 1);
+    });
+
+    testWidgets('a count that fails leaves the line out', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: LibraryFolderSettingsCard(
+              settings: settings(),
+              pickFolder: pick,
+              countAutoPaired: () async => throw const FormatException('坏'),
+              openAutoPaired: openAutoPaired,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(autoPairedLine(tester), isNull);
+      expect(find.text(LibraryFolderSettingsText.openAutoPaired), findsNothing);
+    });
+
+    testWidgets('without a counter there is no line', (tester) async {
+      autoPaired = 4;
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+
+      expect(autoPairedLine(tester), isNull);
+      expect(counts, 0);
+    });
+
+    testWidgets('without a way to open the library only the count shows', (
+      tester,
+    ) async {
+      autoPaired = 4;
+      await tester.pumpWidget(host(withCount: true, withOpen: false));
+      await tester.pumpAndSettle();
+
+      expect(autoPairedLine(tester), '已自动配对 4 首歌');
+      expect(find.text(LibraryFolderSettingsText.openAutoPaired), findsNothing);
+    });
   });
 
   testWidgets('with no folder at all it asks for one', (tester) async {

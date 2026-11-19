@@ -15,6 +15,9 @@ typedef LibraryFolderPicker =
 /// Pairs lyric files in the library folder now; returns what it did.
 typedef LibraryLyricsFinder = Future<String> Function();
 
+/// Counts the songs whose lyrics the library paired on its own (D-034).
+typedef LibraryAutoPairedCounter = Future<int> Function();
+
 Future<String?> _pickWithFilePicker({String? initialDirectory}) {
   return FilePicker.platform.getDirectoryPath(
     dialogTitle: LibraryFolderSettingsText.pickerTitle,
@@ -49,6 +52,13 @@ abstract final class LibraryFolderSettingsText {
   };
 
   static String chosen(String path) => '曲库目录已改为 $path，里面的歌曲也会加入音乐库';
+
+  static const String noneAutoPaired = '还没有按文件名自动配对的歌曲';
+  static const String openAutoPaired = '在音乐库查看';
+
+  /// The line about automatic pairings (D-034).
+  static String autoPaired(int count) =>
+      count <= 0 ? noneAutoPaired : '已自动配对 $count 首歌';
 }
 
 /// 曲库目录: shows the library folder, lets the user change it or go back to
@@ -59,6 +69,8 @@ class LibraryFolderSettingsCard extends StatefulWidget {
     required this.settings,
     this.findLyrics,
     this.pickFolder = _pickWithFilePicker,
+    this.countAutoPaired,
+    this.openAutoPaired,
   });
 
   final LibraryFolderSettings settings;
@@ -67,8 +79,17 @@ class LibraryFolderSettingsCard extends StatefulWidget {
   final LibraryLyricsFinder? findLyrics;
   final LibraryFolderPicker pickFolder;
 
+  /// Null hides the 已自动配对 line.
+  final LibraryAutoPairedCounter? countAutoPaired;
+
+  /// Opens the library on its 自动配对 view; completes when the user comes
+  /// back, so the count can catch up with anything they unpaired there.
+  /// Null hides 在音乐库查看.
+  final Future<void> Function()? openAutoPaired;
+
   static const Key pathKey = ValueKey('library-folder:path');
   static const Key messageKey = ValueKey('library-folder:message');
+  static const Key autoPairedKey = ValueKey('library-folder:auto-paired');
 
   @override
   State<LibraryFolderSettingsCard> createState() =>
@@ -83,10 +104,34 @@ class _LibraryFolderSettingsCardState extends State<LibraryFolderSettingsCard> {
   String? _message;
   bool _messageIsError = false;
 
+  /// Songs paired automatically; null until counted, or when counting
+  /// failed, which hides the line rather than showing a wrong number.
+  int? _autoPaired;
+
   @override
   void initState() {
     super.initState();
     unawaited(_load());
+    unawaited(_countAutoPaired());
+  }
+
+  Future<void> _countAutoPaired() async {
+    final count = widget.countAutoPaired;
+    if (count == null) return;
+    int? counted;
+    try {
+      counted = await count();
+    } on Exception {
+      // Leave the line out rather than show a wrong number.
+    }
+    if (mounted) setState(() => _autoPaired = counted);
+  }
+
+  Future<void> _openAutoPaired() async {
+    final open = widget.openAutoPaired;
+    if (open == null) return;
+    await open();
+    await _countAutoPaired();
   }
 
   Future<void> _load() async {
@@ -155,6 +200,8 @@ class _LibraryFolderSettingsCardState extends State<LibraryFolderSettingsCard> {
         _message = message;
         _messageIsError = false;
       });
+      // Choosing a folder or pairing now can add automatic pairings.
+      if (busy != _Busy.resetting) unawaited(_countAutoPaired());
     } on Exception {
       if (!mounted) return;
       setState(() {
@@ -173,6 +220,7 @@ class _LibraryFolderSettingsCardState extends State<LibraryFolderSettingsCard> {
     final path = folder?.path;
     final idle = _busy == _Busy.none;
     final message = _message;
+    final autoPaired = _autoPaired;
 
     Widget label(_Busy busy, String idleLabel) {
       return _busy == busy ? const AppButtonSpinner() : Text(idleLabel);
@@ -202,6 +250,13 @@ class _LibraryFolderSettingsCardState extends State<LibraryFolderSettingsCard> {
             ),
           ],
         ],
+        if (autoPaired != null)
+          _AutoPairedLine(
+            count: autoPaired,
+            onOpen: widget.openAutoPaired == null || autoPaired == 0
+                ? null
+                : _openAutoPaired,
+          ),
         const SizedBox(height: AppSpacing.sm),
         Text(
           LibraryFolderSettingsText.matchingRule,
@@ -250,6 +305,48 @@ class _LibraryFolderSettingsCardState extends State<LibraryFolderSettingsCard> {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// 已自动配对 N 首歌, with the way to those songs in the library (D-034).
+class _AutoPairedLine extends StatelessWidget {
+  const _AutoPairedLine({required this.count, this.onOpen});
+
+  final int count;
+  final VoidCallback? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final open = onOpen;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: AppSpacing.xs,
+        children: [
+          Icon(
+            Icons.auto_awesome_rounded,
+            size: 16,
+            color: count > 0 ? AppColors.accent : AppColors.textTertiary,
+          ),
+          Text(
+            LibraryFolderSettingsText.autoPaired(count),
+            key: LibraryFolderSettingsCard.autoPairedKey,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: count > 0
+                  ? AppColors.textPrimary
+                  : AppColors.textSecondary,
+            ),
+          ),
+          if (open != null)
+            TextButton.icon(
+              onPressed: open,
+              icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+              label: const Text(LibraryFolderSettingsText.openAutoPaired),
+            ),
+        ],
+      ),
     );
   }
 }

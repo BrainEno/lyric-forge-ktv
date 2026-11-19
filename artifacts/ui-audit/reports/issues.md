@@ -3,6 +3,7 @@
 > 证据类型说明：本次全部问题来自**静态代码审计**（文件+行号可复核）；对比度为 WCAG 公式计算值；控件尺寸为代码 token 值。
 > **无运行截图证据**（环境原因见 `environment-diagnostic.md`），"截图"列一律为"无（静态）"，不得视为已运行验证。
 > 统计：**P0 × 0 · P1 × 4 · P2 × 18 · P3 × 21 · 合计 43**（2026-11-18 更正：T-01 由 P2 降为 P3）
+> **当前状态见文末「处理状态（第 13 轮核对）」。**下面各表保留审计时的原始描述，只有部分行补了处理记录；一行没写“已完成”不代表还没处理。
 
 ## P1 —— 重大问题
 
@@ -58,7 +59,7 @@
 | R-02 | 校对收件箱 | 信息架构 | 同上 | 已复核工程无归档 | 实证 | 过滤/折叠 | 低 |
 | R-03 | 校对收件箱 | 效率 | review_inbox_screen.dart | 无批量操作（如全部标为已复核），需逐工程进入 | 实证 | 批量标记 + 撤销。**已完成：**每个工程的「更多操作」里有「全部标为已复核」；**第 11 轮：**汇总行加了全局的「全部工程标为已复核」，确认后逐个保存并显示进度，别处刚保存过的工程跳过不覆盖，结果一次可撤销 | 低 |
 | R-04 | 路由 | 工程债 | app_router.dart default | 未知路由静默回首页 | 实证 | 加日志/提示 | 低 |
-| T-02 | 传输 | 工程债 | transfer/*（8 屏 ~2900 行+命名 v2） | 子域体量 vs 频次不匹配 | 实证 | 文档化/简化。**第 10 轮：**手机端歌曲、艺人/专辑和下载管理三屏改用共享的错误横幅、加载和空状态（`transfer_list_states.dart`）；桌面传输中心和 v2 命名仍待处理 | 低 |
+| T-02 | 传输 | 工程债 | transfer/*（8 屏 ~2900 行+命名 v2） | 子域体量 vs 频次不匹配 | 实证 | 文档化/简化。**第 10 轮：**手机端歌曲、艺人/专辑和下载管理三屏改用共享的错误横幅、加载和空状态（`transfer_list_states.dart`）。**第 13 轮：**桌面传输中心从 711 行拆成页面（约 360 行）、卡片（`desktop_transfer_hub_cards.dart`）和文案（`desktop_transfer_hub_text.dart`）；裸转圈改为说明在做什么的加载行，空曲库改为带「打开音乐库」「刷新电脑音乐库」的共享空状态，“电脑 Library”统一为“电脑音乐库”，地址列表显示“局域网 / Tailscale”而不是枚举名，手机上打开时给出“连接电脑”入口。lyrics 下的 v2 文件和类名仍待处理 | 低 |
 | S-04 | 歌词编辑器 | 主题 | lyric_proofread_v2_dialog.dart:692,802 | 评级色用 Material amber/green 绕 token | 实证 | 入 AppColors 语义色 | 低 |
 | S-05 | 全局 | 主题 | 9 文件 13 处 | 圆角字面量未走 token | 实证 | 换 AppSpacing.radius* | 低 |
 | A-04 | 全局 | 无障碍 | 全项目 | Semantics 仅 2 处 | 实证 | 核心控件补语义标注 | 低 |
@@ -74,3 +75,54 @@
 - 校对收件箱：R-01/02
 - 传输：T-01/02
 - 全局：B-01/02、A-01/02/03/04、S-01/04/05
+
+## 处理状态（第 13 轮核对）
+
+2026-11-30 按代码逐条核对。“依据”是能在仓库里复核的位置：多数是代码里写明 `audit <ID>` 的注释，或替代掉问题的共享组件。仍然**没有**运行截图，“已处理”指代码层面，不代表在运行的应用里看过。
+
+| ID | 状态 | 依据 |
+|---|---|---|
+| B-01 | 已处理 | `color_tokens.dart` 薰衣草紫 accent + Forge Red 只用于 `AppBrandMark`；导航品牌位用 `app_brand_mark.dart` |
+| B-02 | 已处理 | D-030，见上表 |
+| A-01 | 已处理 | accent 改为 #B69CFF，按钮文字用黑色 `onAccent`（9.2:1），`accent_palette_test.dart` 固定对比度 |
+| S-01 | 已处理 | `app_theme.dart` 不再声明未打包的 Inter，使用系统字体 |
+| C-01 | 已处理 | `dashboard_screen.dart`（audit C-01） |
+| C-02 | 已处理 | 校对菜单按 `LyricProofreadGroup` 分组（`lyric_proofread_menu_button.dart`） |
+| C-03 | 部分 | 卡片拆到 `ai_transcription_settings_cards.dart`，`ai_transcription_settings_section.dart` 从 1008 行降到约 590 行 |
+| C-04 | 已处理 | `core/widgets/app_artwork.dart` |
+| C-05 | 已处理 | `core/widgets/app_badge.dart` |
+| C-06 | 已处理 | `app_empty_state.dart`、`app_error_state.dart`、`app_loading_state.dart`；第 10、13 轮把传输页也换了过来 |
+| C-07 | 已处理 | `player/presentation/widgets/transport_bar.dart` |
+| N-01 | 已处理 | `core/navigation/playback_destination.dart` |
+| D-04 | 已处理 | `dashboard_shelves.dart`（audit D-04） |
+| L-01 | 已处理 | 小浮动按钮已移除，传输入口在分区条里（`local_music_library_shell.dart`） |
+| L-02 | 已处理 | `core/navigation/transfer_entry.dart`：只剩两个入口，同名同图标 |
+| E-02 | 已处理 | 菜单不再显示版本号（`reference_alignment_dialog.dart` 注释）；代码里的 v2 文件名和类名仍在，记在 T-02 |
+| I-01 | 已处理 | `import_step_indicator.dart`（audit I-01） |
+| SE-01 | 已处理 | `settings_screen.dart` 的 `settingsIntro` 只写页面里真有的内容 |
+| P-01 | 已处理 | `production_steps.dart`（audit P-01） |
+| K-01 | 已处理 | 见上表 |
+| A-02 | 已处理 | `global_playback_shortcuts.dart` |
+| A-03 | 已处理 | `textTertiary` 提亮到 #8F8F8F |
+| T-01 | 已处理 | `remote_media_library_screen.dart` 已下线，`workflow_screen_injection_contract_test.dart` 检查它不再存在 |
+| T-02 | 部分 | 手机端三屏（第 10 轮）和桌面传输中心（第 13 轮）已整理；lyrics 下的 v2 命名待处理 |
+| D-06 | 已处理 | `dashboard_screen.dart` 从 1623 行拆到约 525 行，组件在 `home/presentation/widgets/` |
+| E-03 | 已处理 | 见上表（第 12 轮） |
+| E-04 | 部分 | 参数按关注点分组（`lyric_editor_actions.dart`，audit E-04），尚未改成状态对象 |
+| E-05 | 已处理 | `line_inspector_sheet.dart`（audit E-05） |
+| E-06 | 部分 | 页面里已没有 `fontSize: 10`；`app_theme.dart` 还剩一处 |
+| L-03 | 已处理 | `app_theme.dart` 选中 chip 填充（audit L-03） |
+| L-05 | 已处理 | `local_library_explorer_screen.dart` 已无硬编码 `fontSize: 11` |
+| P-02 | 已处理 | `project_audio_sources_section.dart`（audit P-02） |
+| P-03 | 已处理 | `project_detail_columns.dart`（audit P-03），宽屏双栏 |
+| SE-02 | 已处理 | `settings_screen.dart`（audit SE-02） |
+| SE-05 | 已处理 | `asr_end_to_end_smoke_test_card.dart`（audit SE-05） |
+| SE-06 | 已处理 | `settings_columns.dart`（audit SE-06），宽屏双栏 |
+| I-02 | 已处理 | `import_audio_screen.dart`（audit I-02） |
+| R-01 | 已处理 | `review_inbox_screen.dart`（audit R-01） |
+| R-02 | 已处理 | 收件箱把已复核工程折叠成一组（`review_inbox_screen.dart`，audit R-02） |
+| R-03 | 已处理 | 见上表（第 11 轮） |
+| R-04 | 已处理 | `route_not_found_screen.dart`，未知路由不再静默回首页 |
+| S-04 | 已处理 | `lyric_proofread_v2_dialog.dart` 已不用 Material amber/green |
+| S-05 | 待核 | 本轮未逐个核对圆角字面量 |
+| A-04 | 部分 | `Semantics` 从 2 处增加到约 30 处（如 `player_bar_semantics.dart`），未做全量走查 |

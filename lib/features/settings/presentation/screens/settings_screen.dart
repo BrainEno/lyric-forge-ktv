@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
+import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../settings_screen_dependencies.dart';
@@ -72,6 +73,12 @@ class SettingsScreen extends StatelessWidget {
                             child: LibraryFolderSettingsCard(
                               settings: libraryFolder,
                               findLyrics: dependencies.findLibraryLyrics,
+                              countAutoPaired:
+                                  dependencies.countAutoPairedLyrics,
+                              openAutoPaired: () => Navigator.pushNamed<void>(
+                                context,
+                                Routes.libraryAutoPaired,
+                              ),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xl),

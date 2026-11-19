@@ -28,6 +28,10 @@ void main() {
         destinationForRoute(Routes.libraryArtists),
         AppDestination.library,
       );
+      expect(
+        destinationForRoute(Routes.libraryAutoPaired),
+        AppDestination.library,
+      );
       expect(destinationForRoute(Routes.collections), AppDestination.library);
       expect(destinationForRoute(Routes.playlists), AppDestination.library);
       expect(destinationForRoute(Routes.quickPlay), AppDestination.library);

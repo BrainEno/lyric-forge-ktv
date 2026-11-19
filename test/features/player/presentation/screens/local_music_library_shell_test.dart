@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:lyric_forge_ktv/core/navigation/routes.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_tap_pulse.dart';
+import 'package:lyric_forge_ktv/features/player/domain/models/local_library_browse_item.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/screens/local_music_library_shell.dart';
 
 void main() {
@@ -306,6 +308,49 @@ void main() {
       );
       expect(tester.getTopRight(chip).dx, lessThanOrEqualTo(width));
       expect(tester.getTopLeft(chip).dx, greaterThanOrEqualTo(0));
+    });
+  });
+
+  group('library routes', () {
+    test('each route opens its own section', () {
+      expect(
+        LocalMusicLibraryShell.targetFor(Routes.library),
+        const LibraryShellTarget(0),
+      );
+      expect(
+        LocalMusicLibraryShell.targetFor(Routes.libraryArtists),
+        const LibraryShellTarget(1),
+      );
+      expect(
+        LocalMusicLibraryShell.targetFor(Routes.libraryAlbums),
+        const LibraryShellTarget(2),
+      );
+      expect(
+        LocalMusicLibraryShell.targetFor(Routes.collections),
+        const LibraryShellTarget(3),
+      );
+      expect(
+        LocalMusicLibraryShell.targetFor(Routes.playlists),
+        const LibraryShellTarget(4),
+      );
+    });
+
+    test('the auto-paired route opens songs on the 自动配对 view', () {
+      final target = LocalMusicLibraryShell.targetFor(Routes.libraryAutoPaired);
+
+      expect(target?.index, 0);
+      expect(target?.smartView, LocalLibrarySmartView.autoPairedLyrics);
+      // Plain 歌曲 does not filter.
+      expect(
+        LocalMusicLibraryShell.targetFor(Routes.library)?.smartView,
+        isNull,
+      );
+    });
+
+    test('other routes are not library routes', () {
+      expect(LocalMusicLibraryShell.targetFor(Routes.settings), isNull);
+      expect(LocalMusicLibraryShell.targetFor('/library/unknown'), isNull);
+      expect(LocalMusicLibraryShell.targetFor(Routes.home), isNull);
     });
   });
 }
