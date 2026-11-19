@@ -151,6 +151,10 @@ class _LineInspectorSheetState extends State<LineInspectorSheet> {
           maxChildSize: sizes.max,
           snap: true,
           snapSizes: sizes.snapSizes,
+          // Resting at the smallest size keeps the sheet open; the modal
+          // would otherwise close it there. It closes from the 关闭 button,
+          // the barrier or back.
+          shouldCloseOnMinExtent: false,
           builder: (context, controller) => Column(
             children: [
               _SheetHeader(
