@@ -1050,60 +1050,29 @@ class _EmptyLibrary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final layout = AppResponsive.of(context);
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(layout.pageGutter),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.library_music_rounded,
-              size: layout.isCompact ? 56 : 72,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              '建立你的本地音乐库',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            const Text('导入后自动读取标题、艺人、专辑和内嵌封面。', textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.lg),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              alignment: WrapAlignment.center,
-              children: [
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    minimumSize: Size(
-                      layout.minimumInteractiveExtent,
-                      layout.minimumInteractiveExtent,
-                    ),
-                  ),
-                  onPressed: onFolder,
-                  icon: const Icon(Icons.folder_rounded),
-                  label: const Text('添加音乐文件夹'),
-                ),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: Size(
-                      layout.minimumInteractiveExtent,
-                      layout.minimumInteractiveExtent,
-                    ),
-                  ),
-                  onPressed: onFiles,
-                  icon: const Icon(Icons.audio_file_rounded),
-                  label: const Text('添加音乐文件'),
-                ),
-              ],
-            ),
-          ],
+    final minimumSize = Size(
+      layout.minimumInteractiveExtent,
+      layout.minimumInteractiveExtent,
+    );
+    return AppEmptyState(
+      density: AppEmptyStateDensity.hero,
+      icon: Icons.library_music_rounded,
+      title: '建立你的本地音乐库',
+      message: '导入后自动读取标题、艺人、专辑和内嵌封面。',
+      actions: [
+        FilledButton.icon(
+          style: FilledButton.styleFrom(minimumSize: minimumSize),
+          onPressed: onFolder,
+          icon: const Icon(Icons.folder_rounded),
+          label: const Text('添加音乐文件夹'),
         ),
-      ),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(minimumSize: minimumSize),
+          onPressed: onFiles,
+          icon: const Icon(Icons.audio_file_rounded),
+          label: const Text('添加音乐文件'),
+        ),
+      ],
     );
   }
 }

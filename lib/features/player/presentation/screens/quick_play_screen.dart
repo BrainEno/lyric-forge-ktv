@@ -10,6 +10,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_badge.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_state.dart';
@@ -388,122 +389,54 @@ class _EmptyPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final layout = AppResponsive.fromConstraints(constraints);
-        final heroExtent = layout.isShort
-            ? 92.0
-            : layout.isCompact
-            ? 112.0
-            : 156.0;
-        final cardPadding = layout.isCompact ? AppSpacing.md : AppSpacing.xl;
+    final layout = AppResponsive.of(context);
+    final minimumSize = Size(
+      layout.minimumInteractiveExtent,
+      layout.minimumInteractiveExtent,
+    );
+    return AppEmptyState(
+      density: AppEmptyStateDensity.hero,
+      icon: Icons.library_music_rounded,
+      title: '你的本地音乐',
+      message: '先像普通播放器一样打开音乐。歌词、AI 识别、KTV 和工程制作都是需要时再使用的能力。',
+      status: _status(),
+      actions: [
+        FilledButton.icon(
+          style: FilledButton.styleFrom(minimumSize: minimumSize),
+          onPressed: isLoading ? null : onPickFiles,
+          icon: const Icon(Icons.library_add_rounded),
+          label: const Text('选择音乐'),
+        ),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(minimumSize: minimumSize),
+          onPressed: isLoading ? null : onPickFolder,
+          icon: const Icon(Icons.folder_copy_rounded),
+          label: const Text('打开音乐文件夹'),
+        ),
+      ],
+      footer: TextButton.icon(
+        onPressed: onCreateProject,
+        icon: const Icon(Icons.auto_awesome_rounded),
+        label: const Text('需要 AI 识别？进入歌词制作'),
+      ),
+    );
+  }
 
-        return Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(layout.pageGutter),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: layout.isCompact ? 560 : 760,
-              ),
-              child: Container(
-                padding: EdgeInsets.all(cardPadding),
-                decoration: BoxDecoration(
-                  gradient: AppColors.cardGradient,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-                  border: Border.all(color: AppColors.borderMuted),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      width: heroExtent,
-                      height: heroExtent,
-                      decoration: BoxDecoration(
-                        color: AppColors.bgSurface,
-                        borderRadius: BorderRadius.circular(
-                          AppSpacing.radiusXLarge,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.library_music_rounded,
-                        size: heroExtent * 0.44,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    SizedBox(
-                      height: layout.isShort ? AppSpacing.md : AppSpacing.xl,
-                    ),
-                    Text(
-                      '你的本地音乐',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      '先像普通播放器一样打开音乐。歌词、AI 识别、KTV 和工程制作都是需要时再使用的能力。',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    if (error != null) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        error!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.error),
-                      ),
-                    ],
-                    SizedBox(
-                      height: layout.isShort ? AppSpacing.md : AppSpacing.xl,
-                    ),
-                    if (isLoading)
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: AppSpacing.md),
-                        child: CircularProgressIndicator(),
-                      ),
-                    Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            minimumSize: Size(
-                              layout.minimumInteractiveExtent,
-                              layout.minimumInteractiveExtent,
-                            ),
-                          ),
-                          onPressed: isLoading ? null : onPickFiles,
-                          icon: const Icon(Icons.library_add_rounded),
-                          label: const Text('选择音乐'),
-                        ),
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: Size(
-                              layout.minimumInteractiveExtent,
-                              layout.minimumInteractiveExtent,
-                            ),
-                          ),
-                          onPressed: isLoading ? null : onPickFolder,
-                          icon: const Icon(Icons.folder_copy_rounded),
-                          label: const Text('打开音乐文件夹'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    TextButton.icon(
-                      onPressed: onCreateProject,
-                      icon: const Icon(Icons.auto_awesome_rounded),
-                      label: const Text('需要 AI 识别？进入歌词制作'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+  Widget? _status() {
+    final message = error;
+    if (message == null && !isLoading) return null;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (message != null)
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.error),
           ),
-        );
-      },
+        if (message != null && isLoading) const SizedBox(height: AppSpacing.md),
+        if (isLoading) const CircularProgressIndicator(),
+      ],
     );
   }
 }

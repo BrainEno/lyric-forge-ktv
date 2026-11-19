@@ -6,6 +6,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
@@ -906,25 +907,10 @@ class _CatalogEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layout = AppResponsive.of(context);
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(layout.pageGutter),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.library_music_rounded, size: 64),
-            const SizedBox(height: AppSpacing.md),
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
+    return AppEmptyState(
+      icon: Icons.library_music_rounded,
+      title: title,
+      message: message,
     );
   }
 }

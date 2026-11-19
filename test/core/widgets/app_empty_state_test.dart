@@ -73,4 +73,89 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('hero density frames a large tile, headline and footer', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      _host(
+        AppEmptyState(
+          density: AppEmptyStateDensity.hero,
+          icon: Icons.library_music_rounded,
+          title: '你的本地音乐',
+          message: '先像普通播放器一样打开音乐。',
+          actions: [FilledButton(onPressed: () {}, child: const Text('选择音乐'))],
+          footer: TextButton(onPressed: () {}, child: const Text('进入歌词制作')),
+        ),
+      ),
+    );
+
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.library_music_rounded)).size,
+      closeTo(156 * 0.44, 0.01),
+    );
+    final title = tester.widget<Text>(find.text('你的本地音乐'));
+    expect(title.style?.fontWeight, FontWeight.w900);
+    expect(
+      tester.getTopLeft(find.text('进入歌词制作')).dy,
+      greaterThan(tester.getBottomLeft(find.text('选择音乐')).dy),
+      reason: 'the footer sits under the actions',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('hero density scrolls instead of overflowing on short screens', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(640, 360));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      _host(
+        AppEmptyState(
+          density: AppEmptyStateDensity.hero,
+          icon: Icons.library_music_rounded,
+          title: '建立你的本地音乐库',
+          message: '导入后自动读取标题、艺人、专辑和内嵌封面。' * 4,
+          status: const CircularProgressIndicator(),
+          actions: [
+            FilledButton(onPressed: () {}, child: const Text('添加音乐文件夹')),
+            OutlinedButton(onPressed: () {}, child: const Text('添加音乐文件')),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.library_music_rounded)).size,
+      closeTo(92 * 0.44, 0.01),
+      reason: 'short screens use the smallest tile',
+    );
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('status shows between the message and the actions', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        AppEmptyState(
+          icon: Icons.error_outline_rounded,
+          title: '无法打开',
+          message: '请换一个文件再试。',
+          status: const Text('文件格式不受支持'),
+          actions: [FilledButton(onPressed: () {}, child: const Text('重试'))],
+        ),
+      ),
+    );
+
+    final status = tester.getCenter(find.text('文件格式不受支持')).dy;
+    expect(status, greaterThan(tester.getCenter(find.text('请换一个文件再试。')).dy));
+    expect(status, lessThan(tester.getCenter(find.text('重试')).dy));
+  });
 }
