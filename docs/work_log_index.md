@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-12-01. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-12-02. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 

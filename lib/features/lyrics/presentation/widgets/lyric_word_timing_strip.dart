@@ -4,6 +4,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/services/lyric_word_timing_service.dart';
+import 'lyric_row_semantics.dart';
 
 /// The selected row's word timing in the inspector: every word with the
 /// time it starts, so a misaligned word (or one the aligner stretched over
@@ -163,8 +164,28 @@ class _WordChip extends StatelessWidget {
   final bool long;
   final VoidCallback? onTap;
 
+  /// One node per chip: the word, its time span and, when it can seek, that
+  /// a tap jumps there. A screen reader used to read the word and the start
+  /// time as two unrelated texts and could not tell the chip was tappable
+  /// (audit A-04).
   @override
   Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      button: onTap != null,
+      label: LyricRowSemantics.wordChip(
+        word: word.text,
+        start: word.start,
+        end: word.end,
+        canSeek: onTap != null,
+      ),
+      onTap: onTap,
+      child: _buildChip(context),
+    );
+  }
+
+  Widget _buildChip(BuildContext context) {
     final theme = Theme.of(context);
     final seconds = (word.end - word.start).inMilliseconds / 1000;
     return Tooltip(

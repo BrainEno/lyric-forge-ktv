@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import 'global_playback_shortcuts.dart';
@@ -44,6 +45,31 @@ class FullscreenKtvInteractionSurface extends StatefulWidget {
     this.onCommand,
     this.controlsHideDelay = const Duration(seconds: 3),
   });
+
+  /// What a screen reader calls the surface.
+  static const String semanticsLabel = '全屏 KTV 歌词';
+
+  /// Label of the custom action that shows the hidden controls.
+  static const String showControlsAction = '显示播放控制';
+
+  /// Label of the custom action that leaves fullscreen.
+  static const String exitAction = '退出全屏 KTV';
+
+  /// Tap and double tap as custom actions (audit A-04).
+  ///
+  /// A tap shows the controls and a double tap leaves; a screen reader
+  /// claims both gestures for itself, and Esc needs a keyboard. Without
+  /// these actions a TalkBack or VoiceOver user could neither bring the
+  /// controls back once they faded nor leave the screen.
+  static Map<CustomSemanticsAction, VoidCallback> semanticsActions({
+    required VoidCallback onShowControls,
+    required VoidCallback onExit,
+  }) {
+    return {
+      const CustomSemanticsAction(label: showControlsAction): onShowControls,
+      const CustomSemanticsAction(label: exitAction): onExit,
+    };
+  }
 
   /// Key hints for the control layer, in the order of the class comment.
   static String keyHint({TargetPlatform? platform}) {
@@ -172,17 +198,27 @@ class _FullscreenKtvInteractionSurfaceState
 
   @override
   Widget build(BuildContext context) {
+    final actions = FullscreenKtvInteractionSurface.semanticsActions(
+      onShowControls: _revealControls,
+      onExit: widget.onExit,
+    );
     return Focus(
       focusNode: _focusNode,
       onKeyEvent: _handleKeyEvent,
       child: MouseRegion(
         onEnter: (_) => _revealControls(),
         onHover: (_) => _revealControls(),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _onTap,
-          onDoubleTap: widget.onExit,
-          child: widget.builder(context, _controlsVisible),
+        child: Semantics(
+          container: true,
+          explicitChildNodes: true,
+          label: FullscreenKtvInteractionSurface.semanticsLabel,
+          customSemanticsActions: actions,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _onTap,
+            onDoubleTap: widget.onExit,
+            child: widget.builder(context, _controlsVisible),
+          ),
         ),
       ),
     );
