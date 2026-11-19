@@ -12,7 +12,8 @@
 ## Git 现场
 
 - 分支：`arena/5f82c3bf-lyric-forge-ktv`，基于 main `84a50ae`。
-- 提交：`Move the recognition settings flows into a controller`、`Give editor rows one spoken label`，以及探针和格式修正的提交（合并时 squash）。
+- PR #487（squash 合并）。
+- 提交：`Move the recognition settings flows into a controller`、`Give editor rows one spoken label`、`Fix nullable action labels and apply format`、`Remove the format probe and update the handoff`。
 
 ## 已改文件
 
@@ -20,7 +21,7 @@
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑，并用了临时探针工作流（合并前删除），结果见 PR 描述。工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`（0 错误）。
+沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR #487 的 CI 上跑，并用了临时探针工作流（合并前删除）。第一次探针发现新测试里 `CustomSemanticsAction.label` 是可空类型（两处编译错误）、两条新的 lint 提示和三个文件的格式差异，已修正。第二次结果：格式无差异；analyze 183 条（比基线 184 少一条）；全部测试 3541 个通过、2 个跳过；本轮新增和改动的测试文件共 133 个用例全过；Flutter Quality Gate 通过。工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`（0 错误）。
 
 ## 下一步
 
