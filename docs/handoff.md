@@ -8,7 +8,7 @@
 2. L-02 传输入口：`TransferEntry` 统一名称“跨设备传输”、图标和路由；首页头部去掉桌面端“远程音乐库”按钮，改为“更多”菜单第一项（手机也有）；两个传输页标题统一。
 3. D-06 首页拆分：`dashboard_screen.dart` 从约 1600 行降到约 520 行，播放区、后台任务卡、列表区和公共外观拆到 `home/presentation/widgets/` 四个文件，行为不变，新增列表区组件测试。
 4. C-04 封面收敛：工程播放器、工程详情、歌曲信息对话框、手机下载列表四处裸 `Image.file` 改用 `AppArtwork`（无法解码时显示统一占位）；远程封面本地分支补 `errorBuilder`；新增架构测试防回退。
-5. E-04 歌词编辑器参数分组：`LyricEditorContent` 50 个参数中 31 个归入 `LyricEditHistory`、`LyricProofreadActions`、`LyricLineEditActions`、`LyricAuditionControls` 四个不可变对象，剩 23 个；页面用三个构建方法组装，可用性规则不变。
+5. E-04 歌词编辑器参数分组：`LyricEditorContent` 50 个参数中 31 个归入 `LyricUndoRedoControls`、`LyricProofreadActions`、`LyricLineEditActions`、`LyricAuditionControls` 四个不可变对象，剩 23 个；页面用三个构建方法组装，可用性规则不变。
 
 ## Git 现场
 

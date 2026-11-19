@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../project/domain/models/lyric_document.dart';
+import '../controllers/lyric_editor_document_controller.dart';
 import 'lyric_batch_text_edit.dart';
 
 // Groups of LyricEditorContent inputs that belong together.
@@ -13,8 +14,8 @@ import 'lyric_batch_text_edit.dart';
 
 /// Undo and redo, with the labels shown in their tooltips.
 @immutable
-class LyricEditHistory {
-  const LyricEditHistory({
+class LyricUndoRedoControls {
+  const LyricUndoRedoControls({
     required this.onUndo,
     required this.onRedo,
     this.canUndo = false,
@@ -59,6 +60,38 @@ class LyricProofreadActions {
 
   /// Nothing available, as for a project without lyrics.
   static const LyricProofreadActions none = LyricProofreadActions();
+
+  /// The tools for the current document. The text tools need lyrics, proofread
+  /// V2 runs one pass at a time, and the alignment follow-ups depend only on
+  /// the applied [alignment], so they stay available after every row was
+  /// deleted. Only a reference alignment, not a proofreading pass, has a
+  /// before/after comparison.
+  factory LyricProofreadActions.forDocument({
+    required bool hasLines,
+    bool proofreadV2Running = false,
+    LyricEditorSnapshot? alignment,
+    bool canRestore = false,
+    required VoidCallback referenceAlignment,
+    required VoidCallback referenceProofread,
+    required VoidCallback proofreadV2,
+    required VoidCallback undoAlignment,
+    required VoidCallback viewComparison,
+    required VoidCallback restoreAlignment,
+    required VoidCallback unifyChineseScript,
+    required ValueChanged<LyricBatchTextTool> batchTextTool,
+  }) {
+    final comparable = alignment != null && !alignment.isReferenceProofread;
+    return LyricProofreadActions(
+      onReferenceAlignment: hasLines ? referenceAlignment : null,
+      onReferenceProofread: hasLines ? referenceProofread : null,
+      onProofreadV2: hasLines && !proofreadV2Running ? proofreadV2 : null,
+      onUndoReferenceAlignment: alignment == null ? null : undoAlignment,
+      onViewAlignmentComparison: comparable ? viewComparison : null,
+      onRestoreAlignment: canRestore ? restoreAlignment : null,
+      onUnifyChineseScript: hasLines ? unifyChineseScript : null,
+      onBatchTextTool: hasLines ? batchTextTool : null,
+    );
+  }
 
   final VoidCallback? onReferenceAlignment;
   final VoidCallback? onReferenceProofread;

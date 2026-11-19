@@ -85,7 +85,7 @@ class LyricEditorContent extends StatelessWidget {
   final bool isSaving;
 
   // Grouped inputs, see lyric_editor_actions.dart (audit E-04).
-  final LyricEditHistory history;
+  final LyricUndoRedoControls history;
   final LyricProofreadActions proofread;
   final LyricLineEditActions edits;
   final LyricAuditionControls audition;

@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_actions.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 void main() {
-  group('LyricEditHistory', () {
+  group('LyricUndoRedoControls', () {
     final calls = <String>[];
     void undo() => calls.add('undo');
     void redo() => calls.add('redo');
@@ -12,7 +13,7 @@ void main() {
     setUp(calls.clear);
 
     test('nothing to undo or redo disables both and hides the labels', () {
-      final history = LyricEditHistory(
+      final history = LyricUndoRedoControls(
         onUndo: undo,
         onRedo: redo,
         undoLabel: '编辑歌词',
@@ -26,7 +27,7 @@ void main() {
     });
 
     test('an available action keeps its callback and label', () {
-      final history = LyricEditHistory(
+      final history = LyricUndoRedoControls(
         onUndo: undo,
         onRedo: redo,
         canUndo: true,
@@ -42,7 +43,7 @@ void main() {
     });
 
     test('keyboard shortcuts can still reach the raw callbacks', () {
-      final history = LyricEditHistory(onUndo: undo, onRedo: redo);
+      final history = LyricUndoRedoControls(onUndo: undo, onRedo: redo);
 
       history.onUndo();
       history.onRedo();
@@ -62,6 +63,91 @@ void main() {
       expect(none.onRestoreAlignment, isNull);
       expect(none.onUnifyChineseScript, isNull);
       expect(none.onBatchTextTool, isNull);
+    });
+
+    LyricProofreadActions forDocument({
+      required bool hasLines,
+      bool proofreadV2Running = false,
+      LyricEditorSnapshot? alignment,
+      bool canRestore = false,
+    }) {
+      void noop() {}
+      return LyricProofreadActions.forDocument(
+        hasLines: hasLines,
+        proofreadV2Running: proofreadV2Running,
+        alignment: alignment,
+        canRestore: canRestore,
+        referenceAlignment: noop,
+        referenceProofread: noop,
+        proofreadV2: noop,
+        undoAlignment: noop,
+        viewComparison: noop,
+        restoreAlignment: noop,
+        unifyChineseScript: noop,
+        batchTextTool: (_) {},
+      );
+    }
+
+    LyricEditorSnapshot snapshot({bool proofread = false}) =>
+        LyricEditorSnapshot(
+          document: const LyricDocument(language: 'zh', lines: []),
+          manuallyEditedLineIds: const {},
+          selectedLineIndex: null,
+          hasChanges: false,
+          isReferenceProofread: proofread,
+        );
+
+    test('a document with lyrics offers the text tools', () {
+      final actions = forDocument(hasLines: true);
+
+      expect(actions.onReferenceAlignment, isNotNull);
+      expect(actions.onReferenceProofread, isNotNull);
+      expect(actions.onProofreadV2, isNotNull);
+      expect(actions.onUnifyChineseScript, isNotNull);
+      expect(actions.onBatchTextTool, isNotNull);
+      // Nothing applied yet, so nothing to undo, compare or restore.
+      expect(actions.onUndoReferenceAlignment, isNull);
+      expect(actions.onViewAlignmentComparison, isNull);
+      expect(actions.onRestoreAlignment, isNull);
+    });
+
+    test('an empty document offers no text tools', () {
+      final actions = forDocument(hasLines: false);
+
+      expect(actions.onReferenceAlignment, isNull);
+      expect(actions.onReferenceProofread, isNull);
+      expect(actions.onProofreadV2, isNull);
+      expect(actions.onUnifyChineseScript, isNull);
+      expect(actions.onBatchTextTool, isNull);
+    });
+
+    test('proofread V2 is offered again only after its pass ends', () {
+      final running = forDocument(hasLines: true, proofreadV2Running: true);
+
+      expect(running.onProofreadV2, isNull);
+      expect(running.onReferenceAlignment, isNotNull);
+    });
+
+    test('alignment follow-ups survive deleting every row', () {
+      final actions = forDocument(
+        hasLines: false,
+        alignment: snapshot(),
+        canRestore: true,
+      );
+
+      expect(actions.onUndoReferenceAlignment, isNotNull);
+      expect(actions.onViewAlignmentComparison, isNotNull);
+      expect(actions.onRestoreAlignment, isNotNull);
+    });
+
+    test('a proofreading pass can be undone but has no comparison', () {
+      final actions = forDocument(
+        hasLines: true,
+        alignment: snapshot(proofread: true),
+      );
+
+      expect(actions.onUndoReferenceAlignment, isNotNull);
+      expect(actions.onViewAlignmentComparison, isNull);
     });
 
     test('batch tools receive the tool that was picked', () {
