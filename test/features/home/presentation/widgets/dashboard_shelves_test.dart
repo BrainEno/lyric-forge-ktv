@@ -42,6 +42,8 @@ ProjectManifest _project(
   currentStage: stage,
 );
 
+Finder badge(String label) => find.text(label, findRichText: true);
+
 void main() {
   group('DashboardSectionHeader', () {
     testWidgets('without an action it is only the title block', (tester) async {
@@ -147,11 +149,12 @@ void main() {
 
       expect(find.text('工程 a'), findsOneWidget);
       expect(find.text('歌手甲'), findsOneWidget);
-      expect(find.text('已导出'), findsOneWidget);
       // A blank artist falls back to the generic label.
       expect(find.text('歌词工程'), findsOneWidget);
-      expect(find.text('待开始'), findsOneWidget);
-      expect(find.text('待生成歌词'), findsNWidgets(2));
+      // Badges lay their icon out inside a rich text.
+      expect(badge('已导出'), findsOneWidget);
+      expect(badge('待开始'), findsOneWidget);
+      expect(badge('待生成歌词'), findsNWidgets(2));
     });
 
     testWidgets('tapping a card opens that project', (tester) async {
