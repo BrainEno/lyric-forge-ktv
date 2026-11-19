@@ -958,7 +958,7 @@ void main() {
   });
 
   group('reference proofreading revision guards', () {
-    for (final action in ['参考歌词纠正', '逐行智能纠错（保留时间戳）']) {
+    for (final action in ['参考歌词：纠正文字和时间轴', '参考歌词：只改文字']) {
       testWidgets('$action discards an edit made during reference input', (
         tester,
       ) async {
@@ -1000,7 +1000,7 @@ void main() {
       tester,
     ) async {
       final editor = await _openEditor(tester, _emptyAlignment);
-      await _openReferenceFlow(tester, '参考歌词纠正');
+      await _openReferenceFlow(tester, '参考歌词：纠正文字和时间轴');
       _submitReference(tester, 'Human lyric');
       await tester.pumpAndSettle();
       expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
@@ -1035,7 +1035,7 @@ void main() {
       'proofreading discards edits while timing evidence dialog is open',
       (tester) async {
         final editor = await _openEditor(tester, _emptyAlignment);
-        await _openReferenceFlow(tester, '逐行智能纠错（保留时间戳）');
+        await _openReferenceFlow(tester, '参考歌词：只改文字');
         _submitReference(tester, 'Human lyrics');
         await tester.pumpAndSettle();
         expect(find.text('导入独立 ASR 时间证据'), findsOneWidget);
@@ -1058,7 +1058,7 @@ void main() {
             _emptyAlignment,
             initialDocument: _document('Hello word'),
           );
-          await _openReferenceFlow(tester, '逐行智能纠错（保留时间戳）');
+          await _openReferenceFlow(tester, '参考歌词：只改文字');
           _submitReference(tester, 'Hello world');
           await tester.pumpAndSettle();
           final timingTitle = find.text('导入独立 ASR 时间证据');
@@ -1100,7 +1100,7 @@ void main() {
         _emptyAlignment,
         initialDocument: _document('Hello word'),
       );
-      await _openReferenceFlow(tester, '逐行智能纠错（保留时间戳）');
+      await _openReferenceFlow(tester, '参考歌词：只改文字');
       _submitReference(tester, 'Hello world');
       await tester.pumpAndSettle();
       await tester.tap(find.text('跳过校时'));
@@ -1126,7 +1126,7 @@ void main() {
         _emptyAlignment,
         initialDocument: _document('Hello word'),
       );
-      await _openReferenceFlow(tester, '逐行智能纠错（保留时间戳）');
+      await _openReferenceFlow(tester, '参考歌词：只改文字');
       editor.select(null);
       _submitReference(tester, 'Hello world');
       await tester.pumpAndSettle();
@@ -1143,7 +1143,7 @@ void main() {
         'alignment timeline confirmation respects revision: edit=$changeDuringConfirmation',
         (tester) async {
           final editor = await _openEditor(tester, _emptyAlignment);
-          await _openReferenceFlow(tester, '参考歌词纠正');
+          await _openReferenceFlow(tester, '参考歌词：纠正文字和时间轴');
           Navigator.of(
             tester.element(find.byType(ReferenceAlignmentDialog)),
           ).pop(
@@ -1222,7 +1222,7 @@ void main() {
         _emptyAlignment,
         initialDocument: _document('Hello word'),
       );
-      await _openReferenceFlow(tester, '参考歌词纠正');
+      await _openReferenceFlow(tester, '参考歌词：纠正文字和时间轴');
       _submitReference(tester, 'Hello world');
       await tester.pumpAndSettle();
       expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
@@ -1270,7 +1270,7 @@ void main() {
       tester,
     ) async {
       final editor = await _openEditor(tester, _emptyAlignment);
-      await _openReferenceFlow(tester, '参考歌词纠正');
+      await _openReferenceFlow(tester, '参考歌词：纠正文字和时间轴');
       Navigator.of(tester.element(find.byType(ReferenceAlignmentDialog))).pop(
         const ReferenceLyricInput(
           lines: [
@@ -1313,7 +1313,7 @@ void main() {
       tester,
     ) async {
       await _openEditor(tester, _emptyAlignment);
-      await _openReferenceFlow(tester, '参考歌词纠正');
+      await _openReferenceFlow(tester, '参考歌词：纠正文字和时间轴');
       await tester.pumpWidget(const MaterialApp(home: SizedBox()));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);

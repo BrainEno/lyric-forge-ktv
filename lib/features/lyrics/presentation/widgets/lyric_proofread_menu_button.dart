@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import 'lyric_asr_loop_dialog.dart';
+import 'lyric_batch_text_edit.dart';
+import 'lyric_editor_actions.dart';
 import 'lyric_find_replace_dialog.dart';
 import 'lyric_missed_repeat_dialog.dart';
 import 'lyric_pace_check_dialog.dart';
@@ -14,6 +16,7 @@ import 'lyric_timeline_repair_dialog.dart';
 import 'lyric_timing_shift_dialog.dart';
 import 'lyric_word_tap_dialog.dart';
 import 'lyric_word_timing_check_dialog.dart';
+import 'reference_alignment_dialog.dart';
 
 /// The proofreading capabilities.
 ///
@@ -102,13 +105,54 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.compact = false,
   });
 
+  /// The menu for the editor's [actions] group.
+  ///
+  /// The toolbar and the narrow app bar used to spell out the same twenty
+  /// arguments each, mapping every batch tool to its callback by hand, so a
+  /// new tool had to be wired in three places (audit E-04). The mapping now
+  /// lives here once.
+  factory LyricProofreadMenuButton.forActions(
+    LyricProofreadActions actions, {
+    Key? key,
+    bool compact = false,
+  }) {
+    final open = actions.onBatchTextTool;
+    VoidCallback? tool(LyricBatchTextTool value) =>
+        open == null ? null : () => open(value);
+    return LyricProofreadMenuButton(
+      key: key,
+      compact: compact,
+      onProofreadV2: actions.onProofreadV2,
+      onReferenceAlignment: actions.onReferenceAlignment,
+      onReferenceProofread: actions.onReferenceProofread,
+      onUnifyChineseScript: actions.onUnifyChineseScript,
+      onRepetitionConsistency: tool(LyricBatchTextTool.repetitionConsistency),
+      onTextCleanup: tool(LyricBatchTextTool.textCleanup),
+      onAsrLoopCheck: tool(LyricBatchTextTool.asrLoopCheck),
+      onMissedRepeatCheck: tool(LyricBatchTextTool.missedRepeatCheck),
+      onSpanRecognition: tool(LyricBatchTextTool.spanRecognition),
+      onLineStructure: tool(LyricBatchTextTool.lineStructure),
+      onTimelineRepair: tool(LyricBatchTextTool.timelineRepair),
+      onTimingShift: tool(LyricBatchTextTool.timingShift),
+      onPaceCheck: tool(LyricBatchTextTool.paceCheck),
+      onTapSync: tool(LyricBatchTextTool.tapSync),
+      onWordTap: tool(LyricBatchTextTool.wordTap),
+      onWordTimingCheck: tool(LyricBatchTextTool.wordTimingCheck),
+      onFindReplace: tool(LyricBatchTextTool.findReplace),
+      onViewComparison: actions.onViewAlignmentComparison,
+      onUndoAlignment: actions.onUndoReferenceAlignment,
+      onRestoreBackup: actions.onRestoreAlignment,
+    );
+  }
+
   /// 智能校对: builds a proposal from the ASR evidence without writing it.
   final VoidCallback? onProofreadV2;
 
-  /// 参考歌词纠正: aligns a pasted reference and can replace timing.
+  /// 参考歌词：纠正文字和时间轴 — aligns a pasted reference and can replace
+  /// timing.
   final VoidCallback? onReferenceAlignment;
 
-  /// 逐行智能纠错: text-only corrections from a pasted reference.
+  /// 参考歌词：只改文字 — text-only corrections from a pasted reference.
   final VoidCallback? onReferenceProofread;
 
   /// 统一简繁字形: previews and applies a simplified/traditional unification.
@@ -264,10 +308,13 @@ class LyricProofreadMenuButton extends StatelessWidget {
         smartProofreadTitle,
         '不需要参考歌词；生成不写盘的提案，逐行对比后再应用',
       ),
-      LyricProofreadAction.referenceAlignment => ('参考歌词纠正', '有参考歌词；可一并修正时间轴'),
+      LyricProofreadAction.referenceAlignment => (
+        ReferenceLyricPurpose.alignment.title,
+        ReferenceLyricPurpose.alignment.menuDetail,
+      ),
       LyricProofreadAction.referenceProofread => (
-        '逐行智能纠错（保留时间戳）',
-        '有参考歌词；只改文字，时间戳保持不变',
+        ReferenceLyricPurpose.textOnly.title,
+        ReferenceLyricPurpose.textOnly.menuDetail,
       ),
       LyricProofreadAction.repetitionConsistency => (
         LyricRepetitionStrings.actionTitle,

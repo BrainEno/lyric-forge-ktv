@@ -216,6 +216,24 @@ void main() {
       expect(await fresh.getRecentPlayHistory(), isEmpty);
     });
 
+    test('the recorded cover survives repository recreation', () async {
+      final audio = File('${root.path}${Platform.pathSeparator}cover.mp3');
+      await audio.writeAsBytes([1]);
+      final first = FilePlayHistoryRepository(rootDirectory: root);
+      await first.savePlayHistory(
+        _history(
+          id: 'cover',
+          path: audio.path,
+          position: Duration.zero,
+        ).copyWith(artworkPath: '/covers/cover.jpg'),
+      );
+
+      final restored = FilePlayHistoryRepository(rootDirectory: root);
+      final histories = await restored.getRecentPlayHistory();
+
+      expect(histories.single.artworkPath, '/covers/cover.jpg');
+    });
+
     test('clear removes persisted history', () async {
       final audio = File('${root.path}${Platform.pathSeparator}clear.mp3');
       await audio.writeAsBytes([1]);

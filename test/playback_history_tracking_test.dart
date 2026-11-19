@@ -49,28 +49,64 @@ void main() {
       expect(history.latest?.lastPosition, const Duration(seconds: 16));
     });
 
-    test('completed tracks resume from the beginning instead of the end', () async {
-      await session.setQueue([_localItem('song')]);
+    test(
+      'completed tracks resume from the beginning instead of the end',
+      () async {
+        await session.setQueue([_localItem('song')]);
 
-      await session.seek(const Duration(minutes: 2, seconds: 59));
+        await session.seek(const Duration(minutes: 2, seconds: 59));
 
-      expect(history.latest?.lastPosition, Duration.zero);
+        expect(history.latest?.lastPosition, Duration.zero);
+      },
+    );
+
+    test('history records the cover the player shows', () async {
+      await session.setQueue([
+        _localItem('song').copyWith(artworkPath: '/covers/song.jpg'),
+      ]);
+
+      await session.seek(const Duration(seconds: 12));
+
+      expect(history.latest?.artworkPath, '/covers/song.jpg');
     });
 
-    test('project-backed playback is excluded from local recent history', () async {
-      await session.setQueue([_projectItem('project-song')]);
-      history.saved.clear();
+    test('history falls back to the audio thumbnail for the cover', () async {
+      final item = _localItem('thumb');
+      await session.setQueue([
+        item.copyWith(
+          audioAsset: item.audioAsset.copyWith(
+            thumbnailPath: '/thumbs/thumb.jpg',
+          ),
+        ),
+      ]);
 
-      await session.seek(const Duration(seconds: 30));
+      await session.seek(const Duration(seconds: 12));
 
-      expect(history.saved, isEmpty);
+      expect(history.latest?.artworkPath, '/thumbs/thumb.jpg');
     });
+
+    test('history without any cover records none', () async {
+      await session.setQueue([_localItem('plain')]);
+
+      await session.seek(const Duration(seconds: 12));
+
+      expect(history.latest?.artworkPath, isNull);
+    });
+
+    test(
+      'project-backed playback is excluded from local recent history',
+      () async {
+        await session.setQueue([_projectItem('project-song')]);
+        history.saved.clear();
+
+        await session.seek(const Duration(seconds: 30));
+
+        expect(history.saved, isEmpty);
+      },
+    );
 
     test('switching tracks preserves the previous track progress', () async {
-      await session.setQueue([
-        _localItem('first'),
-        _localItem('second'),
-      ]);
+      await session.setQueue([_localItem('first'), _localItem('second')]);
       await session.seek(const Duration(seconds: 61));
 
       await session.skipNext();
@@ -89,10 +125,7 @@ PlaybackItem _localItem(String id) {
     id: 'local:$id',
     title: id,
     artist: 'Artist',
-    audioAsset: AudioAsset(
-      originalPath: '/tmp/$id.mp3',
-      format: 'mp3',
-    ),
+    audioAsset: AudioAsset(originalPath: '/tmp/$id.mp3', format: 'mp3'),
     preferredSource: AudioSourceType.original,
   );
 }
@@ -102,10 +135,7 @@ PlaybackItem _projectItem(String id) {
     id: 'project:$id',
     title: id,
     projectId: id,
-    audioAsset: AudioAsset(
-      originalPath: '/tmp/$id.mp3',
-      format: 'mp3',
-    ),
+    audioAsset: AudioAsset(originalPath: '/tmp/$id.mp3', format: 'mp3'),
     preferredSource: AudioSourceType.original,
   );
 }

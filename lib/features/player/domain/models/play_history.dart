@@ -11,6 +11,13 @@ class PlayHistory {
   final Duration? duration;
   final AudioSourceType lastSource;
 
+  /// The local cover shown while the track played, if it had one.
+  ///
+  /// Recorded so the dashboard's recent listening shelf can show real covers;
+  /// it used to draw the same gradient and note icon for every track (audit
+  /// D-04). Older history files have no such field and load with null.
+  final String? artworkPath;
+
   const PlayHistory({
     required this.id,
     required this.name,
@@ -20,6 +27,7 @@ class PlayHistory {
     this.lastPosition,
     this.duration,
     this.lastSource = AudioSourceType.original,
+    this.artworkPath,
   });
 
   PlayHistory copyWith({
@@ -31,6 +39,8 @@ class PlayHistory {
     Duration? lastPosition,
     Duration? duration,
     AudioSourceType? lastSource,
+    String? artworkPath,
+    bool clearArtwork = false,
   }) {
     return PlayHistory(
       id: id ?? this.id,
@@ -41,6 +51,7 @@ class PlayHistory {
       lastPosition: lastPosition ?? this.lastPosition,
       duration: duration ?? this.duration,
       lastSource: lastSource ?? this.lastSource,
+      artworkPath: clearArtwork ? null : artworkPath ?? this.artworkPath,
     );
   }
 
@@ -54,6 +65,7 @@ class PlayHistory {
       'lastPosition': lastPosition?.inMilliseconds,
       'duration': duration?.inMilliseconds,
       'lastSource': lastSource.name,
+      if (artworkPath != null) 'artworkPath': artworkPath,
     };
   }
 
@@ -71,7 +83,15 @@ class PlayHistory {
           ? Duration(milliseconds: json['duration'] as int)
           : null,
       lastSource: AudioSourceType.values.byName(json['lastSource'] as String),
+      artworkPath: _optionalPath(json['artworkPath']),
     );
+  }
+
+  /// A trimmed, non-empty string, or null for anything else.
+  static String? _optionalPath(Object? value) {
+    if (value is! String) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   /// 格式化播放时间

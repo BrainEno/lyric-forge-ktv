@@ -373,39 +373,7 @@ class LyricEditorContent extends StatelessWidget {
             ),
             actions: [
               if (spec.isCompactOrMedium || spec.isShort)
-                LyricProofreadMenuButton(
-                  compact: true,
-                  onProofreadV2: proofread.onProofreadV2,
-                  onReferenceAlignment: proofread.onReferenceAlignment,
-                  onReferenceProofread: proofread.onReferenceProofread,
-                  onUnifyChineseScript: proofread.onUnifyChineseScript,
-                  onRepetitionConsistency: _batchTool(
-                    LyricBatchTextTool.repetitionConsistency,
-                  ),
-                  onTextCleanup: _batchTool(LyricBatchTextTool.textCleanup),
-                  onAsrLoopCheck: _batchTool(LyricBatchTextTool.asrLoopCheck),
-                  onMissedRepeatCheck: _batchTool(
-                    LyricBatchTextTool.missedRepeatCheck,
-                  ),
-                  onSpanRecognition: _batchTool(
-                    LyricBatchTextTool.spanRecognition,
-                  ),
-                  onLineStructure: _batchTool(LyricBatchTextTool.lineStructure),
-                  onTimelineRepair: _batchTool(
-                    LyricBatchTextTool.timelineRepair,
-                  ),
-                  onTimingShift: _batchTool(LyricBatchTextTool.timingShift),
-                  onPaceCheck: _batchTool(LyricBatchTextTool.paceCheck),
-                  onTapSync: _batchTool(LyricBatchTextTool.tapSync),
-                  onWordTap: _batchTool(LyricBatchTextTool.wordTap),
-                  onWordTimingCheck: _batchTool(
-                    LyricBatchTextTool.wordTimingCheck,
-                  ),
-                  onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
-                  onViewComparison: proofread.onViewAlignmentComparison,
-                  onUndoAlignment: proofread.onUndoReferenceAlignment,
-                  onRestoreBackup: proofread.onRestoreAlignment,
-                ),
+                LyricProofreadMenuButton.forActions(proofread, compact: true),
               LyricEditorOverflowMenu(
                 onUndo: history.undoOrNull,
                 onRedo: history.redoOrNull,
@@ -455,24 +423,14 @@ class LyricEditorContent extends StatelessWidget {
                   playbackBelongsToProject: playbackBelongsToProject,
                   review: reviewQueue,
                   filter: filter,
-                  loopCurrentLineAudition: audition.loopCurrentLine,
-                  onLoopCurrentLineAuditionChanged:
-                      audition.onLoopCurrentLineChanged,
                   followPlayback: followPlayback,
                   onFilterChanged: onFilterChanged,
                   onFollowPlaybackChanged: onFollowPlaybackChanged,
                   onUpdateOffset: edits.onUpdateOffset,
                   onTogglePlayback: onTogglePlayback,
                   onSeekPlayback: onSeekPlayback,
-                  onReferenceAlignment: proofread.onReferenceAlignment,
-                  onReferenceProofread: proofread.onReferenceProofread,
-                  onProofreadV2: proofread.onProofreadV2,
-                  onUndoReferenceAlignment: proofread.onUndoReferenceAlignment,
-                  onViewAlignmentComparison:
-                      proofread.onViewAlignmentComparison,
-                  onRestoreAlignment: proofread.onRestoreAlignment,
-                  onUnifyChineseScript: proofread.onUnifyChineseScript,
-                  onBatchTextTool: proofread.onBatchTextTool,
+                  audition: audition,
+                  proofread: proofread,
                 ),
                 Expanded(
                   child: document.lines.isEmpty
@@ -608,16 +566,9 @@ class LyricEditorContent extends StatelessWidget {
                                     playbackBelongsToProject:
                                         playbackBelongsToProject,
                                     currentPlaybackLine: currentPlaybackLine,
-                                    onUpdateLine: edits.onUpdateLine,
-                                    onDeleteLine: edits.onDeleteLine,
+                                    edits: edits,
                                     onSplitLine: _splitLine,
-                                    onMergeLineWithNext:
-                                        edits.onMergeLineWithNext,
                                     onPreviewLine: audition.onPreviewLine,
-                                    onSetStartFromPlayback:
-                                        edits.onSetStartFromPlayback,
-                                    onSetEndFromPlayback:
-                                        edits.onSetEndFromPlayback,
                                     onSeekPlayback: onSeekPlayback,
                                     onEditWordTiming: _batchTool(
                                       LyricBatchTextTool.wordTimingEdit,

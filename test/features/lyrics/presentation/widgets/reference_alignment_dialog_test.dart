@@ -29,7 +29,7 @@ void main() {
     );
     await tester.tap(find.text('打开参考歌词'));
     await tester.pumpAndSettle();
-    expect(find.text('参考歌词纠正'), findsOneWidget);
+    expect(find.text('参考歌词：纠正文字和时间轴'), findsOneWidget);
   }
 
   TextField fieldWithLabel(WidgetTester tester, String label) {
@@ -88,5 +88,82 @@ void main() {
     );
     expect(artistCenter.dy, titleCenter.dy);
     expect(artistCenter.dx, greaterThan(titleCenter.dx));
+  });
+
+  group('ReferenceLyricPurpose', () {
+    Future<void> openFor(
+      WidgetTester tester,
+      ReferenceLyricPurpose purpose,
+    ) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Center(
+                child: TextButton(
+                  onPressed: () => showReferenceAlignmentDialog(
+                    context,
+                    parser: parser,
+                    initialTitle: '测试歌曲',
+                    purpose: purpose,
+                  ),
+                  child: const Text('打开参考歌词'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('打开参考歌词'));
+      await tester.pumpAndSettle();
+    }
+
+    for (final purpose in ReferenceLyricPurpose.values) {
+      testWidgets('${purpose.name} titles the dialog after its own flow', (
+        tester,
+      ) async {
+        await openFor(tester, purpose);
+
+        expect(find.text(purpose.title), findsOneWidget);
+        expect(find.text(purpose.dialogDetail), findsOneWidget);
+        for (final other in ReferenceLyricPurpose.values) {
+          if (other == purpose) continue;
+          expect(find.text(other.title), findsNothing);
+        }
+      });
+    }
+
+    test('the text-only flow never promises new timing', () {
+      final textOnly = ReferenceLyricPurpose.textOnly;
+      expect(textOnly.dialogDetail, contains('时间戳保持不变'));
+      expect(textOnly.dialogDetail, isNot(contains('推断时间')));
+      expect(textOnly.menuDetail, contains('时间戳保持不变'));
+      expect(ReferenceLyricPurpose.alignment.dialogDetail, contains('推断时间'));
+    });
+
+    test('the two reference flows read as a pair', () {
+      const prefix = '参考歌词：';
+      expect(ReferenceLyricPurpose.alignment.title, startsWith(prefix));
+      expect(ReferenceLyricPurpose.textOnly.title, startsWith(prefix));
+      // Neither title carries a version number or engine jargon.
+      for (final purpose in ReferenceLyricPurpose.values) {
+        expect(purpose.title, isNot(matches(RegExp(r'V\d'))));
+        expect(purpose.title, isNot(contains('ASR')));
+      }
+      // Only the flows with a menu entry carry a menu subtitle.
+      expect(ReferenceLyricPurpose.proposal.menuDetail, isNull);
+    });
+
+    test('the default stays the alignment flow', () {
+      final dialog = ReferenceAlignmentDialog(
+        parser: parser,
+        initialTitle: '测试歌曲',
+      );
+      expect(dialog.purpose, ReferenceLyricPurpose.alignment);
+    });
   });
 }

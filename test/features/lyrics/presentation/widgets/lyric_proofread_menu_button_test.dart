@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_actions.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_menu_button.dart';
 
 Widget _host(Widget child) => MaterialApp(
@@ -26,8 +28,8 @@ void main() {
     expect(find.text(LyricProofreadMenuButton.label), findsOneWidget);
     // None of the individual flows is visible before the menu is opened.
     expect(find.text('智能校对'), findsNothing);
-    expect(find.text('参考歌词纠正'), findsNothing);
-    expect(find.text('逐行智能纠错（保留时间戳）'), findsNothing);
+    expect(find.text('参考歌词：纠正文字和时间轴'), findsNothing);
+    expect(find.text('参考歌词：只改文字'), findsNothing);
     expect(find.text('撤销最近更改'), findsNothing);
     expect(find.text('恢复对齐前版本'), findsNothing);
   });
@@ -50,9 +52,9 @@ void main() {
 
     expect(find.text('智能校对'), findsOneWidget);
     expect(find.text('不需要参考歌词；生成不写盘的提案，逐行对比后再应用'), findsOneWidget);
-    expect(find.text('参考歌词纠正'), findsOneWidget);
-    expect(find.text('逐行智能纠错（保留时间戳）'), findsOneWidget);
-    expect(find.text('有参考歌词；只改文字，时间戳保持不变'), findsOneWidget);
+    expect(find.text('参考歌词：纠正文字和时间轴'), findsOneWidget);
+    expect(find.text('参考歌词：只改文字'), findsOneWidget);
+    expect(find.text('有参考歌词；逐行改正文字，时间戳保持不变'), findsOneWidget);
     // Availability-driven entries stay hidden when the editor has nothing to
     // show yet.
     expect(find.text('查看逐行对比'), findsNothing);
@@ -77,8 +79,8 @@ void main() {
 
     for (final entry in {
       '智能校对': 'v2',
-      '参考歌词纠正': 'alignment',
-      '逐行智能纠错（保留时间戳）': 'proofread',
+      '参考歌词：纠正文字和时间轴': 'alignment',
+      '参考歌词：只改文字': 'proofread',
       '查看逐行对比': 'comparison',
       '撤销最近更改': 'undo',
       '恢复对齐前版本': 'restore',
@@ -177,6 +179,95 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('智能校对'), findsOneWidget);
-    expect(find.text('参考歌词纠正'), findsOneWidget);
+    expect(find.text('参考歌词：纠正文字和时间轴'), findsOneWidget);
+  });
+
+  group('forActions', () {
+    test('maps every batch tool to its own entry', () {
+      final opened = <LyricBatchTextTool>[];
+      final button = LyricProofreadMenuButton.forActions(
+        LyricProofreadActions(onBatchTextTool: opened.add),
+      );
+
+      final entries = <VoidCallback?>[
+        button.onRepetitionConsistency,
+        button.onTextCleanup,
+        button.onAsrLoopCheck,
+        button.onMissedRepeatCheck,
+        button.onSpanRecognition,
+        button.onLineStructure,
+        button.onTimelineRepair,
+        button.onTimingShift,
+        button.onPaceCheck,
+        button.onTapSync,
+        button.onWordTap,
+        button.onWordTimingCheck,
+        button.onFindReplace,
+      ];
+      for (final entry in entries) {
+        entry!();
+      }
+
+      expect(opened, [
+        LyricBatchTextTool.repetitionConsistency,
+        LyricBatchTextTool.textCleanup,
+        LyricBatchTextTool.asrLoopCheck,
+        LyricBatchTextTool.missedRepeatCheck,
+        LyricBatchTextTool.spanRecognition,
+        LyricBatchTextTool.lineStructure,
+        LyricBatchTextTool.timelineRepair,
+        LyricBatchTextTool.timingShift,
+        LyricBatchTextTool.paceCheck,
+        LyricBatchTextTool.tapSync,
+        LyricBatchTextTool.wordTap,
+        LyricBatchTextTool.wordTimingCheck,
+        LyricBatchTextTool.findReplace,
+      ]);
+      // Word timing editing belongs to the inspector, not the menu.
+      expect(opened, isNot(contains(LyricBatchTextTool.wordTimingEdit)));
+    });
+
+    test('passes the document-level callbacks through unchanged', () {
+      void alignment() {}
+      void proofread() {}
+      void smart() {}
+      void unify() {}
+      void compare() {}
+      void undo() {}
+      void restore() {}
+      final button = LyricProofreadMenuButton.forActions(
+        LyricProofreadActions(
+          onReferenceAlignment: alignment,
+          onReferenceProofread: proofread,
+          onProofreadV2: smart,
+          onUnifyChineseScript: unify,
+          onViewAlignmentComparison: compare,
+          onUndoReferenceAlignment: undo,
+          onRestoreAlignment: restore,
+        ),
+        compact: true,
+      );
+
+      expect(button.compact, isTrue);
+      expect(button.onReferenceAlignment, same(alignment));
+      expect(button.onReferenceProofread, same(proofread));
+      expect(button.onProofreadV2, same(smart));
+      expect(button.onUnifyChineseScript, same(unify));
+      expect(button.onViewComparison, same(compare));
+      expect(button.onUndoAlignment, same(undo));
+      expect(button.onRestoreBackup, same(restore));
+      // Without a batch tool callback none of the batch entries exist.
+      expect(button.onTapSync, isNull);
+      expect(button.onFindReplace, isNull);
+    });
+
+    testWidgets('an empty group renders nothing', (tester) async {
+      await tester.pumpWidget(
+        _host(LyricProofreadMenuButton.forActions(LyricProofreadActions.none)),
+      );
+
+      expect(find.text(LyricProofreadMenuButton.label), findsNothing);
+      expect(find.byType(IconButton), findsNothing);
+    });
   });
 }

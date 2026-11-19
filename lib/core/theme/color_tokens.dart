@@ -35,6 +35,13 @@ abstract class AppColors {
   // 8.1:1.
   static const Color onAccent = pureBlack;
 
+  // Brand: Forge Red and paper white, sampled from the app icon. They draw
+  // the brand mark (AppBrandMark) and nothing else, so red text and red
+  // states keep meaning "error". Forge Red on bgBase is 4.3:1, above the 3:1
+  // that graphics need (audit B-01).
+  static const Color brand = Color(0xFFF11413);
+  static const Color brandPaper = Color(0xFFF6F2E8);
+
   // Semantic colors
   static const Color error = Color(0xFFE22134);
 

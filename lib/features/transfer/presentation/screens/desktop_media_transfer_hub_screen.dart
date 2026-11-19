@@ -10,6 +10,8 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/navigation/transfer_entry.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_error_state.dart';
 import '../transfer_screen_dependencies.dart';
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
@@ -22,6 +24,9 @@ import '../../domain/services/media_share_catalog.dart';
 /// network service until the user reviews and accepts the HTTPS sharing scope.
 class DesktopMediaTransferHubScreen extends StatefulWidget {
   final DesktopMediaHubDependencies dependencies;
+
+  /// Title of the error state shown when a step fails.
+  static const String failureTitle = '跨设备传输暂时不可用';
 
   const DesktopMediaTransferHubScreen({super.key, required this.dependencies});
 
@@ -40,7 +45,12 @@ class _DesktopMediaTransferHubScreenState
   List<SharedAudioTrack> _tracks = const [];
   bool _busy = false;
   bool _initializing = true;
-  String? _error;
+
+  /// The last failed step and how to run it again. The page used to show the
+  /// message in its own error card with no way to retry; it now uses the
+  /// shared [AppErrorState], whose 重试 repeats exactly the step that failed
+  /// (reading the library, refreshing, starting or stopping the service).
+  ({String message, Future<void> Function() retry})? _failure;
 
   bool get _isDesktop =>
       !kIsWeb &&
@@ -83,12 +93,18 @@ class _DesktopMediaTransferHubScreenState
       // listener. Starting Media Hub requires an explicit user action and
       // confirmation of the media-sharing scope.
     } catch (error) {
-      if (mounted) {
-        setState(() => _error = '读取电脑音乐库失败：$error');
-      }
+      _fail('读取电脑音乐库失败：$error', _retryPrepare);
     } finally {
       if (mounted) setState(() => _initializing = false);
     }
+  }
+
+  Future<void> _retryPrepare() async {
+    setState(() {
+      _initializing = true;
+      _failure = null;
+    });
+    await _prepare();
   }
 
   Future<void> _refreshAndRestart() async {
@@ -102,7 +118,7 @@ class _DesktopMediaTransferHubScreenState
 
     setState(() {
       _busy = true;
-      _error = null;
+      _failure = null;
     });
     try {
       final tracks = await _catalog.build();
@@ -116,7 +132,7 @@ class _DesktopMediaTransferHubScreenState
         wasRunning ? '电脑音乐库已刷新；二维码已更新，请让手机重新扫码。' : '电脑音乐库已刷新；传输服务仍保持关闭。',
       );
     } catch (error) {
-      if (mounted) setState(() => _error = '刷新共享音乐库失败：$error');
+      _fail('刷新共享音乐库失败：$error', _refreshAndRestart);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -128,17 +144,22 @@ class _DesktopMediaTransferHubScreenState
 
     setState(() {
       _busy = true;
-      _error = null;
+      _failure = null;
     });
     try {
       final tracks = await _catalog.build();
       await _hub.startSharing(tracks);
       if (mounted) setState(() => _tracks = tracks);
     } catch (error) {
-      if (mounted) setState(() => _error = '启动传输服务失败：$error');
+      _fail('启动传输服务失败：$error', _start);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _fail(String message, Future<void> Function() retry) {
+    if (!mounted) return;
+    setState(() => _failure = (message: message, retry: retry));
   }
 
   Future<bool> _confirmMediaSharing() async {
@@ -171,11 +192,14 @@ class _DesktopMediaTransferHubScreenState
 
   Future<void> _stop() async {
     if (_busy || !_hub.isRunning) return;
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _failure = null;
+    });
     try {
       await _hub.stopSharing();
     } catch (error) {
-      if (mounted) setState(() => _error = '停止传输服务失败：$error');
+      _fail('停止传输服务失败：$error', _stop);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -208,6 +232,7 @@ class _DesktopMediaTransferHubScreenState
     final layout = AppResponsive.of(context);
     final session = _hubState.session;
     final running = _hubState.isRunning;
+    final failure = _failure;
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
@@ -240,9 +265,18 @@ class _DesktopMediaTransferHubScreenState
                   onStop: _stop,
                   onRefresh: _refreshAndRestart,
                 ),
-                if (_error != null) ...[
+                if (failure != null) ...[
                   const SizedBox(height: AppSpacing.md),
-                  _ErrorCard(message: _error!),
+                  Card(
+                    child: AppErrorState(
+                      title: DesktopMediaTransferHubScreen.failureTitle,
+                      message: failure.message,
+                      density: AppEmptyStateDensity.panel,
+                      onRetry: _busy || _initializing
+                          ? null
+                          : () => unawaited(failure.retry()),
+                    ),
+                  ),
                 ],
                 const SizedBox(height: AppSpacing.md),
                 if (session != null && running)
@@ -676,25 +710,5 @@ class _SharedTracksCard extends StatelessWidget {
       return '${(bytes / 1024).toStringAsFixed(0)} KB';
     }
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-}
-
-class _ErrorCard extends StatelessWidget {
-  final String message;
-
-  const _ErrorCard({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(
-          Icons.error_outline_rounded,
-          color: AppColors.error,
-        ),
-        title: const Text('跨设备传输暂时不可用'),
-        subtitle: Text(message),
-      ),
-    );
   }
 }

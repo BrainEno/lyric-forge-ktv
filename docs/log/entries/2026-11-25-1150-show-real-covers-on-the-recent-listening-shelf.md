@@ -1,0 +1,22 @@
+# [2026-11-25 11:50] Show real covers on the recent listening shelf
+
+- Scope: UI/UX audit D-04, which earlier rounds marked done after the shelf moved into `dashboard_shelves.dart`, but every recent listening card still drew the same gradient and note icon: `PlayHistory` had no cover to show. The session now records the cover the player showed when it saves a history entry, `PlayHistory.artworkPath` persists it (written only when present, read back trimmed, and absent from older history files, which load unchanged), and the shelf's cards draw it through the shared `AppArtwork`, so a missing or unreadable file falls back to the same placeholder as every other cover. The "own cover, else audio thumbnail" rule moved from `PlaybackArtwork.localPathOf` to `PlaybackItem.localArtworkPath`, so the player surfaces and the history use one definition.
+- Files:
+  - `lib/features/player/domain/models/play_history.dart` (`artworkPath`, JSON, `copyWith` with `clearArtwork`).
+  - `lib/features/player/domain/services/playback_session_service.dart` (`PlaybackItem.localArtworkPath`).
+  - `lib/features/player/presentation/widgets/playback_artwork.dart` (delegates to it).
+  - `lib/features/player/data/services/default_playback_session_service.dart` (records the cover).
+  - `lib/features/home/presentation/widgets/dashboard_shelves.dart` (`AppArtwork` on the cards).
+  - `test/features/player/domain/play_history_artwork_test.dart` (new: round trip, omitted when absent, legacy rows, blank or malformed values, `copyWith`; `localArtworkPath` precedence, fallback, trimming).
+  - `test/playback_history_tracking_test.dart` (cover recorded, thumbnail fallback, none; two long test headers reformatted).
+  - `test/file_play_history_repository_test.dart` (cover survives repository recreation).
+  - `test/features/home/presentation/widgets/dashboard_shelves_test.dart` (cards pass the recorded cover to `AppArtwork`).
+  - `test/architecture/artwork_convergence_test.dart` (the shelf joins the converged screens).
+- Validation:
+  - No Dart/Flutter toolchain in the sandbox; `dart format`, `flutter analyze` and the tests run in the PR's Flutter Quality Gate and the temporary format probe.
+  - The format probe found older formatter debt elsewhere in `test/playback_history_tracking_test.dart` (two collapsible lists); the follow-up commit `Apply the formatter to the play history tracking test` fixes it, since the quality gate formats every touched file.
+  - Work-log `write` + `check` => Python port of `tool/work_log.dart`.
+- Notes:
+  - Entries saved before this change keep the placeholder until the track is played again; looking covers up in the library for them would make the dashboard depend on the library repository for a cosmetic gain.
+  - Project-backed playback and Media Hub streams stay out of the recent listening history, as before.
+- Commit: `Show real covers on the recent listening shelf`

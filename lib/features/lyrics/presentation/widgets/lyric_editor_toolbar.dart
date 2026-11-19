@@ -8,7 +8,7 @@ import '../../../player/presentation/widgets/seekable_progress_bar.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../lyric_review_strings.dart';
-import 'lyric_batch_text_edit.dart';
+import 'lyric_editor_actions.dart';
 import 'lyric_proofread_menu_button.dart';
 
 /// Which lines the editor list shows.
@@ -43,24 +43,19 @@ class LyricEditorToolbar extends StatelessWidget {
   final LyricReviewQueue review;
   final LyricReviewFilter filter;
   final ValueChanged<LyricReviewFilter> onFilterChanged;
-  final bool loopCurrentLineAudition;
-  final ValueChanged<bool> onLoopCurrentLineAuditionChanged;
   final bool followPlayback;
   final ValueChanged<bool> onFollowPlaybackChanged;
   final ValueChanged<Duration> onUpdateOffset;
   final VoidCallback onTogglePlayback;
   final ValueChanged<Duration> onSeekPlayback;
-  final VoidCallback? onReferenceAlignment;
-  final VoidCallback? onReferenceProofread;
-  final VoidCallback? onProofreadV2;
-  final VoidCallback? onUndoReferenceAlignment;
-  final VoidCallback? onViewAlignmentComparison;
-  final VoidCallback? onRestoreAlignment;
-  final VoidCallback? onUnifyChineseScript;
 
-  /// Opens one of the batch text tools (find-and-replace, repeated-line
-  /// consistency, text clean-up); null while there are no lyrics.
-  final ValueChanged<LyricBatchTextTool>? onBatchTextTool;
+  /// The single-row loop toggle, shown while reviewing the queue.
+  final LyricAuditionControls audition;
+
+  /// Whole-document tools behind the 校对 menu on wide layouts. The group is
+  /// passed through unchanged, so the toolbar no longer repeats the eight
+  /// callbacks the editor content already carries (audit E-04).
+  final LyricProofreadActions proofread;
 
   const LyricEditorToolbar({
     super.key,
@@ -70,28 +65,14 @@ class LyricEditorToolbar extends StatelessWidget {
     required this.review,
     required this.filter,
     required this.onFilterChanged,
-    required this.loopCurrentLineAudition,
-    required this.onLoopCurrentLineAuditionChanged,
     required this.followPlayback,
     required this.onFollowPlaybackChanged,
     required this.onUpdateOffset,
     required this.onTogglePlayback,
     required this.onSeekPlayback,
-    required this.onReferenceAlignment,
-    required this.onReferenceProofread,
-    required this.onProofreadV2,
-    required this.onUndoReferenceAlignment,
-    required this.onViewAlignmentComparison,
-    required this.onRestoreAlignment,
-    this.onUnifyChineseScript,
-    this.onBatchTextTool,
+    required this.audition,
+    this.proofread = LyricProofreadActions.none,
   });
-
-  /// A menu callback for [tool], or null when the tools are unavailable.
-  VoidCallback? _batchTool(LyricBatchTextTool tool) {
-    final open = onBatchTextTool;
-    return open == null ? null : () => open(tool);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,45 +151,14 @@ class LyricEditorToolbar extends StatelessWidget {
                 Tooltip(
                   message: LyricReviewStrings.loopCurrentLineHelp,
                   child: FilterChip(
-                    selected: loopCurrentLineAudition,
-                    onSelected: onLoopCurrentLineAuditionChanged,
+                    selected: audition.loopCurrentLine,
+                    onSelected: audition.onLoopCurrentLineChanged,
                     avatar: const Icon(Icons.repeat_rounded, size: 16),
                     label: const Text(LyricReviewStrings.loopCurrentLineLabel),
                   ),
                 ),
               if (showProofreadMenu)
-                LyricProofreadMenuButton(
-                  onProofreadV2: onProofreadV2,
-                  onReferenceAlignment: onReferenceAlignment,
-                  onReferenceProofread: onReferenceProofread,
-                  onUnifyChineseScript: onUnifyChineseScript,
-                  onRepetitionConsistency: _batchTool(
-                    LyricBatchTextTool.repetitionConsistency,
-                  ),
-                  onTextCleanup: _batchTool(LyricBatchTextTool.textCleanup),
-                  onAsrLoopCheck: _batchTool(LyricBatchTextTool.asrLoopCheck),
-                  onMissedRepeatCheck: _batchTool(
-                    LyricBatchTextTool.missedRepeatCheck,
-                  ),
-                  onSpanRecognition: _batchTool(
-                    LyricBatchTextTool.spanRecognition,
-                  ),
-                  onLineStructure: _batchTool(LyricBatchTextTool.lineStructure),
-                  onTimelineRepair: _batchTool(
-                    LyricBatchTextTool.timelineRepair,
-                  ),
-                  onTimingShift: _batchTool(LyricBatchTextTool.timingShift),
-                  onPaceCheck: _batchTool(LyricBatchTextTool.paceCheck),
-                  onTapSync: _batchTool(LyricBatchTextTool.tapSync),
-                  onWordTap: _batchTool(LyricBatchTextTool.wordTap),
-                  onWordTimingCheck: _batchTool(
-                    LyricBatchTextTool.wordTimingCheck,
-                  ),
-                  onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
-                  onViewComparison: onViewAlignmentComparison,
-                  onUndoAlignment: onUndoReferenceAlignment,
-                  onRestoreBackup: onRestoreAlignment,
-                ),
+                LyricProofreadMenuButton.forActions(proofread),
             ],
           ),
           if (playbackBelongsToProject) ...[

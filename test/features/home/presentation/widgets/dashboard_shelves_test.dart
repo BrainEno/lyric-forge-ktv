@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/widgets/app_artwork.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/widgets/dashboard_shelves.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/play_history.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
@@ -217,6 +218,42 @@ void main() {
       expect(find.text('歌手乙'), findsOneWidget);
       await tester.tap(find.text('第二首'));
       expect(played, ['two']);
+    });
+
+    testWidgets('cards show the recorded cover through AppArtwork', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        DashboardRecentShelf(
+          histories: [
+            PlayHistory(
+              id: 'covered',
+              name: '有封面',
+              filePath: '/music/covered.mp3',
+              playedAt: DateTime(2026),
+              artworkPath: '/covers/covered.jpg',
+            ),
+            PlayHistory(
+              id: 'bare',
+              name: '没封面',
+              filePath: '/music/bare.mp3',
+              playedAt: DateTime(2026),
+            ),
+          ],
+          onPlay: (_) {},
+        ),
+      );
+
+      final covers = tester
+          .widgetList<AppArtwork>(find.byType(AppArtwork))
+          .toList();
+      expect(covers, hasLength(2));
+      expect(covers.first.path, '/covers/covered.jpg');
+      expect(covers.last.path, isNull);
+      // Neither file exists here, so both fall back to the shared
+      // placeholder instead of the old per-card gradient.
+      expect(find.byIcon(Icons.music_note_rounded), findsNWidgets(2));
     });
   });
 

@@ -203,6 +203,7 @@ class LyricEditorProofreadingCoordinator {
       parser: referenceParser,
       initialTitle: project.name,
       initialArtist: project.artist,
+      purpose: ReferenceLyricPurpose.textOnly,
     );
     if (input == null ||
         !context.mounted ||
@@ -340,6 +341,7 @@ class LyricEditorProofreadingCoordinator {
         parser: referenceParser,
         initialTitle: project.name,
         initialArtist: project.artist,
+        purpose: ReferenceLyricPurpose.proposal,
       );
       if (reference == null ||
           !context.mounted ||

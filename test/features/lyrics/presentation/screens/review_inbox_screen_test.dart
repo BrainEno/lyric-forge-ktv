@@ -43,6 +43,10 @@ class _FakeProjectRepository implements ProjectRepository {
   final List<ProjectManifest> projects;
   bool fail = false;
   int calls = 0;
+  int writes = 0;
+
+  /// Makes the next conditional update fail as if the editor saved first.
+  bool conflictNext = false;
 
   @override
   Future<List<ProjectManifest>> getAllProjects() async {
@@ -78,7 +82,18 @@ class _FakeProjectRepository implements ProjectRepository {
   Future<ProjectManifest> updateProjectIfUnchanged(
     ProjectManifest project, {
     required int expectedRevision,
-  }) async => throw UnimplementedError();
+  }) async {
+    final index = projects.indexWhere((stored) => stored.id == project.id);
+    final current = projects[index];
+    if (conflictNext || current.revision != expectedRevision) {
+      conflictNext = false;
+      throw ProjectUpdateConflictException(currentProject: current);
+    }
+    writes++;
+    final saved = project.copyWith(revision: expectedRevision + 1);
+    projects[index] = saved;
+    return saved;
+  }
 
   @override
   Future<void> deleteProject(String id) async {}
@@ -264,5 +279,125 @@ void main() {
     expect(artwork.path, isNull);
     expect(artwork.placeholderIcon, Icons.lyrics_outlined);
     expect(find.byIcon(Icons.lyrics_outlined), findsOneWidget);
+  });
+
+  group('全部标为已复核', () {
+    Finder menuOf(String id) =>
+        find.byKey(ValueKey('review-inbox:actions:$id'));
+
+    Future<void> chooseMarkAll(WidgetTester tester, String id) async {
+      await tester.tap(menuOf(id));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(ReviewInboxScreen.markAllReviewedLabel));
+      await tester.pumpAndSettle();
+    }
+
+    Finder confirmButton() => find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.widgetWithText(
+        FilledButton,
+        ReviewInboxScreen.markAllReviewedLabel,
+      ),
+    );
+
+    ProjectManifest pendingProject() => _project(
+      id: 'p',
+      name: '待处理',
+      lines: [
+        _line('第 1 行', confidence: 20),
+        _line('第 2 行', confidence: 30, startSeconds: 4),
+        _line('第 3 行', startSeconds: 8),
+      ],
+    );
+
+    testWidgets('只有还有待复核行的工程才有这个菜单', (tester) async {
+      repository = _FakeProjectRepository([
+        pendingProject(),
+        _project(id: 'done', name: '已完成', lines: [_line('星星')]),
+      ]);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('已复核的工程 · 1 个'));
+      await tester.pumpAndSettle();
+
+      expect(menuOf('p'), findsOneWidget);
+      expect(menuOf('done'), findsNothing);
+      expect(
+        find.byTooltip(ReviewInboxScreen.moreActionsTooltip),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('确认前说明会改多少行', (tester) async {
+      repository = _FakeProjectRepository([pendingProject()]);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await chooseMarkAll(tester, 'p');
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(
+        find.textContaining('「待处理」的 3 行都会记为人工确认，待复核的 2 行会离开队列。'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('重新回到待复核'), findsOneWidget);
+    });
+
+    testWidgets('取消时什么都不写', (tester) async {
+      repository = _FakeProjectRepository([pendingProject()]);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await chooseMarkAll(tester, 'p');
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+
+      expect(repository.writes, 0);
+      expect(find.text('待复核 2'), findsOneWidget);
+    });
+
+    testWidgets('确认后工程离开待复核队列，并可以撤销', (tester) async {
+      repository = _FakeProjectRepository([pendingProject()]);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await chooseMarkAll(tester, 'p');
+      await tester.tap(confirmButton());
+      await tester.pumpAndSettle();
+
+      expect(repository.writes, 1);
+      expect(find.text(ReviewInboxScreen.markedMessage('待处理')), findsOneWidget);
+      expect(find.text('待复核 2'), findsNothing);
+      expect(find.text('已复核'), findsOneWidget);
+      expect(find.textContaining('3 行已确认'), findsOneWidget);
+      expect(find.textContaining('暂时没有待复核的行'), findsOneWidget);
+
+      await tester.tap(find.text(ReviewInboxScreen.undoLabel));
+      await tester.pumpAndSettle();
+
+      expect(repository.writes, 2);
+      expect(find.text(ReviewInboxScreen.undoneMessage), findsOneWidget);
+      expect(find.text('待复核 2'), findsOneWidget);
+      expect(find.textContaining('0 行已确认'), findsOneWidget);
+    });
+
+    testWidgets('别处刚保存过时不覆盖，提示再试', (tester) async {
+      repository = _FakeProjectRepository([pendingProject()]);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      repository.conflictNext = true;
+      await chooseMarkAll(tester, 'p');
+      await tester.tap(confirmButton());
+      await tester.pumpAndSettle();
+
+      expect(repository.writes, 0);
+      expect(
+        find.text(ReviewInboxScreen.conflictMessage('待处理')),
+        findsOneWidget,
+      );
+      expect(find.text(ReviewInboxScreen.undoLabel), findsNothing);
+      expect(find.text('待复核 2'), findsOneWidget);
+    });
   });
 }

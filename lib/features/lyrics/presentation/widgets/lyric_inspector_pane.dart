@@ -10,13 +10,17 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/secondary_only_suggestion.dart';
 import '../../domain/services/character_diff_service.dart';
+import 'lyric_editor_actions.dart';
 import 'lyric_editor_atoms.dart';
 import 'lyric_word_timing_strip.dart';
 
 /// Right-hand inspector for the selected line: timestamps, confidence, nudges
 /// and alternative candidates.
 ///
-/// Extracted from the editor screen (Phase 4.1); its parameters are unchanged.
+/// Extracted from the editor screen (Phase 4.1). Row edits arrive as the
+/// editor's [LyricLineEditActions] group instead of five loose callbacks
+/// (audit E-04); only splitting stays separate, because the content binds the
+/// paused playhead into it first.
 
 class InspectorPane extends StatelessWidget {
   final LyricDocument document;
@@ -28,17 +32,13 @@ class InspectorPane extends StatelessWidget {
   final PlaybackState playback;
   final bool playbackBelongsToProject;
   final int? currentPlaybackLine;
-  final void Function(int, LyricLine) onUpdateLine;
-  final ValueChanged<int> onDeleteLine;
+
+  /// Update, delete, merge and the two set-from-playback edits.
+  final LyricLineEditActions edits;
 
   /// Splits a row at a text offset; null offset means the natural break.
   final void Function(int index, int? textOffset)? onSplitLine;
-
-  /// Merges a row with the next one.
-  final ValueChanged<int>? onMergeLineWithNext;
   final ValueChanged<int> onPreviewLine;
-  final ValueChanged<int> onSetStartFromPlayback;
-  final ValueChanged<int> onSetEndFromPlayback;
 
   /// Seeks the project's audio to an audio position (word timing chips).
   final ValueChanged<Duration>? onSeekPlayback;
@@ -58,13 +58,9 @@ class InspectorPane extends StatelessWidget {
     required this.playback,
     required this.playbackBelongsToProject,
     required this.currentPlaybackLine,
-    required this.onUpdateLine,
-    required this.onDeleteLine,
+    required this.edits,
     this.onSplitLine,
-    this.onMergeLineWithNext,
     required this.onPreviewLine,
-    required this.onSetStartFromPlayback,
-    required this.onSetEndFromPlayback,
     this.onSeekPlayback,
     this.onEditWordTiming,
     required this.autofocusText,
@@ -79,6 +75,7 @@ class InspectorPane extends StatelessWidget {
     }
 
     final line = document.lines[index];
+    final merge = edits.onMergeLineWithNext;
     return LineInspector(
       key: ValueKey('inspector_${index}_$focusRequestId'),
       index: index,
@@ -91,21 +88,20 @@ class InspectorPane extends StatelessWidget {
           playbackBelongsToProject && currentPlaybackLine == index,
       isPlaying: playbackBelongsToProject && playback.isPlaying,
       autofocusText: autofocusText,
-      onUpdate: (updated) => onUpdateLine(index, updated),
-      onDelete: () => onDeleteLine(index),
+      onUpdate: (updated) => edits.onUpdateLine(index, updated),
+      onDelete: () => edits.onDeleteLine(index),
       onSplit: onSplitLine == null
           ? null
           : (textOffset) => onSplitLine!(index, textOffset),
-      onMergeWithNext:
-          onMergeLineWithNext == null || index + 1 >= document.lines.length
+      onMergeWithNext: merge == null || index + 1 >= document.lines.length
           ? null
-          : () => onMergeLineWithNext!(index),
+          : () => merge(index),
       onPreview: () => onPreviewLine(index),
       onUsePlaybackAsStart: playbackBelongsToProject
-          ? () => onSetStartFromPlayback(index)
+          ? () => edits.onSetStartFromPlayback(index)
           : null,
       onUsePlaybackAsEnd: playbackBelongsToProject
-          ? () => onSetEndFromPlayback(index)
+          ? () => edits.onSetEndFromPlayback(index)
           : null,
       onSeekToTime: playbackBelongsToProject && onSeekPlayback != null
           ? (time) =>

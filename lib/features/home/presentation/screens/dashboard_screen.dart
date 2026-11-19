@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/diagnostics/app_build_info.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/playback_destination.dart';
 import '../../../../core/navigation/routes.dart';
@@ -7,6 +8,7 @@ import '../../../../core/navigation/transfer_entry.dart';
 import '../dashboard_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_brand_mark.dart';
 import '../../../player/domain/models/play_history.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/repositories/play_history_repository.dart';
@@ -385,11 +387,11 @@ class _Header extends StatelessWidget {
       builder: (context, constraints) {
         final layout = AppResponsive.fromConstraints(constraints);
         final compact = layout.isCompactOrMedium || layout.isShort;
-        final identity = Column(
+        final name = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Elysium Player',
+              appDisplayName,
               style:
                   (layout.isCompact
                           ? Theme.of(context).textTheme.headlineSmall
@@ -406,6 +408,15 @@ class _Header extends StatelessWidget {
                 context,
               ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
+          ],
+        );
+        // The icon's brand mark beside the name ties the header to the app
+        // icon (audit B-01); the name right next to it is the spoken label.
+        final identity = Row(
+          children: [
+            AppBrandMark(size: layout.isCompact ? 30 : 38, semanticLabel: ''),
+            const SizedBox(width: AppSpacing.md),
+            Flexible(child: name),
           ],
         );
         final actions = Wrap(

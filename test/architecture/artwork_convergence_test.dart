@@ -44,6 +44,7 @@ void main() {
           'local_media_metadata_dialog.dart',
       'lib/features/transfer/presentation/screens/'
           'mobile_download_manager_screen.dart',
+      'lib/features/home/presentation/widgets/dashboard_shelves.dart',
     ];
     for (final path in screens) {
       final source = File(path).readAsStringSync();
