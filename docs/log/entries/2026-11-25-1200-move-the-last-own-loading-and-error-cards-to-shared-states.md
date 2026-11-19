@@ -12,6 +12,7 @@
 - Validation:
   - No Dart/Flutter toolchain in the sandbox; `dart format`, `flutter analyze` and the tests run in the PR's Flutter Quality Gate and the temporary format probe.
   - The source contracts that read these files (`media_hub_security_consent_contract_test.dart`: `_prepare` still never starts the listener; `asr_storage_preflight_contract_test.dart`: the card's copy) are unchanged.
+  - The format probe found older formatter debt in `asr_storage_preflight_card.dart` (old-style nested ternaries and `copyWith` indents); the follow-up commit `Apply the formatter to the storage preflight card` rewrites the file to the probe's exact output (blob `b324cd9`), since the quality gate formats every touched file.
   - Work-log `write` + `check` => Python port of `tool/work_log.dart`.
 - Notes:
   - Button spinners (`AppButtonSpinner`) and the transfer page's own start button spinner are a different pattern and stay as they are.

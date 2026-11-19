@@ -30,35 +30,34 @@ class AsrStoragePreflightCard extends StatelessWidget {
     final insufficient = value.state == AsrStoragePreflightState.insufficient;
     final unknown = value.state == AsrStoragePreflightState.unknown;
     final ready = value.state == AsrStoragePreflightState.ready;
-    final notApplicable =
-        value.state == AsrStoragePreflightState.notApplicable;
+    final notApplicable = value.state == AsrStoragePreflightState.notApplicable;
     final accent = insufficient
         ? AppColors.error
         : unknown
-            ? AppColors.warning
-            : ready
-                ? AppColors.success
-                : notApplicable
-                    ? AppColors.textTertiary
-                    : AppColors.accent;
+        ? AppColors.warning
+        : ready
+        ? AppColors.success
+        : notApplicable
+        ? AppColors.textTertiary
+        : AppColors.accent;
     final icon = insufficient
         ? Icons.sd_storage_rounded
         : unknown
-            ? Icons.help_outline_rounded
-            : ready
-                ? Icons.check_circle_outline_rounded
-                : notApplicable
-                    ? Icons.tune_rounded
-                    : Icons.storage_rounded;
+        ? Icons.help_outline_rounded
+        : ready
+        ? Icons.check_circle_outline_rounded
+        : notApplicable
+        ? Icons.tune_rounded
+        : Icons.storage_rounded;
     final title = insufficient
         ? '磁盘空间不足，暂不开始下载'
         : unknown
-            ? '无法读取磁盘剩余空间'
-            : ready
-                ? '识别环境已安装完成'
-                : notApplicable
-                    ? '自定义安装位置不参与托管预检'
-                    : '磁盘空间充足';
+        ? '无法读取磁盘剩余空间'
+        : ready
+        ? '识别环境已安装完成'
+        : notApplicable
+        ? '自定义安装位置不参与托管预检'
+        : '磁盘空间充足';
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -82,15 +81,15 @@ class AsrStoragePreflightCard extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       value.detail,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -134,18 +133,18 @@ class AsrStoragePreflightCard extends StatelessWidget {
             Text(
               '空间预算包含安装过程临时空间 ${_formatBytes(value.temporaryHeadroomBytes)} '
               '+ 安全余量 ${_formatBytes(value.safetyMarginBytes)}；已下载的目标模型与 .part 断点会计入可复用空间。',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
             ),
           ],
           const SizedBox(height: AppSpacing.sm),
           SelectionArea(
             child: Text(
               '安装目录：${value.managedRoot}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
             ),
           ),
           if (onChangeLocation != null) ...[
@@ -201,16 +200,16 @@ class _Metric extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
           ),
           Text(
             value,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: emphasis ? AppColors.error : null,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: emphasis ? AppColors.error : null,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),

@@ -31,8 +31,10 @@ jobs:
           else
             i=0
             for f in $(git diff --name-only -- "${files[@]}"); do
-              d=$(git --no-pager diff -- "$f" | head -c 3500 | sed ':a;N;$!ba;s/\n/\\n/g')
-              echo "::warning title=fmt $i::$d"
+              full=$(git --no-pager diff -U1 -- "$f" | sed ':a;N;$!ba;s/\n/\\n/g')
+              for ((o=0; o<${#full} && o<28000; o+=3500)); do
+                echo "::warning title=fmt $i.$o::${full:o:3500}"
+              done
               i=$((i+1))
             done
           fi
