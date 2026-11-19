@@ -15,6 +15,7 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/media_transfer_batch.dart';
 import '../../domain/models/media_transfer_queue.dart';
 import '../../domain/services/media_transfer_queue_service.dart';
+import '../widgets/transfer_list_states.dart';
 import 'remote_catalog_utils.dart';
 
 /// Downloads tab of [MobileRemoteLibraryShell]: active and failed transfer
@@ -332,34 +333,24 @@ class _MobileDownloadManagerScreenState
               ),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _error!,
-                  style: const TextStyle(color: AppColors.errorText),
+                TransferErrorBanner(
+                  message: _error!,
+                  onDismiss: () => setState(() => _error = null),
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
               if (_loading && _downloads.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(AppSpacing.xl),
-                  child: Center(child: CircularProgressIndicator()),
+                const TransferListLoading(
+                  message: TransferListText.downloadsLoading,
                 )
               else if (visible.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(AppSpacing.xl),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.download_for_offline_outlined,
-                        size: 48,
-                        color: AppColors.textTertiary,
-                      ),
-                      SizedBox(height: AppSpacing.sm),
-                      Text(
-                        '还没有匹配的已下载歌曲',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
+                TransferEmptyResult(
+                  icon: Icons.download_for_offline_outlined,
+                  noun: '已下载歌曲',
+                  emptyTitle: TransferListText.downloadsEmptyTitle,
+                  emptyMessage: TransferListText.downloadsEmptyMessage,
+                  query: _searchController.text,
+                  onClearSearch: _searchController.clear,
                 )
               else
                 for (final entry in visible) ...[
