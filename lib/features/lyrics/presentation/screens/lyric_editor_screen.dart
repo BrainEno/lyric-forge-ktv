@@ -1007,7 +1007,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     return FutureBuilder<ProjectManifest?>(
       future: _projectFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        // A save swaps in a completed future: keep the editor mounted instead
+        // of flashing the spinner and rebuilding every pane from scratch.
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const LyricEditorLoadingState();
         }
 

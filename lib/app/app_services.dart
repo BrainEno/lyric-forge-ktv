@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'diagnostics_assembly.dart';
 import 'ktv_recording_assembly.dart';
@@ -19,6 +20,7 @@ import '../features/player/data/services/just_audio_audio_preview_service.dart';
 import '../features/player/data/services/file_audio_path_canonicalizer.dart';
 import '../features/player/data/services/file_ktv_microphone_preference_store.dart';
 import '../features/player/data/services/file_ktv_take_history_store.dart';
+import '../features/player/data/services/file_library_folder_store.dart';
 import '../features/player/data/services/file_local_media_relink_service.dart';
 import '../features/player/data/services/record_soloud_ktv_microphone_service.dart';
 import '../features/player/data/services/just_audio_player_service.dart';
@@ -39,6 +41,8 @@ import '../features/player/domain/services/ktv_microphone_service.dart';
 import '../features/player/domain/services/ktv_recording_service.dart';
 import '../features/player/domain/services/ktv_take_history_store.dart';
 import '../features/player/domain/services/embedded_audio_metadata_reader.dart';
+import '../features/player/domain/services/library_folder_settings.dart';
+import '../features/player/domain/services/library_lyrics_auto_linker.dart';
 import '../features/player/domain/services/local_media_relink_service.dart';
 import '../features/player/domain/services/playback_session_service.dart';
 import '../features/project/data/repositories/file_project_repository.dart';
@@ -137,6 +141,12 @@ class AppServices {
   late final LocalMediaRelinkService localMediaRelinkService;
   late final LyricFileImportService lyricFileImportService;
   late final LyricFileExportService lyricFileExportService;
+
+  /// The 曲库目录 setting (decision D-033).
+  late final LibraryFolderSettings libraryFolderSettings;
+
+  /// Pairs lyric files in the library folder with songs (decision D-033).
+  late final LibraryLyricsAutoLinker libraryLyricsAutoLinker;
   late final PlayHistoryRepository playHistoryRepository;
   late final PlaybackSessionStore playbackSessionStore;
   late final PlaybackSessionService playbackSessionService;
@@ -214,7 +224,17 @@ class AppServices {
     );
     localMediaMetadataRepository = FileLocalMediaMetadataRepository();
     lyricFileImportService = LocalLyricFileImportService();
-    lyricFileExportService = const LocalLyricFileExportService();
+    libraryFolderSettings = LibraryFolderSettings(
+      store: const FileLibraryFolderStore(),
+      library: localMediaLibraryRepository,
+      systemMusicFolder: systemMusicFolder(
+        operatingSystem: Platform.operatingSystem,
+        environment: Platform.environment,
+      ),
+    );
+    lyricFileExportService = LocalLyricFileExportService(
+      initialDirectory: libraryFolderSettings.currentPath,
+    );
     final filePlayHistoryRepository = FilePlayHistoryRepository();
     playHistoryRepository = filePlayHistoryRepository;
     localMediaRelinkService = FileLocalMediaRelinkService(
@@ -249,6 +269,16 @@ class AppServices {
       mediaMetadataRepository: localMediaMetadataRepository,
       playbackSession: playbackSessionService,
       pathCanonicalizer: audioPathCanonicalizer,
+    );
+    libraryLyricsAutoLinker = LibraryLyricsAutoLinker(
+      library: localMediaLibraryRepository,
+      metadata: localMediaMetadataRepository,
+      projects: projectRepository,
+      importer: lyricFileImportService,
+      playbackSession: playbackSessionService,
+      pathCanonicalizer: audioPathCanonicalizer,
+      folderSettings: libraryFolderSettings,
+      listFiles: listLyricFiles,
     );
 
     final rawMediaHub = HttpMediaHubService(

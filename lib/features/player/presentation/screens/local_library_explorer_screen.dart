@@ -19,10 +19,12 @@ import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/repositories/local_store_integrity.dart';
 import '../../domain/repositories/play_history_repository.dart';
 import '../../domain/services/audio_library_import_service.dart';
+import '../../domain/services/library_lyrics_auto_linker.dart';
 import '../../domain/services/local_media_relink_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_media_metadata_dialog.dart';
+import '../widgets/library_lyrics_link_text.dart';
 import '../widgets/local_store_integrity_banner.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
 
@@ -75,7 +77,7 @@ class _LocalLibraryExplorerScreenState
     _collectionSubscription = _collections.changes.listen((_) {
       unawaited(_reload(showLoading: false));
     });
-    unawaited(_reload());
+    unawaited(_reload(linkLyricFiles: true));
   }
 
   @override
@@ -94,6 +96,7 @@ class _LocalLibraryExplorerScreenState
     bool rescan = false,
     bool forceTags = false,
     bool showLoading = true,
+    bool linkLyricFiles = false,
   }) async {
     if (mounted && showLoading) setState(() => _loading = true);
     try {
@@ -150,6 +153,7 @@ class _LocalLibraryExplorerScreenState
         _storeIssues = storeIssues;
         _error = null;
       });
+      if (rescan || linkLyricFiles) unawaited(_linkLyricFiles());
     } catch (error) {
       if (mounted) {
         setState(() => _error = '音乐库加载失败：${describeLocalLibraryError(error)}');
@@ -157,6 +161,27 @@ class _LocalLibraryExplorerScreenState
     } finally {
       if (mounted && showLoading) setState(() => _loading = false);
     }
+  }
+
+  /// Gives songs without lyrics the lyric files saved for them in the
+  /// library folder or beside them (decision D-033), then says which.
+  Future<void> _linkLyricFiles() async {
+    final linker = widget.dependencies.lyricsAutoLinker;
+    if (linker == null) return;
+    final LibraryLyricsLinkResult result;
+    try {
+      result = await linker.linkAll();
+    } on Exception {
+      // Pairing is a convenience: the library itself loaded fine.
+      return;
+    }
+    final notice = LibraryLyricsLinkText.libraryNotice(result);
+    if (notice == null || !mounted) return;
+    await _reload(showLoading: false);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(notice), duration: const Duration(seconds: 6)),
+    );
   }
 
   List<_ExplorerSong> get _visibleSongs => queryLocalLibrary<_ExplorerSong>(

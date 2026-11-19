@@ -135,13 +135,28 @@ class FileProjectRepository implements ProjectRepository {
     }
   }
 
-  Future<void> _persist() {
-    final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': _schemaVersion,
-      'projects': _projects.values
-          .map((project) => project.toJson())
-          .toList(growable: false),
-    });
+  Future<void> _persist() => _writePayload(_encode(_projects.values));
+
+  /// Encodes the whole store. Throws [ProjectRepositoryException] when a value
+  /// cannot be written as JSON, so callers can refuse a change before it
+  /// reaches memory.
+  String _encode(Iterable<ProjectManifest> projects) {
+    try {
+      return const JsonEncoder.withIndent('  ').convert({
+        'version': _schemaVersion,
+        'projects': projects
+            .map((project) => project.toJson())
+            .toList(growable: false),
+      });
+    } on JsonUnsupportedObjectError catch (error) {
+      throw ProjectRepositoryException(
+        'A project contains a value that cannot be saved as JSON',
+        cause: Exception(error.toString()),
+      );
+    }
+  }
+
+  Future<void> _writePayload(String payload) {
     return _writes.run(() async {
       final file = await _storeFile();
       await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
@@ -220,8 +235,25 @@ class FileProjectRepository implements ProjectRepository {
       updatedAt: DateTime.now(),
       revision: oldProject.revision + 1,
     );
+    // Encode before committing. A value that cannot be written used to land
+    // in memory first: the save failed, yet the in-memory revision moved on,
+    // so the editor's next save met a phantom conflict and every later save
+    // of any project failed on the same unencodable value.
+    final payload = _encode([
+      for (final entry in _projects.entries)
+        entry.key == project.id ? updated : entry.value,
+    ]);
     _projects[project.id] = updated;
-    await _persist();
+    try {
+      await _writePayload(payload);
+    } catch (_) {
+      // Undo the memory write unless a later save already replaced it, so
+      // memory never claims a revision the disk does not have.
+      if (identical(_projects[project.id], updated)) {
+        _projects[project.id] = oldProject;
+      }
+      rethrow;
+    }
 
     // Auto-link to local song metadata and the playback queue the very first
     // time lyrics appear, so editor/import saves benefit from the same

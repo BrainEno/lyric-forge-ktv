@@ -2,37 +2,37 @@
 
 ## 目标
 
-审计路线的第十轮（第九轮 PR #481 已合并为 `e4aa1f7`）。每轮多做几个任务，lib+test 代码量至少 800 行。用户确认自己的模型目录是 `D:\Models\LyricForge\ASRRuntime`，即 B-02 遗留问题里的 “LyricForge ASRRuntime” 是真实的目录名。
+审计路线的第十一轮（第十轮 PR #482 已合并为 `a636f23`）。用户这一轮提了三件事：全局批量复核按钮；确认校对成功的歌词保存不了；导出的歌词文件放进曲库目录要能自动识别，曲库目录可以设置。lib+test 代码量要求至少 800 行。
 
-1. 模型目录写成路径：存储层本来就能找到 `D:\Models\LyricForge\ASRRuntime`（盘符根、`Models/LyricForge/ASRRuntime` 候选、自动查找、粘贴路径），问题出在文案。界面原来把它写成 “LyricForge ASRRuntime”（像产品名）和 “已有的 ASRRuntime”（不说在哪）。新增 `AsrFolderText`：按平台分隔符写成路径（Windows `LyricForge\ASRRuntime`，其他平台 `LyricForge/ASRRuntime`），卡片、粘贴弹窗和“没找到”提示里给出完整示例（`D:\Models\LyricForge\ASRRuntime`、`/Volumes/Data/Models/…`、`/mnt/data/Models/…`）；按钮改为“浏览模型文件夹”“粘贴已有模型文件夹的路径”。安装弹窗和设置页原来各存一份文案，现在共用。设置页通过 `asr_existing_model_actions.dart` 的 export 拿到它，没有新增跨功能的 presentation 依赖。
-2. 全屏 KTV：原来任何按键都只会唤出控件。现在空格播放/暂停（只在全屏界面本身有焦点时，Tab 到按钮后空格仍按按钮），←/→（含 Shift）快退/快进 5 秒且可按住连发，Ctrl/⌘+←/→ 切歌；处理了的按键会唤出控件，没有歌曲时按键交给上层。点击歌词会把焦点从按钮收回。控件层：标题加粗、下面显示歌手，上下两组控件后面各有黑到透明的渐变遮罩（不拦截点击），退出按钮提示“退出全屏 KTV（Esc）”，桌面端底部显示按键说明。歌词加载失败改用 `AppErrorState`，可以重试。
-3. 错误文字对比度（D-032）：错误红 `#E22134` 当文字时在 bgBase 上 4.0:1、bgSurface 上 3.2:1，不到 4.5:1。新增 `AppColors.errorText = #FF8585`（同色相）：bgBase 8.0:1、bgSurface 6.3:1、bgHighlight 4.6:1，在红色错误横幅里也高于 4.5:1。19 个文件 31 处错误文字、旁边的小图标、危险操作的文字按钮和输入框错误提示都改用它；填充、边框、底色、大图标、徽标和 `colorScheme.error` 仍用 `AppColors.error`。
-4. 传输子域（T-02 第一部分）：手机端歌曲、艺人/专辑、下载管理三屏各自画红字、裸转圈和“没有匹配…”。新增 `transfer_list_states.dart`：`TransferErrorBanner`（带底色的横幅、可关闭、读屏会播报）、`TransferListLoading`（说明正在读取什么）、`TransferEmptyResult`（按原因给标题：搜索无结果时引用关键词并提供“清除搜索”，歌曲列表的筛选无结果时提供“显示全部”，真的为空时说明怎样添加）。
+1. 确认校对后无法保存（用户报告）：校对流程会往歌词 metadata 里留下 `Set`、枚举、`NaN` 等 JSON 写不出的值，文件仓库先把新工程放进内存、再编码，编码失败时内存里的版本号已经前进，于是保存报错之后，下一次保存又被当成“别处改过”的冲突，草稿永远存不进去。现在：`LyricMetadataJsonSanitizer` 在保存前把 metadata 转成 JSON 能写的形式（集合转列表、枚举转名字、`Duration` 转毫秒、`NaN` 去掉），文件仓库先编码、成功后才提交到内存，失败时原样回滚；编辑器、校对收件箱和工程详情保存后不再闪“加载中”，从编辑器返回时收件箱会重新读取，复核状态不再是旧的。收件箱按音频时长计算待复核行，与编辑器一致。
+2. 全局批量复核（R-03）：收件箱汇总行新增“全部工程标为已复核”（只在还有待复核工程时显示）。确认框写清涉及几个工程、多少行，列出前三个工程名；运行时按钮换成可播报的进度（“正在标记第 N/M 个工程…”）和进度条，单个工程的菜单暂不可用。逐个工程按版本号保存：别处刚保存过的工程跳过并重新读取，不覆盖；某个工程保存失败不影响其他；结果提示里可以一次撤销（撤销时已经又被改过的工程不动）。
+3. 曲库目录与歌词自动配对（D-033）：新增“曲库目录”设置（设置页“音乐库”分组）。没设置时用最先添加到音乐库的文件夹，再退到系统“音乐”文件夹；在设置里选定的目录会同时加入音乐库，恢复默认只忘掉选择。打开音乐库、重新扫描、改目录或点“立即配对歌词”时，会在曲库目录（含子文件夹）和每首没歌词的歌所在文件夹里找 LRC/ASS/VTT/SRT，按文件名配对：同文件夹同名 → 同名 → “歌手 - 歌名” → 歌名（导出时默认文件名就是歌名）。同一强度对上两首歌就不配；已经有歌词的歌一律不动。配上后效果与手动“导入歌词”相同（两边共用 `projectWithImportedLyrics`）。导出歌词的保存对话框默认打开曲库目录，形成闭环。
 
 ## Git 现场
 
-- 分支：`arena/7600048b-lyric-forge-ktv`，基于 main `e4aa1f7`，PR #482。
-- 提交：`Name the model folder as a path`、`Give fullscreen KTV keys and scrims`、`Lift error text to AA`、`Share transfer list states`、`Remove the format probe and update the handoff`。
+- 分支：`arena/057933d7-lyric-forge-ktv`，基于 main `a636f23`，PR #483。
+- 提交：`Keep confirmed proofreading saved`、`Add a global bulk review button`、`Pair lyric files in the library folder`、`Remove the format probe and update the handoff`。
 
 ## 已改文件
 
-见工作日志 `2026-11-27-0930` 至 `2026-11-27-1300` 的四条记录；决定见 D-032；审计总表 `artifacts/ui-audit/reports/issues.md` 已更新 B-02、K-01（11-19 已完成逐字扫光）和 T-02 的进度。
+见工作日志 `2026-11-28-0930`、`2026-11-28-1100`、`2026-11-28-1300` 三条记录；决定见 D-033；审计总表 `artifacts/ui-audit/reports/issues.md` 和收件箱页面报告已把 R-03 标为完成。
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑。本轮同样用了临时探针工作流（合并前已删除）。靠它修掉了：设置页直接引用新文案文件触发的跨功能依赖基线测试失败（改为经现有文件 export），几处格式问题（包括被改动文件里原有的格式欠账），以及四条多余 import 的 analyze 提示。最后一次探针：3287 个测试全部通过，analyze 回到基线的 186 条提示。行长度在本地按字符数检查过；工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。
+沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑，并用了临时探针工作流（合并前已删除）。行长度在本地按字符数检查过；工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。
 
 ## 下一步
 
-- T-02 剩余：桌面传输中心和 v2 命名；审计总表里没有 T-03 条目。
-- 小尾巴：`local_collections_screen.dart` 里 `onReorder` 的弃用提示；`reference_alignment_review`、`review_inbox` 里还有两处强调色用法待复查。
-- 在真机上确认全屏 KTV 的按键和遮罩深浅（`ImmersiveKtvScreen.scrimAlpha` 为 0.72），以及新错误红在各页面上的观感。
-- 待用户决定：R-03 全局批量复核按钮。
+- T-02 剩余：桌面传输中心和 v2 命名。
+- 小尾巴：`local_collections_screen.dart` 里 `onReorder` 的弃用提示；`reference_alignment_review`、`review_inbox` 里两处强调色用法待复查。
+- 在真机上确认：确认校对后保存、收件箱全局复核的进度和撤销、曲库目录选择和自动配对（尤其 Android 的存储权限）。
+- 可以考虑：在音乐库里给自动配上的歌词加“来自曲库目录”的标记，以及让用户手动解除错误的配对。
 
 ## 已知风险
 
 - 都没有在运行中的应用里看过，详见工作日志。
-- 全屏 KTV 的方向键现在总是快进/快退，Tab 到按钮后也不再做方向焦点移动；进度条获得焦点时仍由进度条自己处理方向键。
-- 设置页的 “测试识别” 卡片 `_Notice` 用传入颜色做底色、文字保持白色，所以仍传 `AppColors.error`，在来源扫描测试里列为例外。
+- 自动配对按文件名判断，规则偏保守（平手就不配，不认 `.txt`），但“歌名”一级仍可能把同名不同歌手的文件配给库里唯一一首同名歌。配上的工程在 `lyricImport.automatic` 里有标记。
+- 默认曲库目录（最先添加的音乐文件夹或系统“音乐”文件夹）只用来找歌词，不会自动把里面的歌加入音乐库；只有在设置里明确选定的目录才会加入。
+- 全局复核逐个工程保存，工程很多时需要一些时间；进度条会显示进度。
 
-最后更新：2026-11-27 13:30（Asia/Taipei）
+最后更新：2026-11-28 14:00（Asia/Taipei）

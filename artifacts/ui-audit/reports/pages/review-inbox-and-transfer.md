@@ -11,7 +11,7 @@
 |---|---|---|---|
 | R-01 | 列表项封面位置用固定歌词图标（44×44 灰块），不显示歌曲封面——与 Dashboard 工程卡（有封面）视觉不一致，也损失识别效率 | review_inbox_screen.dart:207-217 | P3 |
 | R-02 | 已全复核的工程仍常驻列表（徽标「已复核」），无过滤/归档 | _ReviewInboxTile | P3 |
-| R-03 | 无批量操作（如全部标为已复核），需逐工程进入 | — | P3 |
+| R-03 | 无批量操作（如全部标为已复核），需逐工程进入。**已完成（第 11 轮）：**单个工程与全部工程都可一次标为已复核，带确认、进度、冲突跳过与撤销 | — | P3 |
 
 ## B. 传输域（桌面 `/media-sharing` + 移动 `/remote-library` `/remote-library/browse` `/media-hub-scanner`）
 文件：desktop_media_transfer_hub_v2_screen.dart (702)、mobile_media_transfer_hub_screen.dart、mobile_remote_library_shell.dart → 3 个子页（mobile_remote_music_library 803 行 / mobile_remote_grouped_library 521 / mobile_download_manager 536）、media_hub_qr_scanner_screen.dart。

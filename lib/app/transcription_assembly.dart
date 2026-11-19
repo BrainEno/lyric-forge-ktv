@@ -1,3 +1,4 @@
+import '../features/player/presentation/widgets/library_lyrics_link_text.dart';
 import '../features/settings/presentation/settings_screen_dependencies.dart';
 import '../features/transcription/presentation/transcription_screen_dependencies.dart';
 import 'app_services.dart';
@@ -32,5 +33,10 @@ SettingsScreenDependencies assembleSettingsScreenDependencies(
     asrRuntimeSetupDependencies: assembleAsrRuntimeSetupDependencies(services),
     smokeTestService: services.asrEndToEndSmokeTestService,
     diagnostics: services.diagnostics,
+    libraryFolder: services.libraryFolderSettings,
+    findLibraryLyrics: () async {
+      final pass = await services.libraryLyricsAutoLinker.linkAll();
+      return LibraryLyricsLinkText.summary(pass);
+    },
   );
 }

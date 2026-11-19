@@ -295,6 +295,57 @@ void main() {
     expect(restored.revision, project.revision);
   });
 
+  test('an unencodable save leaves memory and disk unchanged', () async {
+    final root = await Directory.systemTemp.createTemp('lyricforge-encode-');
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+    final repository = FileProjectRepository(rootDirectory: root);
+    final other = await repository.createProject(name: 'Other');
+    final created = await repository.createProject(name: 'Song');
+    final opened = await repository.updateProject(
+      created.copyWith(lyricDocument: _lyricDocument(text: '原稿')),
+    );
+
+    // A DateTime has no JSON form. This used to land in memory before the
+    // encode failed, moving the revision on without a write.
+    await expectLater(
+      repository.updateProjectIfUnchanged(
+        opened.copyWith(
+          lyricDocument: _lyricDocument(text: '校对后'),
+          metadata: {'appliedAt': DateTime(2026, 11, 28)},
+        ),
+        expectedRevision: opened.revision,
+      ),
+      throwsA(
+        isA<ProjectRepositoryException>().having(
+          (error) => error.message,
+          'message',
+          contains('JSON'),
+        ),
+      ),
+    );
+
+    final inMemory = await repository.getProjectById(opened.id);
+    expect(inMemory?.revision, opened.revision);
+    expect(inMemory?.lyricDocument?.lines.single.text, '原稿');
+
+    // The editor's next save, with the revision it already holds, succeeds:
+    // no phantom conflict, and other projects can still be saved too.
+    final saved = await repository.updateProjectIfUnchanged(
+      opened.copyWith(lyricDocument: _lyricDocument(text: '校对后')),
+      expectedRevision: opened.revision,
+    );
+    expect(saved.revision, opened.revision + 1);
+    await repository.updateProject(other.copyWith(name: 'Other renamed'));
+
+    final reopened = FileProjectRepository(rootDirectory: root);
+    final restored = await reopened.getProjectById(opened.id);
+    expect(restored?.lyricDocument?.lines.single.text, '校对后');
+    expect(restored?.revision, saved.revision);
+    expect((await reopened.getProjectById(other.id))?.name, 'Other renamed');
+  });
+
   test(
     'auto-links local song metadata when lyrics are first attached',
     () async {

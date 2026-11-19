@@ -13,6 +13,7 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../controllers/review_inbox_bulk_review.dart';
+import '../widgets/review_inbox_global_review.dart';
 
 /// One row of the review inbox: a project plus its review queue.
 class ReviewInboxEntry {
@@ -74,6 +75,12 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
   /// Project whose 全部标为已复核 is being saved; its menu shows a spinner.
   String? _savingProjectId;
 
+  /// Progress of 全部工程标为已复核 while it runs.
+  ReviewInboxGlobalProgress? _globalProgress;
+
+  /// Whether a save from this screen is running, so a second one waits.
+  bool get _busy => _savingProjectId != null || _globalProgress != null;
+
   @override
   void initState() {
     super.initState();
@@ -91,7 +98,12 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
       entries.add(
         ReviewInboxEntry(
           project: project,
-          queue: LyricReviewQueue.build(document),
+          // The editor counts with the audio length (lines past the end of
+          // the song need review); the inbox must report the same number.
+          queue: LyricReviewQueue.build(
+            document,
+            audioDuration: project.audioAsset?.duration,
+          ),
         ),
       );
     }
@@ -190,8 +202,62 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
     Navigator.pushNamed(context, Routes.import);
   }
 
-  void _openEditor(ProjectManifest project) {
-    Navigator.pushNamed(context, Routes.lyricEditorPath(project.id));
+  /// Opens the editor and reads the list again when it closes. The inbox
+  /// used to keep its old copy, so lines confirmed and saved in the editor
+  /// still showed as waiting here, which read as "the save did not stick".
+  Future<void> _openEditor(ProjectManifest project) async {
+    await Navigator.pushNamed(context, Routes.lyricEditorPath(project.id));
+    if (mounted) _reload();
+  }
+
+  /// 全部工程标为已复核, after a confirmation (audit R-03).
+  Future<void> _markEverythingReviewed(List<ReviewInboxEntry> pending) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => ReviewInboxGlobalReviewDialog(
+        projectNames: [for (final entry in pending) entry.project.name],
+        totalLines: pending.fold(0, (sum, e) => sum + e.queue.totalLines),
+        pendingLines: pending.fold(
+          0,
+          (sum, entry) => sum + entry.queue.needsReviewCount,
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted || _busy) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _globalProgress = (done: 0, total: pending.length));
+    final batch = await _bulkReview.markAllProjectsReviewed(
+      [for (final entry in pending) entry.project],
+      onProgress: (done, total) {
+        if (!mounted) return;
+        setState(() => _globalProgress = (done: done, total: total));
+      },
+    );
+    if (!mounted) return;
+    setState(() => _globalProgress = null);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(ReviewInboxGlobalReviewText.result(batch)),
+        duration: const Duration(seconds: 8),
+        action: batch.canUndo
+            ? SnackBarAction(
+                label: ReviewInboxGlobalReviewText.undoLabel,
+                onPressed: () => _undoBatch(batch),
+              )
+            : null,
+      ),
+    );
+    if (batch.changedAnything) _reload();
+  }
+
+  Future<void> _undoBatch(BulkReviewBatchResult batch) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final undone = await _bulkReview.undoBatch(batch);
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text(ReviewInboxGlobalReviewText.undoResult(undone))),
+    );
+    _reload();
   }
 
   /// Summary line, the projects that still need review, then the reviewed
@@ -213,23 +279,19 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
         entry: entry,
         onTap: () => _openEditor(entry.project),
         saving: _savingProjectId == entry.project.id,
-        onMarkAllReviewed: _savingProjectId == null
-            ? () => _markAllReviewed(entry)
-            : null,
+        onMarkAllReviewed: _busy ? null : () => _markAllReviewed(entry),
       ),
     );
 
     return [
-      Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.md),
-        child: Text(
-          totalPending == 0
-              ? '${entries.length} 个工程，暂时没有待复核的行'
-              : '${entries.length} 个工程，共 $totalPending 行待复核',
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
-        ),
+      ReviewInboxSummaryBar(
+        summary: totalPending == 0
+            ? '${entries.length} 个工程，暂时没有待复核的行'
+            : '${entries.length} 个工程，共 $totalPending 行待复核',
+        progress: _globalProgress,
+        onMarkEverything: pending.isEmpty || _busy
+            ? null
+            : () => _markEverythingReviewed(pending),
       ),
       ...pending.map(tile),
       if (pending.isNotEmpty && reviewed.isNotEmpty)
@@ -262,7 +324,10 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
         child: FutureBuilder<List<ReviewInboxEntry>>(
           future: _entriesFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            // A reload after a save keeps the current list on screen until
+            // the new one arrives instead of flashing the spinner.
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
               return const AppLoadingState(message: '正在读取歌词工程');
             }
             if (snapshot.hasError) {

@@ -90,6 +90,14 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     _projectFuture = _repository.getProjectById(widget.projectId);
   }
 
+  /// Opens the lyric editor and reads the project again when it closes, so
+  /// the lyric card shows what was saved there rather than the copy loaded
+  /// before the editor opened.
+  Future<void> _openLyricEditor(ProjectManifest project) async {
+    await Navigator.pushNamed(context, Routes.lyricEditorPath(project.id));
+    if (mounted) await _refreshProject();
+  }
+
   Future<void> _refreshProject() async {
     setState(_loadProject);
   }
@@ -307,7 +315,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       body: FutureBuilder<ProjectManifest?>(
         future: _projectFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          // A refresh keeps the current page until the new copy arrives.
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return const _LoadingState();
           }
 
@@ -332,6 +342,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             onTranscribe: () => _startTranscription(project),
             onCancelTranscription: _cancelTranscription,
             onConfigureTranscription: _configureTranscription,
+            onOpenEditor: () => _openLyricEditor(project),
           );
         },
       ),
@@ -379,6 +390,7 @@ class _ProjectDetailContent extends StatelessWidget {
   final VoidCallback onTranscribe;
   final VoidCallback onCancelTranscription;
   final VoidCallback onConfigureTranscription;
+  final VoidCallback onOpenEditor;
 
   const _ProjectDetailContent({
     required this.project,
@@ -395,6 +407,7 @@ class _ProjectDetailContent extends StatelessWidget {
     required this.onTranscribe,
     required this.onCancelTranscription,
     required this.onConfigureTranscription,
+    required this.onOpenEditor,
   });
 
   @override
@@ -486,6 +499,7 @@ class _ProjectDetailContent extends StatelessWidget {
                               onCancelTranscription: onCancelTranscription,
                               onConfigureTranscription:
                                   onConfigureTranscription,
+                              onOpenEditor: onOpenEditor,
                             ),
                             const SizedBox(height: AppSpacing.md),
                             _ProjectMetadata(project: project),
@@ -858,6 +872,7 @@ class _ActionPanel extends StatelessWidget {
   final VoidCallback onTranscribe;
   final VoidCallback onCancelTranscription;
   final VoidCallback onConfigureTranscription;
+  final VoidCallback onOpenEditor;
 
   const _ActionPanel({
     required this.project,
@@ -872,6 +887,7 @@ class _ActionPanel extends StatelessWidget {
     required this.onTranscribe,
     required this.onCancelTranscription,
     required this.onConfigureTranscription,
+    required this.onOpenEditor,
   });
 
   @override
@@ -905,10 +921,7 @@ class _ActionPanel extends StatelessWidget {
           if (project.hasLyrics)
             FilledButton.icon(
               style: buttonStyle,
-              onPressed: () => Navigator.pushNamed(
-                context,
-                Routes.lyricEditorPath(project.id),
-              ),
+              onPressed: onOpenEditor,
               icon: const Icon(Icons.edit_note_rounded),
               label: const Text('校对歌词'),
             )

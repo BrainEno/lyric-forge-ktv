@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_expor
 import 'package:lyric_forge_ktv/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_editor_dependencies.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/screens/lyric_editor_screen.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_content.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/audio_player_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
@@ -216,6 +218,61 @@ void main() {
     expect(find.byType(LyricEditorScreen), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a save keeps the editor mounted instead of a loading flash', (
+    tester,
+  ) async {
+    final harness = await _Harness.open(tester);
+    harness.editLine(tester, 'kept on screen');
+    await tester.pump();
+    final content = tester.element(find.byType(LyricEditorContent));
+
+    await tester.tap(find.byKey(const ValueKey('lyric_editor_save_action')));
+    for (var frame = 0; frame < 5; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(find.byType(LyricEditorLoadingState), findsNothing);
+    }
+    await tester.pumpAndSettle();
+
+    expect(await harness.savedText(), 'kept on screen');
+    // Same element: the panes were not torn down and rebuilt by the save.
+    expect(tester.element(find.byType(LyricEditorContent)), same(content));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an applied proofread with odd metadata saves to a JSON store', (
+    tester,
+  ) async {
+    final harness = await _Harness.open(tester);
+    harness.repository.requireJson = true;
+    final editor = harness.editor(tester);
+    final current = editor.document!;
+    editor.replaceDocument(
+      current.copyWith(
+        lines: [current.lines.single.copyWith(text: 'proofread')],
+        metadata: {
+          ...current.metadata,
+          'acceptedIds': <String>{'x'},
+        },
+      ),
+      label: 'apply proofread',
+      selectedLineIndex: 0,
+      keepBatchSnapshot: true,
+      isReferenceProofread: true,
+    );
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('lyric_editor_save_action')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('歌词已保存'), findsOneWidget);
+    expect(find.textContaining('保存失败'), findsNothing);
+    expect(editor.hasChanges, isFalse);
+    expect(await harness.savedText(), 'proofread');
+    final project = await harness.repository.getProjectById(harness.projectId);
+    expect(project!.lyricDocument!.metadata['acceptedIds'], ['x']);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _Harness {
@@ -330,6 +387,10 @@ class _GatedProjectRepository extends MemoryProjectRepository {
   Object? failure;
   int writes = 0;
 
+  /// Encodes every conditional write like the file-backed store does, so a
+  /// value without a JSON form fails here as it would on disk.
+  bool requireJson = false;
+
   @override
   Future<ProjectManifest> updateProjectIfUnchanged(
     ProjectManifest project, {
@@ -340,6 +401,7 @@ class _GatedProjectRepository extends MemoryProjectRepository {
     if (pending != null) await pending.future;
     final error = failure;
     if (error != null) throw error;
+    if (requireJson) jsonEncode(project.toJson());
     return super.updateProjectIfUnchanged(
       project,
       expectedRevision: expectedRevision,
