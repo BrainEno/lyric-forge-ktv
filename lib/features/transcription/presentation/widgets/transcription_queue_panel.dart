@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_badge.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/models/transcription_queue_models.dart';
 import '../../domain/services/batch_transcription_queue.dart';
@@ -444,27 +445,7 @@ class _CountPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = emphasis ?? AppColors.textSecondary;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: emphasis == null ? AppColors.bgSurface : emphasis!.withAlpha(20),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: foreground),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: foreground),
-          ),
-        ],
-      ),
-    );
+    return AppBadge(label: label, icon: icon, color: emphasis);
   }
 }
 
@@ -476,20 +457,7 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withAlpha(24),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
+    return AppBadge(label: label, color: color, emphasized: true);
   }
 }
 

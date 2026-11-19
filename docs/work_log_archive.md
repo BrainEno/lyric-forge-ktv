@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-19 09:41] Add a shared badge widget ([entry](log/entries/2026-11-19-0941-add-shared-badge-widget.md))
 - [2026-11-18 23:40] Use the shared artwork widget on library screens ([entry](log/entries/2026-11-18-2340-use-shared-artwork-in-library.md))
 - [2026-11-18 23:38] Add a shared artwork widget for player surfaces ([entry](log/entries/2026-11-18-2338-add-shared-artwork-widget.md))
 - [2026-11-18 23:17] Add a shared empty-state widget ([entry](log/entries/2026-11-18-2317-add-shared-empty-state.md))

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/services/playback_session_service.dart';
@@ -337,19 +338,10 @@ class _CurrentBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withAlpha(28),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Text(
-        '当前',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.accent,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+    return const AppBadge(
+      label: '当前',
+      tone: AppBadgeTone.accent,
+      emphasized: true,
     );
   }
 }

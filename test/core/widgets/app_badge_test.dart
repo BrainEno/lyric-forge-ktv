@@ -17,10 +17,10 @@ BoxDecoration _decoration(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('neutral badges sit on the surface colour', (tester) async {
+  testWidgets('neutral badges use the translucent wash', (tester) async {
     await tester.pumpWidget(_host(const AppBadge(label: 'FLAC')));
 
-    expect(_decoration(tester).color, AppColors.bgSurface);
+    expect(_decoration(tester).color, AppColors.hoverOverlay);
     final text = tester.widget<Text>(find.text('FLAC'));
     expect(text.style?.color, AppColors.textSecondary);
     expect(find.byType(Icon), findsNothing);
@@ -41,7 +41,7 @@ void main() {
       _decoration(tester).color,
       AppColors.warning.withAlpha(AppBadge.tintAlpha),
     );
-    final text = tester.widget<Text>(find.text('需确认'));
+    final text = tester.widget<Text>(find.textContaining('需确认'));
     expect(text.style?.color, AppColors.warning);
     final icon = tester.widget<Icon>(find.byIcon(Icons.warning_amber_rounded));
     expect(icon.color, AppColors.warning);
@@ -81,7 +81,7 @@ void main() {
       ),
     );
 
-    final style = tester.widget<Text>(find.text('副歌')).style;
+    final style = tester.widget<Text>(find.textContaining('副歌')).style;
     expect(style?.fontSize, 10);
     expect(style?.fontWeight, FontWeight.w700);
     expect(tester.widget<Icon>(find.byIcon(Icons.star_rounded)).size, 12);
@@ -124,5 +124,23 @@ void main() {
     expect(text.maxLines, 1);
     expect(text.overflow, TextOverflow.ellipsis);
     expect(tester.getSize(find.byType(AppBadge)).width, lessThanOrEqualTo(120));
+  });
+
+  testWidgets('icon badges lay out directly inside a row', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('第一首'),
+            AppBadge(label: '当前', icon: Icons.graphic_eq_rounded),
+          ],
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byIcon(Icons.graphic_eq_rounded), findsOneWidget);
+    expect(find.textContaining('当前'), findsOneWidget);
   });
 }

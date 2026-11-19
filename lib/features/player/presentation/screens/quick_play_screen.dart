@@ -9,6 +9,7 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_badge.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_state.dart';
@@ -954,23 +955,7 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.bgHighlight,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
+    return AppBadge(label: label, emphasized: true);
   }
 }
 

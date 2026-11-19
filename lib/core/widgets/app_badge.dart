@@ -36,9 +36,15 @@ enum AppBadgeSize {
 /// Rounded label for status, metadata and counts.
 ///
 /// Replaces the per-screen pill widgets so padding, radius, icon size,
-/// background alpha and text style are the same everywhere. Neutral badges sit
-/// on the surface colour with secondary text; every other tone, or an explicit
-/// [color], uses a light tint of that colour behind text in the full colour.
+/// background alpha and text style are the same everywhere. Neutral badges use
+/// a translucent white wash with secondary text, so they stay visible on the
+/// page background and on surface-coloured cards alike; every other tone, or
+/// an explicit [color], uses a light tint of that colour behind text in the
+/// full colour.
+///
+/// The icon is laid out inside the label's text so the badge works both in a
+/// bounded parent, where a long label ends with an ellipsis, and directly
+/// inside a `Row`, where it simply takes its natural width.
 class AppBadge extends StatelessWidget {
   const AppBadge({
     super.key,
@@ -85,7 +91,7 @@ class AppBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final tint = color ?? toneColor(tone);
     final foreground = tint ?? AppColors.textSecondary;
-    final background = tint?.withAlpha(tintAlpha) ?? AppColors.bgSurface;
+    final background = tint?.withAlpha(tintAlpha) ?? AppColors.hoverOverlay;
     final small = size == AppBadgeSize.small;
     final text = Theme.of(context).textTheme;
     final textStyle = text.labelSmall?.copyWith(
@@ -103,22 +109,25 @@ class AppBadge extends StatelessWidget {
         color: background,
         borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: small ? 12 : 14, color: foreground),
-            SizedBox(width: small ? 3 : AppSpacing.xs),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            if (icon != null)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Padding(
+                  padding: EdgeInsetsDirectional.only(
+                    end: small ? 3 : AppSpacing.xs,
+                  ),
+                  child: Icon(icon, size: small ? 12 : 14, color: foreground),
+                ),
+              ),
+            TextSpan(text: label),
           ],
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: textStyle,
-            ),
-          ),
-        ],
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: textStyle,
       ),
     );
   }
