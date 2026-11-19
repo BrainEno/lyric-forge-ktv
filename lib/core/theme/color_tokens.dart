@@ -27,12 +27,20 @@ abstract class AppColors {
   static const Color accentHover = Color(0xFF1ED760);
   static const Color accentPressed = Color(0xFF169C45);
 
+  // Accent at 16 % for selected chips and tabs: white text on it over the
+  // elevated background stays above 12:1.
+  static const Color accentMuted = Color(0x291DB954);
+
   // Text and icons on accent fills. White on #1DB954 is only 2.6:1; black is
   // 8.1:1.
   static const Color onAccent = pureBlack;
 
   // Semantic colors
   static const Color error = Color(0xFFE22134);
+
+  // Text and icons on error fills (destructive buttons, recording). White on
+  // #E22134 is 4.7:1.
+  static const Color onError = pureWhite;
   static const Color warning = Color(0xFFFFA42B);
   static const Color success = Color(0xFF1DB954);
   static const Color info = Color(0xFF2E77D0);

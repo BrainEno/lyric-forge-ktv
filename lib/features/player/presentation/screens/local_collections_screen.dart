@@ -7,6 +7,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
@@ -1227,51 +1228,26 @@ class _CollectionEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: Padding(
-          padding: EdgeInsets.all(spec.pageGutter),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: spec.isCompact ? 52 : 68,
-                color: AppColors.textTertiary,
+    final label = actionLabel;
+    final action = onAction;
+    return AppEmptyState(
+      icon: icon,
+      title: title,
+      message: message,
+      actions: [
+        if (label != null && action != null)
+          FilledButton.icon(
+            onPressed: action,
+            icon: const Icon(Icons.add_rounded),
+            label: Text(label),
+            style: FilledButton.styleFrom(
+              minimumSize: Size(
+                0,
+                AppResponsive.of(context).minimumInteractiveExtent,
               ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style:
-                    (spec.isCompact
-                            ? Theme.of(context).textTheme.titleLarge
-                            : Theme.of(context).textTheme.headlineSmall)
-                        ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-              if (actionLabel != null && onAction != null) ...[
-                const SizedBox(height: AppSpacing.lg),
-                FilledButton.icon(
-                  onPressed: onAction,
-                  icon: const Icon(Icons.add_rounded),
-                  label: Text(actionLabel!),
-                  style: FilledButton.styleFrom(
-                    minimumSize: Size(0, spec.minimumInteractiveExtent),
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
-        ),
-      ),
+      ],
     );
   }
 }

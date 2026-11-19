@@ -97,7 +97,7 @@ class KtvRecordingToolbar extends StatelessWidget {
                       backgroundColor: recording.isRecording
                           ? AppColors.error
                           : AppColors.bgSurface,
-                      foregroundColor: AppColors.pureWhite,
+                      foregroundColor: AppColors.onError,
                     ),
                     icon: Icon(
                       recording.isRecording

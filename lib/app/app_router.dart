@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/diagnostics/app_logger.dart';
+import '../core/navigation/route_not_found_screen.dart';
 import '../core/navigation/routes.dart';
 import '../features/home/presentation/screens/dashboard_screen.dart';
 import '../features/import/presentation/screens/transcription_ready_import_screen.dart';
@@ -198,12 +200,11 @@ class AppRouter {
           }
         }
 
-        return _fadeRoute(
-          DashboardScreen(
-            dependencies: assembleDashboardDependencies(services),
-          ),
-          settings,
-        );
+        // An unknown name used to open the dashboard silently (audit R-04);
+        // say so instead, and leave a trace for bug reports.
+        final requested = settings.name ?? uri.toString();
+        appLog.warning('router', 'Unknown route: $requested');
+        return _fadeRoute(RouteNotFoundScreen(routeName: requested), settings);
     }
   }
 

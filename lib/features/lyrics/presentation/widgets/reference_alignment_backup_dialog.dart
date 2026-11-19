@@ -179,7 +179,7 @@ class ReferenceAlignmentBackupDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(true),
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.error,
-            foregroundColor: AppColors.pureWhite,
+            foregroundColor: AppColors.onError,
             minimumSize: const Size(0, 48),
           ),
           icon: const Icon(Icons.history_rounded, size: 18),
