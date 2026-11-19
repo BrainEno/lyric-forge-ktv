@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-19 09:55] Use shared badges on player and queue screens ([entry](log/entries/2026-11-19-0955-use-shared-badges-on-player-and-queues.md))
 - [2026-11-19 09:41] Add a shared badge widget ([entry](log/entries/2026-11-19-0941-add-shared-badge-widget.md))
 - [2026-11-18 23:40] Use the shared artwork widget on library screens ([entry](log/entries/2026-11-18-2340-use-shared-artwork-in-library.md))
 - [2026-11-18 23:38] Add a shared artwork widget for player surfaces ([entry](log/entries/2026-11-18-2338-add-shared-artwork-widget.md))

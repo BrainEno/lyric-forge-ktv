@@ -22,6 +22,7 @@ import '../widgets/local_media_metadata_dialog.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
 import '../widgets/playback_queue_panel.dart';
 import '../widgets/seekable_progress_bar.dart';
+import '../widgets/transport_bar.dart';
 
 /// Primary local-music player.
 ///
@@ -977,81 +978,16 @@ class _Transport extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final queue = session.currentState;
-    final secondaryExtent = layout.minimumInteractiveExtent;
-    final primaryExtent = layout.primaryPlayerControlExtent;
-
-    Widget secondaryButton({
-      required String tooltip,
-      required IconData icon,
-      required VoidCallback? onPressed,
-    }) {
-      return SizedBox(
-        width: secondaryExtent,
-        height: secondaryExtent,
-        child: IconButton(
-          onPressed: onPressed,
-          tooltip: tooltip,
-          icon: Icon(icon),
-        ),
-      );
-    }
-
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: AppSpacing.xs,
-      runSpacing: AppSpacing.xs,
-      children: [
-        secondaryButton(
-          onPressed: queue.canSkipPrevious ? session.skipPrevious : null,
-          tooltip: '上一首 / 重新开始',
-          icon: Icons.skip_previous_rounded,
-        ),
-        secondaryButton(
-          onPressed: onSkipBack,
-          tooltip: '后退 10 秒',
-          icon: Icons.replay_10_rounded,
-        ),
-        SizedBox(
-          width: primaryExtent,
-          height: primaryExtent,
-          child: IconButton(
-            onPressed: state.isBuffering || state.isLoading
-                ? null
-                : session.togglePlayPause,
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.pureWhite,
-              disabledBackgroundColor: AppColors.textDisabled,
-              foregroundColor: AppColors.pureBlack,
-            ),
-            icon: state.isBuffering || state.isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.pureBlack,
-                    ),
-                  )
-                : Icon(
-                    state.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    size: layout.isCompact ? 30 : 34,
-                  ),
-          ),
-        ),
-        secondaryButton(
-          onPressed: onSkipForward,
-          tooltip: '前进 10 秒',
-          icon: Icons.forward_10_rounded,
-        ),
-        secondaryButton(
-          onPressed: queue.canSkipNext ? session.skipNext : null,
-          tooltip: '下一首',
-          icon: Icons.skip_next_rounded,
-        ),
-      ],
+    return TransportBar(
+      layout: layout,
+      wrap: true,
+      isPlaying: state.isPlaying,
+      isBusy: state.isBuffering || state.isLoading,
+      onPlayPause: session.togglePlayPause,
+      onPrevious: queue.canSkipPrevious ? session.skipPrevious : null,
+      onNext: queue.canSkipNext ? session.skipNext : null,
+      onSeekBack: onSkipBack,
+      onSeekForward: onSkipForward,
     );
   }
 }

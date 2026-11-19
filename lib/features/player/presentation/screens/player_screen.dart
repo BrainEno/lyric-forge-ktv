@@ -18,6 +18,7 @@ import '../playback_screen_dependencies.dart';
 import '../widgets/ktv_entry_sheet.dart';
 import '../widgets/playback_error_banner.dart';
 import '../widgets/seekable_progress_bar.dart';
+import '../widgets/transport_bar.dart';
 import 'immersive_ktv_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -1266,62 +1267,13 @@ class _PlaybackControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    final secondaryExtent = spec.minimumInteractiveExtent;
-    final playSize = compact
-        ? spec.minimumInteractiveExtent
-        : spec.primaryPlayerControlExtent;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: secondaryExtent,
-          height: secondaryExtent,
-          child: IconButton(
-            tooltip: '上一首 / 回到开头',
-            onPressed: canPrevious ? onPrevious : null,
-            icon: const Icon(Icons.skip_previous_rounded),
-            iconSize: compact ? 24 : 30,
-          ),
-        ),
-        SizedBox(width: compact ? AppSpacing.xs : AppSpacing.sm),
-        SizedBox(
-          width: playSize,
-          height: playSize,
-          child: IconButton(
-            tooltip: isPlaying ? '暂停' : '播放',
-            onPressed: isBuffering ? null : onPlayPause,
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.pureWhite,
-              foregroundColor: AppColors.pureBlack,
-            ),
-            icon: isBuffering
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.pureBlack,
-                    ),
-                  )
-                : Icon(
-                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  ),
-          ),
-        ),
-        SizedBox(width: compact ? AppSpacing.xs : AppSpacing.sm),
-        SizedBox(
-          width: secondaryExtent,
-          height: secondaryExtent,
-          child: IconButton(
-            tooltip: '下一首',
-            onPressed: canNext ? onNext : null,
-            icon: const Icon(Icons.skip_next_rounded),
-            iconSize: compact ? 24 : 30,
-          ),
-        ),
-      ],
+    return TransportBar(
+      compact: compact,
+      isPlaying: isPlaying,
+      isBusy: isBuffering,
+      onPlayPause: onPlayPause,
+      onPrevious: canPrevious ? onPrevious : null,
+      onNext: canNext ? onNext : null,
     );
   }
 }
