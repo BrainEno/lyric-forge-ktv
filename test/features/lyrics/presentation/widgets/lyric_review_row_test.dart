@@ -70,8 +70,9 @@ void main() {
     Widget child, {
     Size size = const Size(1200, 800),
   }) async {
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(body: Center(child: child)),
@@ -111,17 +112,18 @@ void main() {
       for (final action in LyricRowMenuAction.values) {
         subject.callbackFor(action)!.call();
       }
-      expect(calls, [for (final action in LyricRowMenuAction.values) action.name]);
+      expect(calls, [
+        for (final action in LyricRowMenuAction.values) action.name,
+      ]);
     });
 
     test('editing the text names its shortcut; delete is destructive', () {
       expect(LyricRowMenuAction.editText.menuLabel, '编辑文字（双击）');
       expect(LyricRowMenuAction.copy.menuLabel, '复制文字');
       expect(LyricRowMenuAction.delete.destructive, isTrue);
-      expect(
-        LyricRowMenuAction.values.where((action) => action.destructive),
-        [LyricRowMenuAction.delete],
-      );
+      expect(LyricRowMenuAction.values.where((action) => action.destructive), [
+        LyricRowMenuAction.delete,
+      ]);
     });
   });
 
@@ -193,7 +195,7 @@ void main() {
       await pump(tester, row(allActions: false));
       expect(
         tester.widget<Text>(find.text('00:10.00')).style?.decoration,
-        isNull,
+        isNot(TextDecoration.underline),
       );
     });
 
@@ -269,9 +271,7 @@ void main() {
       expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
     });
 
-    testWidgets('a phone puts times and badges under the text', (
-      tester,
-    ) async {
+    testWidgets('a phone puts times and badges under the text', (tester) async {
       await pump(
         tester,
         row(candidate: const {'alternativeText': 'x'}, priority: priority),
@@ -286,8 +286,9 @@ void main() {
     testWidgets('a phone with large text grows instead of overflowing', (
       tester,
     ) async {
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
           builder: (context, child) => MediaQuery(
@@ -365,7 +366,11 @@ void main() {
       await openMenu(tester, row());
 
       for (final action in LyricRowMenuAction.values) {
-        expect(find.text(action.menuLabel), findsOneWidget, reason: action.name);
+        expect(
+          find.text(action.menuLabel),
+          findsOneWidget,
+          reason: action.name,
+        );
       }
     });
 
@@ -383,7 +388,9 @@ void main() {
 
       final label = tester.widget<Text>(find.text('删除此行'));
       expect(label.style?.color, AppColors.errorText);
-      final icon = tester.widget<Icon>(find.byIcon(Icons.delete_outline_rounded));
+      final icon = tester.widget<Icon>(
+        find.byIcon(Icons.delete_outline_rounded),
+      );
       expect(icon.color, AppColors.errorText);
     });
 

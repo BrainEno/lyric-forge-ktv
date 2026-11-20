@@ -4,12 +4,11 @@ import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_list_
 
 Future<void> _pump(WidgetTester tester, Widget child, {Size? size}) async {
   if (size != null) {
-    await tester.binding.setSurfaceSize(size);
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
   }
-  await tester.pumpWidget(
-    MaterialApp(home: Scaffold(body: child)),
-  );
+  await tester.pumpWidget(MaterialApp(home: Scaffold(body: child)));
 }
 
 void main() {
@@ -50,8 +49,9 @@ void main() {
     });
 
     testWidgets('fits a phone with large text', (tester) async {
-      await tester.binding.setSurfaceSize(const Size(390, 700));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = const Size(390, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MaterialApp(
           builder: (context, child) => MediaQuery(
@@ -75,11 +75,12 @@ void main() {
   });
 
   group('filtered empty state', () {
-    testWidgets('suggests another filter and offers all lines', (
-      tester,
-    ) async {
+    testWidgets('suggests another filter and offers all lines', (tester) async {
       var shown = 0;
-      await _pump(tester, LyricFilteredEmptyState(onShowAllLines: () => shown++));
+      await _pump(
+        tester,
+        LyricFilteredEmptyState(onShowAllLines: () => shown++),
+      );
 
       expect(find.text(LyricListStateText.filteredTitle), findsOneWidget);
       expect(find.text(LyricListStateText.filteredMessage), findsOneWidget);

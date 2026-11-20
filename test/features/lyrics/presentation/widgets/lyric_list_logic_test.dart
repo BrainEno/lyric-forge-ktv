@@ -140,11 +140,7 @@ void main() {
           ['a', 'b', 'c', 'd'],
           metadata: {
             'fallbackHighlightLimit': 2,
-            'fallbackCandidates': [
-              _candidate(3),
-              _candidate(1),
-              _candidate(0),
-            ],
+            'fallbackCandidates': [_candidate(3), _candidate(1), _candidate(0)],
           },
         ),
         reviewed: const {},
@@ -162,16 +158,20 @@ void main() {
         },
       );
       expect(
-        LyricCandidateHighlights.from(document, reviewed: const {})!
-            .highlighted,
+        LyricCandidateHighlights.from(
+          document,
+          reviewed: const {},
+        )!.highlighted,
         {0, 1},
       );
       final negative = document.copyWith(
         metadata: {...document.metadata, 'fallbackHighlightLimit': -3},
       );
       expect(
-        LyricCandidateHighlights.from(negative, reviewed: const {})!
-            .highlighted,
+        LyricCandidateHighlights.from(
+          negative,
+          reviewed: const {},
+        )!.highlighted,
         isEmpty,
       );
     });

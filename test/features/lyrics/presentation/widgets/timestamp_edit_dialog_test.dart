@@ -166,7 +166,10 @@ void main() {
   });
 
   group('editLyricLineTime', () {
-    Future<List<LyricLine?>> open(WidgetTester tester, {required bool start}) async {
+    Future<List<LyricLine?>> open(
+      WidgetTester tester, {
+      required bool start,
+    }) async {
       final results = <LyricLine?>[];
       await tester.pumpWidget(
         MaterialApp(

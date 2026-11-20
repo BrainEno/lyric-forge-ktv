@@ -178,7 +178,11 @@ class LyricListSearchField extends StatelessWidget {
 
 /// The line about saved engine candidates above the rows.
 class LyricCandidateSummary extends StatelessWidget {
-  const LyricCandidateSummary({super.key, required this.text, this.padding = 0});
+  const LyricCandidateSummary({
+    super.key,
+    required this.text,
+    this.padding = 0,
+  });
 
   final String text;
 

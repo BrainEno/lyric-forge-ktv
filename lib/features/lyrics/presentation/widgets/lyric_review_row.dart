@@ -340,10 +340,7 @@ class LyricReviewRow extends StatelessWidget {
               spacing: AppSpacing.xs,
               runSpacing: 2,
               crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                ..._times(context),
-                ..._statusBadges(compact: true),
-              ],
+              children: [..._times(context), ..._statusBadges(compact: true)],
             ),
           ],
         ),

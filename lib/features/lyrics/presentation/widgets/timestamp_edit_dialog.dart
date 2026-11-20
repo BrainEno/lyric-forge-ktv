@@ -9,7 +9,9 @@ abstract final class LyricTimeInput {
   /// The shortest a line may become when one of its times moves.
   static const Duration minimumLineLength = Duration(milliseconds: 10);
 
-  static final RegExp _clock = RegExp(r'^(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?$');
+  static final RegExp _clock = RegExp(
+    r'^(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?$',
+  );
 
   /// `mm:ss.hh`, `m:ss`, `mm:ss:hh`, `mm:ss.mmm` or plain seconds such as
   /// `83.5`. A fraction is read as the digits after the point, so `.5` is
@@ -24,7 +26,9 @@ abstract final class LyricTimeInput {
       final seconds = int.parse(match.group(2)!);
       if (seconds >= 60) return null;
       final fraction = match.group(3);
-      final millis = fraction == null ? 0 : int.parse(fraction.padRight(3, '0'));
+      final millis = fraction == null
+          ? 0
+          : int.parse(fraction.padRight(3, '0'));
       return Duration(minutes: minutes, seconds: seconds, milliseconds: millis);
     }
     final asSeconds = double.tryParse(trimmed);
@@ -57,7 +61,9 @@ abstract final class LyricTimeInput {
 
   /// [line] with [time] as its start or end.
   static LyricLine apply(LyricLine line, Duration time, {required bool start}) {
-    return start ? line.copyWith(startTime: time) : line.copyWith(endTime: time);
+    return start
+        ? line.copyWith(startTime: time)
+        : line.copyWith(endTime: time);
   }
 }
 
