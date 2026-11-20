@@ -307,7 +307,7 @@ class _PersistentTransferQueueCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.sync_alt_rounded, color: AppColors.accent),
+                Icon(Icons.sync_alt_rounded, color: AppColors.accent),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(

@@ -536,7 +536,7 @@ class _BottomBar extends StatelessWidget {
         horizontal: horizontalPadding,
         vertical: AppSpacing.sm,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.bgElevated,
         border: Border(top: BorderSide(color: AppColors.borderSubtle)),
       ),

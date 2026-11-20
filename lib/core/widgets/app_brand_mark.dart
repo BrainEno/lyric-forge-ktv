@@ -54,7 +54,7 @@ class AppBrandMark extends StatelessWidget {
     final mark = SizedBox(
       width: size * aspectRatio,
       height: size,
-      child: const CustomPaint(painter: _BrandMarkPainter()),
+      child: CustomPaint(painter: _BrandMarkPainter(bars: AppColors.brandBars)),
     );
     if (label.isEmpty) return ExcludeSemantics(child: mark);
     return Semantics(label: label, image: true, child: mark);
@@ -62,7 +62,10 @@ class AppBrandMark extends StatelessWidget {
 }
 
 class _BrandMarkPainter extends CustomPainter {
-  const _BrandMarkPainter();
+  const _BrandMarkPainter({required this.bars});
+
+  /// Paper on dark pages, ink on light ones (D-042).
+  final Color bars;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -75,7 +78,7 @@ class _BrandMarkPainter extends CustomPainter {
       final paint = Paint()
         ..color = index == AppBrandMark.accentBar
             ? AppColors.brand
-            : AppColors.brandPaper;
+            : bars;
       canvas.drawRect(
         Rect.fromLTWH(left, centerY - height / 2, width, height),
         paint,
@@ -85,5 +88,5 @@ class _BrandMarkPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_BrandMarkPainter oldDelegate) => false;
+  bool shouldRepaint(_BrandMarkPainter oldDelegate) => oldDelegate.bars != bars;
 }

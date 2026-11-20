@@ -293,7 +293,7 @@ class _GroupCard extends StatelessWidget {
                       text: segment.text,
                       style: segment.isEqual
                           ? null
-                          : const TextStyle(
+                          : TextStyle(
                               color: AppColors.warning,
                               fontWeight: FontWeight.w700,
                             ),

@@ -103,7 +103,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                 ? () => session.clearQueue(keepCurrent: false)
                 : null,
           ),
-          const Divider(height: 1, color: AppColors.borderMuted),
+          Divider(height: 1, color: AppColors.borderMuted),
           Expanded(
             child: state.queue.isEmpty
                 ? const _EmptyQueue()
@@ -173,7 +173,7 @@ class _QueueHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.queue_music_rounded,
                 size: 20,
                 color: AppColors.textSecondary,
@@ -325,7 +325,7 @@ class _QueueRowContent extends StatelessWidget {
       children: [
         ReorderableDragStartListener(
           index: index,
-          child: const Padding(
+          child: Padding(
             padding: EdgeInsets.all(AppSpacing.xs),
             child: Icon(
               Icons.drag_indicator_rounded,
@@ -345,7 +345,7 @@ class _QueueRowContent extends StatelessWidget {
               Row(
                 children: [
                   if (isCurrent) ...[
-                    const Icon(
+                    Icon(
                       Icons.graphic_eq_rounded,
                       size: 16,
                       color: AppColors.accent,

@@ -106,6 +106,8 @@ class _AppVinylDiscState extends State<AppVinylDisc>
 
     final record = CustomPaint(
       painter: _RecordPainter(
+        centerColor: AppColors.vinylDiscCenter,
+        edgeColor: AppColors.borderSubtle,
         grooves: AppVinylDisc.grooveCountFor(
           size,
           labelFraction: widget.labelFraction,
@@ -117,9 +119,11 @@ class _AppVinylDiscState extends State<AppVinylDisc>
           width: labelSize,
           height: labelSize,
           padding: EdgeInsets.all(ring),
+          // The ring sits on the black record in every theme, so it keeps
+          // the light brass (D-042).
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.vinylBrass,
+            color: AppColors.vinylBrassOnDark,
           ),
           child: ClipOval(
             child: Stack(
@@ -132,7 +136,7 @@ class _AppVinylDiscState extends State<AppVinylDisc>
                   child: Container(
                     width: math.max(3.0, size * 0.035),
                     height: math.max(3.0, size * 0.035),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: AppColors.bgBase,
                     ),
@@ -203,8 +207,17 @@ class _BlankLabel extends StatelessWidget {
 }
 
 class _RecordPainter extends CustomPainter {
-  const _RecordPainter({required this.grooves, required this.labelFraction});
+  const _RecordPainter({
+    required this.centerColor,
+    required this.edgeColor,
+    required this.grooves,
+    required this.labelFraction,
+  });
 
+  /// Where the radial gradient starts and the hairline round the edge; both
+  /// come from the theme, so a theme change repaints the record.
+  final Color centerColor;
+  final Color edgeColor;
   final int grooves;
   final double labelFraction;
 
@@ -218,9 +231,9 @@ class _RecordPainter extends CustomPainter {
       center,
       radius,
       Paint()
-        ..shader = const RadialGradient(
-          colors: [AppColors.vinylSurface, AppColors.vinylDisc],
-          stops: [0.3, 1],
+        ..shader = RadialGradient(
+          colors: [centerColor, AppColors.vinylDisc],
+          stops: const [0.3, 1],
         ).createShader(disc),
     );
 
@@ -241,12 +254,14 @@ class _RecordPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
-        ..color = AppColors.borderSubtle,
+        ..color = edgeColor,
     );
   }
 
   @override
   bool shouldRepaint(covariant _RecordPainter oldDelegate) =>
+      oldDelegate.centerColor != centerColor ||
+      oldDelegate.edgeColor != edgeColor ||
       oldDelegate.grooves != grooves ||
       oldDelegate.labelFraction != labelFraction;
 }
@@ -293,14 +308,16 @@ class AppRhythmBars extends StatefulWidget {
     super.key,
     required this.playing,
     this.size = 18,
-    this.color = AppColors.vinylBrass,
+    this.color,
   });
 
   final bool playing;
 
   /// Width and height of the square the bars stand in.
   final double size;
-  final Color color;
+
+  /// Defaults to [AppColors.vinylBrass] of the theme in use.
+  final Color? color;
 
   /// Number of bars.
   static const int barCount = 3;
@@ -382,7 +399,7 @@ class _AppRhythmBarsState extends State<AppRhythmBars>
                             ? AppRhythmBars.heightAt(i, _phase.value)
                             : AppRhythmBars.restingHeights[i]),
                     decoration: BoxDecoration(
-                      color: widget.color,
+                      color: widget.color ?? AppColors.vinylBrass,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(barWidth / 2),
                       ),
@@ -419,7 +436,7 @@ class AppCoverGlow extends StatelessWidget {
     final cover = this.cover;
     return Stack(
       children: [
-        const Positioned.fill(
+        Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(gradient: AppColors.vinylHeroGradient),
           ),
@@ -441,7 +458,7 @@ class AppCoverGlow extends StatelessWidget {
           ),
         // Fade the bottom into the page so the shelves below sit on the
         // plain background.
-        const Positioned.fill(
+        Positioned.fill(
           child: IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(

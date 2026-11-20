@@ -207,7 +207,7 @@ class TranscriptionQueuePanel extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              const Divider(height: 1, color: AppColors.borderMuted),
+              Divider(height: 1, color: AppColors.borderMuted),
               const SizedBox(height: AppSpacing.sm),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 520),
@@ -342,7 +342,7 @@ class _EnvironmentBlockedCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.health_and_safety_outlined,
             size: 20,
             color: AppColors.errorText,

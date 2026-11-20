@@ -39,5 +39,6 @@ SettingsScreenDependencies assembleSettingsScreenDependencies(
       return LibraryLyricsLinkText.summary(pass);
     },
     countAutoPairedLyrics: services.libraryLyricsAutoLinker.autoPairedCount,
+    appearance: services.appearance,
   );
 }

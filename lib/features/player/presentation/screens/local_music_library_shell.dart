@@ -296,7 +296,7 @@ class _SectionStripState extends State<_SectionStrip> {
     return Material(
       color: AppColors.bgElevated,
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
         ),
         padding: EdgeInsets.symmetric(

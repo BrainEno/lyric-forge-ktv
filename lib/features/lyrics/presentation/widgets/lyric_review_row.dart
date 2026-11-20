@@ -162,7 +162,7 @@ class LyricReviewRow extends StatelessWidget {
               title: Text(
                 action.menuLabel,
                 style: action.destructive
-                    ? const TextStyle(color: AppColors.errorText)
+                    ? TextStyle(color: AppColors.errorText)
                     : null,
               ),
               dense: true,
@@ -310,7 +310,7 @@ class LyricReviewRow extends StatelessWidget {
       ],
       if (!spec.supportsTwoPane) ...[
         const SizedBox(width: AppSpacing.xs),
-        const Icon(
+        Icon(
           Icons.chevron_right_rounded,
           size: 18,
           color: AppColors.textTertiary,
@@ -347,7 +347,7 @@ class LyricReviewRow extends StatelessWidget {
       ),
       if (!spec.supportsTwoPane) ...[
         const SizedBox(width: AppSpacing.xs),
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 2),
           child: Icon(
             Icons.chevron_right_rounded,
@@ -430,7 +430,7 @@ class _RowNumber extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (playing) {
-      return const Icon(
+      return Icon(
         Icons.graphic_eq_rounded,
         size: 18,
         color: AppColors.accent,
@@ -455,7 +455,7 @@ class _RowNumber extends StatelessWidget {
               margin: const EdgeInsets.only(left: 3),
               width: 6,
               height: 6,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.accent,
                 shape: BoxShape.circle,
               ),

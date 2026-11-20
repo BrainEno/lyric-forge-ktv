@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/core/theme/app_motion.dart';
+import 'package:lyric_forge_ktv/core/theme/app_palette.dart';
 import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_vinyl_disc.dart';
 
@@ -268,7 +269,7 @@ void main() {
     testWidgets('take the colour they are given', (tester) async {
       await tester.pumpWidget(
         _host(
-          const AppRhythmBars(playing: false, color: AppColors.textPrimary),
+          AppRhythmBars(playing: false, color: AppColors.textPrimary),
         ),
       );
 
@@ -289,7 +290,7 @@ void main() {
     testWidgets('blurs the cover behind the content', (tester) async {
       await tester.pumpWidget(
         _host(
-          const SizedBox(
+          SizedBox(
             width: 300,
             height: 200,
             child: AppCoverGlow(
@@ -334,6 +335,74 @@ void main() {
           .map((box) => (box.decoration as BoxDecoration).gradient)
           .toList();
       expect(gradients, contains(AppColors.vinylHeroGradient));
+    });
+  });
+
+  group('AppVinylDisc in the light theme (D-042)', () {
+    setUp(() => AppColors.usePalette(AppPalette.light));
+    tearDown(() => AppColors.usePalette(AppPalette.dark));
+
+    testWidgets('the blank label takes the warm paper and bronze note', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(const AppVinylDisc(size: 100)));
+
+      final note = tester.widget<Icon>(find.byIcon(Icons.music_note_rounded));
+      expect(note.color, AppPalette.light.vinylBrass);
+      final label = tester.widget<ColoredBox>(
+        find
+            .ancestor(
+              of: find.byIcon(Icons.music_note_rounded),
+              matching: find.byType(ColoredBox),
+            )
+            .first,
+      );
+      expect(label.color, AppPalette.light.vinylSurfaceHigh);
+    });
+
+    testWidgets('the label ring keeps the light brass on the black record', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(const AppVinylDisc(size: 100)));
+
+      final rings = tester
+          .widgetList<Container>(
+            find.descendant(
+              of: find.byType(AppVinylDisc),
+              matching: find.byType(Container),
+            ),
+          )
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .map((d) => d.color);
+      expect(rings, contains(AppColors.vinylBrassOnDark));
+      expect(rings, isNot(contains(AppPalette.light.vinylBrass)));
+    });
+
+    testWidgets('the spindle hole shows the light page through it', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(const AppVinylDisc(size: 100)));
+
+      final colors = tester
+          .widgetList<Container>(
+            find.descendant(
+              of: find.byType(AppVinylDisc),
+              matching: find.byType(Container),
+            ),
+          )
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .map((d) => d.color);
+      expect(colors, contains(AppPalette.light.bgBase));
+    });
+
+    test('the light brass of the ring reads on the record (7:1)', () {
+      final ring = AppColors.vinylBrassOnDark.computeLuminance();
+      final record = AppColors.vinylDisc.computeLuminance();
+      final center = AppPalette.light.vinylDiscCenter.computeLuminance();
+      expect((ring + 0.05) / (record + 0.05), greaterThan(7));
+      expect((ring + 0.05) / (center + 0.05), greaterThan(7));
     });
   });
 }

@@ -138,7 +138,7 @@ class ReferenceAlignmentBackupDialog extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.warning_amber_rounded,
                       size: 18,
                       color: AppColors.errorText,

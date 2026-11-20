@@ -89,7 +89,7 @@ class KtvMicrophoneSheet extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.mic_rounded,
                             color: AppColors.accent,
                           ),

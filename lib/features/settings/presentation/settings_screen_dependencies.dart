@@ -1,4 +1,5 @@
 import '../../../core/diagnostics/app_diagnostics.dart';
+import '../../../core/theme/app_appearance.dart';
 import '../../player/domain/services/library_folder_settings.dart';
 import '../../transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
 import '../../transcription/presentation/transcription_screen_dependencies.dart';
@@ -20,6 +21,9 @@ class SettingsScreenDependencies {
   /// Counts the songs whose lyrics the library paired on its own (D-034).
   final Future<int> Function()? countAutoPairedLyrics;
 
+  /// The theme choice of 外观 (decision D-042); null hides the card.
+  final AppAppearanceController? appearance;
+
   const SettingsScreenDependencies({
     required this.asrRuntimeSetupDependencies,
     required this.smokeTestService,
@@ -27,5 +31,6 @@ class SettingsScreenDependencies {
     this.libraryFolder,
     this.findLibraryLyrics,
     this.countAutoPairedLyrics,
+    this.appearance,
   });
 }

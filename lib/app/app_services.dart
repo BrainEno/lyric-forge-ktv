@@ -5,6 +5,7 @@ import 'diagnostics_assembly.dart';
 import 'ktv_recording_assembly.dart';
 
 import '../core/diagnostics/app_diagnostics.dart';
+import '../core/theme/app_appearance.dart';
 import '../features/lyrics/data/services/local_lyric_file_export_service.dart';
 import '../features/lyrics/data/services/local_lyric_file_import_service.dart';
 import '../features/lyrics/domain/services/lyric_file_export_service.dart';
@@ -47,6 +48,7 @@ import '../features/player/domain/services/local_media_relink_service.dart';
 import '../features/player/domain/services/playback_session_service.dart';
 import '../features/project/data/repositories/file_project_repository.dart';
 import '../features/project/domain/repositories/project_repository.dart';
+import '../features/settings/data/services/file_appearance_store.dart';
 import '../features/transcription/data/services/file_batch_transcription_queue.dart';
 import '../features/transcription/data/services/file_transcription_settings_store.dart';
 import '../features/transcription/data/services/asr_download_connection_checker.dart';
@@ -119,6 +121,16 @@ class AppServices {
   /// would throw `LateInitializationError` instead of leaving the shell idle.
   bool get isInitialized => _initialized;
 
+  /// The theme in use and the user's choice of it (decision D-042).
+  ///
+  /// Exists before [initialize], with nothing saved, so a shell built
+  /// without bootstrap still has a theme; [initialize] replaces it with one
+  /// that reads and writes the preference file.
+  AppAppearanceController get appearance => _appearance;
+  AppAppearanceController _appearance = AppAppearanceController(
+    store: MemoryAppearanceStore(),
+  );
+
   /// Local logs, crash records, operation timings and the exportable
   /// diagnostics report. Built first so the rest of start-up is measured.
   late final AppDiagnostics diagnostics;
@@ -173,6 +185,10 @@ class AppServices {
   void initialize() {
     _initialized = true;
     diagnostics = createAppDiagnostics();
+    // Before the first frame, so the app opens in the dark theme and moves
+    // to the saved one as soon as the small file is read.
+    _appearance = AppAppearanceController(store: const FileAppearanceStore());
+    unawaited(_appearance.restore());
     // Connection state and discovery exist before the player is built so a
     // restored remote session can recover a moved/restarted desktop from its
     // stable paired device identity at the lowest audio-load layer.

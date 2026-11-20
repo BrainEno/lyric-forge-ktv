@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/core/diagnostics/app_build_info.dart';
+import 'package:lyric_forge_ktv/core/theme/app_palette.dart';
 import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_brand_mark.dart';
 
@@ -104,5 +105,58 @@ void main() {
       findsWidgets,
     );
     semantics.dispose();
+  });
+
+  group('in the light theme (D-042)', () {
+    setUp(() => AppColors.usePalette(AppPalette.light));
+    tearDown(() => AppColors.usePalette(AppPalette.dark));
+
+    test('the bars turn to ink, legible on the paper page', () {
+      expect(AppColors.brandBars, AppPalette.light.textPrimary);
+      for (final surface in [
+        AppColors.bgBase,
+        AppColors.bgElevated,
+        AppColors.bgSurface,
+      ]) {
+        expect(_contrast(AppColors.brandBars, surface), greaterThan(10));
+        expect(_contrast(AppColors.brand, surface), greaterThanOrEqualTo(3));
+      }
+    });
+
+    testWidgets('paints one Forge Red bar among ink ones', (tester) async {
+      await tester.pumpWidget(_host(const AppBrandMark()));
+
+      final expected = paints;
+      for (var index = 0; index < AppBrandMark.barHeights.length; index++) {
+        expected.rect(
+          color: index == AppBrandMark.accentBar
+              ? AppColors.brand
+              : AppPalette.light.brandBars,
+        );
+      }
+      expect(tester.renderObject(_canvas), expected);
+    });
+
+    testWidgets('repaints in the new colours when the theme changes', (
+      tester,
+    ) async {
+      AppColors.usePalette(AppPalette.dark);
+      await tester.pumpWidget(_host(const AppBrandMark(key: ValueKey(1))));
+      AppColors.usePalette(AppPalette.light);
+      await tester.pumpWidget(_host(const AppBrandMark(key: ValueKey(1))));
+      // A const widget is not rebuilt by pumping it again; the appearance
+      // host marks it dirty. Do the same here.
+      tester.element(find.byType(AppBrandMark)).markNeedsBuild();
+      await tester.pump();
+
+      expect(
+        tester.renderObject(_canvas),
+        paints..rect(color: AppPalette.light.brandBars),
+      );
+      expect(
+        tester.renderObject(_canvas),
+        isNot(paints..rect(color: AppPalette.dark.brandBars)),
+      );
+    });
   });
 }

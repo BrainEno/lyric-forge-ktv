@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 
 import '../diagnostics/app_build_info.dart';
 import '../layout/app_responsive.dart';
+import '../theme/app_appearance_host.dart';
 import '../theme/color_tokens.dart';
 import '../widgets/app_brand_mark.dart';
 import '../widgets/app_tap_pulse.dart';
+import '../widgets/app_theme_menu_button.dart';
 import 'app_destinations.dart';
 import 'mobile_destinations.dart';
 
@@ -129,6 +131,10 @@ class _AppNavigationRailState extends State<AppNavigationRail>
     // as a Row child, where constraints are unbounded and every child would
     // otherwise claim to be infinitely wide.
     final extended = MediaQuery.sizeOf(context).width >= 1200;
+    // The theme button sits at the foot of the rail, away from the four
+    // places (decision D-042). Absent when the app has no appearance
+    // controller, as in most widget tests.
+    final appearance = AppAppearanceScope.maybeOf(context);
     return SizedBox(
       width: extended
           ? AppNavigationRail.extendedWidth
@@ -137,46 +143,62 @@ class _AppNavigationRailState extends State<AppNavigationRail>
         color: AppColors.bgElevated,
         child: SafeArea(
           right: false,
-          child: NavigationRail(
-            backgroundColor: Colors.transparent,
-            selectedIndex: selected == null
-                ? null
-                : AppDestination.values.indexOf(selected),
-            labelType: extended
-                ? NavigationRailLabelType.none
-                : NavigationRailLabelType.all,
-            extended: extended,
-            minExtendedWidth: AppNavigationRail.extendedWidth,
-            minWidth: AppNavigationRail.collapsedWidth,
-            groupAlignment: -0.9,
-            onDestinationSelected: (index) =>
-                press(AppDestination.values[index], widget.onSelect),
-            // The brand mark from the app icon, not a generic Material
-            // icon (audit B-01).
-            leading: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Tooltip(
-                message: appDisplayName,
-                child: AppBrandMark(size: 28),
-              ),
-            ),
-            destinations: [
-              for (final destination in AppDestination.values)
-                NavigationRailDestination(
-                  icon: Tooltip(
-                    message: destination.description,
-                    child: pulsingIcon(destination, destination.icon),
+          child: Column(
+            children: [
+              Expanded(child: _rail(selected, extended)),
+              if (appearance != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: AppThemeMenuButton(
+                    controller: appearance,
+                    extended: extended,
                   ),
-                  selectedIcon: Tooltip(
-                    message: destination.description,
-                    child: pulsingIcon(destination, destination.selectedIcon),
-                  ),
-                  label: Text(destination.label),
                 ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _rail(AppDestination? selected, bool extended) {
+    return NavigationRail(
+      backgroundColor: Colors.transparent,
+      selectedIndex: selected == null
+          ? null
+          : AppDestination.values.indexOf(selected),
+      labelType: extended
+          ? NavigationRailLabelType.none
+          : NavigationRailLabelType.all,
+      extended: extended,
+      minExtendedWidth: AppNavigationRail.extendedWidth,
+      minWidth: AppNavigationRail.collapsedWidth,
+      groupAlignment: -0.9,
+      onDestinationSelected: (index) =>
+          press(AppDestination.values[index], widget.onSelect),
+      // The brand mark from the app icon, not a generic Material
+      // icon (audit B-01).
+      leading: const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Tooltip(
+          message: appDisplayName,
+          child: AppBrandMark(size: 28),
+        ),
+      ),
+      destinations: [
+        for (final destination in AppDestination.values)
+          NavigationRailDestination(
+            icon: Tooltip(
+              message: destination.description,
+              child: pulsingIcon(destination, destination.icon),
+            ),
+            selectedIcon: Tooltip(
+              message: destination.description,
+              child: pulsingIcon(destination, destination.selectedIcon),
+            ),
+            label: Text(destination.label),
+          ),
+      ],
     );
   }
 }

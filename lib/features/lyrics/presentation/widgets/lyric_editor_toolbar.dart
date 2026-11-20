@@ -83,7 +83,7 @@ class LyricEditorToolbar extends StatelessWidget {
         horizontalPadding,
         AppSpacing.sm,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.bgElevated,
         border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
       ),

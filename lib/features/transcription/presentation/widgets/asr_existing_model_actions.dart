@@ -47,7 +47,7 @@ class AsrExistingModelCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
+              Icon(
                 Icons.travel_explore_rounded,
                 size: 20,
                 color: AppColors.accent,
@@ -88,7 +88,7 @@ class AsrExistingModelCard extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 else
-                  const Icon(
+                  Icon(
                     Icons.fact_check_outlined,
                     size: 16,
                     color: AppColors.accent,

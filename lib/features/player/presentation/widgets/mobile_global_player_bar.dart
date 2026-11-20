@@ -77,7 +77,7 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
               color: AppColors.bgElevated,
               elevation: 12,
               child: Ink(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: AppColors.vinylBarGradient,
                 ),
                 child: SafeArea(

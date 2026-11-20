@@ -326,7 +326,7 @@ class _TimeHint extends StatelessWidget {
             color: AppColors.bgElevated,
             borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
             border: Border.all(color: AppColors.bgHighlight),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
                 color: AppColors.shadowNear,
                 blurRadius: 8,

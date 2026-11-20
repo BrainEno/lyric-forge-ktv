@@ -499,7 +499,7 @@ class _LyricsHubHeader extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.lyrics_rounded,
                     size: AppSpacing.iconSizeSmall,
                     color: AppColors.vinylBrass,
@@ -620,7 +620,7 @@ class _ReviewInboxTile extends StatelessWidget {
                   // things to press.
                   _Badge(label: '待复核 $pending', color: AppColors.warning)
                 else
-                  const _Badge(label: '已复核', color: AppColors.textTertiary),
+                  _Badge(label: '已复核', color: AppColors.textTertiary),
                 if (lowConfidence > 0) ...[
                   const SizedBox(width: AppSpacing.xs),
                   _Badge(
@@ -642,7 +642,7 @@ class _ReviewInboxTile extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(width: AppSpacing.xs),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   size: 20,
                   color: AppColors.textTertiary,

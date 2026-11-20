@@ -54,7 +54,7 @@ void main() {
   testWidgets('an explicit colour overrides the tone', (tester) async {
     await tester.pumpWidget(
       _host(
-        const AppBadge(
+        AppBadge(
           label: '已复核',
           tone: AppBadgeTone.accent,
           color: AppColors.textTertiary,

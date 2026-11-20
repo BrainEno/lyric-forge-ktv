@@ -73,7 +73,7 @@ class KtvKaraokeLine extends StatefulWidget {
     this.offset = Duration.zero,
     this.fallbackEnd,
     this.isPlaying = false,
-    this.sungColor = AppColors.accent,
+    this.sungColor,
   });
 
   final LyricLine line;
@@ -86,7 +86,8 @@ class KtvKaraokeLine extends StatefulWidget {
   final Duration offset;
   final Duration? fallbackEnd;
   final bool isPlaying;
-  final Color sungColor;
+  /// Defaults to [AppColors.accent] of the theme in use.
+  final Color? sungColor;
 
   /// How far past the last reported position the estimate may run.
   static const Duration maxExtrapolation = Duration(milliseconds: 400);
@@ -153,6 +154,7 @@ class _KtvKaraokeLineState extends State<KtvKaraokeLine>
       fallbackEnd: widget.fallbackEnd,
     );
     final unsungColor = widget.style?.color ?? AppColors.textPrimary;
+    final sungColor = widget.sungColor ?? AppColors.accent;
     return Text.rich(
       TextSpan(
         children: [
@@ -160,7 +162,7 @@ class _KtvKaraokeLineState extends State<KtvKaraokeLine>
             TextSpan(
               text: unit.text,
               style: TextStyle(
-                color: Color.lerp(unsungColor, widget.sungColor, unit.sung),
+                color: Color.lerp(unsungColor, sungColor, unit.sung),
               ),
             ),
         ],

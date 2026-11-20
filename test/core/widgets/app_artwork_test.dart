@@ -76,7 +76,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _host(
-        const AppArtwork(
+        AppArtwork(
           size: 48,
           placeholderIcon: Icons.link_off_rounded,
           placeholderColor: AppColors.error,
@@ -270,7 +270,7 @@ void main() {
     testWidgets('takes a status colour', (tester) async {
       await tester.pumpWidget(
         _host(
-          const AppArtworkPlaceholder(
+          AppArtworkPlaceholder(
             icon: Icons.link_off_rounded,
             color: AppColors.error,
             size: 40,

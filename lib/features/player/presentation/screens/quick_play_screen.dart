@@ -431,7 +431,7 @@ class _EmptyPlayer extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.errorText),
+            style: TextStyle(color: AppColors.errorText),
           ),
         if (message != null && isLoading) const SizedBox(height: AppSpacing.md),
         if (isLoading) const CircularProgressIndicator(),
@@ -769,7 +769,7 @@ class _PlayerDetails extends StatelessWidget {
             ),
             child: Text(
               error!,
-              style: const TextStyle(color: AppColors.errorText),
+              style: TextStyle(color: AppColors.errorText),
             ),
           ),
         ],
@@ -777,8 +777,8 @@ class _PlayerDetails extends StatelessWidget {
         SeekableProgressBar(
           state: state,
           onSeek: session.seek,
-          activeColor: AppColors.pureWhite,
-          thumbColor: AppColors.pureWhite,
+          activeColor: AppColors.textPrimary,
+          thumbColor: AppColors.textPrimary,
         ),
         const SizedBox(height: AppSpacing.md),
         SessionTransportBar(
@@ -792,7 +792,7 @@ class _PlayerDetails extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.volume_down_rounded,
               size: 20,
               color: AppColors.textTertiary,
@@ -805,7 +805,7 @@ class _PlayerDetails extends StatelessWidget {
                 onChanged: audio.setVolume,
               ),
             ),
-            const Icon(
+            Icon(
               Icons.volume_up_rounded,
               size: 20,
               color: AppColors.textTertiary,
@@ -859,7 +859,7 @@ class _Artwork extends StatelessWidget {
       child: isLoading
           ? ClipRRect(
               borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-              child: const DecoratedBox(
+              child: DecoratedBox(
                 decoration: BoxDecoration(gradient: AppColors.cardGradient),
                 child: Center(child: CircularProgressIndicator()),
               ),

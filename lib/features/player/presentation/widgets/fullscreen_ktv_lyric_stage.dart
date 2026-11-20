@@ -91,7 +91,7 @@ class FullscreenKtvLyricStage extends StatelessWidget {
         ? text.displayMedium
         : text.displaySmall;
     final currentStyle = currentBase?.copyWith(
-      color: AppColors.pureWhite,
+      color: AppColors.textPrimary,
       fontWeight: FontWeight.w900,
       height: 1.18,
     );

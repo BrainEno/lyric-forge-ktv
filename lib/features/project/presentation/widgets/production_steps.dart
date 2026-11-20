@@ -122,11 +122,12 @@ class ProductionSteps extends StatelessWidget {
   /// Finished steps and the line between them are green, the status colour
   /// for "done"; the step to look at now gets the accent ring. Both used to
   /// be the accent, back when the accent was the same green (audit A-01).
-  static const Color doneColor = AppColors.success;
-  static const Color currentColor = AppColors.accent;
+  static Color get doneColor => AppColors.success;
+  static Color get currentColor => AppColors.accent;
 
-  /// Check mark on a finished step: black on the green is 8.1:1.
-  static const Color onDoneColor = AppColors.pureBlack;
+  /// Check mark on a finished step: black on the dark theme's green is
+  /// 8.1:1, white on the light theme's deeper green 5.3:1.
+  static Color get onDoneColor => AppColors.onSuccess;
 
   static Key stepKey(int index) => ValueKey('production-step:$index');
 

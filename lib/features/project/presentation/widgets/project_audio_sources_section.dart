@@ -84,7 +84,7 @@ class ProjectAudioSourcesSection extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.graphic_eq_rounded,
                       size: 20,
                       color: AppColors.textSecondary,
@@ -113,7 +113,7 @@ class ProjectAudioSourcesSection extends StatelessWidget {
                       child: AnimatedRotation(
                         turns: open ? 0.5 : 0,
                         duration: const Duration(milliseconds: 150),
-                        child: const Icon(
+                        child: Icon(
                           Icons.expand_more_rounded,
                           color: AppColors.textSecondary,
                         ),

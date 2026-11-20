@@ -94,7 +94,8 @@ class _PlayerBarDestinationButtonState
     widget.onOpen();
   }
 
-  static final ButtonStyle _style = ButtonStyle(
+  // A getter, so the style follows the theme in use (D-042).
+  static ButtonStyle get _style => ButtonStyle(
     backgroundColor: WidgetStateProperty.resolveWith(
       (states) => states.contains(WidgetState.selected)
           ? AppColors.accentContainer

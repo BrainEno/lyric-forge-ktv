@@ -436,7 +436,7 @@ class _MobileRemoteMusicLibraryScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
+                Icon(
                   Icons.devices_rounded,
                   size: 54,
                   color: AppColors.accent,
@@ -534,7 +534,7 @@ class _MobileRemoteMusicLibraryScreenState
             ),
             child: Row(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: AppSpacing.avatarRadius,
                   backgroundColor: AppColors.bgHighlight,
                   child: Icon(Icons.computer_rounded, color: AppColors.accent),
@@ -694,7 +694,7 @@ class _RemoteTrackTile extends StatelessWidget {
       ),
       badges: [
         if (localEntry != null)
-          const AppSongRowBadge(
+          AppSongRowBadge(
             icon: Icons.offline_pin_rounded,
             color: AppColors.vinylBrass,
           ),

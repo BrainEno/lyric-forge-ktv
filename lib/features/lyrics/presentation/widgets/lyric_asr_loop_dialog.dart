@@ -250,7 +250,7 @@ class _LoopRow extends StatelessWidget {
         Expanded(
           child: onSelectedChanged == null
               ? DefaultTextStyle.merge(
-                  style: const TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: AppColors.textSecondary),
                   child: body,
                 )
               : body,

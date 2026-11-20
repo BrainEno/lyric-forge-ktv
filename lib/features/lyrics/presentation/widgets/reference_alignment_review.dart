@@ -680,7 +680,7 @@ class _ReferenceAlignmentReviewSheetState
     ];
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.bgElevated,
         border: Border(top: BorderSide(color: AppColors.borderSubtle)),
       ),
@@ -845,11 +845,11 @@ class _ReviewCard extends StatelessWidget {
                           : AppColors.accent,
                     ),
                     if (lowConfidence)
-                      const _Badge(label: '低相似', color: AppColors.warning),
+                      _Badge(label: '低相似', color: AppColors.warning),
                     if (entry.status == ReferenceLineAlignmentStatus.ambiguous)
-                      const _Badge(label: '歧义匹配', color: AppColors.warning),
+                      _Badge(label: '歧义匹配', color: AppColors.warning),
                     if (locked)
-                      const _Badge(label: '已手动编辑', color: AppColors.warning),
+                      _Badge(label: '已手动编辑', color: AppColors.warning),
                   ],
                 ),
               ),
@@ -921,7 +921,7 @@ class _ReviewCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.lock_outline_rounded,
                   size: 16,
                   color: AppColors.warning,
@@ -1093,7 +1093,7 @@ class _MissingRow extends StatelessWidget {
                         ),
                       ),
                       if (warning)
-                        const _Badge(label: '需确认', color: AppColors.warning),
+                        _Badge(label: '需确认', color: AppColors.warning),
                     ],
                   ),
                   const SizedBox(height: 2),

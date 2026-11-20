@@ -172,7 +172,7 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.bgBase,
       body: AppLoadingState(message: '正在准备播放器'),
     );
@@ -786,7 +786,7 @@ class _ScrollableLyricsState extends State<_ScrollableLyrics> {
                       ),
                     ),
                     if (line.isChorus && !spec.isCompact)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(left: AppSpacing.sm),
                         child: Icon(
                           Icons.queue_music_rounded,
@@ -930,7 +930,7 @@ class _NoLyricsState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.lyrics_outlined,
               size: 52,
               color: AppColors.textTertiary,

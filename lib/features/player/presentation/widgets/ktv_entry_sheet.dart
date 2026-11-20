@@ -49,7 +49,7 @@ class KtvEntrySheet extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.mic_rounded, color: AppColors.accent),
+              Icon(Icons.mic_rounded, color: AppColors.accent),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 '进入 KTV',
