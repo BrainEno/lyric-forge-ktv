@@ -189,9 +189,7 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
-    testWidgets('no action while a pause is still being saved', (
-      tester,
-    ) async {
+    testWidgets('no action while a pause is still being saved', (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       final queue = _FakeQueue(
         TranscriptionQueueSnapshot(

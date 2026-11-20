@@ -19,10 +19,7 @@ void main() {
   group('catalogCard', () {
     test('an artist card', () {
       expect(
-        LocalLibrarySemantics.catalogCard(
-          title: '周杰伦',
-          detail: '12 首 · 3 张专辑',
-        ),
+        LocalLibrarySemantics.catalogCard(title: '周杰伦', detail: '12 首 · 3 张专辑'),
         '周杰伦，12 首，3 张专辑',
       );
     });
@@ -43,7 +40,10 @@ void main() {
   });
 
   test('miniAlbum', () {
-    expect(LocalLibrarySemantics.miniAlbum(title: '范特西', songs: 10), '范特西，10 首');
+    expect(
+      LocalLibrarySemantics.miniAlbum(title: '范特西', songs: 10),
+      '范特西，10 首',
+    );
   });
 
   group('playlistCard', () {

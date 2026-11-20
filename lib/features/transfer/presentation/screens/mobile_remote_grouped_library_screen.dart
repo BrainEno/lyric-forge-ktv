@@ -508,7 +508,9 @@ class _CatalogGroupCard extends StatelessWidget {
                     localPath: localArtworkPath,
                     fallbackIcon: icon,
                     extent: double.infinity,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+                    borderRadius: BorderRadius.circular(
+                      AppSpacing.radiusMedium,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -523,9 +525,9 @@ class _CatalogGroupCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$count 首',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ],
             ),

@@ -95,9 +95,6 @@ abstract final class RemoteLibrarySemantics {
 
   /// An artist or album card, e.g. `周杰伦，12 首`.
   static String groupCard({required String name, required int count}) {
-    return AppTapTarget.join([
-      name.trim().isEmpty ? '未知' : name,
-      '$count 首',
-    ]);
+    return AppTapTarget.join([name.trim().isEmpty ? '未知' : name, '$count 首']);
   }
 }

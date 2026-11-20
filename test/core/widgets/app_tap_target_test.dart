@@ -16,10 +16,12 @@ Future<void> _pump(WidgetTester tester, Widget child) async {
 }
 
 Semantics _semantics(WidgetTester tester) => tester.widget<Semantics>(
-  find.descendant(
-    of: find.byType(AppTapTarget),
-    matching: find.byType(Semantics),
-  ).first,
+  find
+      .descendant(
+        of: find.byType(AppTapTarget),
+        matching: find.byType(Semantics),
+      )
+      .first,
 );
 
 Widget _card({VoidCallback? onTap}) => InkWell(
@@ -69,9 +71,7 @@ void main() {
   });
 
   group('semantics', () {
-    testWidgets('reads the card once, as a button with a hint', (
-      tester,
-    ) async {
+    testWidgets('reads the card once, as a button with a hint', (tester) async {
       final handle = tester.ensureSemantics();
       var taps = 0;
       await _pump(

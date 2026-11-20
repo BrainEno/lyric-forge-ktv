@@ -782,11 +782,12 @@ class _RemoteTrackTile extends StatelessWidget {
                               : '本地文件已不存在，可重新下载',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: failed
-                                ? AppColors.error
-                                : AppColors.textTertiary,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: failed
+                                    ? AppColors.error
+                                    : AppColors.textTertiary,
+                              ),
                         ),
                       ],
                     ],

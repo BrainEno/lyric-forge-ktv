@@ -11,8 +11,8 @@
 ## Git 现场
 
 - 分支：`arena/9f174b56-lyric-forge-ktv`，基于 main `4201251`。
-- PR 见本轮报告（squash 合并）。
-- 提交：`Read tappable cards and rows as one button`，以及探针修正与删除探针的提交。
+- PR #488（squash 合并）。
+- 提交：`Read tappable cards and rows as one button`、`Add a temporary format probe`、`Apply format and wrap two if bodies in braces`、`Remove the format probe and update the handoff`。
 
 ## 已改文件
 
@@ -20,7 +20,7 @@
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑，并用临时探针工作流（合并前删除）。工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`（0 错误）。探针结果见下方补记。
+沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑，并用临时探针工作流（合并前删除）。第一次探针：analyze 没有错误和警告，183 条提示（与上轮相同；本轮改到的文件里有两条旧的 `curly_braces_in_flow_control_structures`，已顺手修掉，之后应为 181）；全部测试 3613 个通过、2 个跳过；本轮新增和改动的测试文件共 101 个用例全过，包括播放队列行的“上移 / 下移”与标签在同一节点上；格式有差异。探针每一步最多留 10 条注释，第一次只拿到部分格式补丁，第二次改成只跑格式、轮换 notice/warning/error 取完整补丁，两次补丁都已应用。工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`（0 错误）。
 
 ## 下一步
 
@@ -34,4 +34,4 @@
 - 这些卡片改成 `excludeSemantics` 后，卡内文字、徽标和 ⋯ 菜单不再被单独读出；以后用 `find.bySemanticsLabel` 找卡内片段的测试会找不到（D-037）。卡里新加按钮或状态时要同时加进标签或操作，否则读屏用户够不到。
 - 播放队列行依赖 Flutter 的合并规则：`container: false` 的标签并入列表加的“上移 / 下移”节点，前提是行上不再有自定义操作；测试固定了这一点。
 
-最后更新：2026-12-03 10:00（Asia/Taipei）
+最后更新：2026-12-03 10:40（Asia/Taipei）
