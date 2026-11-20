@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_catalog_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
+import '../../../../core/widgets/app_song_row.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_library_browse_item.dart';
 import '../../domain/models/local_media_library_entry.dart';
@@ -31,6 +32,7 @@ import '../widgets/library_lyrics_link_text.dart';
 import '../widgets/library_lyrics_unpair_action.dart';
 import '../widgets/local_store_integrity_banner.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
+import '../widgets/now_playing_listener.dart';
 
 class LocalLibraryExplorerScreen extends StatefulWidget {
   /// Supplied by `LocalMusicLibraryShell`, which gets it from the routing table
@@ -67,7 +69,11 @@ class _LocalLibraryExplorerScreenState
   List<_ExplorerSong> _songs = const [];
   bool _loading = true;
   bool _working = false;
-  bool _grid = true;
+
+  /// The user's pick of grid or list; null follows the layout: a list on a
+  /// phone, where a row shows title, artist and the playing song at a
+  /// glance, and the cover grid on wider windows (D-041).
+  bool? _gridChoice;
   String _query = '';
   String? _error;
   List<LocalStoreLoadIssue> _storeIssues = const [];
@@ -393,6 +399,8 @@ class _LocalLibraryExplorerScreenState
         ? null
         : _unpair;
 
+    final grid = _gridChoice ?? !layout.isCompact;
+
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
@@ -456,7 +464,7 @@ class _LocalLibraryExplorerScreenState
               playable: playableCount,
               smartView: _smartView,
               sortMode: _sortMode,
-              grid: _grid,
+              grid: grid,
               countFor: _smartCount,
               onQuery: (value) => setState(() => _query = value),
               onClearQuery: () {
@@ -465,7 +473,7 @@ class _LocalLibraryExplorerScreenState
               },
               onSmartView: _selectSmartView,
               onSortMode: (value) => setState(() => _sortMode = value),
-              onGrid: (value) => setState(() => _grid = value),
+              onGrid: (value) => setState(() => _gridChoice = value),
               onPlayAll: playableCount == 0 ? null : _playAll,
               onCleanMissing: missingCount == 0
                   ? null
@@ -499,7 +507,7 @@ class _LocalLibraryExplorerScreenState
                   ? _EmptyLibrary(onFiles: _addFiles, onFolder: _addFolder)
                   : songs.isEmpty
                   ? const _NoResults()
-                  : _grid
+                  : grid
                   ? _ExplorerGrid(
                       songs: songs,
                       onPlay: _play,
@@ -510,15 +518,20 @@ class _LocalLibraryExplorerScreenState
                       onRelink: _relinkMissing,
                       onRemove: _remove,
                     )
-                  : _ExplorerList(
-                      songs: songs,
-                      onPlay: _play,
-                      onEnqueue: _enqueue,
-                      onEdit: _edit,
-                      onLyrics: _lyrics,
-                      onUnpair: unpair,
-                      onRelink: _relinkMissing,
-                      onRemove: _remove,
+                  : NowPlayingListener(
+                      playbackSession: _session,
+                      audioPlayer: widget.dependencies.audioPlayer,
+                      builder: (context, nowPlaying) => _ExplorerList(
+                        songs: songs,
+                        nowPlaying: nowPlaying,
+                        onPlay: _play,
+                        onEnqueue: _enqueue,
+                        onEdit: _edit,
+                        onLyrics: _lyrics,
+                        onUnpair: unpair,
+                        onRelink: _relinkMissing,
+                        onRemove: _remove,
+                      ),
                     ),
             ),
           ],
@@ -877,6 +890,7 @@ class _ExplorerGrid extends StatelessWidget {
 
 class _ExplorerList extends StatelessWidget {
   final List<_ExplorerSong> songs;
+  final NowPlaying nowPlaying;
   final ValueChanged<_ExplorerSong> onPlay;
   final ValueChanged<_ExplorerSong> onEnqueue;
   final ValueChanged<_ExplorerSong> onEdit;
@@ -887,6 +901,7 @@ class _ExplorerList extends StatelessWidget {
 
   const _ExplorerList({
     required this.songs,
+    required this.nowPlaying,
     required this.onPlay,
     required this.onEnqueue,
     required this.onEdit,
@@ -900,48 +915,120 @@ class _ExplorerList extends StatelessWidget {
   Widget build(BuildContext context) {
     final layout = AppResponsive.of(context);
     return ListView.separated(
-      padding: EdgeInsets.all(layout.pageGutter),
+      padding: EdgeInsets.symmetric(
+        horizontal: layout.isCompact ? AppSpacing.sm : layout.pageGutter,
+        vertical: AppSpacing.sm,
+      ),
       itemCount: songs.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const SizedBox(height: 2),
       itemBuilder: (context, index) {
         final song = songs[index];
         final unpair = onUnpair;
-        return ListTile(
-          minVerticalPadding: layout.isCompact ? AppSpacing.sm : null,
-          leading: SizedBox(
-            width: layout.minimumInteractiveExtent,
-            height: layout.minimumInteractiveExtent,
-            child: song.playable
-                ? AppArtwork(
-                    path: song.artworkPath,
-                    borderRadius: AppArtwork.rowRadius,
-                  )
-                : AppArtwork.missing(
-                    path: song.artworkPath,
-                    borderRadius: AppArtwork.rowRadius,
-                  ),
-          ),
-          title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(
-            song.playable ? song.secondary : '文件不可用 · 引用仍保留',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          onTap: song.playable ? () => onPlay(song) : null,
+        final menu = _SongMenuCallbacks(
+          onEnqueue: () => onEnqueue(song),
+          onEdit: () => onEdit(song),
+          onLyrics: () => onLyrics(song),
+          onUnpair: unpair == null ? null : () => unpair(song),
+          onRelink: () => onRelink(song),
+          onRemove: () => onRemove(song),
+        );
+        return AppSongRow(
+          key: ValueKey('library-song:${song.entry.sourcePath}'),
+          title: song.title,
+          subtitle: song.secondary,
+          unavailable: !song.playable,
+          unavailableLabel: '文件不可用 · 引用仍保留',
+          artwork: song.playable
+              ? AppArtwork(
+                  path: song.artworkPath,
+                  borderRadius: AppArtwork.rowRadius,
+                )
+              : AppArtwork.missing(
+                  path: song.artworkPath,
+                  borderRadius: AppArtwork.rowRadius,
+                ),
+          badges: [
+            if (song.hasLyrics)
+              const AppSongRowBadge(icon: Icons.lyrics_rounded),
+            if (song.hasUserOverride)
+              const AppSongRowBadge(icon: Icons.edit_note_rounded),
+          ],
+          playback: song.playable
+              ? nowPlaying.playbackForPath(song.entry.sourcePath)
+              : AppSongRowPlayback.none,
+          onTap: () => onPlay(song),
+          semanticLabel: _songLabel(song),
+          semanticHint: LocalLibrarySemantics.playHint,
+          semanticActions: _songActions(song, menu),
           trailing: _SongMenu(
             song: song,
-            onEnqueue: () => onEnqueue(song),
-            onEdit: () => onEdit(song),
-            onLyrics: () => onLyrics(song),
-            onUnpair: unpair == null ? null : () => unpair(song),
-            onRelink: () => onRelink(song),
-            onRemove: () => onRemove(song),
+            onEnqueue: menu.onEnqueue,
+            onEdit: menu.onEdit,
+            onLyrics: menu.onLyrics,
+            onUnpair: menu.onUnpair,
+            onRelink: menu.onRelink,
+            onRemove: menu.onRemove,
           ),
         );
       },
     );
   }
 }
+
+/// The ⋯ menu's callbacks for one song, shared by the menu and the
+/// screen-reader actions of its card or row.
+class _SongMenuCallbacks {
+  const _SongMenuCallbacks({
+    required this.onEnqueue,
+    required this.onEdit,
+    required this.onLyrics,
+    required this.onUnpair,
+    required this.onRelink,
+    required this.onRemove,
+  });
+
+  final VoidCallback onEnqueue;
+  final VoidCallback onEdit;
+  final VoidCallback onLyrics;
+  final VoidCallback? onUnpair;
+  final VoidCallback onRelink;
+  final VoidCallback onRemove;
+}
+
+/// The format, edit and lyrics notes of [song], read in its label and shown
+/// as a card's last line.
+List<String> _songDetails(_ExplorerSong song) => [
+  [
+    if (song.entry.embeddedTrackNumber != null)
+      '#${song.entry.embeddedTrackNumber}',
+    song.entry.format.toUpperCase(),
+  ].join(' · '),
+  if (song.hasUserOverride) '已编辑',
+  if (song.hasLyrics) song.lyricsLabel,
+];
+
+/// What a screen reader hears for [song], on a card and on a row alike.
+String _songLabel(_ExplorerSong song) => LocalLibrarySemantics.songCard(
+  title: song.title,
+  artist: song.artist,
+  playable: song.playable,
+  details: _songDetails(song),
+);
+
+/// The ⋯ menu's entries as screen-reader actions, in menu order and with
+/// the menu's wording (audit A-04).
+Map<String, VoidCallback?> _songActions(
+  _ExplorerSong song,
+  _SongMenuCallbacks menu,
+) => {
+  if (song.playable) '加入播放队列': menu.onEnqueue,
+  if (song.playable) '编辑资料与封面': menu.onEdit,
+  if (song.playable) (song.hasLyrics ? '打开歌词' : '导入歌词'): menu.onLyrics,
+  if (song.hasAutoPairedLyrics)
+    LibraryLyricsLinkText.unpairAction: menu.onUnpair,
+  if (!song.playable) '重新定位文件': menu.onRelink,
+  '从音乐库移除': menu.onRemove,
+};
 
 class _ExplorerCard extends StatelessWidget {
   final _ExplorerSong song;
@@ -969,12 +1056,7 @@ class _ExplorerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCatalogCard(
-      semanticLabel: LocalLibrarySemantics.songCard(
-        title: song.title,
-        artist: song.artist,
-        playable: song.playable,
-        details: details,
-      ),
+      semanticLabel: _songLabel(song),
       semanticHint: LocalLibrarySemantics.playHint,
       enabled: song.playable,
       unavailable: !song.playable,
@@ -999,34 +1081,24 @@ class _ExplorerCard extends StatelessWidget {
       ),
       subtitle: song.playable ? (song.artist ?? '本地音乐') : '文件不可用',
       subtitleIsAlert: !song.playable,
-      caption: details.where((value) => value.isNotEmpty).join(' · '),
+      caption: _songDetails(
+        song,
+      ).where((value) => value.isNotEmpty).join(' · '),
     );
   }
 
-  /// The format, edit and lyrics notes, read in the label and shown as the
-  /// card's last line.
-  List<String> get details => [
-    entryLabel(song),
-    if (song.hasUserOverride) '已编辑',
-    if (song.hasLyrics) song.lyricsLabel,
-  ];
-
-  /// The ⋯ menu's entries as the card's screen-reader actions, in menu
-  /// order and with the menu's wording (audit A-04).
-  Map<String, VoidCallback?> get semanticActions => {
-    if (song.playable) '加入播放队列': onEnqueue,
-    if (song.playable) '编辑资料与封面': onEdit,
-    if (song.playable) (song.hasLyrics ? '打开歌词' : '导入歌词'): onLyrics,
-    if (song.hasAutoPairedLyrics) LibraryLyricsLinkText.unpairAction: onUnpair,
-    if (!song.playable) '重新定位文件': onRelink,
-    '从音乐库移除': onRemove,
-  };
-
-  String entryLabel(_ExplorerSong song) => [
-    if (song.entry.embeddedTrackNumber != null)
-      '#${song.entry.embeddedTrackNumber}',
-    song.entry.format.toUpperCase(),
-  ].join(' · ');
+  /// The ⋯ menu's entries as the card's screen-reader actions.
+  Map<String, VoidCallback?> get semanticActions => _songActions(
+    song,
+    _SongMenuCallbacks(
+      onEnqueue: onEnqueue,
+      onEdit: onEdit,
+      onLyrics: onLyrics,
+      onUnpair: onUnpair,
+      onRelink: onRelink,
+      onRemove: onRemove,
+    ),
+  );
 }
 
 class _SongMenu extends StatelessWidget {

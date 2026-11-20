@@ -9,7 +9,7 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_button_spinner.dart';
-import '../../../../core/widgets/app_tap_target.dart';
+import '../../../../core/widgets/app_song_row.dart';
 import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
@@ -678,108 +678,53 @@ class _RemoteTrackTile extends StatelessWidget {
       downloaded: localEntry != null,
       queueItem: queueItem,
     );
-    final notice = download.notice;
-    final textTheme = Theme.of(context).textTheme;
 
-    return Material(
-      color: AppColors.bgElevated,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-      child: AppTapTarget(
-        label: RemoteLibrarySemantics.trackTile(
-          title: track.title,
-          artist: track.artist?.trim(),
-          album: track.album?.trim(),
-          format: track.format,
-          hasLyrics: track.hasLyrics,
-          state: download.state,
-          fraction: download.fraction,
-          error: download.error,
-        ),
-        hint: RemoteLibrarySemantics.playHint,
-        onTap: onPlay,
-        actions: {download.tooltip: download.canDownload ? onDownload : null},
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-          onTap: onPlay,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Row(
-              children: [
-                RemoteMediaArtwork(
-                  track: track,
-                  client: client,
-                  localPath: localEntry?.embeddedArtworkPath,
-                  extent: 52,
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        track.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        <String>[
-                          if (track.artist?.trim().isNotEmpty == true)
-                            track.artist!.trim(),
-                          if (track.album?.trim().isNotEmpty == true)
-                            track.album!.trim(),
-                          track.format.toUpperCase(),
-                        ].join(' · '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                      if (download.showsProgress) ...[
-                        const SizedBox(height: 6),
-                        LinearProgressIndicator(value: download.progressValue),
-                      ],
-                      if (notice != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          notice,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.labelSmall?.copyWith(
-                            color: download.noticeIsError
-                                ? AppColors.errorText
-                                : AppColors.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (track.hasLyrics)
-                  const Padding(
-                    padding: EdgeInsets.only(left: AppSpacing.xs),
-                    child: Icon(
-                      Icons.lyrics_rounded,
-                      size: 18,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                const SizedBox(width: AppSpacing.xs),
-                IconButton(
-                  tooltip: download.tooltip,
-                  onPressed: download.canDownload ? onDownload : null,
-                  icon: download.showsSpinner
-                      ? const AppButtonSpinner(size: 20)
-                      : Icon(download.icon),
-                ),
-              ],
-            ),
+    return AppSongRow(
+      card: true,
+      title: track.title,
+      subtitle: <String>[
+        if (track.artist?.trim().isNotEmpty == true) track.artist!.trim(),
+        if (track.album?.trim().isNotEmpty == true) track.album!.trim(),
+        track.format.toUpperCase(),
+      ].join(' · '),
+      artwork: RemoteMediaArtwork(
+        track: track,
+        client: client,
+        localPath: localEntry?.embeddedArtworkPath,
+      ),
+      badges: [
+        if (localEntry != null)
+          const AppSongRowBadge(
+            icon: Icons.offline_pin_rounded,
+            color: AppColors.vinylBrass,
           ),
-        ),
+        if (track.hasLyrics) const AppSongRowBadge(icon: Icons.lyrics_rounded),
+      ],
+      showProgress: download.showsProgress,
+      progress: download.progressValue,
+      notice: download.notice,
+      noticeIsError: download.noticeIsError,
+      onTap: onPlay,
+      semanticLabel: RemoteLibrarySemantics.trackTile(
+        title: track.title,
+        artist: track.artist?.trim(),
+        album: track.album?.trim(),
+        format: track.format,
+        hasLyrics: track.hasLyrics,
+        state: download.state,
+        fraction: download.fraction,
+        error: download.error,
+      ),
+      semanticHint: RemoteLibrarySemantics.playHint,
+      semanticActions: {
+        download.tooltip: download.canDownload ? onDownload : null,
+      },
+      trailing: IconButton(
+        tooltip: download.tooltip,
+        onPressed: download.canDownload ? onDownload : null,
+        icon: download.showsSpinner
+            ? const AppButtonSpinner(size: 20)
+            : Icon(download.icon),
       ),
     );
   }

@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_catalog_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
+import '../../../../core/widgets/app_song_row.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -22,6 +23,7 @@ import '../local_library_dependencies.dart';
 import '../widgets/local_store_integrity_banner.dart';
 import '../widgets/local_collection_actions.dart';
 import '../widgets/local_library_semantics.dart';
+import '../widgets/now_playing_listener.dart';
 
 enum LocalCollectionView { favorites, playlists }
 
@@ -406,11 +408,12 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
               spec.sectionGap,
             ),
             itemCount: songs.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const SizedBox(height: 2),
             itemBuilder: (context, index) {
               final song = songs[index];
               return _CollectionSongTile(
                 song: song,
+                dependencies: widget.dependencies,
                 onTap: song.playbackItem == null
                     ? null
                     : () => _playSongs(songs, requestedIndex: index),
@@ -514,6 +517,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
                       key: ValueKey('${playlist.id}:${song.sourcePath}'),
                       child: _CollectionSongTile(
                         song: song,
+                        dependencies: widget.dependencies,
                         leadingIndex: index + 1,
                         onTap: song.playbackItem == null
                             ? null
@@ -1037,12 +1041,14 @@ class _PlaylistTitleBlock extends StatelessWidget {
 
 class _CollectionSongTile extends StatelessWidget {
   final _CollectionSong song;
+  final LocalLibraryDependencies dependencies;
   final VoidCallback? onTap;
   final Widget trailing;
   final int? leadingIndex;
 
   const _CollectionSongTile({
     required this.song,
+    required this.dependencies,
     required this.onTap,
     required this.trailing,
     this.leadingIndex,
@@ -1050,48 +1056,31 @@ class _CollectionSongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    final artworkExtent = spec.isCompact ? 44.0 : 48.0;
-    final leadingWidth = artworkExtent + (leadingIndex == null ? 0 : 28.0);
-
-    return ListTile(
-      onTap: onTap,
-      enabled: song.canPlay,
-      minVerticalPadding: AppSpacing.xs,
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: spec.isCompact ? AppSpacing.xs : AppSpacing.sm,
-      ),
-      leading: SizedBox(
-        width: leadingWidth,
-        child: Row(
-          children: [
-            if (leadingIndex != null)
-              SizedBox(
-                width: 24,
-                child: Text(
-                  '$leadingIndex',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textTertiary),
-                ),
-              ),
-            SizedBox(
-              width: artworkExtent,
-              height: artworkExtent,
-              child: AppArtwork(
+    final index = leadingIndex;
+    return NowPlayingListener(
+      playbackSession: dependencies.playbackSession,
+      audioPlayer: dependencies.audioPlayer,
+      builder: (context, nowPlaying) => AppSongRow(
+        title: song.title,
+        subtitle: song.secondary,
+        unavailable: !song.canPlay,
+        unavailableLabel: song.secondary,
+        index: index?.toString(),
+        artwork: song.canPlay
+            ? AppArtwork(
+                path: song.artworkPath,
+                borderRadius: AppArtwork.rowRadius,
+              )
+            : AppArtwork.missing(
                 path: song.artworkPath,
                 borderRadius: AppArtwork.rowRadius,
               ),
-            ),
-          ],
-        ),
+        playback: song.canPlay
+            ? nowPlaying.playbackForPath(song.sourcePath)
+            : AppSongRowPlayback.none,
+        onTap: onTap,
+        trailing: trailing,
       ),
-      title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        song.secondary,
-        maxLines: spec.isCompact ? 1 : 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: trailing,
     );
   }
 }

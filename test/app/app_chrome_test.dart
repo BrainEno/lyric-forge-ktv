@@ -5,6 +5,7 @@ import 'package:lyric_forge_ktv/core/navigation/app_chrome_scope.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_destinations.dart';
 import 'package:lyric_forge_ktv/core/navigation/current_route_observer.dart';
 import 'package:lyric_forge_ktv/core/navigation/destination_navigation.dart';
+import 'package:lyric_forge_ktv/core/navigation/mobile_destinations.dart';
 import 'package:lyric_forge_ktv/core/navigation/routes.dart';
 
 /// A player bar stand-in: chrome that pushes a route and opens a dialog, the
@@ -57,6 +58,11 @@ Widget _app({required bool desktop}) {
         destination,
         observer.routeName.value,
       ),
+      onSelectMobileDestination: (destination) => goToMobileDestination(
+        navigatorKey.currentState!,
+        destination,
+        observer.routeName.value,
+      ),
       playerBar: const _FakeBar(),
       child: child!,
     ),
@@ -74,6 +80,9 @@ Future<void> _pumpAt(WidgetTester tester, Widget app, Size size) async {
 
 int _index(AppDestination destination) =>
     AppDestination.values.indexOf(destination);
+
+int _mobileIndex(MobileDestination destination) =>
+    MobileDestination.values.indexOf(destination);
 
 void main() {
   group('desktop chrome', () {
@@ -144,17 +153,54 @@ void main() {
 
       NavigationBar bar() =>
           tester.widget<NavigationBar>(find.byType(NavigationBar));
-      expect(bar().selectedIndex, _index(AppDestination.projects));
+      expect(bar().selectedIndex, _mobileIndex(MobileDestination.listen));
 
-      await tester.tap(find.text('校对'));
+      await tester.tap(find.text('歌词'));
       await tester.pumpAndSettle();
 
       expect(find.text('页面 ${Routes.review}'), findsOneWidget);
-      expect(bar().selectedIndex, _index(AppDestination.review));
+      expect(bar().selectedIndex, _mobileIndex(MobileDestination.lyrics));
+
+      await tester.tap(find.text('听歌'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('页面 ${Routes.home}'), findsOneWidget);
+      expect(bar().selectedIndex, _mobileIndex(MobileDestination.listen));
+    });
+
+    testWidgets('the phone bar is listen, library, lyrics and settings', (
+      tester,
+    ) async {
+      await _pumpAt(tester, _app(desktop: false), phone);
+
+      final labels = tester
+          .widgetList<NavigationDestination>(find.byType(NavigationDestination))
+          .map((destination) => destination.label);
+      expect(labels, ['听歌', '音乐库', '歌词', '设置']);
+      // The desktop's 工程 and 校对 are folded into 歌词.
+      expect(find.text('工程'), findsNothing);
+      expect(find.text('校对'), findsNothing);
+    });
+
+    testWidgets('the mini player steps aside on the listening home', (
+      tester,
+    ) async {
+      await _pumpAt(tester, _app(desktop: false), phone);
+      expect(find.byType(_FakeBar), findsNothing);
+
+      await tester.tap(find.text('音乐库'));
+      await tester.pumpAndSettle();
+      expect(find.byType(_FakeBar), findsOneWidget);
+
+      await tester.tap(find.text('听歌'));
+      await tester.pumpAndSettle();
+      expect(find.byType(_FakeBar), findsNothing);
     });
 
     testWidgets('the mini player pushes routes too', (tester) async {
       await _pumpAt(tester, _app(desktop: false), phone);
+      await tester.tap(find.text('音乐库'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('去收藏'));
       await tester.pumpAndSettle();
@@ -195,11 +241,11 @@ void main() {
     ) async {
       await _pumpAt(tester, _app(desktop: false), phone);
 
-      await tester.longPress(find.text('校对'));
+      await tester.longPress(find.text('歌词'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text(AppDestination.review.description), findsOneWidget);
+      expect(find.text(MobileDestination.lyrics.description), findsOneWidget);
       await tester.pumpAndSettle(const Duration(seconds: 2));
     });
   });

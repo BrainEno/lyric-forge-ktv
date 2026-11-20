@@ -4,11 +4,25 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lyric_forge_ktv/core/navigation/app_destinations.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_navigation_shell.dart';
+import 'package:lyric_forge_ktv/core/navigation/mobile_destinations.dart';
 import 'package:lyric_forge_ktv/core/navigation/routes.dart';
 import 'package:lyric_forge_ktv/core/theme/app_theme.dart';
 import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_brand_mark.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_tap_pulse.dart';
+
+double scaleOf(WidgetTester tester, IconData icon) {
+  final pulses = find.ancestor(
+    of: find.byIcon(icon),
+    matching: find.byType(AppTapPulse),
+  );
+  final transforms = find.descendant(
+    of: pulses.first,
+    matching: find.byType(Transform),
+  );
+  final transform = tester.widget<Transform>(transforms.first);
+  return transform.transform.getMaxScaleOnAxis();
+}
 
 void main() {
   late List<AppDestination> selected;
@@ -123,19 +137,6 @@ void main() {
   });
 
   group('press feedback', () {
-    double scaleOf(WidgetTester tester, IconData icon) {
-      final pulses = find.ancestor(
-        of: find.byIcon(icon),
-        matching: find.byType(AppTapPulse),
-      );
-      final transforms = find.descendant(
-        of: pulses.first,
-        matching: find.byType(Transform),
-      );
-      final transform = tester.widget<Transform>(transforms.first);
-      return transform.transform.getMaxScaleOnAxis();
-    }
-
     testWidgets('pressing the open destination pulses its icon', (
       tester,
     ) async {
@@ -274,6 +275,83 @@ void main() {
         colourOf(tester, find.byIcon(AppDestination.settings.selectedIcon)),
         AppColors.onAccentContainer,
       );
+    });
+  });
+
+  group('AppMobileBottomNavigation', () {
+    late List<MobileDestination> chosen;
+
+    setUp(() => chosen = <MobileDestination>[]);
+
+    Widget phoneBar(MobileDestination selected) => MaterialApp(
+      theme: AppTheme.darkTheme,
+      home: Scaffold(
+        bottomNavigationBar: AppMobileBottomNavigation(
+          selected: selected,
+          onSelect: chosen.add,
+        ),
+      ),
+    );
+
+    testWidgets('shows the four phone places, listening first', (tester) async {
+      await pumpAt(
+        tester,
+        phoneBar(MobileDestination.listen),
+        const Size(390, 844),
+      );
+
+      final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
+      expect(bar.selectedIndex, 0);
+      for (final destination in MobileDestination.values) {
+        expect(find.text(destination.label), findsOneWidget);
+      }
+      expect(find.byIcon(MobileDestination.listen.selectedIcon), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a press reports its destination', (tester) async {
+      await pumpAt(
+        tester,
+        phoneBar(MobileDestination.listen),
+        const Size(390, 844),
+      );
+
+      await tester.tap(find.text('歌词'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('设置'));
+      await tester.pumpAndSettle();
+
+      expect(chosen, [MobileDestination.lyrics, MobileDestination.settings]);
+    });
+
+    testWidgets('pressing the open place pulses it like the desktop bar', (
+      tester,
+    ) async {
+      await pumpAt(
+        tester,
+        phoneBar(MobileDestination.library),
+        const Size(390, 844),
+      );
+      const icon = Icons.library_music_rounded;
+
+      await tester.tap(find.text('音乐库'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(chosen, [MobileDestination.library]);
+      expect(scaleOf(tester, icon), greaterThan(1.05));
+      await tester.pumpAndSettle();
+      expect(scaleOf(tester, icon), closeTo(1, 1e-9));
+    });
+
+    testWidgets('fits a 320-wide phone', (tester) async {
+      await pumpAt(
+        tester,
+        phoneBar(MobileDestination.settings),
+        const Size(320, 640),
+      );
+
+      expect(tester.takeException(), isNull);
     });
   });
 }

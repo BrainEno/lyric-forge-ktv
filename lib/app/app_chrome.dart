@@ -6,6 +6,7 @@ import '../core/navigation/app_chrome_controller.dart';
 import '../core/navigation/app_chrome_scope.dart';
 import '../core/navigation/app_destinations.dart';
 import '../core/navigation/app_navigation_shell.dart';
+import '../core/navigation/mobile_destinations.dart';
 import '../core/navigation/routes.dart';
 
 /// Everything the app draws around the navigator: the persistent navigation,
@@ -31,6 +32,7 @@ class AppChrome extends StatelessWidget {
     required this.navigatorKey,
     required this.currentRoute,
     required this.onSelectDestination,
+    required this.onSelectMobileDestination,
     required this.child,
     this.queueBar,
     this.playerBar,
@@ -44,8 +46,12 @@ class AppChrome extends StatelessWidget {
   /// Name of the visible route.
   final ValueListenable<String?> currentRoute;
 
-  /// Called when a destination is pressed in the rail or the bottom bar.
+  /// Called when a destination is pressed in the desktop rail.
   final ValueChanged<AppDestination> onSelectDestination;
+
+  /// Called when a destination is pressed in the phone's bottom bar, whose
+  /// destinations differ from the desktop's (decision D-041).
+  final ValueChanged<MobileDestination> onSelectMobileDestination;
 
   /// The navigator.
   final Widget child;
@@ -127,17 +133,21 @@ class _ChromeLayout extends StatelessWidget {
   Widget _mobile(BuildContext context, String? routeName, bool immersive) {
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     final showChrome = !immersive && !keyboardVisible;
-    final destination = destinationForRoute(routeName);
-    final playerBar = _playerBarFor(routeName);
+    final destination = mobileDestinationForRoute(routeName);
+    // The listening home is the player itself — record, seek bar and
+    // transport — so the mini player would only repeat it (D-041).
+    final playerBar = destination == MobileDestination.listen
+        ? null
+        : _playerBarFor(routeName);
     return Column(
       children: [
         Expanded(child: chrome.child),
         if (showChrome && playerBar != null) playerBar,
         if (showChrome && destination != null)
-          AppBottomNavigation(
+          AppMobileBottomNavigation(
             key: const ValueKey('app-bottom-navigation'),
             selected: destination,
-            onSelect: chrome.onSelectDestination,
+            onSelect: chrome.onSelectMobileDestination,
           ),
       ],
     );

@@ -10,17 +10,18 @@ import '../../../../core/widgets/app_catalog_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
+import '../../../../core/widgets/app_song_row.dart';
 import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
-import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_collection_actions.dart';
 import '../widgets/local_library_semantics.dart';
+import '../widgets/now_playing_listener.dart';
 
 enum LocalCatalogView { artists, albums }
 
@@ -374,8 +375,7 @@ class _LocalArtistAlbumBrowserScreenState
                 (index) => _CatalogSongTile(
                   song: songs[index],
                   index: index,
-                  collectionRepository:
-                      widget.dependencies.collectionRepository,
+                  dependencies: widget.dependencies,
                   onPlay: () => _playSongs(songs, requestedIndex: index),
                   onEnqueue: () => _enqueue(songs[index]),
                 ),
@@ -428,7 +428,7 @@ class _LocalArtistAlbumBrowserScreenState
             itemBuilder: (context, index) => _CatalogSongTile(
               song: songs[index],
               index: index,
-              collectionRepository: widget.dependencies.collectionRepository,
+              dependencies: widget.dependencies,
               onPlay: () => _playSongs(songs, requestedIndex: index),
               onEnqueue: () => _enqueue(songs[index]),
               showTrackNumber: true,
@@ -646,7 +646,7 @@ class _CatalogHero extends StatelessWidget {
 class _CatalogSongTile extends StatelessWidget {
   final _CatalogSong song;
   final int index;
-  final LocalMediaCollectionRepository collectionRepository;
+  final LocalLibraryDependencies dependencies;
   final VoidCallback onPlay;
   final VoidCallback onEnqueue;
   final bool showTrackNumber;
@@ -654,103 +654,104 @@ class _CatalogSongTile extends StatelessWidget {
   const _CatalogSongTile({
     required this.song,
     required this.index,
-    required this.collectionRepository,
+    required this.dependencies,
     required this.onPlay,
     required this.onEnqueue,
     this.showTrackNumber = false,
   });
+
+  void _addToPlaylist(BuildContext context) {
+    showAddToLocalPlaylistDialog(
+      context,
+      sourcePath: song.entry.sourcePath,
+      title: song.title,
+      repository: dependencies.collectionRepository,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final item = song.playbackItem;
     final layout = AppResponsive.of(context);
     final compact = layout.isCompact;
+    final available = item != null;
+    final collectionRepository = dependencies.collectionRepository;
 
-    final queueAction = IconButton(
-      tooltip: '加入播放队列',
-      onPressed: item == null ? null : onEnqueue,
-      icon: const Icon(Icons.queue_music_rounded),
+    final favorite = LocalFavoriteButton(
+      sourcePath: song.entry.sourcePath,
+      repository: collectionRepository,
+      iconSize: 20,
     );
-    final playlistAction = IconButton(
-      tooltip: '加入播放列表',
-      onPressed: item == null
-          ? null
-          : () => showAddToLocalPlaylistDialog(
-              context,
-              sourcePath: song.entry.sourcePath,
-              title: song.title,
-              repository: collectionRepository,
-            ),
-      icon: const Icon(Icons.playlist_add_rounded),
-    );
+    final trailing = compact
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              favorite,
+              PopupMenuButton<String>(
+                tooltip: '更多歌曲操作',
+                enabled: available,
+                onSelected: (value) {
+                  if (value == 'playlist') _addToPlaylist(context);
+                  if (value == 'queue') onEnqueue();
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'playlist', child: Text('加入播放列表')),
+                  PopupMenuItem(value: 'queue', child: Text('加入播放队列')),
+                ],
+                icon: const Icon(Icons.more_horiz_rounded),
+              ),
+            ],
+          )
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              favorite,
+              IconButton(
+                tooltip: '加入播放列表',
+                onPressed: available ? () => _addToPlaylist(context) : null,
+                icon: const Icon(Icons.playlist_add_rounded),
+              ),
+              IconButton(
+                tooltip: '加入播放队列',
+                onPressed: available ? onEnqueue : null,
+                icon: const Icon(Icons.queue_music_rounded),
+              ),
+            ],
+          );
 
-    return ListTile(
-      enabled: item != null,
-      minVerticalPadding: compact ? AppSpacing.sm : null,
-      leading: SizedBox(
-        width: layout.minimumInteractiveExtent,
-        height: layout.minimumInteractiveExtent,
-        child: showTrackNumber
-            ? Center(
-                child: Text(
-                  song.entry.embeddedTrackNumber?.toString() ?? '${index + 1}',
-                ),
-              )
-            : AppArtwork(
+    return NowPlayingListener(
+      playbackSession: dependencies.playbackSession,
+      audioPlayer: dependencies.audioPlayer,
+      builder: (context, nowPlaying) => AppSongRow(
+        title: song.title,
+        subtitle: showTrackNumber
+            ? song.artistDisplay
+            : '${song.artistDisplay} · ${song.albumDisplay}',
+        unavailable: !available,
+        index: showTrackNumber
+            ? song.entry.embeddedTrackNumber?.toString() ?? '${index + 1}'
+            : null,
+        artwork: showTrackNumber
+            ? null
+            : available
+            ? AppArtwork(
                 path: song.artworkPath,
-                size: layout.minimumInteractiveExtent,
+                borderRadius: AppArtwork.rowRadius,
+              )
+            : AppArtwork.missing(
+                path: song.artworkPath,
                 borderRadius: AppArtwork.rowRadius,
               ),
+        playback: available
+            ? nowPlaying.playbackForPath(song.entry.sourcePath)
+            : AppSongRowPlayback.none,
+        onTap: onPlay,
+        semanticActions: {
+          if (available) '加入播放列表': () => _addToPlaylist(context),
+          if (available) '加入播放队列': onEnqueue,
+        },
+        trailing: trailing,
       ),
-      title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(
-        item == null ? '文件不可用' : '${song.artistDisplay} · ${song.albumDisplay}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      onTap: item == null ? null : onPlay,
-      trailing: compact
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LocalFavoriteButton(
-                  sourcePath: song.entry.sourcePath,
-                  repository: collectionRepository,
-                  iconSize: 20,
-                ),
-                PopupMenuButton<String>(
-                  tooltip: '更多歌曲操作',
-                  onSelected: (value) {
-                    if (value == 'playlist' && item != null) {
-                      showAddToLocalPlaylistDialog(
-                        context,
-                        sourcePath: song.entry.sourcePath,
-                        title: song.title,
-                        repository: collectionRepository,
-                      );
-                    }
-                    if (value == 'queue' && item != null) onEnqueue();
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'playlist', child: Text('加入播放列表')),
-                    PopupMenuItem(value: 'queue', child: Text('加入播放队列')),
-                  ],
-                  icon: const Icon(Icons.more_horiz_rounded),
-                ),
-              ],
-            )
-          : Wrap(
-              spacing: AppSpacing.xs,
-              children: [
-                LocalFavoriteButton(
-                  sourcePath: song.entry.sourcePath,
-                  repository: collectionRepository,
-                  iconSize: 20,
-                ),
-                playlistAction,
-                queueAction,
-              ],
-            ),
     );
   }
 }

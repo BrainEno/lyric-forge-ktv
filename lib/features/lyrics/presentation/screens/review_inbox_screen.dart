@@ -45,7 +45,26 @@ class ReviewInboxScreen extends StatefulWidget {
   /// service locator together with the lyric editor (Phase 4.2).
   final ProjectRepository projectRepository;
 
-  const ReviewInboxScreen({super.key, required this.projectRepository});
+  /// Whether this is the phone's 「歌词」 page, which also holds what the
+  /// desktop keeps under 工程: importing a song for recognition and the
+  /// project list (decision D-041).
+  final bool lyricsHub;
+
+  const ReviewInboxScreen({
+    super.key,
+    required this.projectRepository,
+    this.lyricsHub = false,
+  });
+
+  /// Title of the phone's lyric page and of the desktop inbox.
+  static const String hubTitle = '歌词';
+  static const String inboxTitle = '校对';
+
+  /// The phone page's two entries and its lyric-file tip.
+  static const String hubImportLabel = '导入并识别';
+  static const String hubProjectsLabel = '全部工程';
+  static const String hubLibraryLabel = '去音乐库';
+  static const String hubLyricFileTip = '给本地歌曲配 LRC 或文本歌词：在音乐库的歌曲菜单里选「导入歌词」。';
 
   static const String markAllReviewedLabel = '全部标为已复核';
   static const String moreActionsTooltip = '更多操作';
@@ -339,7 +358,11 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
         backgroundColor: AppColors.bgBase,
-        title: const Text('校对'),
+        title: Text(
+          widget.lyricsHub
+              ? ReviewInboxScreen.hubTitle
+              : ReviewInboxScreen.inboxTitle,
+        ),
         actions: [
           IconButton(
             tooltip: '刷新',
@@ -349,51 +372,156 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
         ],
       ),
       body: SafeArea(
-        child: FutureBuilder<List<ReviewInboxEntry>>(
-          future: _entriesFuture,
-          builder: (context, snapshot) {
-            // A reload after a save keeps the current list on screen until
-            // the new one arrives instead of flashing the spinner.
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
-              return const AppLoadingState(message: '正在读取歌词工程');
-            }
-            if (snapshot.hasError) {
-              return AppErrorState(
-                title: '工程列表加载失败',
-                message: '歌词工程暂时无法读取，可以重新加载一次。',
-                onRetry: _refresh,
-              );
-            }
-            final entries = snapshot.data ?? const <ReviewInboxEntry>[];
-            if (entries.isEmpty) {
-              return AppEmptyState(
-                icon: Icons.playlist_add_check_circle_outlined,
-                title: '还没有可校对的歌词',
-                message: '导入并识别一首歌之后，它的歌词会出现在这里，并标出还有多少行需要复核。',
-                actions: [
-                  FilledButton.tonal(
-                    onPressed: _openImport,
-                    child: const Text('去导入'),
+        child: Column(
+          children: [
+            if (widget.lyricsHub)
+              _LyricsHubHeader(
+                onImport: _openImport,
+                onProjects: () =>
+                    Navigator.pushNamed(context, Routes.dashboard),
+                onLibrary: () => Navigator.pushNamed(context, Routes.library),
+              ),
+            Expanded(child: _inbox(layout)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _inbox(AppLayoutSpec layout) {
+    return FutureBuilder<List<ReviewInboxEntry>>(
+      future: _entriesFuture,
+      builder: (context, snapshot) {
+        // A reload after a save keeps the current list on screen until
+        // the new one arrives instead of flashing the spinner.
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const AppLoadingState(message: '正在读取歌词工程');
+        }
+        if (snapshot.hasError) {
+          return AppErrorState(
+            title: '工程列表加载失败',
+            message: '歌词工程暂时无法读取，可以重新加载一次。',
+            onRetry: _refresh,
+          );
+        }
+        final entries = snapshot.data ?? const <ReviewInboxEntry>[];
+        if (entries.isEmpty) {
+          return AppEmptyState(
+            icon: Icons.playlist_add_check_circle_outlined,
+            title: '还没有可校对的歌词',
+            message: '导入并识别一首歌之后，它的歌词会出现在这里，并标出还有多少行需要复核。',
+            actions: [
+              FilledButton.tonal(
+                onPressed: _openImport,
+                child: const Text('去导入'),
+              ),
+            ],
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          color: AppColors.accent,
+          backgroundColor: AppColors.bgElevated,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: layout.pageGutter,
+              vertical: AppSpacing.md,
+            ),
+            children: _rows(context, entries),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The top of the phone's 「歌词」 page: import a song for recognition, open
+/// the project list, and where lyric files for library songs come in.
+class _LyricsHubHeader extends StatelessWidget {
+  const _LyricsHubHeader({
+    required this.onImport,
+    required this.onProjects,
+    required this.onLibrary,
+  });
+
+  final VoidCallback onImport;
+  final VoidCallback onProjects;
+  final VoidCallback onLibrary;
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = AppResponsive.of(context);
+    final minimum = Size(0, layout.minimumInteractiveExtent);
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        layout.pageGutter,
+        AppSpacing.sm,
+        layout.pageGutter,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(minimumSize: minimum),
+                  onPressed: onImport,
+                  icon: const Icon(Icons.graphic_eq_rounded),
+                  label: const Text(ReviewInboxScreen.hubImportLabel),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(minimumSize: minimum),
+                  onPressed: onProjects,
+                  icon: const Icon(Icons.folder_open_rounded),
+                  label: const Text(ReviewInboxScreen.hubProjectsLabel),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Material(
+            color: AppColors.vinylSurface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.xs,
+                AppSpacing.xs,
+                AppSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.lyrics_rounded,
+                    size: AppSpacing.iconSizeSmall,
+                    color: AppColors.vinylBrass,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      ReviewInboxScreen.hubLyricFileTip,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: onLibrary,
+                    child: const Text(ReviewInboxScreen.hubLibraryLabel),
                   ),
                 ],
-              );
-            }
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              color: AppColors.accent,
-              backgroundColor: AppColors.bgElevated,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.symmetric(
-                  horizontal: layout.pageGutter,
-                  vertical: AppSpacing.md,
-                ),
-                children: _rows(context, entries),
               ),
-            );
-          },
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

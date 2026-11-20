@@ -4,6 +4,7 @@ import '../core/layout/app_responsive.dart';
 import '../core/navigation/app_destinations.dart';
 import '../core/navigation/current_route_observer.dart';
 import '../core/navigation/destination_navigation.dart';
+import '../core/navigation/mobile_destinations.dart';
 import '../core/navigation/routes.dart';
 import '../core/theme/app_theme.dart';
 import '../features/player/presentation/widgets/global_playback_shortcuts.dart';
@@ -32,6 +33,17 @@ void _goToDestination(AppDestination destination) {
   goToDestination(navigator, destination, _appRouteObserver.routeName.value);
 }
 
+/// The same for the phone's bottom bar, whose destinations differ.
+void _goToMobileDestination(MobileDestination destination) {
+  final navigator = _navigatorKey.currentState;
+  if (navigator == null) return;
+  goToMobileDestination(
+    navigator,
+    destination,
+    _appRouteObserver.routeName.value,
+  );
+}
+
 /// The app shell: theme, navigator, routing table and the chrome around it.
 ///
 /// Moved out of `lib/main.dart` in Phase 4.2 so that `main.dart` is only
@@ -54,7 +66,9 @@ class ElysiumPlayerApp extends StatelessWidget {
     final desktopChrome =
         desktopChromeOverride ?? AppResponsive.isDesktopTarget();
     final services = this.services ?? AppServices.instance;
-    final router = AppRouter(services);
+    // The phone opens on the listening home instead of the project
+    // dashboard (decision D-041).
+    final router = AppRouter(services, listeningHome: !desktopChrome);
     // The two player bars are chrome, built by this shell rather than routed, so
     // they get their own bundle instead of reaching for the locator. Skipped
     // before bootstrap for the same reason the lyric sync is.
@@ -95,6 +109,7 @@ class ElysiumPlayerApp extends StatelessWidget {
           navigatorKey: _navigatorKey,
           currentRoute: _appRouteObserver.routeName,
           onSelectDestination: _goToDestination,
+          onSelectMobileDestination: _goToMobileDestination,
           queueBar: desktopChrome && services.isInitialized
               ? GlobalTranscriptionQueueBar(queue: services.transcriptionQueue)
               : null,

@@ -7,6 +7,8 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_song_row.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
@@ -471,6 +473,12 @@ class _DownloadedTrackTile extends StatelessWidget {
     required this.onDelete,
   });
 
+  /// The menu entry, also offered as the row's screen-reader action.
+  static const String deleteAction = '从手机删除';
+
+  /// Read after the title: the song is on the phone, so it plays offline.
+  static const String offlineLabel = '已下载，可离线播放';
+
   @override
   Widget build(BuildContext context) {
     final subtitle = <String>[
@@ -482,38 +490,41 @@ class _DownloadedTrackTile extends StatelessWidget {
       if (entry.sourceSizeBytes != null) formatBytes(entry.sourceSizeBytes!),
     ].join(' · ');
 
-    return Material(
-      color: AppColors.bgElevated,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-      child: ListTile(
-        onTap: onPlay,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+    return AppSongRow(
+      card: true,
+      title: title,
+      subtitle: subtitle,
+      artwork: AppArtwork(
+        path: entry.embeddedArtworkPath,
+        borderRadius: AppArtwork.rowRadius,
+        placeholderIcon: Icons.music_note_rounded,
+      ),
+      badges: const [
+        AppSongRowBadge(
+          icon: Icons.offline_pin_rounded,
+          color: AppColors.vinylBrass,
         ),
-        leading: AppArtwork(
-          path: entry.embeddedArtworkPath,
-          size: 50,
-          placeholderIcon: Icons.music_note_rounded,
-        ),
-        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'delete') onDelete();
-          },
-          itemBuilder: (_) => const <PopupMenuEntry<String>>[
-            PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete_outline_rounded),
-                  SizedBox(width: AppSpacing.sm),
-                  Text('从手机删除'),
-                ],
-              ),
+      ],
+      onTap: onPlay,
+      semanticLabel: AppTapTarget.join([title, subtitle, offlineLabel]),
+      semanticActions: {deleteAction: onDelete},
+      trailing: PopupMenuButton<String>(
+        tooltip: '下载歌曲操作',
+        onSelected: (value) {
+          if (value == 'delete') onDelete();
+        },
+        itemBuilder: (_) => const <PopupMenuEntry<String>>[
+          PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                Icon(Icons.delete_outline_rounded),
+                SizedBox(width: AppSpacing.sm),
+                Text(deleteAction),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

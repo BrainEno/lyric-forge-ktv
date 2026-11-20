@@ -2,70 +2,82 @@
 
 ## 目标
 
-审计路线的第十九轮（第十八轮 PR #490 已合并为 `2cd2dd5`）。第 18 轮交接的下一步里，真机验证在沙箱里做不了，所以本轮做其中可选的拆分：把编辑器歌词列表 `lyric_list_pane.dart`（1424 行）按职责拆开，并修掉拆分时发现的按键和菜单问题。本轮要求有效代码量不少于 1000 行，PR 过 CI 后直接合并。
+审计路线的第二十轮（第十九轮 PR #491 已合并为 `2be2b4c`）。本轮按用户选的方向改手机端：风格是“黑胶唱片 · 温暖复古”，以播放器为主，范围是核心听歌路径。要求有效代码量不少于 1000 行，PR 过 CI 后直接合并。
 
-1. 拆分（D-040）：
-   - `lyric_list_logic.dart`：搜索、候选标记和摘要、按键命令、上下移动和跟随播放的滚动位置，都是纯函数。
-   - `lyric_review_row.dart`：复核行和 `LyricRowMenuAction` 枚举。右键菜单和读屏自定义操作出自同一份列表。
-   - `lyric_inline_editor_row.dart`：行内编辑行，原样搬过去。
-   - `timestamp_edit_dialog.dart`：`LyricTimeInput`（解析和检查）、对话框和 `editLyricLineTime`。开始时间和结束时间的两份编辑函数合成一个。
-   - `lyric_list_states.dart`：搜索框、候选摘要和三个空状态。
-   - `lyric_list_pane.dart` 降到约 460 行，只留状态。它导出行、编辑行和时间对话框，原来的导入方不用改。
-2. 行为修正：
-   - 列表不用的按键交给上层，Tab 能移出列表，空格能到全局播放快捷键。原来所有按键都被吞掉。
-   - Ctrl/Cmd+F 会聚焦搜索框。原来这个分支是空的。
-   - 右键菜单补上「复制文字」。
-   - 搜索结果变化的判断改为对新旧文档跑同一个过滤，复核记录每次 build 只读一次。
-   - 手机宽度下，行的时间和标记移到歌词下面的第二行，并且可以换行。原来全挤在一行，390 宽的测试里会溢出 96 px。
-   - 不能编辑文字的行原来会给 `Tooltip` 传 null 并触发断言，现在不再包提示。
-   - 手动改过的长行在选中展开后也保持斜体。
-3. 审计表状态一节改为“第 19 轮核对”，E-04 和 A-04 两行补了本轮记录。
+1. 手机端四个去向（D-041）：
+   - 「听歌」「音乐库」「歌词」「设置」（`core/navigation/mobile_destinations.dart`）。「歌词」把原来的「工程」「校对」合在一起。
+   - 点「听歌」时退回根路由，点其他三个时压在根路由上面，所以按一次返回就回到听歌。
+   - 桌面端的侧边栏不变。
+2. 听歌首页 `ListenHomeScreen`（手机端的 `/`）：
+   - 转动的黑胶、标题、进度条和上一首 / 播放 / 下一首，背景是封面模糊后的颜色；
+   - 「播放全部」「随机播放」；
+   - 没有歌词时提示导入；
+   - 最近播放；
+   - 五个音乐库分区的快捷入口。
+   - 首页不显示迷你播放条。
+3. 「歌词」页：在校对收件箱顶部加“导入并识别”“全部工程”和导入 LRC 的说明（`lyricsHub`）。
+4. 共享歌曲行 `AppSongRow`：
+   - 音乐库的歌曲、艺人、专辑、收藏、播放列表，以及手机端电脑曲库和下载管理，七个列表都改用它；
+   - 正在播放的一行用黄铜色，封面上有节奏条；
+   - `NowPlayingListener` 只在歌曲或播放状态变化时重建，不再随进度刷新。
+5. 黑胶暖色：
+   - `AppColors.vinyl*`；
+   - `AppVinylDisc`、`AppRhythmBars`、`AppCoverGlow`；
+   - `AppTheme.vinylPlayDisc` 和 `vinylFilled`；
+   - 迷你播放条换成暖色渐变、小黑胶封面和黄铜色的进度条和播放键。
+   - 循环动画由 `AppMotion` 控制：系统要求减少动态效果时和测试里都不播放。
+6. 音乐库在手机宽度下默认用列表。
+7. 审计表状态一节改为“第 20 轮核对”，T-03 补了本轮记录。
 
 ## Git 现场
 
-- 分支：`arena/45048a01-lyric-forge-ktv`，基于 main `2cd2dd5`。
-- PR #491（squash 合并）。
-- 提交：`Split the editor's lyric list into rows, dialog, states and logic`、`Add a temporary probe`、`Wrap phone rows onto a second line and fix the review row tests`、`Apply format, size phone tests through the view`、`Let the row number shrink at large text sizes`、`Remove the probe`。
+- 分支：`arena/c532bb2c-lyric-forge-ktv`，基于 main `2be2b4c`。
+- PR #492（squash 合并）。
+- 提交：`Make the phone app listening-first with a vinyl home and one song row`、`Add a temporary probe`、`Apply format, regenerate the work log, deliver stream events in the listener test`、`Format after resolving packages in the probe`、`Apply format with the resolved language version`、`Remove the probe`。
 
 ## 已改文件
 
-见工作日志 `2026-12-06-0930`、新决定 D-040，以及审计表状态一节。
+见工作日志 `2026-12-07-0930`、新决定 D-041，以及审计表状态一节。
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR #491 的 CI 上跑，另外用一个临时探针工作流（合并前已删除）。探针结果：
+沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR #492 的 CI 上跑，另外用一个临时探针工作流（合并前已删除）。探针结果：
 - 第一次：
-  - 6 个新测试失败。其中一个是手机宽度下行溢出 96 px，这是真问题，已改成两行布局。
-  - 不能编辑的行给 `Tooltip` 传 null，触发断言，已修。
-  - 列表里点时间要先等双击超时，测试已补上等待。
+  - 新测试里只有一个失败：`NowPlayingListener` 的播放 / 暂停测试。流事件在 `pump` 检查完要不要画帧之后才到，所以重建要等下一帧。测试已改成连续 pump 两次。
+  - analyze 只有一条提示（测试里用了已弃用的 `pipelineOwner`），已改用 `SemanticsNode.owner`。
+  - work log 的生成文件和格式差异补丁已应用。
 - 第二次：
-  - 发现手机测试用的 `setSurfaceSize` 不会改变 `MediaQuery`，布局仍按中等宽度算。已改为设置 `tester.view`。
-  - 格式和 work log 的生成差异补丁已应用。
+  - 质量门的格式检查仍然失败。原因是探针在 `flutter pub get` 之前跑 `dart format`，用的语言版本不同，生成的格式补丁和质量门不一致。探针改成先解析依赖再格式化，按新补丁重新格式化了 7 个文件。
 - 第三次：
-  - 2 倍字号下行号列溢出 5.5 px，已改为缩小适配。
-- 第四次：
-  - 测试全部 3886 个通过、2 个跳过，比上轮多 102 个。
-  - analyze 没有错误和警告，175 条提示，比上轮少 6 条，改动的文件里没有提示。
-  - 格式没有差异。
+  - 测试全部 4007 个通过、2 个跳过，比上轮多 121 个。
+  - 改动的文件 analyze 没有问题。
+  - 格式没有差异，质量门通过。
 
-- 新增五个测试文件，覆盖逻辑、时间输入、复核行、列表按键和空状态。
-- 原有的列表、行读屏、拆分合并和编辑器面板测试仍从 `lyric_list_pane.dart` 导入，不用改。
-- 新文件都在歌词功能内部，展示层导入基线不变。
+- 新增六个测试文件：
+  - 配色对比度；
+  - 黑胶和动画；
+  - 歌曲行；
+  - 手机端去向；
+  - `NowPlayingListener`；
+  - 听歌首页。
+- 更新了外壳、底部导航和装配契约三个测试。
+- 歌曲行和黑胶组件在 `core/widgets`，展示层导入基线不变。
 
 ## 下一步
 
-- 真机验证仍然没做（第 14–19 轮）：
-  - 本轮的列表：Tab 移出列表、Ctrl/Cmd+F、右键菜单的「复制文字」，以及手机上两行式的行布局；
-  - 第 17 轮的网格和卡片，第 18 轮的准备对话框在手机宽度和大字号下的表现；
-  - 用 TalkBack / VoiceOver 听一遍编辑器行和准备对话框的步骤。
+- 真机验证（第 14–20 轮都没做）：
+  - 本轮：唱片转动和暂停、封面模糊、暖色在 OLED 屏上的效果、迷你播放条，以及 320 / 390 宽和大字号下的首页；
+  - 用 TalkBack / VoiceOver 听一遍新歌曲行、首页唱片和底部导航；
+  - 第 17–19 轮留下的网格、准备对话框和编辑器列表。
+- 正在播放的页面（`NowPlayingScreen`）还是原来的样式，可以改成同一套黑胶风格。
+- 桌面端是否也用暖色，还要用户决定。
 - 可选：`ai_transcription_settings_cards.dart` 约 565 行。有四个契约测试读这个路径，导入基线也不能增加。
-- 手机端歌曲行和本地歌曲列表可以抽一个共享的歌曲行。
-- 设置页和准备对话框的控制器有相似的流程（识别已有模型、空间检查）。如果要合并，共用部分应放进转写功能里一个不依赖 Flutter 的类，两个控制器之间不能互相导入。
 
 ## 已知风险
 
 - 没有在运行中的应用里看过。
-- 列表不再吞按键以后，焦点在列表上时，上层的快捷键（全局播放、撤销重做、保存）都能收到按键。目前上层没有和列表冲突的绑定：方向键只在按住 Shift 或 Ctrl/Cmd 时才触发全局播放，而列表只用不带修饰键的上下键。
-- 跟随播放用的是估计行高 68，和以前一样。行高变化很大时，滚动位置会有偏差。
+- 手机端启动页从工程首页改成了听歌首页。习惯从首页进工程的用户，现在要从「歌词」→「全部工程」进入。
+- 首页的最近播放只在歌曲变化和下拉刷新时重新读取。播放记录保存得比歌曲切换晚时，可能要等下一次切换才显示。
+- 模糊背景用 `ImageFiltered`（sigma 48），在低端手机上可能耗电。如果有问题，可以换成预先缩小的封面。
 
-最后更新：2026-12-06 09:30（Asia/Taipei）
+最后更新：2026-12-07 09:30（Asia/Taipei）
