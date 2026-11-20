@@ -179,7 +179,10 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
       }
 
       final separatorReport = SeparatorRunReport();
-      report(0.35, '正在分离人声');
+      // The bar never moves back, not even when a GPU fallback restarts
+      // inference on the CPU; the percentage in the message is the truth.
+      var shown = 0.35;
+      report(shown, '正在分离人声');
       final separation = await _runProcess(
         installation.executablePath,
         [
@@ -204,8 +207,10 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
               event is SeparatorStageEvent ||
               event is SeparatorDoneEvent) {
             final overall = separatorReport.overallProgress;
+            final fraction = 0.35 + 0.65 * overall;
+            if (fraction > shown) shown = fraction;
             report(
-              0.35 + 0.65 * overall,
+              shown,
               '正在分离人声 ${(overall * 100).toStringAsFixed(0)}%',
             );
           }
@@ -214,7 +219,11 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
       _checkCancelled();
       await _deleteQuietly(input);
 
-      final failure = await _validate(separation, separatorReport, runDirectory);
+      final failure = await _validate(
+        separation,
+        separatorReport,
+        runDirectory,
+      );
       if (failure != null) {
         await _deleteQuietly(runDirectory);
         return ProjectVocalSeparation(
@@ -248,10 +257,13 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
         provider: provider,
         generatedAt: _now(),
       );
-      await _pruneOldRuns(workDirectory, keep: {
-        runDirectory.path,
-        if (audio.vocalPath != null) File(audio.vocalPath!).parent.path,
-      });
+      await _pruneOldRuns(
+        workDirectory,
+        keep: {
+          runDirectory.path,
+          if (audio.vocalPath != null) File(audio.vocalPath!).parent.path,
+        },
+      );
       return ProjectVocalSeparation(
         VocalSeparationOutcome.separated(
           vocalPath: vocalPath,
@@ -407,7 +419,10 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
 
   /// Removes stems of earlier runs, keeping [keep] (this run and the stem
   /// the project still points at until the workflow saves the new one).
-  Future<void> _pruneOldRuns(String workDirectory, {required Set<String> keep}) async {
+  Future<void> _pruneOldRuns(
+    String workDirectory, {
+    required Set<String> keep,
+  }) async {
     try {
       final normalizedKeep = keep.map(_normalize).toSet();
       await for (final entity in Directory(workDirectory).list()) {
@@ -422,10 +437,12 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
     }
   }
 
-  ProjectVocalSeparation _failed(VocalSeparationFailure failure, String detail) =>
-      ProjectVocalSeparation(
-        VocalSeparationOutcome.failed(failure, detail: detail),
-      );
+  ProjectVocalSeparation _failed(
+    VocalSeparationFailure failure,
+    String detail,
+  ) => ProjectVocalSeparation(
+    VocalSeparationOutcome.failed(failure, detail: detail),
+  );
 
   void _checkCancelled() {
     if (_cancelled) {

@@ -416,19 +416,19 @@ class AppServices {
   ProjectTranscriptionWorkflow createProjectTranscriptionWorkflow({
     bool separateVocals = true,
   }) => LocalProjectTranscriptionWorkflow(
-        projectRepository: projectRepository,
-        transcriptionService: transcriptionService,
-        settingsStore: transcriptionSettingsStore,
-        profileResolver: transcriptionProfileResolver,
-        runtimeManager: asrRuntimeManager,
-        resources: asrResourceCoordinator,
-        mediaMetadataRepository: localMediaMetadataRepository,
-        playbackSession: playbackSessionService,
-        pathCanonicalizer: audioPathCanonicalizer,
-        vocalSeparator: separateVocals
-            ? LocalProjectVocalSeparator(runtime: vocalSeparatorRuntime)
-            : null,
-      );
+    projectRepository: projectRepository,
+    transcriptionService: transcriptionService,
+    settingsStore: transcriptionSettingsStore,
+    profileResolver: transcriptionProfileResolver,
+    runtimeManager: asrRuntimeManager,
+    resources: asrResourceCoordinator,
+    mediaMetadataRepository: localMediaMetadataRepository,
+    playbackSession: playbackSessionService,
+    pathCanonicalizer: audioPathCanonicalizer,
+    vocalSeparator: separateVocals
+        ? LocalProjectVocalSeparator(runtime: vocalSeparatorRuntime)
+        : null,
+  );
 }
 
 bool _isSupportedIncomingAudio(String path) {

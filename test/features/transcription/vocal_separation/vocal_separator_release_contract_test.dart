@@ -30,9 +30,7 @@ void main() {
     );
     expect(
       workflow,
-      contains(
-        'SEPARATOR_REVISION: ${ManagedVocalSeparatorRuntime.revision}',
-      ),
+      contains('SEPARATOR_REVISION: ${ManagedVocalSeparatorRuntime.revision}'),
     );
     expect(
       RegExp(
@@ -77,10 +75,7 @@ void main() {
 
   test('the model is verified before it is shipped', () {
     expect(workflow, contains('export_htdemucs_vocals_onnx.py'));
-    expect(
-      workflow,
-      contains('Model hash changed between export and bundle'),
-    );
+    expect(workflow, contains('Model hash changed between export and bundle'));
     final export = File(
       'tool/vocal_separator/export_htdemucs_vocals_onnx.py',
     ).readAsStringSync();
@@ -93,7 +88,10 @@ void main() {
   test('both platforms separate a real song before publishing', () {
     expect(workflow, contains('check_stems.py song.wav stems separator.log'));
     expect(workflow, contains('--output-dir "stems-人声" --provider cpu'));
-    expect(workflow, contains('needs: [flutter-contracts, linux-smoke, windows]'));
+    expect(
+      workflow,
+      contains('needs: [flutter-contracts, linux-smoke, windows]'),
+    );
     expect(workflow, contains("if: github.event_name != 'pull_request'"));
     expect(workflow, contains('--prerelease'));
   });

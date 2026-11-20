@@ -199,7 +199,10 @@ class _Fixture {
   }
 }
 
-Future<_Fixture> _fixture({String? vocalPath, Map<String, dynamic>? metadata}) async {
+Future<_Fixture> _fixture({
+  String? vocalPath,
+  Map<String, dynamic>? metadata,
+}) async {
   final root = await Directory.systemTemp.createTemp('vocal-separation-');
   addTearDown(() => root.delete(recursive: true));
   final song = File('${root.path}/歌曲.flac');
@@ -266,7 +269,10 @@ void main() {
     );
     expect(_argument(separator, '--provider'), 'auto');
     expect(_argument(separator, '--vocals-index'), '3');
-    expect(_argument(separator, '--model'), endsWith('htdemucs_ft_vocals.onnx'));
+    expect(
+      _argument(separator, '--model'),
+      endsWith('htdemucs_ft_vocals.onnx'),
+    );
 
     // The decoded copy of the song is not kept next to the stems.
     expect(File(_argument(separator, '--input')).existsSync(), isFalse);
@@ -277,10 +283,9 @@ void main() {
     final fixture = await _fixture();
     await fixture.run();
     expect(fixture.progress, isNotEmpty);
-    expect(
-      fixture.progress.map((p) => p.stage).toSet(),
-      {TranscriptionStage.preprocessing},
-    );
+    expect(fixture.progress.map((p) => p.stage).toSet(), {
+      TranscriptionStage.preprocessing,
+    });
     final values = fixture.progress.map((p) => p.progress).toList();
     for (var i = 1; i < values.length; i++) {
       expect(values[i], greaterThanOrEqualTo(values[i - 1]));
@@ -438,14 +443,15 @@ void main() {
   test('an unchanged automatic stem is reused without work', () async {
     final first = await _fixture();
     final separated = await first.run();
-    final project = first.project.copyWith(
-      audioAsset: separated.updatedAudio,
-    );
+    final project = first.project.copyWith(audioAsset: separated.updatedAudio);
     first.processes.calls.clear();
     final again = await first.run(project: project);
     expect(again.outcome.status, VocalSeparationStatus.reused);
     expect(again.outcome.vocalPath, separated.outcome.vocalPath);
-    expect(again.outcome.accompanimentPath, separated.outcome.accompanimentPath);
+    expect(
+      again.outcome.accompanimentPath,
+      separated.outcome.accompanimentPath,
+    );
     expect(again.outcome.provider, 'dml');
     expect(again.updatedAudio, isNull);
     expect(first.processes.calls, isEmpty);

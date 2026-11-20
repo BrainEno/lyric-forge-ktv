@@ -151,22 +151,22 @@ void main() {
     expect(leftovers, containsAll(['current', 'downloads']));
     expect(leftovers, isNot(contains('staging')));
     expect(leftovers, isNot(contains('previous')));
-    expect(
-      Directory('${release.root.path}/downloads').listSync(),
-      isEmpty,
-    );
+    expect(Directory('${release.root.path}/downloads').listSync(), isEmpty);
 
     // A second call is served from disk.
     final again = await runtime.ensureInstalled();
     expect(again.root, installation.root);
     expect(release.downloads, 1);
     expect(release.metadataCalls, 1);
-    expect((await runtime.inspect())?.manifest.separatorRevision,
-        ManagedVocalSeparatorRuntime.revision);
+    expect(
+      (await runtime.inspect())?.manifest.separatorRevision,
+      ManagedVocalSeparatorRuntime.revision,
+    );
   });
 
   test('accepts a bundle zipped inside a parent folder', () async {
-    final release = await _release()..nestedFolder = true;
+    final release = await _release()
+      ..nestedFolder = true;
     final installation = await release.runtime().ensureInstalled();
     expect(File(installation.modelPath).existsSync(), isTrue);
   });
@@ -183,7 +183,8 @@ void main() {
   });
 
   test('a corrupted download is deleted and reported', () async {
-    final release = await _release()..archiveSha = 'f' * 64;
+    final release = await _release()
+      ..archiveSha = 'f' * 64;
     final runtime = release.runtime();
     await expectLater(
       runtime.ensureInstalled(),
@@ -195,15 +196,13 @@ void main() {
         ),
       ),
     );
-    expect(
-      Directory('${release.root.path}/downloads').listSync(),
-      isEmpty,
-    );
+    expect(Directory('${release.root.path}/downloads').listSync(), isEmpty);
     expect(await runtime.inspect(), isNull);
   });
 
   test('a size mismatch is rejected before hashing', () async {
-    final release = await _release()..archiveSize = 1;
+    final release = await _release()
+      ..archiveSize = 1;
     await expectLater(
       release.runtime().ensureInstalled(),
       throwsA(isA<VocalSeparatorInstallException>()),
@@ -223,7 +222,8 @@ void main() {
   });
 
   test('a bundle of another revision is not activated', () async {
-    final release = await _release()..revision = 'htdemucs-ft-vocals-onnx-v0';
+    final release = await _release()
+      ..revision = 'htdemucs-ft-vocals-onnx-v0';
     await expectLater(
       release.runtime().ensureInstalled(),
       throwsA(isA<VocalSeparatorInstallException>()),

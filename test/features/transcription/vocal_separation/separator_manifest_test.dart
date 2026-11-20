@@ -31,7 +31,7 @@ Map<String, Object?> _manifest({
   },
   'onnxRuntime': '1.22.0',
   'directML': '1.15.4',
-  'demucsOnnxRevision': '81fa1920bd2b5aa2a39d0f95b35b5e1b8b17a1c0',
+  'demucsOnnxRevision': '81fa192e6fcc88e35e887f6e6ccce91227f4e6f5',
   'builtAt': '2026-11-18T08:00:00.0000000Z',
 };
 

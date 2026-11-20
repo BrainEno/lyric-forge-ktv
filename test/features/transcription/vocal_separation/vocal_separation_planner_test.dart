@@ -18,17 +18,20 @@ VocalSeparationFacts _facts({
   vocalFileExists: vocalFileExists,
 );
 
-AudioAsset _audio({String? vocalPath, Duration? duration, VocalStemMarker? marker}) =>
-    AudioAsset(
-      originalPath: '/music/song.flac',
-      format: 'flac',
-      vocalPath: vocalPath,
-      duration: duration,
-      metadata: {
-        'title': 'Song',
-        if (marker != null) VocalStemMarker.metadataKey: marker.toJson(),
-      },
-    );
+AudioAsset _audio({
+  String? vocalPath,
+  Duration? duration,
+  VocalStemMarker? marker,
+}) => AudioAsset(
+  originalPath: '/music/song.flac',
+  format: 'flac',
+  vocalPath: vocalPath,
+  duration: duration,
+  metadata: {
+    'title': 'Song',
+    if (marker != null) VocalStemMarker.metadataKey: marker.toJson(),
+  },
+);
 
 VocalStemMarker _marker({
   String revision = _revision,

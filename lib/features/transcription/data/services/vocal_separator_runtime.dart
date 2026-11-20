@@ -16,15 +16,16 @@ class VocalSeparatorInstallation {
   final String root;
   final SeparatorManifest manifest;
 
-  const VocalSeparatorInstallation({required this.root, required this.manifest});
+  const VocalSeparatorInstallation({
+    required this.root,
+    required this.manifest,
+  });
 
   String get executablePath => _resolve(manifest.executable);
   String get modelPath => _resolve(manifest.modelFile);
 
-  String _resolve(String relative) => [
-    root,
-    ...relative.split('/'),
-  ].join(Platform.pathSeparator);
+  String _resolve(String relative) =>
+      [root, ...relative.split('/')].join(Platform.pathSeparator);
 }
 
 class VocalSeparatorInstallException implements Exception {
@@ -146,8 +147,10 @@ class ManagedVocalSeparatorRuntime implements VocalSeparatorRuntime {
     void Function(double fraction, String message)? onProgress,
   }) {
     // Two workflows starting at once share one download.
-    return _install ??= _ensureInstalled(proxy, onProgress ?? (_, _) {})
-        .whenComplete(() => _install = null);
+    return _install ??= _ensureInstalled(
+      proxy,
+      onProgress ?? (_, _) {},
+    ).whenComplete(() => _install = null);
   }
 
   @override
@@ -200,9 +203,7 @@ class ManagedVocalSeparatorRuntime implements VocalSeparatorRuntime {
       onProgress(0.92, '正在校验人声分离模型');
       final installation = await _verified(bundle, requireHash: true);
       if (installation == null) {
-        throw const VocalSeparatorInstallException(
-          '人声分离组件不完整或版本不匹配，已保留原有安装',
-        );
+        throw const VocalSeparatorInstallException('人声分离组件不完整或版本不匹配，已保留原有安装');
       }
       await _checkVersion(installation.executablePath);
 
@@ -276,7 +277,6 @@ class ManagedVocalSeparatorRuntime implements VocalSeparatorRuntime {
       );
     } on TranscriptionException {
       rethrow;
-
     } catch (error) {
       _transfer.throwIfRequested();
       throw VocalSeparatorInstallException(
@@ -421,7 +421,10 @@ class ManagedVocalSeparatorRuntime implements VocalSeparatorRuntime {
         AsrEndpoints.runtimeReleaseMetadata(tag),
       );
       cancellation.track(client, request);
-      request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
+      request.headers.set(
+        HttpHeaders.acceptHeader,
+        'application/vnd.github+json',
+      );
       final response = await request.close().timeout(_timeout);
       cancellation.requestDone();
       if (response.statusCode != HttpStatus.ok) {
@@ -466,7 +469,10 @@ class ManagedVocalSeparatorRuntime implements VocalSeparatorRuntime {
     );
   }
 
-  static Future<void> _defaultExtract(String archive, String destination) async {
+  static Future<void> _defaultExtract(
+    String archive,
+    String destination,
+  ) async {
     final result = Platform.isWindows
         ? await Process.run('powershell', [
             '-NoProfile',

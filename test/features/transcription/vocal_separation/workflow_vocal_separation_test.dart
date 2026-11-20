@@ -103,8 +103,10 @@ void main() {
     expect(fixture.repository.project.audioAsset?.vocalPath, isNull);
     final transcription =
         fixture.repository.project.metadata['transcription'] as Map;
-    expect((transcription['vocalSeparation'] as Map)['failure'],
-        'separatorFailed');
+    expect(
+      (transcription['vocalSeparation'] as Map)['failure'],
+      'separatorFailed',
+    );
     expect(fixture.repository.project.status, ProjectStatus.editing);
   });
 
@@ -192,47 +194,50 @@ void main() {
     });
   });
 
-  test('cancelling during separation stops it and restores the project', () async {
-    final fixture = await _Fixture.create();
-    final entered = Completer<void>();
-    final release = Completer<void>();
-    fixture.separator.onSeparate = () async {
-      entered.complete();
-      await release.future;
-    };
-    fixture.separator.onCancel = () async {
-      if (!release.isCompleted) release.complete();
-    };
-    fixture.separator.result = (_) => const ProjectVocalSeparation(
-      VocalSeparationOutcome.skipped(VocalSeparationSkipReason.disabled),
-    );
-    final workflow = fixture.workflow();
-    final run = workflow.transcribeProject('p');
-    await entered.future;
-    await workflow.cancel();
+  test(
+    'cancelling during separation stops it and restores the project',
+    () async {
+      final fixture = await _Fixture.create();
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      fixture.separator.onSeparate = () async {
+        entered.complete();
+        await release.future;
+      };
+      fixture.separator.onCancel = () async {
+        if (!release.isCompleted) release.complete();
+      };
+      fixture.separator.result = (_) => const ProjectVocalSeparation(
+        VocalSeparationOutcome.skipped(VocalSeparationSkipReason.disabled),
+      );
+      final workflow = fixture.workflow();
+      final run = workflow.transcribeProject('p');
+      await entered.future;
+      await workflow.cancel();
 
-    await expectLater(
-      run,
-      throwsA(
-        isA<TranscriptionException>().having(
-          (error) => error.kind,
-          'kind',
-          TranscriptionFailureKind.cancelled,
+      await expectLater(
+        run,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
         ),
-      ),
-    );
-    expect(fixture.separator.cancels, 1);
-    expect(fixture.service.lastRequest, isNull);
-    expect(fixture.service.cancelCalls, 0);
-    expect(fixture.repository.project.status, ProjectStatus.editing);
-    expect(
-      fixture.repository.project.metadata.containsKey(
-        'activeTranscriptionRunId',
-      ),
-      isFalse,
-    );
-    expect(workflow.isRunning, isFalse);
-  });
+      );
+      expect(fixture.separator.cancels, 1);
+      expect(fixture.service.lastRequest, isNull);
+      expect(fixture.service.cancelCalls, 0);
+      expect(fixture.repository.project.status, ProjectStatus.editing);
+      expect(
+        fixture.repository.project.metadata.containsKey(
+          'activeTranscriptionRunId',
+        ),
+        isFalse,
+      );
+      expect(workflow.isRunning, isFalse);
+    },
+  );
 
   test('a project edit during separation aborts before recognition', () async {
     final fixture = await _Fixture.create();

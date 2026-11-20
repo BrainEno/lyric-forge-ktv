@@ -35,8 +35,10 @@ void main() {
 
     test('copyWith keeps the choice when other fields change', () {
       final off = base.copyWith(vocalSeparation: VocalSeparationPreference.off);
-      expect(off.copyWith(language: 'ja').vocalSeparation,
-          VocalSeparationPreference.off);
+      expect(
+        off.copyWith(language: 'ja').vocalSeparation,
+        VocalSeparationPreference.off,
+      );
     });
   });
 
@@ -52,9 +54,7 @@ void main() {
 
     test('round-trips through project JSON', () {
       final metadata =
-          jsonDecode(
-                jsonEncode({VocalStemMarker.metadataKey: marker.toJson()}),
-              )
+          jsonDecode(jsonEncode({VocalStemMarker.metadataKey: marker.toJson()}))
               as Map<String, dynamic>;
       final restored = VocalStemMarker.fromAudioMetadata(metadata)!;
       expect(restored.separatorRevision, marker.separatorRevision);
@@ -68,9 +68,7 @@ void main() {
     test('is absent for imported stems and foreign metadata', () {
       expect(VocalStemMarker.fromAudioMetadata(const {}), isNull);
       expect(
-        VocalStemMarker.fromAudioMetadata({
-          VocalStemMarker.metadataKey: 'yes',
-        }),
+        VocalStemMarker.fromAudioMetadata({VocalStemMarker.metadataKey: 'yes'}),
         isNull,
       );
       expect(

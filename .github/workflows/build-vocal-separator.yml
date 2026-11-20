@@ -35,7 +35,7 @@ concurrency:
 
 env:
   DEMUCS_ONNX_REPO: https://github.com/sevagh/demucs.onnx.git
-  DEMUCS_ONNX_REV: 81fa1920bd2b5aa2a39d0f95b35b5e1b8b17a1c0
+  DEMUCS_ONNX_REV: 81fa192e6fcc88e35e887f6e6ccce91227f4e6f5
   ORT_VERSION: "1.22.0"
   DIRECTML_VERSION: "1.15.4"
   SEPARATOR_TAG: vocal-separator-v1

@@ -2,7 +2,7 @@
 
 `src/` is the C++ inference core of
 [sevagh/demucs.onnx](https://github.com/sevagh/demucs.onnx), revision
-`81fa1920bd2b5aa2a39d0f95b35b5e1b8b17a1c0` (MIT, copy in `LICENSE`). It runs
+`81fa192e6fcc88e35e887f6e6ccce91227f4e6f5` (MIT, copy in `LICENSE`). It runs
 an htdemucs network exported to ONNX with the STFT/iSTFT kept outside the
 graph, and does the segment overlap-add that Demucs does in PyTorch.
 
