@@ -67,9 +67,7 @@ void main() {
   test(
     'setup and settings use resumable pause, continue and failed-component retry',
     () {
-      final setup = File(
-        'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
-      ).readAsStringSync();
+      final setup = _setupSources();
       final settings = [
         'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
         'lib/features/settings/presentation/widgets/ai_transcription_settings_cards.dart',
@@ -93,19 +91,20 @@ void main() {
     },
   );
 
-  test('advanced setup settings persist before the install dialog can retry', () {
-    final setup = File(
-      'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
-    ).readAsStringSync();
-    final save = setup.indexOf('await _settingsStore.save(updated);');
-    final apply = setup.indexOf('setState(() => _config = updated);', save);
-    final refresh = setup.indexOf('await _refresh();', apply);
+  test(
+    'advanced setup settings persist before the install dialog can retry',
+    () {
+      final setup = _setupSources();
+      final save = setup.indexOf('await _settingsStore.save(updated);');
+      final apply = setup.indexOf('_set(() => _config = updated);', save);
+      final refresh = setup.indexOf('await _refresh();', apply);
 
-    expect(save, greaterThanOrEqualTo(0));
-    expect(apply, greaterThan(save));
-    expect(refresh, greaterThan(apply));
-    expect(setup, contains('保存本地识别设置失败：'));
-  });
+      expect(save, greaterThanOrEqualTo(0));
+      expect(apply, greaterThan(save));
+      expect(refresh, greaterThan(apply));
+      expect(setup, contains('保存本地识别设置失败：'));
+    },
+  );
 
   test(
     'advanced settings can save proxy without a complete model configuration',
@@ -113,9 +112,7 @@ void main() {
       final dialog = File(
         'lib/features/transcription/presentation/widgets/transcription_config_dialog.dart',
       ).readAsStringSync();
-      final setup = File(
-        'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
-      ).readAsStringSync();
+      final setup = _setupSources();
 
       expect(dialog, contains('保存代理并退出'));
       expect(dialog, contains('下载代理可以单独保存'));
@@ -135,9 +132,7 @@ void main() {
       final dashboard = File(
         'lib/features/home/presentation/screens/dashboard_screen.dart',
       ).readAsStringSync();
-      final setup = File(
-        'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
-      ).readAsStringSync();
+      final setup = _setupSources();
       final checker = File(
         'lib/features/transcription/data/services/asr_download_connection_checker.dart',
       ).readAsStringSync();
@@ -288,3 +283,19 @@ void main() {
     expect(find.text('复制诊断详情'), findsOneWidget);
   });
 }
+
+/// The first-run setup dialog, its cards, controller and wording (audit I-03
+/// split the 957-line dialog into these files).
+String _setupSources() =>
+    [
+          'asr_runtime_setup_dialog.dart',
+          'asr_runtime_setup_cards.dart',
+          'asr_runtime_setup_controller.dart',
+          'asr_runtime_setup_text.dart',
+        ]
+        .map(
+          (name) => File(
+            'lib/features/transcription/presentation/widgets/$name',
+          ).readAsStringSync(),
+        )
+        .join('\n');

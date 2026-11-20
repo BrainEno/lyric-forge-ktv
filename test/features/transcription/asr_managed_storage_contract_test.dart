@@ -31,9 +31,7 @@ void main() {
   });
 
   test('desktop setup and Settings expose safe managed storage relocation', () async {
-    final setup = await File(
-      'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
-    ).readAsString();
+    final setup = _setupSources();
     final settings = [
       await File(
         'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
@@ -146,3 +144,19 @@ void main() {
     },
   );
 }
+
+/// The first-run setup dialog, its cards, controller and wording (audit I-03
+/// split the 957-line dialog into these files).
+String _setupSources() =>
+    [
+          'asr_runtime_setup_dialog.dart',
+          'asr_runtime_setup_cards.dart',
+          'asr_runtime_setup_controller.dart',
+          'asr_runtime_setup_text.dart',
+        ]
+        .map(
+          (name) => File(
+            'lib/features/transcription/presentation/widgets/$name',
+          ).readAsStringSync(),
+        )
+        .join('\n');
