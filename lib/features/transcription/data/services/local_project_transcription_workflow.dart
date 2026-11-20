@@ -57,6 +57,7 @@ class LocalProjectTranscriptionWorkflow
   /// Optional lead-vocal separation before recognition (D-043). Null keeps
   /// the earlier behaviour: recognise the imported stem or the mix.
   final ProjectVocalSeparator? _vocalSeparator;
+
   /// Optional check of a draft recognised from a vocal stem against the
   /// stem (D-044). Null keeps the draft exactly as recognised.
   final TranscriptionVocalCheck? _vocalCheck;

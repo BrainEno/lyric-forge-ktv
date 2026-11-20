@@ -44,10 +44,7 @@ void main() {
 
   test('finds sung stretches between quiet ones', () {
     final profile = analyzer.analyze(
-      _envelope(
-        30,
-        loud: [(5000, 12000, 0.2), (15000, 22000, 0.15)],
-      ),
+      _envelope(30, loud: [(5000, 12000, 0.2), (15000, 22000, 0.15)]),
     );
     expect(profile.isReliable, isTrue);
     expect(profile.regions, [
@@ -76,10 +73,7 @@ void main() {
 
   test('drops blips shorter than the minimum region', () {
     final profile = analyzer.analyze(
-      _envelope(
-        20,
-        loud: [(1000, 1060, 0.3), (5000, 9000, 0.2)],
-      ),
+      _envelope(20, loud: [(1000, 1060, 0.3), (5000, 9000, 0.2)]),
     );
     expect(profile.regions, [LyricVocalCheckSpan(_ms(5000), _ms(9000))]);
   });
@@ -87,10 +81,7 @@ void main() {
   test('quiet singing well inside the range still counts', () {
     // A soft verse 20 dB under the chorus.
     final profile = analyzer.analyze(
-      _envelope(
-        30,
-        loud: [(2000, 8000, 0.02), (12000, 25000, 0.2)],
-      ),
+      _envelope(30, loud: [(2000, 8000, 0.02), (12000, 25000, 0.2)]),
     );
     expect(profile.regions, hasLength(2));
     expect(profile.regions.first.start, _ms(2000));
@@ -99,18 +90,13 @@ void main() {
   test('leftover bleed far under the singing is not singing', () {
     // Faint accompaniment leftovers in the intro, 40 dB under the vocal.
     final profile = analyzer.analyze(
-      _envelope(
-        30,
-        loud: [(0, 6000, 0.002), (8000, 25000, 0.2)],
-      ),
+      _envelope(30, loud: [(0, 6000, 0.002), (8000, 25000, 0.2)]),
     );
     expect(profile.regions, [LyricVocalCheckSpan(_ms(8000), _ms(25000))]);
   });
 
   test('a region reaching the end of the audio is closed there', () {
-    final profile = analyzer.analyze(
-      _envelope(10, loud: [(7000, 10000, 0.2)]),
-    );
+    final profile = analyzer.analyze(_envelope(10, loud: [(7000, 10000, 0.2)]));
     expect(profile.regions, [LyricVocalCheckSpan(_ms(7000), _ms(10000))]);
   });
 
@@ -121,9 +107,7 @@ void main() {
 
   group('unreliable profiles', () {
     test('too short to judge', () {
-      final profile = analyzer.analyze(
-        _envelope(2, loud: [(0, 1000, 0.2)]),
-      );
+      final profile = analyzer.analyze(_envelope(2, loud: [(0, 1000, 0.2)]));
       expect(profile.unreliability, VocalActivityUnreliability.tooShort);
       expect(profile.isReliable, isFalse);
       expect(profile.regions, isEmpty);
@@ -165,11 +149,7 @@ void main() {
 
     test('a full mix imported as the vocal is low contrast', () {
       final profile = analyzer.analyze(
-        _envelope(
-          30,
-          quiet: 0.08,
-          loud: [(5000, 25000, 0.2)],
-        ),
+        _envelope(30, quiet: 0.08, loud: [(5000, 25000, 0.2)]),
       );
       expect(profile.unreliability, VocalActivityUnreliability.lowContrast);
       expect(profile.regions, isEmpty);
@@ -185,11 +165,7 @@ void main() {
   test('a stem with digital silence between phrases is judged on the '
       'audible frames', () {
     final profile = analyzer.analyze(
-      _envelope(
-        30,
-        quiet: 0,
-        loud: [(3000, 9000, 0.1), (14000, 20000, 0.1)],
-      ),
+      _envelope(30, quiet: 0, loud: [(3000, 9000, 0.1), (14000, 20000, 0.1)]),
     );
     expect(profile.isReliable, isTrue);
     expect(profile.regions, hasLength(2));
@@ -198,11 +174,7 @@ void main() {
   test('the threshold never drops under the absolute floor', () {
     // A very quiet but clean stem: reference -50 dB, silence beneath.
     final profile = analyzer.analyze(
-      _envelope(
-        20,
-        quiet: 0.00001,
-        loud: [(2000, 8000, 0.003)],
-      ),
+      _envelope(20, quiet: 0.00001, loud: [(2000, 8000, 0.003)]),
     );
     expect(profile.thresholdDb, greaterThanOrEqualTo(-55));
   });

@@ -149,8 +149,7 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
         '人声检查删除了 ${removed.length} 行没人唱的歌词'
             '（${removed.take(2).map((line) => '“${line.text.trim()}”').join('、')}'
             '${removed.length > 2 ? '等' : ''}），多是前奏、间奏或尾奏里编出来的',
-      if (record.retimedLines > 0)
-        '按人声收紧了 ${record.retimedLines} 行的起止时间',
+      if (record.retimedLines > 0) '按人声收紧了 ${record.retimedLines} 行的起止时间',
       if (!record.changedDraft) '人声检查没有发现需要删除或收紧的行',
     ];
   }

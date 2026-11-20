@@ -96,9 +96,7 @@ void main() {
     });
 
     test('names the first stretches and counts the rest', () {
-      final one = _summary(
-        _document([_line('第一句', 10, 15)], record: _record),
-      );
+      final one = _summary(_document([_line('第一句', 10, 15)], record: _record));
       expect(
         LyricRecognitionSummaryCard.vocalSpansLine(one),
         '有人声但没有歌词：1:15.0–1:19.0。试听后可补写，或选中相邻的行用“重新识别这一段”',
@@ -125,7 +123,9 @@ void main() {
 
     test('no open stretch means no line', () {
       final summary = _summary(
-        _document([_line('第一句', 10, 15)], record: const LyricVocalCheckRecord()),
+        _document([
+          _line('第一句', 10, 15),
+        ], record: const LyricVocalCheckRecord()),
       );
       expect(LyricRecognitionSummaryCard.vocalSpansLine(summary), isNull);
     });
@@ -199,10 +199,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('1:15.0–1:19.0'), findsOneWidget);
-      expect(
-        find.textContaining('有人声没歌词', findRichText: true),
-        findsOneWidget,
-      );
+      expect(find.textContaining('有人声没歌词', findRichText: true), findsOneWidget);
       expect(find.textContaining('1 处', findRichText: true), findsOneWidget);
       // The change log waits for the expanded card.
       expect(find.textContaining('删除了 3 行'), findsNothing);
@@ -218,10 +215,7 @@ void main() {
     testWidgets('closed stretches leave only the zero count', (tester) async {
       await pump(
         tester,
-        _document([
-          _line('第一句', 10, 15),
-          _line('补写', 75, 79),
-        ], record: _record),
+        _document([_line('第一句', 10, 15), _line('补写', 75, 79)], record: _record),
       );
       expect(
         find.byKey(const ValueKey('lyric_recognition_summary_vocal_spans')),
@@ -232,10 +226,7 @@ void main() {
 
     testWidgets('no record, no vocal metric', (tester) async {
       await pump(tester, _document([_line('第一句', 10, 15)]));
-      expect(
-        find.textContaining('有人声没歌词', findRichText: true),
-        findsNothing,
-      );
+      expect(find.textContaining('有人声没歌词', findRichText: true), findsNothing);
       expect(
         find.byKey(const ValueKey('lyric_recognition_summary_vocal_spans')),
         findsNothing,

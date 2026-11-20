@@ -72,10 +72,7 @@ void main() {
     expect(result.report.applied, isTrue);
     expect(result.report.audioPath, 'v.wav');
     final record = result.report.record;
-    expect(record.removedLines.map((line) => line.text), [
-      '字幕由某某提供',
-      '谢谢观看',
-    ]);
+    expect(record.removedLines.map((line) => line.text), ['字幕由某某提供', '谢谢观看']);
     expect(record.removedLines.first.start, _ms(1000));
     expect(record.removedLines.last.end, _ms(58000));
   });
@@ -114,11 +111,7 @@ void main() {
     ]);
     final kept = gate.apply(loose, song, audioPath: 'v.wav');
     // 200 ms of singing within the slack: kept.
-    expect(kept.document.lines.map((line) => line.text), [
-      '第一句',
-      '拖尾',
-      '第二句',
-    ]);
+    expect(kept.document.lines.map((line) => line.text), ['第一句', '拖尾', '第二句']);
   });
 
   test('keeps rows past the end of the analysed audio', () {
@@ -138,11 +131,7 @@ void main() {
       _line('没有时长', 5000, 5000),
     ]);
     final result = gate.apply(draft, song, audioPath: 'v.wav');
-    expect(result.document.lines.map((line) => line.text), [
-      '',
-      '第一句',
-      '没有时长',
-    ]);
+    expect(result.document.lines.map((line) => line.text), ['', '第一句', '没有时长']);
     expect(result.report.record.removedLines, isEmpty);
   });
 
@@ -159,10 +148,7 @@ void main() {
       );
       expect(identical(result.document, draft), isTrue);
       expect(result.report.applied, isFalse);
-      expect(
-        result.report.skipReason,
-        VocalCheckSkipReason.unreliableProfile,
-      );
+      expect(result.report.skipReason, VocalCheckSkipReason.unreliableProfile);
       expect(result.report.toJson()['profile'], isNotNull);
     });
 
@@ -184,10 +170,7 @@ void main() {
       ]);
       final result = gate.apply(draft, song, audioPath: 'v.wav');
       expect(identical(result.document, draft), isTrue);
-      expect(
-        result.report.skipReason,
-        VocalCheckSkipReason.tooManySilentLines,
-      );
+      expect(result.report.skipReason, VocalCheckSkipReason.tooManySilentLines);
       expect(result.report.silentLines, 4);
       expect(result.report.toJson()['silentLines'], 4);
     });
@@ -339,16 +322,15 @@ void main() {
       final draft = _document(
         [padded, _line('第二句', 22000, 35000)],
         metadata: {
-          SecondaryOnlySuggestion.metadataKey: SecondaryOnlySuggestion.wrap(
-            const [
-              SecondaryOnlySuggestion(
-                text: '只有备用引擎听到',
-                startMs: 7000,
-                endMs: 15000,
-                engine: 'whisper',
-              ),
-            ],
-          ),
+          SecondaryOnlySuggestion.metadataKey:
+              SecondaryOnlySuggestion.wrap(const [
+                SecondaryOnlySuggestion(
+                  text: '只有备用引擎听到',
+                  startMs: 7000,
+                  endMs: 15000,
+                  engine: 'whisper',
+                ),
+              ]),
         },
       );
       final result = gate.apply(draft, song, audioPath: 'v.wav');
@@ -537,9 +519,7 @@ void main() {
       expect((candidates.single as Map)['lineIndex'], 1);
       expect((candidates.single as Map)['text'], '第二句备选');
       expect(metadata[LyricIndexedReviewMetadata.candidateCountKey], 1);
-      expect(metadata[LyricIndexedReviewMetadata.secondaryOnlyIndicesKey], [
-        1,
-      ]);
+      expect(metadata[LyricIndexedReviewMetadata.secondaryOnlyIndicesKey], [1]);
       expect(metadata[LyricIndexedReviewMetadata.secondaryOnlyCountKey], 1);
     });
 

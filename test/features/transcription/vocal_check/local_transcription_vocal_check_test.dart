@@ -126,12 +126,11 @@ void main() {
       seconds: 40,
       singing: _singing,
     );
-    final result = await const LocalTranscriptionVocalCheck(
-      readEnvelope: _readHere,
-    ).check(
-      _draft(),
-      audioPaths: ['', '${root.path}/gone.wav', notWav.path, stem.path],
-    );
+    final result =
+        await const LocalTranscriptionVocalCheck(readEnvelope: _readHere).check(
+          _draft(),
+          audioPaths: ['', '${root.path}/gone.wav', notWav.path, stem.path],
+        );
     expect(result.report.applied, isTrue);
     expect(result.report.audioPath, stem.path);
   });

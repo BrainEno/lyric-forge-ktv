@@ -134,10 +134,7 @@ void main() {
     test('empty or untimed rows do not close a stretch', () {
       final document = LyricDocument(
         language: 'zh',
-        lines: [
-          _line('   ', 40000, 44000),
-          _line('没有时长', 91000, 91000),
-        ],
+        lines: [_line('   ', 40000, 44000), _line('没有时长', 91000, 91000)],
       );
       expect(record.openSpans(document), record.uncoveredSpans);
     });

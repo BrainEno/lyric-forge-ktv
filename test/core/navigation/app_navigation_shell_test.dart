@@ -82,9 +82,7 @@ void main() {
 
       final mark = tester.getCenter(find.byType(AppBrandMark));
       // Routes.home selects 工程; 设置 shows its unselected icon.
-      final icon = tester.getCenter(
-        find.byIcon(AppDestination.settings.icon),
-      );
+      final icon = tester.getCenter(find.byIcon(AppDestination.settings.icon));
       expect(mark.dx, moreOrLessEquals(icon.dx, epsilon: 0.5));
       expect(
         mark.dx,

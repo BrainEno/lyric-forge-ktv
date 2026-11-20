@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-02 11:00] Give editor rows one spoken label, name the remaining tap targets ([entry](log/entries/2026-12-02-1100-give-editor-rows-one-spoken-label.md))
 - [2026-12-02 09:30] Move the recognition settings flows out, pass the editor groups to the panes ([entry](log/entries/2026-12-02-0930-move-the-recognition-settings-flows-out.md))
 - [2026-12-01 11:00] Group review and playback inputs, close E-06 and S-05 ([entry](log/entries/2026-12-01-1100-group-review-and-playback-inputs.md))
 - [2026-12-01 09:30] Drop the version suffix from smart proofreading ([entry](log/entries/2026-12-01-0930-drop-the-version-suffix-from-smart-proofreading.md))
