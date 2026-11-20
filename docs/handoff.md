@@ -32,7 +32,8 @@
 ## Git 现场
 
 - 分支：`arena/c532bb2c-lyric-forge-ktv`，基于 main `2be2b4c`。
-- 提交：`Make the phone app listening-first with a vinyl home and one song row`，后续修正提交见 PR。
+- PR #492（squash 合并）。
+- 提交：`Make the phone app listening-first with a vinyl home and one song row`、`Add a temporary probe`、`Apply format, regenerate the work log, deliver stream events in the listener test`、`Format after resolving packages in the probe`、`Apply format with the resolved language version`、`Remove the probe`。
 
 ## 已改文件
 
@@ -40,7 +41,17 @@
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR 的 CI 上跑，另外用一个临时探针工作流（合并前删除）。结果见 PR 和本轮的最终报告。
+沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR #492 的 CI 上跑，另外用一个临时探针工作流（合并前已删除）。探针结果：
+- 第一次：
+  - 新测试里只有一个失败：`NowPlayingListener` 的播放 / 暂停测试。流事件在 `pump` 检查完要不要画帧之后才到，所以重建要等下一帧。测试已改成连续 pump 两次。
+  - analyze 只有一条提示（测试里用了已弃用的 `pipelineOwner`），已改用 `SemanticsNode.owner`。
+  - work log 的生成文件和格式差异补丁已应用。
+- 第二次：
+  - 质量门的格式检查仍然失败。原因是探针在 `flutter pub get` 之前跑 `dart format`，用的语言版本不同，生成的格式补丁和质量门不一致。探针改成先解析依赖再格式化，按新补丁重新格式化了 7 个文件。
+- 第三次：
+  - 测试全部 4007 个通过、2 个跳过，比上轮多 121 个。
+  - 改动的文件 analyze 没有问题。
+  - 格式没有差异，质量门通过。
 
 - 新增六个测试文件：
   - 配色对比度；
