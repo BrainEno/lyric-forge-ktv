@@ -24,6 +24,7 @@ import '../../domain/services/media_hub_connection_store.dart';
 import '../../domain/services/media_transfer_queue_service.dart';
 import '../widgets/remote_library_semantics.dart';
 import '../widgets/remote_media_artwork.dart';
+import '../widgets/remote_track_download.dart';
 import '../widgets/transfer_list_states.dart';
 import 'remote_catalog_utils.dart';
 
@@ -673,42 +674,12 @@ class _RemoteTrackTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final downloaded = localEntry != null;
-    final status = queueItem?.status;
-    final queued = status == MediaTransferQueueStatus.queued;
-    final transferring = status == MediaTransferQueueStatus.transferring;
-    final failed = status == MediaTransferQueueStatus.failed;
-    final destination = queueItem?.destinationPath;
-    final completedFileExists =
-        destination != null && File(destination).existsSync();
-    final completed =
-        status == MediaTransferQueueStatus.completed &&
-        (downloaded || completedFileExists);
-    final staleCompleted =
-        status == MediaTransferQueueStatus.completed &&
-        !downloaded &&
-        !completedFileExists;
-    final total = queueItem?.totalBytes;
-    final fraction = total == null || total <= 0
-        ? null
-        : ((queueItem?.bytesTransferred ?? 0) / total)
-              .clamp(0.0, 1.0)
-              .toDouble();
-    final downloadState = downloaded || completed
-        ? RemoteTrackDownloadState.downloaded
-        : failed
-        ? RemoteTrackDownloadState.failed
-        : staleCompleted
-        ? RemoteTrackDownloadState.stale
-        : queued
-        ? RemoteTrackDownloadState.queued
-        : transferring
-        ? RemoteTrackDownloadState.transferring
-        : RemoteTrackDownloadState.none;
-    final downloadTooltip = RemoteLibrarySemantics.downloadTooltip(
-      downloadState,
+    final download = RemoteTrackDownload.resolve(
+      downloaded: localEntry != null,
+      queueItem: queueItem,
     );
-    final canDownload = RemoteLibrarySemantics.canDownload(downloadState);
+    final notice = download.notice;
+    final textTheme = Theme.of(context).textTheme;
 
     return Material(
       color: AppColors.bgElevated,
@@ -720,13 +691,13 @@ class _RemoteTrackTile extends StatelessWidget {
           album: track.album?.trim(),
           format: track.format,
           hasLyrics: track.hasLyrics,
-          state: downloadState,
-          fraction: fraction,
-          error: queueItem?.error,
+          state: download.state,
+          fraction: download.fraction,
+          error: download.error,
         ),
         hint: RemoteLibrarySemantics.playHint,
         onTap: onPlay,
-        actions: {downloadTooltip: canDownload ? onDownload : null},
+        actions: {download.tooltip: download.canDownload ? onDownload : null},
         child: InkWell(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
           onTap: onPlay,
@@ -749,7 +720,7 @@ class _RemoteTrackTile extends StatelessWidget {
                         track.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        style: textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -764,30 +735,25 @@ class _RemoteTrackTile extends StatelessWidget {
                         ].join(' · '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        style: textTheme.bodySmall?.copyWith(
                           color: AppColors.textTertiary,
                         ),
                       ),
-                      if (queued || transferring) ...[
+                      if (download.showsProgress) ...[
                         const SizedBox(height: 6),
-                        LinearProgressIndicator(
-                          value: transferring ? fraction : null,
-                        ),
+                        LinearProgressIndicator(value: download.progressValue),
                       ],
-                      if (failed || staleCompleted) ...[
+                      if (notice != null) ...[
                         const SizedBox(height: 4),
                         Text(
-                          failed
-                              ? queueItem?.error ?? '下载失败，点击右侧重试'
-                              : '本地文件已不存在，可重新下载',
+                          notice,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                color: failed
-                                    ? AppColors.error
-                                    : AppColors.textTertiary,
-                              ),
+                          style: textTheme.labelSmall?.copyWith(
+                            color: download.noticeIsError
+                                ? AppColors.errorText
+                                : AppColors.textTertiary,
+                          ),
                         ),
                       ],
                     ],
@@ -804,19 +770,11 @@ class _RemoteTrackTile extends StatelessWidget {
                   ),
                 const SizedBox(width: AppSpacing.xs),
                 IconButton(
-                  tooltip: downloadTooltip,
-                  onPressed: canDownload ? onDownload : null,
-                  icon: transferring
+                  tooltip: download.tooltip,
+                  onPressed: download.canDownload ? onDownload : null,
+                  icon: download.showsSpinner
                       ? const AppButtonSpinner(size: 20)
-                      : Icon(
-                          downloaded || completed
-                              ? Icons.download_done_rounded
-                              : failed || staleCompleted
-                              ? Icons.refresh_rounded
-                              : queued
-                              ? Icons.schedule_rounded
-                              : Icons.download_rounded,
-                        ),
+                      : Icon(download.icon),
                 ),
               ],
             ),

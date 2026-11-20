@@ -6,6 +6,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_catalog_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
@@ -244,27 +245,23 @@ class _LocalArtistAlbumBrowserScreenState
     return LayoutBuilder(
       builder: (context, constraints) {
         final layout = AppResponsive.fromConstraints(constraints);
-        final columns = layout.gridColumns(
-          minTileWidth: layout.isCompact ? 160 : 190,
-          min: layout.isCompact ? 2 : 2,
-          max: 7,
-        );
         return GridView.builder(
           padding: EdgeInsets.all(layout.pageGutter),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            childAspectRatio: layout.isCompact ? 0.78 : 0.76,
-            crossAxisSpacing: AppSpacing.md,
-            mainAxisSpacing: AppSpacing.md,
-          ),
+          gridDelegate: AppCatalogCard.gridDelegateFor(layout),
           itemCount: artists.length,
           itemBuilder: (context, index) {
             final artist = artists[index];
-            return _CatalogCard(
-              artworkPath: artist.artworkPath,
+            final subtitle =
+                '${artist.songs.length} 首 · ${artist.albumCount} 张专辑';
+            return AppCatalogCard(
+              artwork: AppArtwork.person(path: artist.artworkPath),
               title: artist.name,
-              subtitle: '${artist.songs.length} 首 · ${artist.albumCount} 张专辑',
-              roundArtwork: true,
+              subtitle: subtitle,
+              semanticLabel: LocalLibrarySemantics.catalogCard(
+                title: artist.name,
+                detail: subtitle,
+              ),
+              semanticHint: LocalLibrarySemantics.openArtistHint,
               compact: layout.isCompact,
               onTap: () => setState(() => _selectedArtist = artist.name),
             );
@@ -278,26 +275,25 @@ class _LocalArtistAlbumBrowserScreenState
     return LayoutBuilder(
       builder: (context, constraints) {
         final layout = AppResponsive.fromConstraints(constraints);
-        final columns = layout.gridColumns(
-          minTileWidth: layout.isCompact ? 160 : 190,
-          min: layout.isCompact ? 2 : 2,
-          max: 7,
-        );
         return GridView.builder(
           padding: EdgeInsets.all(layout.pageGutter),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            childAspectRatio: layout.isCompact ? 0.73 : 0.72,
-            crossAxisSpacing: AppSpacing.md,
-            mainAxisSpacing: AppSpacing.md,
-          ),
+          gridDelegate: AppCatalogCard.gridDelegateFor(layout),
           itemCount: albums.length,
           itemBuilder: (context, index) {
             final album = albums[index];
-            return _CatalogCard(
-              artworkPath: album.artworkPath,
+            final subtitle = '${album.artist} · ${album.songs.length} 首';
+            return AppCatalogCard(
+              artwork: AppArtwork(
+                path: album.artworkPath,
+                borderRadius: AppArtwork.tileRadius,
+              ),
               title: album.title,
-              subtitle: '${album.artist} · ${album.songs.length} 首',
+              subtitle: subtitle,
+              semanticLabel: LocalLibrarySemantics.catalogCard(
+                title: album.title,
+                detail: subtitle,
+              ),
+              semanticHint: LocalLibrarySemantics.openAlbumHint,
               compact: layout.isCompact,
               onTap: () => setState(() => _selectedAlbumKey = album.key),
             );
@@ -565,11 +561,13 @@ class _CatalogHero extends StatelessWidget {
             : layout.isMedium
             ? 128.0
             : 150.0;
-        final artwork = _CatalogArtwork(
-          path: artworkPath,
-          size: artworkSize,
-          round: roundArtwork,
-        );
+        final artwork = roundArtwork
+            ? AppArtwork.person(path: artworkPath, size: artworkSize)
+            : AppArtwork(
+                path: artworkPath,
+                size: artworkSize,
+                borderRadius: AppArtwork.tileRadius,
+              );
         final info = Column(
           crossAxisAlignment: compact
               ? CrossAxisAlignment.center
@@ -698,9 +696,10 @@ class _CatalogSongTile extends StatelessWidget {
                   song.entry.embeddedTrackNumber?.toString() ?? '${index + 1}',
                 ),
               )
-            : _CatalogArtwork(
+            : AppArtwork(
                 path: song.artworkPath,
                 size: layout.minimumInteractiveExtent,
+                borderRadius: AppArtwork.rowRadius,
               ),
       ),
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -756,80 +755,6 @@ class _CatalogSongTile extends StatelessWidget {
   }
 }
 
-class _CatalogCard extends StatelessWidget {
-  final String? artworkPath;
-  final String title;
-  final String subtitle;
-  final bool roundArtwork;
-  final bool compact;
-  final VoidCallback onTap;
-
-  const _CatalogCard({
-    required this.artworkPath,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.roundArtwork = false,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppTapTarget(
-      label: LocalLibrarySemantics.catalogCard(title: title, detail: subtitle),
-      hint: roundArtwork
-          ? LocalLibrarySemantics.openArtistHint
-          : LocalLibrarySemantics.openAlbumHint,
-      onTap: onTap,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-        child: Container(
-          padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.bgElevated,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-            border: Border.all(color: AppColors.borderMuted),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final size = constraints.biggest.shortestSide;
-                    return Center(
-                      child: _CatalogArtwork(
-                        path: artworkPath,
-                        size: size,
-                        round: roundArtwork,
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.textTertiary),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _MiniAlbumCard extends StatelessWidget {
   final _AlbumGroup album;
   final double artworkSize;
@@ -856,7 +781,11 @@ class _MiniAlbumCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _CatalogArtwork(path: album.artworkPath, size: artworkSize),
+            AppArtwork(
+              path: album.artworkPath,
+              size: artworkSize,
+              borderRadius: AppArtwork.tileRadius,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               album.title,
@@ -871,28 +800,6 @@ class _MiniAlbumCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _CatalogArtwork extends StatelessWidget {
-  final String? path;
-  final double size;
-  final bool round;
-
-  const _CatalogArtwork({
-    required this.path,
-    required this.size,
-    this.round = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppArtwork(
-      path: path,
-      size: size,
-      borderRadius: round ? size / 2 : AppSpacing.radiusLarge,
-      placeholderIcon: round ? Icons.person_rounded : Icons.album_rounded,
     );
   }
 }

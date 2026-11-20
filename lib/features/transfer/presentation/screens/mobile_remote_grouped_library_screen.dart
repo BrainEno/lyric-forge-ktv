@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../../../core/widgets/app_tap_target.dart';
+import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_catalog_card.dart';
 import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
@@ -392,12 +393,7 @@ class _MobileRemoteGroupedLibraryScreenState
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: groups.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: layout.isCompact ? 2 : 3,
-                          childAspectRatio: 0.82,
-                          crossAxisSpacing: AppSpacing.sm,
-                          mainAxisSpacing: AppSpacing.sm,
-                        ),
+                        gridDelegate: AppCatalogCard.gridDelegateFor(layout),
                         itemBuilder: (context, index) {
                           final name = groups.keys.elementAt(index);
                           final tracks = groups[name]!;
@@ -410,6 +406,7 @@ class _MobileRemoteGroupedLibraryScreenState
                             client: _client,
                             localArtworkPath: local?.embeddedArtworkPath,
                             icon: _fallbackIcon,
+                            round: widget.view == RemoteCatalogView.artists,
                             openHint: widget.view == RemoteCatalogView.artists
                                 ? RemoteLibrarySemantics.openArtistHint
                                 : RemoteLibrarySemantics.openAlbumHint,
@@ -469,6 +466,9 @@ class _CatalogGroupCard extends StatelessWidget {
   final String? localArtworkPath;
   final IconData icon;
 
+  /// Artists are round, as in the local library.
+  final bool round;
+
   /// 打开歌手 or 打开专辑, spoken after the card's name.
   final String openHint;
   final VoidCallback onTap;
@@ -480,60 +480,28 @@ class _CatalogGroupCard extends StatelessWidget {
     required this.client,
     required this.localArtworkPath,
     required this.icon,
+    required this.round,
     required this.openHint,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.bgElevated,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      child: AppTapTarget(
-        label: RemoteLibrarySemantics.groupCard(name: name, count: count),
-        hint: openHint,
-        onTap: onTap,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: RemoteMediaArtwork(
-                    track: track,
-                    client: client,
-                    localPath: localArtworkPath,
-                    fallbackIcon: icon,
-                    extent: double.infinity,
-                    borderRadius: BorderRadius.circular(
-                      AppSpacing.radiusMedium,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$count 首',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+    return AppCatalogCard(
+      semanticLabel: RemoteLibrarySemantics.groupCard(name: name, count: count),
+      semanticHint: openHint,
+      onTap: onTap,
+      compact: AppResponsive.of(context).isCompact,
+      artwork: RemoteMediaArtwork(
+        track: track,
+        client: client,
+        localPath: localArtworkPath,
+        fallbackIcon: icon,
+        borderRadius: AppArtwork.tileRadius,
+        circle: round,
       ),
+      title: name,
+      subtitle: '$count 首',
     );
   }
 }

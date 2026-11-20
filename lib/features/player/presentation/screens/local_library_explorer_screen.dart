@@ -7,9 +7,9 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_catalog_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
-import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_library_browse_item.dart';
 import '../../domain/models/local_media_library_entry.dart';
@@ -850,19 +850,9 @@ class _ExplorerGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final layout = AppResponsive.fromConstraints(constraints);
-        final columns = layout.gridColumns(
-          minTileWidth: layout.isCompact ? 160 : 190,
-          min: layout.isCompact ? 2 : 2,
-          max: 7,
-        );
         return GridView.builder(
           padding: EdgeInsets.all(layout.pageGutter),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: AppSpacing.md,
-            mainAxisSpacing: AppSpacing.md,
-            childAspectRatio: layout.isCompact ? 0.74 : 0.72,
-          ),
+          gridDelegate: AppCatalogCard.gridDelegateFor(layout),
           itemCount: songs.length,
           itemBuilder: (context, index) {
             final song = songs[index];
@@ -921,7 +911,15 @@ class _ExplorerList extends StatelessWidget {
           leading: SizedBox(
             width: layout.minimumInteractiveExtent,
             height: layout.minimumInteractiveExtent,
-            child: _Artwork(song),
+            child: song.playable
+                ? AppArtwork(
+                    path: song.artworkPath,
+                    borderRadius: AppArtwork.rowRadius,
+                  )
+                : AppArtwork.missing(
+                    path: song.artworkPath,
+                    borderRadius: AppArtwork.rowRadius,
+                  ),
           ),
           title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(
@@ -970,84 +968,45 @@ class _ExplorerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppTapTarget(
-      label: LocalLibrarySemantics.songCard(
+    return AppCatalogCard(
+      semanticLabel: LocalLibrarySemantics.songCard(
         title: song.title,
         artist: song.artist,
         playable: song.playable,
-        details: [
-          entryLabel(song),
-          if (song.hasUserOverride) '已编辑',
-          if (song.hasLyrics) song.lyricsLabel,
-        ],
+        details: details,
       ),
-      hint: LocalLibrarySemantics.playHint,
+      semanticHint: LocalLibrarySemantics.playHint,
       enabled: song.playable,
+      unavailable: !song.playable,
       onTap: onPlay,
-      actions: semanticActions,
-      child: InkWell(
-        onTap: song.playable ? onPlay : null,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-        child: Container(
-          padding: EdgeInsets.all(compact ? AppSpacing.xs : AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: AppColors.bgElevated,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-            border: Border.all(
-              color: song.playable
-                  ? AppColors.borderMuted
-                  : AppColors.error.withAlpha(80),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _Artwork(song)),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      song.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  _SongMenu(
-                    song: song,
-                    onEnqueue: onEnqueue,
-                    onEdit: onEdit,
-                    onLyrics: onLyrics,
-                    onUnpair: onUnpair,
-                    onRelink: onRelink,
-                    onRemove: onRemove,
-                  ),
-                ],
-              ),
-              Text(
-                song.playable ? (song.artist ?? '本地音乐') : '文件不可用',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                [
-                  entryLabel(song),
-                  if (song.hasUserOverride) '已编辑',
-                  if (song.hasLyrics) song.lyricsLabel,
-                ].where((value) => value.isNotEmpty).join(' · '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-        ),
+      semanticActions: semanticActions,
+      compact: compact,
+      artwork: song.playable
+          ? AppArtwork(path: song.artworkPath, borderRadius: AppArtwork.tileRadius)
+          : AppArtwork.missing(path: song.artworkPath),
+      title: song.title,
+      titleTrailing: _SongMenu(
+        song: song,
+        onEnqueue: onEnqueue,
+        onEdit: onEdit,
+        onLyrics: onLyrics,
+        onUnpair: onUnpair,
+        onRelink: onRelink,
+        onRemove: onRemove,
       ),
+      subtitle: song.playable ? (song.artist ?? '本地音乐') : '文件不可用',
+      subtitleIsAlert: !song.playable,
+      caption: details.where((value) => value.isNotEmpty).join(' · '),
     );
   }
+
+  /// The format, edit and lyrics notes, read in the label and shown as the
+  /// card's last line.
+  List<String> get details => [
+    entryLabel(song),
+    if (song.hasUserOverride) '已编辑',
+    if (song.hasLyrics) song.lyricsLabel,
+  ];
 
   /// The ⋯ menu's entries as the card's screen-reader actions, in menu
   /// order and with the menu's wording (audit A-04).
@@ -1132,24 +1091,6 @@ class _SongMenu extends StatelessWidget {
         const PopupMenuItem(value: 'remove', child: Text('从音乐库移除')),
       ],
       icon: const Icon(Icons.more_horiz_rounded),
-    );
-  }
-}
-
-class _Artwork extends StatelessWidget {
-  final _ExplorerSong song;
-
-  const _Artwork(this.song);
-
-  @override
-  Widget build(BuildContext context) {
-    return AppArtwork(
-      path: song.artworkPath,
-      borderRadius: AppSpacing.radiusLarge,
-      placeholderIcon: song.playable
-          ? Icons.album_rounded
-          : Icons.link_off_rounded,
-      placeholderColor: song.playable ? null : AppColors.error,
     );
   }
 }

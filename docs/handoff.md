@@ -2,36 +2,48 @@
 
 ## 目标
 
-审计路线的第十六轮（第十五轮 PR #487 已合并为 `4201251`）。按第十五轮交接的“下一步”做 A-04 剩下的无名点击区域；真机检查在沙箱里做不了，只记录。本轮要求有效代码量不少于 1000 行（lib+test 不计空行、注释和只改缩进的行约 1780 行），PR 过 CI 后直接合并。
+审计路线的第十七轮（第十六轮 PR #488 已合并为 `51a16c1`）。总表各行在第 16 轮都已处理，这一轮核对只出现在页面报告里的十条，并处理其中仍然成立的 L-04（封面）和 T-03（手机端曲库不复用本地组件）。本轮要求有效代码量不少于 1000 行，PR 过 CI 后直接合并。
 
-1. A-04（D-037）：新共享组件 `core/widgets/app_tap_target.dart`，把可点的卡片或行读成一个按钮：一句话标签、点按提示、禁用 / 当前状态，卡片里的小按钮和菜单项成了自定义操作。用到 14 处：首页的队列预览、最近听过、歌词工程卡；导入页两张卡；校对收件箱的行（“全部标为已复核”是行的操作）；播放页歌词列表和三行聚焦视图；本地曲库的歌手、专辑、迷你专辑、播放列表和歌曲卡；播放队列的行；桌面后台解析条（暂停 / 继续是操作，进度是 value）；手机端桌面曲库的歌曲行和歌手 / 专辑卡（下载状态读进标签，下载是操作）。
-2. 措辞放在各功能自己的文件：`dashboard_semantics.dart`、`player_lyric_semantics.dart`、`local_library_semantics.dart`、`playback_queue_semantics.dart`、`remote_library_semantics.dart`；收件箱和解析条用自身的静态方法。都有单元测试。
-3. 审计总表状态一节改为“第 16 轮核对”：A-04 改为已处理（代码层面）。审计脚本重扫，`lib` 里 27 处 `InkWell` / `GestureDetector` 都有名字或在有名字的节点里。
+1. L-04 / T-03（D-038）：
+   - 新共享组件 `core/widgets/app_catalog_card.dart`：本地的歌手 / 专辑、歌曲、播放列表网格和手机端的歌手 / 专辑网格都用它。
+     - 一种圆角、两档内边距、正方形封面；底色是 `Material`，看得到水波。
+     - 红边框只给打不开的条目。
+     - 网格规则（`gridDelegateFor`）也在这里。
+   - `AppArtwork` 加了 `tileRadius` / `rowRadius`、`AppArtwork.person`（圆形）、`AppArtwork.missing`（断链）和公开的 `AppArtworkPlaceholder`；三个私有封面包装删掉了。
+2. 手机端封面 `RemoteMediaArtwork` 用 `AppArtwork` 的边框和占位，歌手是圆的；取图方式不变（固定证书通道，token 在请求头）。
+3. 手机端歌曲行的下载状态只由新的 `remote_track_download.dart` 推出一次：图标、进度条、提示和读屏标签读的是同一个状态。已在手机上的歌曲不再同时显示 ✓ 和旧的“下载失败”。
+4. 审计总表状态一节改为“第 17 轮核对”，补一张页面报告条目表：
+   - 已处理：D-02、D-03、E-01、SE-04（随更早的改动）和 L-04、T-03（本轮）。
+   - 撤销：D-01、D-05、SE-03。
+   - 未处理：I-03。
 
 ## Git 现场
 
-- 分支：`arena/9f174b56-lyric-forge-ktv`，基于 main `4201251`。
-- PR #488（squash 合并）。
-- 提交：`Read tappable cards and rows as one button`、`Add a temporary format probe`、`Apply format and wrap two if bodies in braces`、`Remove the format probe and update the handoff`。
+- 分支：`arena/88638761-lyric-forge-ktv`，基于 main `51a16c1`。
+- 提交：`Share one catalog card and cover across the music libraries`，以及临时探针的添加、修正和删除。
 
 ## 已改文件
 
-见工作日志 `2026-12-03-0930`；新决定 D-037；审计总表状态一节。
+见工作日志 `2026-12-04-0930`；新决定 D-038；审计总表状态一节。
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，格式、analyze 和测试只在 PR 的 CI 上跑，并用临时探针工作流（合并前删除）。第一次探针：analyze 没有错误和警告，183 条提示（与上轮相同；本轮改到的文件里有两条旧的 `curly_braces_in_flow_control_structures`，已顺手修掉，之后应为 181）；全部测试 3613 个通过、2 个跳过；本轮新增和改动的测试文件共 101 个用例全过，包括播放队列行的“上移 / 下移”与标签在同一节点上；格式有差异。探针每一步最多留 10 条注释，第一次只拿到部分格式补丁，第二次改成只跑格式、轮换 notice/warning/error 取完整补丁，两次补丁都已应用。工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`（0 错误）。
+沙箱里没有 Dart/Flutter。格式、analyze 和测试只在 PR 的 CI 上跑，另外用一个临时探针工作流（合并前删除）。工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。CI 结果见 PR。
 
 ## 下一步
 
-- 在真机上确认（第 14–16 轮都没做）：11 号小字和小号徽章；编辑器的筛选、开始复核、跟随播放和拆分；用 TalkBack / VoiceOver 听一遍编辑器行、全屏 KTV 和本轮的卡片（尤其播放队列行的“上移 / 下移”和标签是否在同一个停顿上）。
-- `ai_transcription_settings_cards.dart` 仍有约 565 行，四张卡可以各自成文件，但目前没有维护上的问题。
-- `lyric_list_pane.dart` 第 408、438、845 行附近有三条旧 lint 提示，可以顺手清掉。
+- I-03：识别环境安装弹窗 `asr_runtime_setup_dialog.dart` 仍有约 957 行，可以按设置页的做法拆成区块、卡片和流程。
+- 手机端歌曲行仍是自己的行布局（有下载按钮和进度条）。如果以后本地歌曲列表也要统一，可以抽一个共享的歌曲行。
+- 在真机上看一遍（第 14–17 轮都没做）：
+  - 本轮的网格：播放列表改成正方形封面的两列以上网格；歌曲卡的内边距变大；手机端卡片的间距变大。
+  - 大字号下卡片是否溢出。
+  - 用 TalkBack / VoiceOver 听一遍卡片。
+- `ai_transcription_settings_cards.dart` 约 565 行、`lyric_list_pane.dart` 约 1424 行，都可以再拆，但目前没有维护上的问题。
 
 ## 已知风险
 
-- 都没有在运行中的应用里看过，详见工作日志。
-- 这些卡片改成 `excludeSemantics` 后，卡内文字、徽标和 ⋯ 菜单不再被单独读出；以后用 `find.bySemanticsLabel` 找卡内片段的测试会找不到（D-037）。卡里新加按钮或状态时要同时加进标签或操作，否则读屏用户够不到。
-- 播放队列行依赖 Flutter 的合并规则：`container: false` 的标签并入列表加的“上移 / 下移”节点，前提是行上不再有自定义操作；测试固定了这一点。
+- 都没有在运行中的应用里看过。网格比例是按文字高度估的（手机 0.74、其他 0.72）；字号放大很多时，封面会先缩小，但文字仍可能挤。
+- 播放列表网格从固定 190–220 高、最少一列，改成和专辑一样的比例、最少两列；很窄的窗口里播放列表卡会比以前小。
+- `AppCatalogCard` 用 `AppTapTarget` 排除了卡内语义（D-037）。卡里新加按钮时要同时加进 `semanticActions`。
 
-最后更新：2026-12-03 10:40（Asia/Taipei）
+最后更新：2026-12-04 10:40（Asia/Taipei）
