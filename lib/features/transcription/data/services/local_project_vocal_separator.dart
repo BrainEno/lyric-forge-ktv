@@ -209,10 +209,7 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
             final overall = separatorReport.overallProgress;
             final fraction = 0.35 + 0.65 * overall;
             if (fraction > shown) shown = fraction;
-            report(
-              shown,
-              '正在分离人声 ${(overall * 100).toStringAsFixed(0)}%',
-            );
+            report(shown, '正在分离人声 ${(overall * 100).toStringAsFixed(0)}%');
           }
         },
       );
