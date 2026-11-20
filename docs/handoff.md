@@ -2,76 +2,54 @@
 
 ## 目标
 
-审计路线的第二十一轮（第二十轮 PR #492 已合并为 `85d0d6c`）。第 20 轮留下的问题是桌面端要不要也用暖色，用户的回答是“桌面端可以有多个可切换主题”，并选定：深色 + 浅色两套、全部换色、在设置页和侧边栏都能切换、手机也能切换，选择要记住。要求有效代码量不少于 1000 行，PR 过 CI 后直接合并。
+审计路线的第二十二轮（第二十一轮 PR #493 已合并为 `22a9ea8`）。用户反馈歌词识别仍不理想：错字和同音字、漏句（副歌重复、轻声段、和声）、前奏间奏尾奏里的假歌词、断行和时间不准，歌曲语言有普通话、英语、法语和日语。用户选定本轮做自动人声分离，平台是 Windows + NVIDIA 显卡（发布目标 RTX 5080）。要求有效代码量不少于 1000 行，PR 过 CI 后直接合并。
 
-1. 两套配色（D-042，`core/theme/app_palette.dart`）：
-   - 深色和本轮之前的颜色完全相同；
-   - 浅色是暖白纸张底色、墨色文字、深紫强调色 `#6236C9` 和青铜色“正在播放” `#8A5716`；
-   - 对比度规则写成测试，两套都要满足。
-2. 全部换色：
-   - `AppColors` 的可变色都改成读取当前配色的 getter，约 110 处包着它们的 `const` 去掉了；
-   - `AppTheme.themeFor(palette)` 用传入的配色生成整个 `ThemeData`，共享按钮样式都有 `…For(palette)` 版本；
-   - 唱片和品牌标志的画笔从参数拿颜色；KTV 舞台改用 `stage` 角色。
-3. 切换和记住：
-   - `AppAppearanceController` 切换并保存到 `appearance_preferences.json`，启动时读回；保存失败时主题照样切换，并在设置里提示；
-   - `AppAppearanceHost` 切换配色后把下面所有元素标记为重建，路由、滚动位置和播放状态都保留。
-4. 入口：
-   - 设置页第一组「外观」，每个主题一张用自己配色画的预览卡，手机和桌面共用；
-   - 桌面侧边栏底部的主题按钮，点按弹出主题列表。
-5. 审计表状态一节改为“第 21 轮核对”，注明表里的对比度数字是深色主题的。
+1. 分离工具 `lyricforge-separator`（D-043，`native/vocal_separator`）：
+   - htdemucs_ft 的人声网络，ONNX Runtime 上运行，DirectML 优先、CPU 兜底；
+   - 读 44.1 kHz WAV，写 `vocals.wav` 和 `accompaniment.wav`，逐行输出 `LF_*` 进度和结果；
+   - 命令行、WAV 和协议部分用假引擎做单元测试（18 个）。
+2. 模型导出和发布：
+   - `tool/vocal_separator/export_htdemucs_vocals_onnx.py` 导出并和 PyTorch 比对；
+   - 新工作流 `build-vocal-separator.yml`：Linux 和 Windows 都真正分离一首合成歌曲并检查，main 上发布到 `vocal-separator-v1`。ASR 运行时的工作流没改。
+3. 应用：
+   - `ManagedVocalSeparatorRuntime` 按需下载、校验、安装；
+   - `VocalSeparationPlanner` 决定分离、复用还是跳过；
+   - `LocalProjectVocalSeparator` 转码、分离、检查人声响度；
+   - 识别工作流在识别前分离（可取消），人声轨写入工程，识别改用它，结果记在 `metadata.transcription.vocalSeparation`；任何失败都回退原曲；
+   - 识别设置里的开关（默认开），诊断信息，工程音轨区的说明。
+4. 文档：D-043、README 和 PRD 的实现状态、`high_quality_asr.md`、`local_transcription.md`。
 
 ## Git 现场
 
-- 分支：`arena/27fa5d5c-lyric-forge-ktv`，基于 main `85d0d6c`。
-- PR #493（squash 合并）。
-- 提交：`Add switchable light and dark themes`、`Add a temporary probe`、`Apply format, regenerate the work log, compare theme styles by state`、`Remove the probe`。
+- 分支：`arena/afd7f12f-lyric-forge-ktv`，基于 main `22a9ea8`。
+- PR 合并方式：squash。
+- 提交：`Separate the lead vocal before lyric recognition`，之后是探针和格式修正的提交。
 
 ## 已改文件
 
-见工作日志 `2026-12-08-0930`、新决定 D-042，以及审计表状态一节。
+见工作日志 `2026-12-09-0930`、新决定 D-043。
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR 的 CI 上跑，另外用一个临时探针工作流（合并前删除）。配色的对比度在写测试前先用脚本按同样的门槛算过，两套配色全部通过。探针结果：
-- 第一次：
-  - 改动涉及的测试 471 个全部通过。
-  - 全量测试有三个旧测试失败：它们用 `same(...)` 检查主题里的按钮样式就是 `AppTheme` 的那个对象，而 getter 现在每次按当前配色新建，所以改成逐个状态比较解析出的颜色。
-  - analyze 只有改动文件里原有的几条提示，不是本轮引入的。
-  - work log 的生成文件和格式差异补丁已应用。
-- 第二次：
-  - 全部 4376 个测试通过、2 个跳过，比上轮多 369 个。
-  - 格式没有差异，质量门通过。
-
-- 新增八个测试文件：
-  - 两套配色的对比度和色相；
-  - `AppColors` 读当前配色；
-  - `themeFor` 和共享样式；
-  - 外观控制器；
-  - 主题文件的读写；
-  - `AppAppearanceHost`；
-  - 侧边栏主题按钮；
-  - 设置页外观卡片。
-- 更新了根组件、品牌标志和黑胶唱片的测试（浅色主题），以及几个读颜色常量的旧测试。
+- 沙箱里能编译的只有分离工具的核心部分：`lfsep_tests` 用 g++ `-Wall -Wextra -O2` 编译没有警告，18 个测试、154 个检查全部通过。歌曲生成和输出检查两个脚本用假分离器跑过，包括中文输出目录。
+- 真正的引擎、模型导出和 Windows 包只能在 CI 上构建（沙箱里没有 ONNX Runtime、CMake 和 Eigen），由新工作流验证。
+- 沙箱里没有 Dart/Flutter，格式、analyze 和测试在 PR 的 CI 和临时探针工作流上跑，结果见 PR。
+- 新增八个 Dart 测试文件（`test/features/transcription/vocal_separation/`）：清单、输出解析、发布契约、分离决策、模型和设置、安装、进程分离器、识别工作流集成。
 
 ## 下一步
 
-- 真机验证（第 14–21 轮都没做）：
-  - 本轮：浅色主题下的每个页面，特别是 KTV 舞台、封面暗角和播放列表封面（仍是黑色）、侧边栏主题菜单的位置，以及在手机设置里切换；
-  - 第 20 轮：唱片转动和暂停、封面模糊、暖色在 OLED 屏上的效果、迷你播放条，以及 320 / 390 宽和大字号下的首页；
-  - 用 TalkBack / VoiceOver 听一遍新歌曲行、首页唱片和底部导航；
-  - 第 17–19 轮留下的网格、准备对话框和编辑器列表。
-- 正在播放的页面（`NowPlayingScreen`）还是原来的样式，可以改成同一套黑胶风格。
-- 可以加“跟随系统”选项（`MediaQuery.platformBrightness`），或者更多配色：在 `AppPalette` 加一套、在 `AppThemeVariant` 加一项，并通过对比度测试即可。
-- 可选：`ai_transcription_settings_cards.dart` 约 565 行。有四个契约测试读这个路径，导入基线也不能增加。
+- 在 RTX 5080 上实际跑一首歌：确认 `metadata.transcription.vocalSeparation.provider` 是 `dml`、耗时多少，以及识别质量（用 `tool/asr_quality_report.dart` 对比分离前后的行召回和 CER，目标是行召回 ≥ 0.95、CER ≤ 0.10）。
+- 如果 DirectML 在这个模型上有问题，可以加 CUDA 执行器的包作为第二选择（需要支持 sm_120 的 ORT 版本）。
+- 自动生成的伴奏（混音减人声）已经保存，可以作为 KTV 伴奏提供给用户。
+- 识别质量的其他问题（假歌词、断行、和声）可以在分离后的人声上继续做：例如用人声响度做静音段检测，删掉间奏里的假歌词。
+- 真机验证（第 14–21 轮都没做）：浅色主题、黑胶首页、编辑器列表等。
 
 ## 已知风险
 
-- 没有在运行中的应用里看过。
-- 手机端启动页从工程首页改成了听歌首页。习惯从首页进工程的用户，现在要从「歌词」→「全部工程」进入。
-- 首页的最近播放只在歌曲变化和下拉刷新时重新读取。播放记录保存得比歌曲切换晚时，可能要等下一次切换才显示。
-- 模糊背景用 `ImageFiltered`（sigma 48），在低端手机上可能耗电。如果有问题，可以换成预先缩小的封面。
-- 应用先用深色打开，读到保存的主题后再切换，选了浅色的用户启动时可能看到一帧深色。
-- 切换主题会重建整棵组件树，大页面上可能有一帧卡顿。
-- 新代码读颜色只能用 `AppColors.*` getter，不能放进 `const` 表达式，否则编译失败。
+- 没有在运行中的应用里看过，DirectML 路径在 CI 上没有 GPU 可测，只验证了 CPU 回退。
+- 分离组件约 200 MB，比之前估计的 80 MB 大（模型是 float32，加上 ONNX Runtime 和 DirectML）。
+- 合并到 main 并发布 `vocal-separator-v1` 之前，安装会失败，识别照常用原曲。
+- CPU 上分离一首 4 分钟的歌可能要几分钟；超过 45 分钟会被当作失败。
+- 自动人声轨会成为工程的“人声”音源，编辑器试听默认播放它。
 
-最后更新：2026-12-08 09:30（Asia/Taipei）
+最后更新：2026-12-09 09:30（Asia/Taipei）

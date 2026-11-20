@@ -1,8 +1,10 @@
 import '../../../lyrics/domain/models/chinese_script_preference.dart';
 import '../../../lyrics/domain/text/chinese_script_converter.dart';
 import '../../../project/domain/models/lyric_document.dart';
+import 'vocal_separation_models.dart';
 import 'whisper_decoding_policy.dart';
 
+export 'vocal_separation_models.dart' show VocalSeparationPreference;
 export 'whisper_decoding_policy.dart'
     show RecognitionHints, WhisperDecodingProfile, WhisperDecodingProfileId;
 
@@ -110,6 +112,11 @@ class TranscriptionConfig {
   /// new recognition draft is written; see `ChineseScriptUnificationService`.
   final ChineseScriptPreference chineseScriptPreference;
 
+  /// Whether recognition first separates the lead vocal from the song
+  /// (D-043). Only takes effect where a separator bundle exists (Windows
+  /// x64) and the project has no vocal stem the user imported.
+  final VocalSeparationPreference vocalSeparation;
+
   const TranscriptionConfig({
     this.mode = TranscriptionMode.highestQuality,
     this.profilePreference = TranscriptionProfilePreference.automatic,
@@ -128,6 +135,7 @@ class TranscriptionConfig {
     this.fallbackConfidenceThreshold = 70,
     this.maxFallbackSegments = 20,
     this.chineseScriptPreference = ChineseScriptPreference.auto,
+    this.vocalSeparation = VocalSeparationPreference.automatic,
   });
 
   /// The script Chinese output should end up in, when one is known: the
@@ -188,6 +196,7 @@ class TranscriptionConfig {
     int? fallbackConfidenceThreshold,
     int? maxFallbackSegments,
     ChineseScriptPreference? chineseScriptPreference,
+    VocalSeparationPreference? vocalSeparation,
   }) {
     return TranscriptionConfig(
       mode: mode ?? this.mode,
@@ -210,6 +219,7 @@ class TranscriptionConfig {
       maxFallbackSegments: maxFallbackSegments ?? this.maxFallbackSegments,
       chineseScriptPreference:
           chineseScriptPreference ?? this.chineseScriptPreference,
+      vocalSeparation: vocalSeparation ?? this.vocalSeparation,
     );
   }
 
@@ -232,6 +242,7 @@ class TranscriptionConfig {
       'fallbackConfidenceThreshold': fallbackConfidenceThreshold,
       'maxFallbackSegments': maxFallbackSegments,
       'chineseScriptPreference': chineseScriptPreference.name,
+      'vocalSeparation': vocalSeparation.name,
     };
   }
 
@@ -283,6 +294,9 @@ class TranscriptionConfig {
       maxFallbackSegments: (json['maxFallbackSegments'] as num?)?.toInt() ?? 20,
       chineseScriptPreference: ChineseScriptPreference.fromName(
         json['chineseScriptPreference'],
+      ),
+      vocalSeparation: VocalSeparationPreference.fromName(
+        json['vocalSeparation'],
       ),
     );
   }

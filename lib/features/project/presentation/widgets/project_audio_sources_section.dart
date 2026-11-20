@@ -142,7 +142,8 @@ class ProjectAudioSourcesSection extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '选择与原曲时间轴一致的人声或伴奏；应用不会自动分离或校准。',
+            '选择与原曲时间轴一致的人声或伴奏；应用不会校准时间轴。'
+            'Windows 版识别歌词前会自动分离人声，导入的人声优先。',
             style: text.bodySmall?.copyWith(color: AppColors.textTertiary),
           ),
         ],

@@ -812,3 +812,28 @@
   - 新代码读颜色只能用 `AppColors.*` getter，不能放进 `const` 表达式。新增颜色角色要两套配色都加，并通过对比度测试。
 - 状态：生效
 - 来源：第 21 轮用户选定的范围“深色 + 浅色、全部换色、设置页 + 侧边栏快捷切换、手机也能切换”；[工作日志](log/entries/2026-12-08-0930-switchable-light-and-dark-themes.md)
+
+## D-043 识别前在 Windows 上自动分离人声：htdemucs_ft 人声模型 + ONNX Runtime（DirectML 优先，CPU 兜底），独立发布、按需安装、失败回退原曲
+
+- 日期：2026-12-09
+- 背景：用户反馈歌词识别仍不理想，四类问题都有：错字和同音字；漏句（副歌重复、轻声段、和声）；前奏、间奏、尾奏里出现假歌词；断行和时间不准。歌曲语言有普通话、英语、法语和日语。PRD 把桌面端人声/伴奏分离列为必须有，但一直没有实现，识别听到的是整首混音。用户选定本轮做自动人声分离，平台是 Windows + NVIDIA 显卡，发布目标是 RTX 5080（sm_120）。
+- 决定：
+  - 模型：htdemucs_ft 里专门负责人声的那一个网络（这组模型的权重矩阵是单位阵，人声只来自这一个），导出为 ONNX，STFT/iSTFT 放在图外。导出脚本在 CI 里用 ONNX Runtime 和 PyTorch 对同一段输入比对，相对误差超过 1e-3 就失败。
+  - 推理：C++ 工具 `lyricforge-separator`，内核是固定版本的 demucs.onnx（MIT，放在 `third_party/demucs_onnx`，改动记录在其 README）。用 DirectML 而不是 CUDA 执行器：DirectML 支持所有 DirectX 12 显卡（包括 RTX 5080），不用随包附带 cuDNN，也不依赖 CUDA 版本是否已支持 sm_120。DirectML 加载或推理失败时自动改用 CPU，并在输出里说明原因。
+  - 协议：命令行参数加逐行的 `LF_*` 标准输出（阶段、执行器、回退、进度、响度统计、完成、错误）和固定退出码，Dart 端只解析这些行。
+  - 发布：独立的工作流 `build-vocal-separator.yml` 和独立的发布 `vocal-separator-v1`（资产 `lyricforge-vocal-separator-windows-x64.zip`，带 `separator-manifest.json` 和各组件许可证）。ASR 运行时的工作流、发布和它的契约测试都不改。工作流在 Linux 和 Windows 上都会真正分离一首合成歌曲并检查输出，然后才发布。
+  - 安装：首次需要时下载，校验发布页给出的大小和 SHA-256，解压到临时目录，再检查清单（版本、路径必须在包内、模型大小和 SHA-256）和 `--version`，最后整体替换。模型校验结果按大小和修改时间缓存。
+  - 何时分离（`VocalSeparationPlanner`）：
+    - 设置关闭就不分离；
+    - 用户导入的人声轨永远不会被替换；
+    - 其他平台、原曲文件不存在、超过 15 分钟时跳过；
+    - 自动生成的人声轨在原曲文件（大小、修改时间、路径）和分离器版本都没变时直接复用。
+  - 流程：分离在识别开始写入之后、识别之前进行，是可以取消的独立阶段。生成的人声轨和来源标记（`AudioAsset.metadata.vocalSeparation`）按本次运行的版本号写入工程，识别改用这条人声轨，结果记在 `metadata.transcription.vocalSeparation`。人声轨响度不到混音的 3%（约 -30 dB）时视为没有人声（例如纯音乐），改用原曲识别。除取消外，任何失败都只回退到原曲，不会让识别失败。
+  - 设置：`TranscriptionConfig.vocalSeparation`，默认自动；旧设置读作自动；识别设置对话框里有开关。
+- 影响：
+  - Windows 上识别、校对和编辑器试听默认听到的是分离后的人声（它们都读 `vocalPath`）。每首歌多 1–3 分钟（GPU）或更久（CPU）；首次使用要下载约 200 MB。
+  - 在工作流合并到 main 并完成发布之前，安装会失败，识别照常使用原曲。
+  - 自动生成的伴奏（混音减人声）只保存在工程的 `stems` 目录，还没有作为 KTV 伴奏使用。
+  - 新增的识别前处理都要遵守同样的规则：只能产出结果或回退，不能让识别失败。
+- 状态：生效
+- 来源：第 22 轮用户的反馈和选择“重点做自动人声分离，Windows + NVIDIA 显卡（RTX 5080）”；[工作日志](log/entries/2026-12-09-0930-automatic-vocal-separation.md)
