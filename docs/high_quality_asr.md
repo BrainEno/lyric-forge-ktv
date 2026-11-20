@@ -459,7 +459,33 @@ project workflow now produces that stem itself before recognition:
 Separation is a setting (`TranscriptionConfig.vocalSeparation`, on by
 default). Other platforms keep recognising the imported stem or the mix.
 
-The next quality-critical pipeline stage is therefore local source separation.
+## Vocal check on the separated stem (D-044)
+
+A separated vocal stem is close to silent wherever nobody sings, which the
+mix never is. After recognising a stem (automatic, reused, or imported) the
+project workflow checks the fresh draft against it:
+
+- `PcmWavEnergyReader` reads the loudness in 20 ms frames from recognition's
+  own 16 kHz mono copy (or the 44.1 kHz stereo stem), off the UI isolate;
+- `VocalActivityAnalyzer` finds the sung stretches with song-relative
+  thresholds (within 30 dB of the 95th percentile, above the quiet between
+  phrases, never below -55 dBFS), bridges breaths under 250 ms and drops
+  blips under 100 ms; a stem whose loud and quiet frames are less than
+  18 dB apart (a full mix imported as the vocal, heavy bleed) is reported as
+  unreliable and nothing changes;
+- `VocalActivityLyricGate` deletes rows with less than 150 ms of singing
+  (±200 ms) — the invented intro, interlude and outro lines — unless more
+  than 35 % of the rows (and more than three) look silent, which points at a
+  shifted timeline instead; pulls row starts that lead into 0.4 s or more of
+  silence, and ends that trail 0.6 s or more, onto the singing without
+  crossing word timing or touching rows only the second engine heard; and
+  records stretches of singing with no row as probably missed lyrics.
+
+The document keeps the record (`metadata.vocalCheck`: removed rows with
+their text and times, retimed count, uncovered stretches) and the run keeps
+the report (`metadata.transcription.vocalCheck`). The editor's recognition
+summary shows the stretches that still have no lyrics, with times, until a
+row covers them. Drafts recognised from the mix are not checked.
 
 ## Arbitrary-text ForcedAligner boundary
 

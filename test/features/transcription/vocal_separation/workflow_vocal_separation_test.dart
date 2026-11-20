@@ -19,6 +19,8 @@ import 'package:lyric_forge_ktv/features/transcription/domain/services/project_v
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_profile_resolver.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_service.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_settings_store.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_vocal_check.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/vocal_activity_lyric_gate.dart';
 
 const _config = TranscriptionConfig(
   mode: TranscriptionMode.whisperOnly,
@@ -239,6 +241,169 @@ void main() {
     },
   );
 
+  group('vocal check (D-044)', () {
+    ProjectVocalSeparation separated(
+      _Fixture fixture,
+      ProjectManifest project,
+      String vocalPath,
+    ) => ProjectVocalSeparation(
+      VocalSeparationOutcome.separated(
+        vocalPath: vocalPath,
+        provider: 'dml',
+        elapsed: const Duration(seconds: 30),
+        separatorRevision: 'htdemucs-ft-vocals-onnx-v1',
+      ),
+      updatedAudio: project.audioAsset!.copyWith(
+        vocalPath: vocalPath,
+        metadata: {
+          ...project.audioAsset!.metadata,
+          VocalStemMarker.metadataKey: fixture.marker(vocalPath).toJson(),
+        },
+      ),
+    );
+
+    test('checks a draft recognised from the separated vocal', () async {
+      final fixture = await _Fixture.create();
+      final stem = await fixture.writeStem('run-6');
+      fixture.separator.result = (project) =>
+          separated(fixture, project, stem.path);
+      final check = _VocalCheck();
+      await fixture.workflow(vocalCheck: check).transcribeProject('p');
+
+      expect(check.calls, 1);
+      // Recognition's own 16 kHz copy first, the stem as a fallback.
+      expect(check.lastPaths, ['normalized.wav', stem.path]);
+      final saved = fixture.repository.project;
+      expect(saved.lyricDocument?.lines.single.text, 'checked draft');
+      final transcription = saved.metadata['transcription'] as Map;
+      final report = transcription['vocalCheck'] as Map;
+      // Whatever the check reports is stored as is.
+      expect(report['applied'], isFalse);
+      expect(report['skipReason'], 'noLines');
+      // The editable-draft markers are merged on top of the checked draft.
+      expect(saved.lyricDocument?.metadata['checkedBy'], 'fake');
+      expect(saved.lyricDocument?.metadata['editableDraft'], isTrue);
+    });
+
+    test('a reused automatic stem is checked as well', () async {
+      final fixture = await _Fixture.create();
+      final stem = await fixture.writeStem('run-7');
+      fixture.linkAutomaticStem(stem.path);
+      fixture.separator.result = (_) => ProjectVocalSeparation(
+        VocalSeparationOutcome.reused(
+          vocalPath: stem.path,
+          separatorRevision: 'htdemucs-ft-vocals-onnx-v1',
+        ),
+      );
+      final check = _VocalCheck();
+      await fixture.workflow(vocalCheck: check).transcribeProject('p');
+      expect(check.calls, 1);
+    });
+
+    test('an imported vocal is checked as well', () async {
+      final fixture = await _Fixture.create();
+      final imported = File('${fixture.root.path}/我的人声.wav');
+      await imported.writeAsBytes([1, 2, 3]);
+      fixture.repository.project = fixture.repository.project.copyWith(
+        audioAsset: fixture.repository.project.audioAsset!.copyWith(
+          vocalPath: imported.path,
+        ),
+      );
+      fixture.separator.result = (_) => const ProjectVocalSeparation(
+        VocalSeparationOutcome.skipped(
+          VocalSeparationSkipReason.userProvidedVocal,
+        ),
+      );
+      final check = _VocalCheck();
+      await fixture.workflow(vocalCheck: check).transcribeProject('p');
+      expect(check.calls, 1);
+      expect(check.lastPaths?.last, imported.path);
+    });
+
+    test('a draft recognised from the mix is not checked', () async {
+      final fixture = await _Fixture.create();
+      fixture.separator.result = (_) => const ProjectVocalSeparation(
+        VocalSeparationOutcome.failed(VocalSeparationFailure.separatorFailed),
+      );
+      final check = _VocalCheck();
+      await fixture.workflow(vocalCheck: check).transcribeProject('p');
+
+      expect(check.calls, 0);
+      final saved = fixture.repository.project;
+      expect(saved.lyricDocument?.lines.single.text, 'ASR draft');
+      final report =
+          (saved.metadata['transcription'] as Map)['vocalCheck'] as Map;
+      expect(report['applied'], isFalse);
+      expect(report['skipReason'], 'notVocalInput');
+    });
+
+    test('without a configured check nothing is recorded', () async {
+      final fixture = await _Fixture.create();
+      final stem = await fixture.writeStem('run-8');
+      fixture.separator.result = (project) =>
+          separated(fixture, project, stem.path);
+      await fixture.workflow().transcribeProject('p');
+      final transcription =
+          fixture.repository.project.metadata['transcription'] as Map;
+      expect(transcription.containsKey('vocalCheck'), isTrue);
+      expect(transcription['vocalCheck'], isNull);
+      expect(
+        fixture.repository.project.lyricDocument?.lines.single.text,
+        'ASR draft',
+      );
+    });
+
+    test('a throwing check keeps the recognised draft', () async {
+      final fixture = await _Fixture.create();
+      final stem = await fixture.writeStem('run-9');
+      fixture.separator.result = (project) =>
+          separated(fixture, project, stem.path);
+      final check = _VocalCheck()..error = StateError('broken');
+      await fixture.workflow(vocalCheck: check).transcribeProject('p');
+
+      final saved = fixture.repository.project;
+      expect(saved.status, ProjectStatus.editing);
+      expect(saved.lyricDocument?.lines.single.text, 'ASR draft');
+      final report =
+          (saved.metadata['transcription'] as Map)['vocalCheck'] as Map;
+      expect(report['skipReason'], 'failed');
+      expect(report['error'], contains('broken'));
+    });
+
+    test('cancelling during the check commits nothing', () async {
+      final fixture = await _Fixture.create();
+      final stem = await fixture.writeStem('run-10');
+      fixture.separator.result = (project) =>
+          separated(fixture, project, stem.path);
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final check = _VocalCheck()
+        ..onCheck = () async {
+          entered.complete();
+          await release.future;
+        };
+      final workflow = fixture.workflow(vocalCheck: check);
+      final run = workflow.transcribeProject('p');
+      await entered.future;
+      final cancelling = workflow.cancel();
+      release.complete();
+      await cancelling;
+
+      await expectLater(
+        run,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      expect(fixture.repository.project.lyricDocument, isNull);
+      expect(fixture.repository.project.status, ProjectStatus.editing);
+    });
+  });
+
   test('a project edit during separation aborts before recognition', () async {
     final fixture = await _Fixture.create();
     final stem = await fixture.writeStem('run-5');
@@ -328,7 +493,10 @@ class _Fixture {
     );
   }
 
-  LocalProjectTranscriptionWorkflow workflow({bool withSeparator = true}) {
+  LocalProjectTranscriptionWorkflow workflow({
+    bool withSeparator = true,
+    TranscriptionVocalCheck? vocalCheck,
+  }) {
     separator.repository = repository;
     return LocalProjectTranscriptionWorkflow(
       projectRepository: repository,
@@ -341,6 +509,39 @@ class _Fixture {
       playbackSession: _UnusedPlayback(),
       pathCanonicalizer: _UnusedCanonicalizer(),
       vocalSeparator: withSeparator ? separator : null,
+      vocalCheck: vocalCheck,
+    );
+  }
+}
+
+class _VocalCheck implements TranscriptionVocalCheck {
+  int calls = 0;
+  List<String>? lastPaths;
+  Object? error;
+  Future<void> Function()? onCheck;
+
+  @override
+  Future<VocalCheckResult> check(
+    LyricDocument draft, {
+    required List<String> audioPaths,
+  }) async {
+    calls++;
+    lastPaths = audioPaths;
+    await onCheck?.call();
+    final failure = error;
+    if (failure != null) throw failure;
+    return VocalCheckResult(
+      draft.copyWith(
+        lines: const [
+          LyricLine(
+            text: 'checked draft',
+            startTime: Duration(milliseconds: 100),
+            endTime: Duration(milliseconds: 900),
+          ),
+        ],
+        metadata: {...draft.metadata, 'checkedBy': 'fake'},
+      ),
+      const VocalCheckReport.skipped(VocalCheckSkipReason.noLines),
     );
   }
 }
