@@ -33,6 +33,8 @@ jobs:
           if len(chunks) > 30:
               print(f'::error title={tag}-more::{len(chunks)} chunks, only 30 shown')
           PY
+      - name: pub
+        run: flutter pub get --enforce-lockfile
       - name: fmt
         shell: bash
         run: |
@@ -44,8 +46,6 @@ jobs:
           python3 /tmp/emit.py fmt /tmp/fmt.patch
           git checkout -- .
           exit 0
-      - name: pub
-        run: flutter pub get --enforce-lockfile
       - name: ana
         shell: bash
         run: |
