@@ -24,7 +24,8 @@
 ## Git 现场
 
 - 分支：`arena/45048a01-lyric-forge-ktv`，基于 main `2cd2dd5`。
-- PR 见本轮提交（squash 合并）。
+- PR #491（squash 合并）。
+- 提交：`Split the editor's lyric list into rows, dialog, states and logic`、`Add a temporary probe`、`Wrap phone rows onto a second line and fix the review row tests`、`Apply format, size phone tests through the view`、`Let the row number shrink at large text sizes`、`Remove the probe`。
 
 ## 已改文件
 
@@ -32,7 +33,20 @@
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR 的 CI 上跑，另外用一个临时探针工作流（合并前删除）。
+沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR #491 的 CI 上跑，另外用一个临时探针工作流（合并前已删除）。探针结果：
+- 第一次：
+  - 6 个新测试失败。其中一个是手机宽度下行溢出 96 px，这是真问题，已改成两行布局。
+  - 不能编辑的行给 `Tooltip` 传 null，触发断言，已修。
+  - 列表里点时间要先等双击超时，测试已补上等待。
+- 第二次：
+  - 发现手机测试用的 `setSurfaceSize` 不会改变 `MediaQuery`，布局仍按中等宽度算。已改为设置 `tester.view`。
+  - 格式和 work log 的生成差异补丁已应用。
+- 第三次：
+  - 2 倍字号下行号列溢出 5.5 px，已改为缩小适配。
+- 第四次：
+  - 测试全部 3886 个通过、2 个跳过，比上轮多 102 个。
+  - analyze 没有错误和警告，175 条提示，比上轮少 6 条，改动的文件里没有提示。
+  - 格式没有差异。
 
 - 新增五个测试文件，覆盖逻辑、时间输入、复核行、列表按键和空状态。
 - 原有的列表、行读屏、拆分合并和编辑器面板测试仍从 `lyric_list_pane.dart` 导入，不用改。
