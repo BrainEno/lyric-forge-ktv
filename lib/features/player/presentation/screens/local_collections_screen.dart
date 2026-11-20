@@ -7,9 +7,9 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
+import '../../../../core/widgets/app_catalog_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
-import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -443,25 +443,9 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
       );
     }
 
-    final columns = spec.gridColumns(
-      minTileWidth: 240,
-      min: 1,
-      max: spec.isExtraLarge ? 5 : 4,
-    );
-    final cardHeight = spec.isCompact
-        ? 190.0
-        : spec.isMedium
-        ? 205.0
-        : 220.0;
-
     return GridView.builder(
       padding: EdgeInsets.all(spec.pageGutter),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        mainAxisExtent: cardHeight,
-        crossAxisSpacing: AppSpacing.md,
-        mainAxisSpacing: AppSpacing.md,
-      ),
+      gridDelegate: AppCatalogCard.gridDelegateFor(spec),
       itemCount: _playlists.length,
       itemBuilder: (context, index) {
         final playlist = _playlists[index];
@@ -1093,7 +1077,10 @@ class _CollectionSongTile extends StatelessWidget {
             SizedBox(
               width: artworkExtent,
               height: artworkExtent,
-              child: _CollectionArtwork(path: song.artworkPath),
+              child: AppArtwork(
+                path: song.artworkPath,
+                borderRadius: AppArtwork.rowRadius,
+              ),
             ),
           ],
         ),
@@ -1126,107 +1113,50 @@ class _PlaylistCard extends StatelessWidget {
     required this.onDelete,
   });
 
+  /// 12 首歌曲 · 2 首不可用.
+  String get summary => [
+    '${playlist.sourcePaths.length} 首歌曲',
+    if (missing > 0) '$missing 首不可用',
+  ].join(' · ');
+
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
 
-    return AppTapTarget(
-      label: LocalLibrarySemantics.playlistCard(
+    return AppCatalogCard(
+      semanticLabel: LocalLibrarySemantics.playlistCard(
         name: playlist.name,
         songs: playlist.sourcePaths.length,
         missing: missing,
       ),
-      hint: LocalLibrarySemantics.openPlaylistHint,
+      semanticHint: LocalLibrarySemantics.openPlaylistHint,
       onTap: onOpen,
-      actions: {'重命名': onRename, '删除播放列表': onDelete},
-      child: InkWell(
-        onTap: onOpen,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        child: Container(
-          padding: EdgeInsets.all(
-            spec.isCompact ? AppSpacing.sm : AppSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.bgElevated,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-            border: Border.all(color: AppColors.borderMuted),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _CollectionArtwork(path: artworkPath, large: true),
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: Material(
-                        color: AppColors.pureBlack.withAlpha(90),
-                        borderRadius: BorderRadius.circular(
-                          AppSpacing.radiusCircular,
-                        ),
-                        child: PopupMenuButton<String>(
-                          tooltip: '播放列表操作',
-                          onSelected: (value) {
-                            if (value == 'rename') onRename();
-                            if (value == 'delete') onDelete();
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(value: 'rename', child: Text('重命名')),
-                            PopupMenuDivider(),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text('删除播放列表'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                playlist.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                [
-                  '${playlist.sourcePaths.length} 首歌曲',
-                  if (missing > 0) '$missing 首不可用',
-                ].join(' · '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: missing > 0
-                      ? AppColors.errorText
-                      : AppColors.textTertiary,
-                ),
-              ),
-            ],
-          ),
+      semanticActions: {'重命名': onRename, '删除播放列表': onDelete},
+      compact: spec.isCompact,
+      artwork: AppArtwork(
+        path: artworkPath,
+        borderRadius: AppArtwork.tileRadius,
+        placeholderIcon: Icons.queue_music_rounded,
+      ),
+      artworkOverlay: Material(
+        color: AppColors.pureBlack.withAlpha(90),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+        child: PopupMenuButton<String>(
+          tooltip: '播放列表操作',
+          onSelected: (value) {
+            if (value == 'rename') onRename();
+            if (value == 'delete') onDelete();
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'rename', child: Text('重命名')),
+            PopupMenuDivider(),
+            PopupMenuItem(value: 'delete', child: Text('删除播放列表')),
+          ],
         ),
       ),
-    );
-  }
-}
-
-class _CollectionArtwork extends StatelessWidget {
-  final String? path;
-  final bool large;
-
-  const _CollectionArtwork({this.path, this.large = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppArtwork(
-      path: path,
-      borderRadius: large ? AppSpacing.radiusLarge : AppSpacing.radiusMedium,
-      placeholderIcon: large ? Icons.music_note_rounded : Icons.album_rounded,
+      title: playlist.name,
+      subtitle: summary,
+      subtitleIsAlert: missing > 0,
     );
   }
 }

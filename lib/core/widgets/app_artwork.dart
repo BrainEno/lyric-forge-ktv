@@ -13,6 +13,12 @@ import '../theme/spacing_tokens.dart';
 /// the surface colour. A file or download that cannot be decoded falls back to
 /// the placeholder too. Without [size] the artwork fills its parent, which
 /// must then give it bounded constraints.
+///
+/// The music library used to wrap this in three private widgets per section
+/// that only chose a corner radius and an icon (audit L-04); the choices now
+/// live here as [tileRadius], [rowRadius], [AppArtwork.person] and
+/// [AppArtwork.missing], so every section draws the same cover for the same
+/// kind of thing.
 class AppArtwork extends StatelessWidget {
   const AppArtwork({
     super.key,
@@ -22,7 +28,29 @@ class AppArtwork extends StatelessWidget {
     this.borderRadius = AppSpacing.radiusSmall,
     this.placeholderIcon = Icons.album_rounded,
     this.placeholderColor,
+    this.circle = false,
   });
+
+  /// An artist's picture: round, with a person placeholder.
+  const AppArtwork.person({super.key, this.path, this.size})
+    : remoteUri = null,
+      borderRadius = 0,
+      placeholderIcon = Icons.person_rounded,
+      placeholderColor = null,
+      circle = true;
+
+  /// A song whose file cannot be found: its cover if one is still on disk,
+  /// otherwise a broken-link placeholder in the error colour instead of the
+  /// album icon, so the gap reads as a problem rather than a missing cover.
+  const AppArtwork.missing({
+    super.key,
+    this.path,
+    this.size,
+    this.borderRadius = AppArtwork.tileRadius,
+  }) : remoteUri = null,
+       placeholderIcon = Icons.link_off_rounded,
+       placeholderColor = AppColors.error,
+       circle = false;
 
   final String? path;
   final Uri? remoteUri;
@@ -37,6 +65,15 @@ class AppArtwork extends StatelessWidget {
   /// status colour only when the placeholder itself carries meaning, such as
   /// a song whose file is missing.
   final Color? placeholderColor;
+
+  /// Clip to a circle instead of a rounded square; [borderRadius] is ignored.
+  final bool circle;
+
+  /// Corner radius of a cover that heads a card or a grid tile.
+  static const double tileRadius = AppSpacing.radiusLarge;
+
+  /// Corner radius of a cover at the start of a list row.
+  static const double rowRadius = AppSpacing.radiusMedium;
 
   /// Placeholder icon size as a fraction of the artwork edge.
   static const double placeholderIconScale = 0.42;
@@ -61,15 +98,11 @@ class AppArtwork extends StatelessWidget {
     final file = existingFile(path);
     final remote = networkUri(remoteUri);
 
-    Widget placeholder() {
-      final icon = placeholderIcon;
-      final color = placeholderColor ?? AppColors.textTertiary;
-      if (extent != null) return _Placeholder(icon, color, extent);
-      return LayoutBuilder(
-        builder: (context, constraints) =>
-            _Placeholder(icon, color, constraints.biggest.shortestSide),
-      );
-    }
+    Widget placeholder() => AppArtworkPlaceholder(
+      icon: placeholderIcon,
+      color: placeholderColor,
+      size: extent,
+    );
 
     final Widget image;
     if (file != null) {
@@ -88,24 +121,67 @@ class AppArtwork extends StatelessWidget {
       image = placeholder();
     }
 
+    final sized = extent == null
+        ? SizedBox.expand(child: image)
+        : SizedBox.square(dimension: extent, child: image);
+    if (circle) {
+      // A circle in a wide cell stays round: centre a square of the short
+      // side instead of stretching into an oval.
+      if (extent != null) return ClipOval(child: sized);
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final side = constraints.biggest.shortestSide;
+          return Center(
+            child: ClipOval(
+              child: SizedBox.square(
+                dimension: side.isFinite ? side : null,
+                child: image,
+              ),
+            ),
+          );
+        },
+      );
+    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
-      child: extent == null
-          ? SizedBox.expand(child: image)
-          : SizedBox.square(dimension: extent, child: image),
+      child: sized,
     );
   }
 }
 
-class _Placeholder extends StatelessWidget {
-  const _Placeholder(this.icon, this.color, this.extent);
+/// The placeholder [AppArtwork] draws when there is no cover: [icon] at
+/// [AppArtwork.placeholderIconScale] of the edge, on the surface colour.
+///
+/// Public so a cover that loads in steps (the phone fetching one from the
+/// desktop) can show the same placeholder under its spinner.
+class AppArtworkPlaceholder extends StatelessWidget {
+  const AppArtworkPlaceholder({
+    super.key,
+    this.icon = Icons.album_rounded,
+    this.color,
+    this.size,
+  });
 
   final IconData icon;
-  final Color color;
-  final double extent;
+
+  /// Defaults to [AppColors.textTertiary].
+  final Color? color;
+
+  /// Edge length; null fills the parent and scales the icon to its short
+  /// side.
+  final double? size;
 
   @override
   Widget build(BuildContext context) {
+    final extent = size;
+    if (extent != null) return _placeholder(extent);
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          _placeholder(constraints.biggest.shortestSide),
+    );
+  }
+
+  Widget _placeholder(double extent) {
     final iconSize = extent * AppArtwork.placeholderIconScale;
     return ColoredBox(
       color: AppColors.bgSurface,
@@ -113,7 +189,7 @@ class _Placeholder extends StatelessWidget {
         child: Icon(
           icon,
           size: iconSize.isFinite ? iconSize : null,
-          color: color,
+          color: color ?? AppColors.textTertiary,
         ),
       ),
     );

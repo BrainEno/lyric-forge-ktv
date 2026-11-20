@@ -1,29 +1,42 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/color_tokens.dart';
-import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_artwork.dart';
 import '../../domain/models/remote_audio_track.dart';
 import '../../domain/services/media_hub_client_service.dart';
 
+/// A desktop track's cover on the phone: the local copy when the song was
+/// downloaded, otherwise the bytes fetched over the pinned channel.
+///
+/// It draws the frame and placeholder of [AppArtwork] (audit T-03): the same
+/// corner radii, the same surface and the same icon scaled to the edge, so a
+/// song looks the same in the phone's view of the desktop library as in the
+/// local library. Only the fetch differs, because the token must stay out of
+/// the URL.
 class RemoteMediaArtwork extends StatefulWidget {
   final RemoteAudioTrack track;
   final MediaHubClientService client;
   final String? localPath;
-  final double extent;
+
+  /// Edge length; null fills the parent.
+  final double? extent;
   final IconData fallbackIcon;
-  final BorderRadius? borderRadius;
+  final double borderRadius;
+
+  /// Clip to a circle, as artists are in the local library; [borderRadius]
+  /// is ignored. Give it a square: it does not centre itself in a wide cell.
+  final bool circle;
 
   const RemoteMediaArtwork({
     super.key,
     required this.track,
     required this.client,
     this.localPath,
-    required this.extent,
+    this.extent,
     this.fallbackIcon = Icons.music_note_rounded,
-    this.borderRadius,
+    this.borderRadius = AppArtwork.rowRadius,
+    this.circle = false,
   });
 
   @override
@@ -64,7 +77,7 @@ class _RemoteMediaArtworkState extends State<RemoteMediaArtwork> {
     _connectionKey = _currentConnectionKey();
     final localPath = widget.localPath;
     final artworkPath = widget.track.artworkPath?.trim();
-    if ((localPath != null && File(localPath).existsSync()) ||
+    if (AppArtwork.existingFile(localPath) != null ||
         !widget.track.hasArtwork ||
         artworkPath == null ||
         artworkPath.isEmpty ||
@@ -80,57 +93,57 @@ class _RemoteMediaArtworkState extends State<RemoteMediaArtwork> {
 
   @override
   Widget build(BuildContext context) {
-    final local = widget.localPath == null ? null : File(widget.localPath!);
-    final localExists = local != null && local.existsSync();
-    final radius =
-        widget.borderRadius ?? BorderRadius.circular(AppSpacing.radiusSmall);
+    final localPath = widget.localPath;
+    if (AppArtwork.existingFile(localPath) != null) {
+      // A downloaded cover that cannot be decoded falls back like a failed
+      // download does (audit C-04); AppArtwork does that for files.
+      return AppArtwork(
+        path: localPath,
+        size: widget.extent,
+        borderRadius: widget.borderRadius,
+        placeholderIcon: widget.fallbackIcon,
+        circle: widget.circle,
+      );
+    }
 
+    final extent = widget.extent;
+    final image = _remoteImage();
+    final sized = extent == null
+        ? SizedBox.expand(child: image)
+        : SizedBox.square(dimension: extent, child: image);
+    if (widget.circle) return ClipOval(child: sized);
     return ClipRRect(
-      borderRadius: radius,
-      child: Container(
-        width: widget.extent,
-        height: widget.extent,
-        color: AppColors.bgSurface,
-        child: localExists
-            ? Image.file(
-                local,
-                fit: BoxFit.cover,
-                // A downloaded cover that cannot be decoded falls back like a
-                // failed download does (audit C-04).
-                errorBuilder: (_, _, _) => _Fallback(icon: widget.fallbackIcon),
-              )
-            : _remoteImage(),
-      ),
+      borderRadius: BorderRadius.circular(widget.borderRadius),
+      child: sized,
     );
   }
 
+  Widget _fallback() =>
+      AppArtworkPlaceholder(icon: widget.fallbackIcon, size: widget.extent);
+
   Widget _remoteImage() {
     final future = _artworkFuture;
-    if (future == null) return _Fallback(icon: widget.fallbackIcon);
+    if (future == null) return _fallback();
 
     return FutureBuilder<List<int>>(
       future: future,
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _Fallback(icon: widget.fallbackIcon);
-        }
+        if (snapshot.hasError) return _fallback();
         final bytes = snapshot.data;
         if (snapshot.connectionState == ConnectionState.done) {
-          if (bytes == null || bytes.isEmpty) {
-            return _Fallback(icon: widget.fallbackIcon);
-          }
+          if (bytes == null || bytes.isEmpty) return _fallback();
           return Image.memory(
             Uint8List.fromList(bytes),
             fit: BoxFit.cover,
             filterQuality: FilterQuality.medium,
-            errorBuilder: (_, _, _) => _Fallback(icon: widget.fallbackIcon),
+            errorBuilder: (_, _, _) => _fallback(),
           );
         }
 
         return Stack(
           fit: StackFit.expand,
           children: [
-            _Fallback(icon: widget.fallbackIcon),
+            _fallback(),
             const Center(
               child: SizedBox(
                 width: 18,
@@ -142,16 +155,5 @@ class _RemoteMediaArtworkState extends State<RemoteMediaArtwork> {
         );
       },
     );
-  }
-}
-
-class _Fallback extends StatelessWidget {
-  final IconData icon;
-
-  const _Fallback({required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(child: Icon(icon, color: AppColors.textSecondary));
   }
 }

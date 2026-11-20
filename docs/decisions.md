@@ -650,3 +650,26 @@
 - 影响：这些卡片里的文字和徽标不再被单独读出（`find.bySemanticsLabel` 找整句）；指针和键盘操作不变。手机端曲库的下载按钮状态改为由 `RemoteTrackDownloadState` 推出，提示文字不变。
 - 状态：生效
 - 来源：第 15 轮交接的后续建议（第 16 轮）；[工作日志](log/entries/2026-12-03-0930-read-tappable-cards-as-one-button.md)
+
+## D-038 音乐目录共用一张网格卡片和一套封面
+
+- 日期：2026-12-04
+- 背景：本地曲库的歌手 / 专辑卡、歌曲卡、播放列表卡和手机端桌面曲库的歌手 / 专辑卡各画各的。圆角有两种，内边距有三种，标题字重有两种，网格比例有三种，播放列表还用固定高度。不可用的歌曲在不同地方表示方式也不同。卡片都在 `InkWell` 上面盖了一层不透明的框，点了看不到水波。封面经过三个私有包装（`_Artwork`、`_CatalogArtwork`、`_CollectionArtwork`），它们只是在挑圆角和图标；手机端的 `RemoteMediaArtwork` 还有自己的占位，图标大小固定，颜色也不一样（审计 L-04、T-03）。
+- 决定：
+  - 目录网格的卡片统一用 `core/widgets/app_catalog_card.dart` 的 `AppCatalogCard`。
+    - 底色是卡片自己的 `Material`，所以水波看得见。
+    - 封面是标题上方能放下的最大正方形，居中。下面是标题、副标题和一行小字。
+    - 只有打不开的条目才用红边框（`unavailable`）；副标题报告问题时用 `errorText`。
+    - 卡里的 ⋯ 菜单放在标题行末（`titleTrailing`）或封面右上角（`artworkOverlay`）。
+    - 读屏通过 `AppTapTarget` 读成一个按钮（D-037）。
+  - 列数、比例和间距放在 `AppCatalogCard.gridDelegateFor`：至少 2 列、最多 7 列，手机上每张卡最窄 160，其他 190。
+  - 封面的角色在 `AppArtwork` 上命名：卡片和网格用 `tileRadius`，列表行用 `rowRadius`；歌手用 `AppArtwork.person`（圆形，在宽格子里也保持圆）；文件丢失的歌曲用 `AppArtwork.missing`（没有封面时显示错误色的断链图标）。页面里不再写私有封面包装。
+  - 手机端封面用 `AppArtwork` 显示本地副本，用 `AppArtworkPlaceholder` 显示占位，歌手也是圆的。取图仍走证书固定的通道拿字节，token 放在请求头里，不放进 URL。
+  - 手机端歌曲行的下载状态只由 `RemoteTrackDownload` 推出一次，图标、进度条、提示和读屏标签都读它。
+- 影响：
+  - 播放列表改用和专辑一样的网格。
+  - 浏览页歌曲卡和手机端卡片的内边距、间距和本地专辑卡一致。
+  - 已在手机上的歌曲不再同时显示 ✓ 和旧的“下载失败”。
+  - `test/architecture/catalog_card_contract_test.dart` 防止页面重新画自己的卡片、网格或封面包装。
+- 状态：生效
+- 来源：第 16 轮交接后，按页面报告的 L-04、T-03（第 17 轮）；[工作日志](log/entries/2026-12-04-0930-share-one-catalog-card-and-cover.md)
