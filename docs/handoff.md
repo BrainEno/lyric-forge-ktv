@@ -23,7 +23,8 @@
 ## Git 现场
 
 - 分支：`arena/27fa5d5c-lyric-forge-ktv`，基于 main `85d0d6c`。
-- 提交：`Add switchable light and dark themes`，之后是临时探针和 CI 修正（合并前删除探针，squash 合并）。
+- PR #493（squash 合并）。
+- 提交：`Add switchable light and dark themes`、`Add a temporary probe`、`Apply format, regenerate the work log, compare theme styles by state`、`Remove the probe`。
 
 ## 已改文件
 
@@ -31,7 +32,15 @@
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR 的 CI 上跑，另外用一个临时探针工作流（合并前删除）。配色的对比度在写测试前先用脚本按同样的门槛算过，两套配色全部通过。
+沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR 的 CI 上跑，另外用一个临时探针工作流（合并前删除）。配色的对比度在写测试前先用脚本按同样的门槛算过，两套配色全部通过。探针结果：
+- 第一次：
+  - 改动涉及的测试 471 个全部通过。
+  - 全量测试有三个旧测试失败：它们用 `same(...)` 检查主题里的按钮样式就是 `AppTheme` 的那个对象，而 getter 现在每次按当前配色新建，所以改成逐个状态比较解析出的颜色。
+  - analyze 只有改动文件里原有的几条提示，不是本轮引入的。
+  - work log 的生成文件和格式差异补丁已应用。
+- 第二次：
+  - 全部 4376 个测试通过、2 个跳过，比上轮多 369 个。
+  - 格式没有差异，质量门通过。
 
 - 新增八个测试文件：
   - 两套配色的对比度和色相；
