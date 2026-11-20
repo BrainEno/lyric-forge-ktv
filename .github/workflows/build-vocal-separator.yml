@@ -190,14 +190,15 @@ jobs:
           ls ort/include ort/lib
 
       - name: Build lyricforge-separator
+        shell: bash
         run: |
           cmake -S native/vocal_separator -B sep-build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DLFSEP_BUILD_TESTS=OFF -DLFSEP_BUILD_CLI=ON \
             -DEIGEN_DIR=/usr/include/eigen3 \
             -DORT_INCLUDE_DIR="$PWD/ort/include" \
-            -DORT_LIBRARY="$PWD/ort/lib/libonnxruntime.so"
-          cmake --build sep-build
+            -DORT_LIBRARY="$PWD/ort/lib/libonnxruntime.so" 2>&1 | tee build.log
+          cmake --build sep-build 2>&1 | tee -a build.log
           cp ort/lib/libonnxruntime.so* sep-build/
 
       - name: Separate a synthetic song on CPU
@@ -209,7 +210,11 @@ jobs:
           time sep-build/lyricforge-separator \
             --model "model/$MODEL_FILE" --input song.wav --output-dir stems \
             --provider cpu | tee separator.log
-          python3 native/vocal_separator/tests/check_stems.py song.wav stems separator.log
+          python3 native/vocal_separator/tests/check_stems.py song.wav stems separator.log 2>&1 | tee check.log
+
+      - name: Annotate failure
+        if: failure()
+        run: python3 native/vocal_separator/tests/annotate_failure.py build.log separator.log check.log
 
   windows:
     name: Windows x64 DirectML bundle
@@ -279,11 +284,11 @@ jobs:
             -DEIGEN_DIR="$env:GITHUB_WORKSPACE/eigen" `
             -DORT_INCLUDE_DIR="$env:ORT_INCLUDE_DIR" `
             -DORT_LIBRARY="$env:ORT_LIBRARY" `
-            -DDIRECTML_INCLUDE_DIR="$env:DIRECTML_INCLUDE_DIR"
+            -DDIRECTML_INCLUDE_DIR="$env:DIRECTML_INCLUDE_DIR" *>&1 | Tee-Object build.log
           if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
-          cmake --build sep-build
+          cmake --build sep-build *>&1 | Tee-Object -Append build.log
           if ($LASTEXITCODE -ne 0) { throw "Build failed" }
-          ./sep-build/lfsep_tests.exe
+          ./sep-build/lfsep_tests.exe *>&1 | Tee-Object tests.log
           if ($LASTEXITCODE -ne 0) { throw "Unit tests failed on Windows" }
 
       - name: Assemble bundle
@@ -336,8 +341,13 @@ jobs:
           # A non-ASCII output directory, as under a Chinese Windows user name.
           ./separator/bin/lyricforge-separator.exe --model "separator/models/$env:MODEL_FILE" --input song.wav --output-dir "stems-人声" --provider cpu | Tee-Object separator.log
           if ($LASTEXITCODE -ne 0) { throw "CPU separation failed with exit code $LASTEXITCODE" }
-          python native/vocal_separator/tests/check_stems.py song.wav "stems-人声" separator.log
+          python native/vocal_separator/tests/check_stems.py song.wav "stems-人声" separator.log *>&1 | Tee-Object check.log
           if ($LASTEXITCODE -ne 0) { throw "Stem check failed" }
+
+      - name: Annotate failure
+        if: failure()
+        shell: pwsh
+        run: python native/vocal_separator/tests/annotate_failure.py build.log tests.log separator.log check.log
 
       - name: Try DirectML (informational; runners have no GPU)
         continue-on-error: true
