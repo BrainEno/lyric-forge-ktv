@@ -1143,7 +1143,9 @@ class _PlaylistCard extends StatelessWidget {
         onTap: onOpen,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
         child: Container(
-          padding: EdgeInsets.all(spec.isCompact ? AppSpacing.sm : AppSpacing.md),
+          padding: EdgeInsets.all(
+            spec.isCompact ? AppSpacing.sm : AppSpacing.md,
+          ),
           decoration: BoxDecoration(
             color: AppColors.bgElevated,
             borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -1173,7 +1175,10 @@ class _PlaylistCard extends StatelessWidget {
                           itemBuilder: (_) => const [
                             PopupMenuItem(value: 'rename', child: Text('重命名')),
                             PopupMenuDivider(),
-                            PopupMenuItem(value: 'delete', child: Text('删除播放列表')),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('删除播放列表'),
+                            ),
                           ],
                         ),
                       ),

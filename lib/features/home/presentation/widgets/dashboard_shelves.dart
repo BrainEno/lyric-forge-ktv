@@ -155,9 +155,9 @@ class _ListeningCard extends StatelessWidget {
                     history.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   Text(
                     history.artist?.trim().isNotEmpty == true
@@ -307,7 +307,9 @@ class _ProjectCard extends StatelessWidget {
                   value: project.progressPercent.clamp(0.0, 1.0).toDouble(),
                   minHeight: 3,
                   backgroundColor: AppColors.bgHighlight,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+                  borderRadius: BorderRadius.circular(
+                    AppSpacing.radiusCircular,
+                  ),
                 ),
               ],
             ),

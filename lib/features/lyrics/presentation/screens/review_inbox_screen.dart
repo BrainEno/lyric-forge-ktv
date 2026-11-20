@@ -76,6 +76,7 @@ class ReviewInboxScreen extends StatefulWidget {
       if (saving) savingLabel,
     ]);
   }
+
   static const String undoneMessage = '已撤销，复核标记恢复原样';
   static const String undoConflictMessage = '工程已有新的改动，没有撤销';
   static const String saveFailedMessage = '没能保存复核标记，请稍后再试';
@@ -494,7 +495,10 @@ class _ReviewInboxTile extends StatelessWidget {
                   const _Badge(label: '已复核', color: AppColors.textTertiary),
                 if (lowConfidence > 0) ...[
                   const SizedBox(width: AppSpacing.xs),
-                  _Badge(label: '低置信度 $lowConfidence', color: AppColors.warning),
+                  _Badge(
+                    label: '低置信度 $lowConfidence',
+                    color: AppColors.warning,
+                  ),
                 ] else if (unscored > 0 && pending > 0) ...[
                   // "Unknown" rather than a red zero — the same rule the editor
                   // toolbar follows.

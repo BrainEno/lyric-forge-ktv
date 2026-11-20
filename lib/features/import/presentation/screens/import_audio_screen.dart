@@ -372,7 +372,9 @@ class _ImportActionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
           hoverColor: AppColors.hoverOverlay,
           child: Container(
-            constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
+            constraints: BoxConstraints(
+              minHeight: spec.minimumInteractiveExtent,
+            ),
             padding: EdgeInsets.all(
               spec.isCompact ? AppSpacing.sm : AppSpacing.md,
             ),
@@ -387,7 +389,9 @@ class _ImportActionCard extends StatelessWidget {
                   height: spec.minimumInteractiveExtent,
                   decoration: BoxDecoration(
                     color: AppColors.bgSurface,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+                    borderRadius: BorderRadius.circular(
+                      AppSpacing.radiusMedium,
+                    ),
                   ),
                   child: Icon(
                     icon,

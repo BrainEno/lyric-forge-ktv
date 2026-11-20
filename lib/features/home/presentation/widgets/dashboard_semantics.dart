@@ -64,13 +64,8 @@ abstract final class DashboardSemantics {
     required String source,
     required bool current,
   }) {
-    return AppTapTarget.join([
-      _title(title),
-      source,
-      if (current) '正在播放',
-    ]);
+    return AppTapTarget.join([_title(title), source, if (current) '正在播放']);
   }
 
-  static String _title(String title) =>
-      title.trim().isEmpty ? '未命名歌曲' : title;
+  static String _title(String title) => title.trim().isEmpty ? '未命名歌曲' : title;
 }

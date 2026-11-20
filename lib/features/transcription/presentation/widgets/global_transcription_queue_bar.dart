@@ -170,7 +170,9 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context).textTheme.labelMedium
-                                      ?.copyWith(color: AppColors.textSecondary),
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
                                 ),
                               ),
                             ],
@@ -187,22 +189,26 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
                         const SizedBox(width: AppSpacing.md),
                         Text(
                           '$done / $total',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.textTertiary,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: AppColors.textTertiary,
+                                fontWeight: FontWeight.w700,
+                              ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         if (state.isPaused)
                           IconButton(
                             tooltip: state.isProcessing
-                              ? '正在保存进度'
-                              : resumeLabel,
+                                ? '正在保存进度'
+                                : resumeLabel,
                             visualDensity: VisualDensity.compact,
                             onPressed: state.isProcessing
                                 ? null
                                 : () => queue.resume(),
-                            icon: const Icon(Icons.play_arrow_rounded, size: 19),
+                            icon: const Icon(
+                              Icons.play_arrow_rounded,
+                              size: 19,
+                            ),
                           )
                         else if (state.isProcessing)
                           IconButton(

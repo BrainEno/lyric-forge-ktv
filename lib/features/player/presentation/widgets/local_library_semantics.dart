@@ -14,8 +14,7 @@ abstract final class LocalLibrarySemantics {
   static const String unavailableLabel = '文件不可用';
 
   /// Turns a visible `A · B · C` line into spoken `A，B，C`.
-  static String spoken(String dotted) =>
-      AppTapTarget.join(dotted.split(' · '));
+  static String spoken(String dotted) => AppTapTarget.join(dotted.split(' · '));
 
   /// An artist or album card: title, then the counts line,
   /// e.g. `周杰伦，12 首，3 张专辑`.

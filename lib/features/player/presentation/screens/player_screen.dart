@@ -250,8 +250,9 @@ class _PlayerContentState extends State<_PlayerContent> {
       widget.project,
       widget.playbackSession.currentState,
     );
-    if (document == null || document.lines.isEmpty || audioAsset == null)
+    if (document == null || document.lines.isEmpty || audioAsset == null) {
       return;
+    }
 
     final openedItem = widget.playbackSession.currentState.currentItem;
     bool isSameItem(PlaybackItem? item) =>
@@ -772,13 +773,16 @@ class _ScrollableLyricsState extends State<_ScrollableLyrics> {
                     Expanded(
                       child: Text(
                         line.text,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: current
-                              ? AppColors.textPrimary
-                              : AppColors.textSecondary,
-                          fontWeight: current ? FontWeight.w800 : FontWeight.w500,
-                          height: spec.isShort ? 1.3 : 1.45,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: current
+                                  ? AppColors.textPrimary
+                                  : AppColors.textSecondary,
+                              fontWeight: current
+                                  ? FontWeight.w800
+                                  : FontWeight.w500,
+                              height: spec.isShort ? 1.3 : 1.45,
+                            ),
                       ),
                     ),
                     if (line.isChorus && !spec.isCompact)

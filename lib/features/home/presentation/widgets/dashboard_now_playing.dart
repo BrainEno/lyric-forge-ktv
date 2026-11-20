@@ -489,7 +489,9 @@ class _QueueRow extends StatelessWidget {
                           color: current
                               ? AppColors.accent
                               : AppColors.textPrimary,
-                          fontWeight: current ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: current
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                         ),
                       ),
                       Text(

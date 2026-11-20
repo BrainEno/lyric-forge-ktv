@@ -103,8 +103,9 @@ class _MobileRemoteMusicLibraryScreenState
     if (!mounted) return;
     var completedNewDownload = false;
     for (final item in snapshot.completed) {
-      if (item.direction != MediaTransferDirection.downloadFromDesktop)
+      if (item.direction != MediaTransferDirection.downloadFromDesktop) {
         continue;
+      }
       if (_handledCompletedTasks.add(item.id)) completedNewDownload = true;
     }
     setState(() {});
