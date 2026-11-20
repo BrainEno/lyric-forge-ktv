@@ -1,0 +1,85 @@
+name: Probe
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+      - name: Write emitter
+        shell: bash
+        run: |
+          cat > /tmp/emit.py <<'PY'
+          import sys
+          tag, path = sys.argv[1], sys.argv[2]
+          data = open(path, 'rb').read()
+          chunks = [data[i:i + 3000] for i in range(0, len(data), 3000)] or [b'(empty)']
+          levels = ['notice'] * 10 + ['warning'] * 10 + ['error'] * 10
+          for index, chunk in enumerate(chunks[:30]):
+              text = chunk.decode('utf-8', 'replace')
+              text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::{levels[index]} title={tag}-{index}::### {index}%0A{text}')
+          if len(chunks) > 30:
+              print(f'::error title={tag}-more::{len(chunks)} chunks, only 30 shown')
+          PY
+      - name: fmt
+        shell: bash
+        run: |
+          set +e
+          dart tool/work_log.dart write > /dev/null 2>&1
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "${{ github.event.pull_request.base.sha }}" HEAD -- '*.dart')
+          dart format "${files[@]}" > /dev/null 2>&1
+          git --no-pager diff > /tmp/fmt.patch
+          python3 /tmp/emit.py fmt /tmp/fmt.patch
+          git checkout -- .
+          exit 0
+      - name: pub
+        run: flutter pub get --enforce-lockfile
+      - name: ana
+        shell: bash
+        run: |
+          set +e
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "${{ github.event.pull_request.base.sha }}" HEAD -- 'lib/*.dart' 'test/*.dart')
+          flutter analyze --no-pub "${files[@]}" > /tmp/ana.log 2>&1
+          grep -E "error •|warning •|info •" /tmp/ana.log > /tmp/ana.txt
+          tail -3 /tmp/ana.log >> /tmp/ana.txt
+          python3 /tmp/emit.py ana /tmp/ana.txt
+          exit 0
+      - name: test
+        shell: bash
+        run: |
+          set +e
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "${{ github.event.pull_request.base.sha }}" HEAD -- 'test/*_test.dart')
+          flutter test --no-pub -r expanded "${files[@]}" > /tmp/test.log 2>&1
+          python3 - <<'PY' > /tmp/test.txt
+          import re
+          lines = open('/tmp/test.log', encoding='utf-8', errors='replace').read().splitlines()
+          out = []
+          for i, line in enumerate(lines):
+              if '[E]' in line or 'EXCEPTION CAUGHT' in line or 'Error:' in line:
+                  out.extend(lines[i:i + 14])
+                  out.append('----')
+          out.extend(lines[-3:])
+          print('\n'.join(out))
+          PY
+          python3 /tmp/emit.py test /tmp/test.txt
+          exit 0
+      - name: full
+        shell: bash
+        run: |
+          set +e
+          flutter test --no-pub -r expanded > /tmp/full.log 2>&1
+          { grep -n "\[E\]" /tmp/full.log | head -60; tail -3 /tmp/full.log; } > /tmp/full.txt
+          python3 /tmp/emit.py full /tmp/full.txt
+          exit 0
