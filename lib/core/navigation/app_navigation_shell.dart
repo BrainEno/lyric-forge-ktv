@@ -180,10 +180,7 @@ class _AppNavigationRailState extends State<AppNavigationRail>
       // icon (audit B-01).
       leading: const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
-        child: Tooltip(
-          message: appDisplayName,
-          child: AppBrandMark(size: 28),
-        ),
+        child: Tooltip(message: appDisplayName, child: AppBrandMark(size: 28)),
       ),
       destinations: [
         for (final destination in AppDestination.values)

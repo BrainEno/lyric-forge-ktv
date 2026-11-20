@@ -63,9 +63,8 @@ class AppTheme {
   /// Label and icon on [accentFill].
   static WidgetStateProperty<Color> accentForegroundFor(AppPalette p) =>
       WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.disabled)
-            ? p.textTertiary
-            : p.onAccent,
+        (states) =>
+            states.contains(WidgetState.disabled) ? p.textTertiary : p.onAccent,
       );
 
   /// Press and hover wash for buttons whose fill stays put: white at 10 %
@@ -100,15 +99,13 @@ class AppTheme {
   /// leaves the label, and the spinner of a busy button, at 2.2:1.
   static WidgetStateProperty<Color?> disabledFillFor(AppPalette p) =>
       WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.disabled)
-            ? p.bgHighlight
-            : null,
+        (states) =>
+            states.contains(WidgetState.disabled) ? p.bgHighlight : null,
       );
   static WidgetStateProperty<Color?> disabledForegroundFor(AppPalette p) =>
       WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.disabled)
-            ? p.textTertiary
-            : null,
+        (states) =>
+            states.contains(WidgetState.disabled) ? p.textTertiary : null,
       );
 
   /// The play/pause disc of the player bars and the transport: white with a
@@ -319,9 +316,7 @@ class AppTheme {
                 ? p.onAccentContainer
                 : p.textSecondary;
           }),
-          side: WidgetStatePropertyAll(
-            BorderSide(color: p.borderStrong),
-          ),
+          side: WidgetStatePropertyAll(BorderSide(color: p.borderStrong)),
           overlayColor: fillOverlay,
         ),
       ),
@@ -352,9 +347,8 @@ class AppTheme {
               : p.bgHighlight;
         }),
         trackOutlineColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? p.accent
-              : p.borderStrong,
+          (states) =>
+              states.contains(WidgetState.selected) ? p.accent : p.borderStrong,
         ),
       ),
       checkboxTheme: CheckboxThemeData(
@@ -421,14 +415,8 @@ class AppTheme {
         backgroundColor: p.bgElevated,
         useIndicator: true,
         indicatorColor: p.accentContainer,
-        selectedIconTheme: IconThemeData(
-          size: 24,
-          color: p.onAccentContainer,
-        ),
-        unselectedIconTheme: IconThemeData(
-          size: 24,
-          color: p.textSecondary,
-        ),
+        selectedIconTheme: IconThemeData(size: 24, color: p.onAccentContainer),
+        unselectedIconTheme: IconThemeData(size: 24, color: p.textSecondary),
         selectedLabelTextStyle: navigationLabelSelected,
         unselectedLabelTextStyle: navigationLabel,
       ),

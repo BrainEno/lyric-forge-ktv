@@ -76,9 +76,7 @@ class _BrandMarkPainter extends CustomPainter {
       final width = AppBrandMark.barWidths[index] * unit;
       final height = AppBrandMark.barHeights[index] * size.height;
       final paint = Paint()
-        ..color = index == AppBrandMark.accentBar
-            ? AppColors.brand
-            : bars;
+        ..color = index == AppBrandMark.accentBar ? AppColors.brand : bars;
       canvas.drawRect(
         Rect.fromLTWH(left, centerY - height / 2, width, height),
         paint,

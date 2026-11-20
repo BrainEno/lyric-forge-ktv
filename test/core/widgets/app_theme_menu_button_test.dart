@@ -196,18 +196,12 @@ void main() {
     testWidgets('has no theme button without an appearance controller', (
       tester,
     ) async {
-      await pumpAt(
-        tester,
-        rail(withAppearance: false),
-        const Size(1000, 800),
-      );
+      await pumpAt(tester, rail(withAppearance: false), const Size(1000, 800));
       expect(find.byType(AppThemeMenuButton), findsNothing);
       expect(find.byType(NavigationRail), findsOneWidget);
     });
 
-    testWidgets('puts the theme button below the destinations', (
-      tester,
-    ) async {
+    testWidgets('puts the theme button below the destinations', (tester) async {
       await pumpAt(tester, rail(withAppearance: true), const Size(1000, 800));
 
       final button = find.byKey(AppThemeMenuButton.buttonKey);

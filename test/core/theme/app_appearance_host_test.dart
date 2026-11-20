@@ -15,7 +15,12 @@ class _Swatch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(key: boxKey, width: 10, height: 10, color: AppColors.bgBase);
+    return Container(
+      key: boxKey,
+      width: 10,
+      height: 10,
+      color: AppColors.bgBase,
+    );
   }
 }
 

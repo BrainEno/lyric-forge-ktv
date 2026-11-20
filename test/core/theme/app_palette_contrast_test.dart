@@ -197,10 +197,7 @@ void main() {
 
       test('tertiary text reads on the warm surfaces', () {
         expect(_contrast(p.textTertiary, p.vinylSurface), greaterThan(4.5));
-        expect(
-          _contrast(p.textTertiary, p.vinylSurfaceHigh),
-          greaterThan(4.5),
-        );
+        expect(_contrast(p.textTertiary, p.vinylSurfaceHigh), greaterThan(4.5));
       });
 
       test('the top of the hero backdrop keeps the title readable', () {
@@ -254,10 +251,7 @@ void main() {
       final pageIsLight = p.bgBase.computeLuminance() > 0.5;
 
       test('says which way round it is', () {
-        expect(
-          p.brightness,
-          pageIsLight ? Brightness.light : Brightness.dark,
-        );
+        expect(p.brightness, pageIsLight ? Brightness.light : Brightness.dark);
       });
 
       test('pages run from the page to raised panels in one direction', () {

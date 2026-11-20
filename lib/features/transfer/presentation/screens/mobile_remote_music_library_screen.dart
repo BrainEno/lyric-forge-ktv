@@ -436,11 +436,7 @@ class _MobileRemoteMusicLibraryScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.devices_rounded,
-                  size: 54,
-                  color: AppColors.accent,
-                ),
+                Icon(Icons.devices_rounded, size: 54, color: AppColors.accent),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   '连接你的桌面音乐库',

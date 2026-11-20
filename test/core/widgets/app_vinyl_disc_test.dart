@@ -268,9 +268,7 @@ void main() {
 
     testWidgets('take the colour they are given', (tester) async {
       await tester.pumpWidget(
-        _host(
-          AppRhythmBars(playing: false, color: AppColors.textPrimary),
-        ),
+        _host(AppRhythmBars(playing: false, color: AppColors.textPrimary)),
       );
 
       final colours = tester

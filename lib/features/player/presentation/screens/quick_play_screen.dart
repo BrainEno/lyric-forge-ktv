@@ -767,10 +767,7 @@ class _PlayerDetails extends StatelessWidget {
               color: AppColors.error.withAlpha(18),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
             ),
-            child: Text(
-              error!,
-              style: TextStyle(color: AppColors.errorText),
-            ),
+            child: Text(error!, style: TextStyle(color: AppColors.errorText)),
           ),
         ],
         SizedBox(height: layout.isShort ? AppSpacing.md : AppSpacing.xl),

@@ -86,6 +86,7 @@ class KtvKaraokeLine extends StatefulWidget {
   final Duration offset;
   final Duration? fallbackEnd;
   final bool isPlaying;
+
   /// Defaults to [AppColors.accent] of the theme in use.
   final Color? sungColor;
 

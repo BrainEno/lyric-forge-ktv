@@ -29,9 +29,10 @@ Set<Color> _previewColors(WidgetTester tester, AppThemeVariant variant) {
     matching: find.byType(AppThemePreview),
   );
   final colors = <Color>{};
-  for (final element in find
-      .descendant(of: preview, matching: find.byType(Container))
-      .evaluate()) {
+  for (final element
+      in find
+          .descendant(of: preview, matching: find.byType(Container))
+          .evaluate()) {
     final container = element.widget as Container;
     final decoration = container.decoration;
     if (decoration is BoxDecoration && decoration.color != null) {
@@ -122,10 +123,7 @@ void main() {
 
     final dark = _previewColors(tester, AppThemeVariant.dark);
     final light = _previewColors(tester, AppThemeVariant.light);
-    for (final colors in [
-      (dark, AppPalette.dark),
-      (light, AppPalette.light),
-    ]) {
+    for (final colors in [(dark, AppPalette.dark), (light, AppPalette.light)]) {
       final palette = colors.$2;
       expect(
         colors.$1,
@@ -142,9 +140,7 @@ void main() {
     expect(light, isNot(contains(AppPalette.dark.bgBase)));
   });
 
-  testWidgets('tapping a tile switches the theme and saves it', (
-    tester,
-  ) async {
+  testWidgets('tapping a tile switches the theme and saves it', (tester) async {
     await pumpCard(tester);
 
     await tester.tap(
@@ -175,10 +171,10 @@ void main() {
           )
           .first,
     );
-    final selected = tileMaterial(AppThemeVariant.dark).shape!
-        as RoundedRectangleBorder;
-    final other = tileMaterial(AppThemeVariant.light).shape!
-        as RoundedRectangleBorder;
+    final selected =
+        tileMaterial(AppThemeVariant.dark).shape! as RoundedRectangleBorder;
+    final other =
+        tileMaterial(AppThemeVariant.light).shape! as RoundedRectangleBorder;
     expect(selected.side.color, AppColors.accent);
     expect(selected.side.width, greaterThan(other.side.width));
     expect(other.side.color, AppColors.borderSubtle);
@@ -209,11 +205,7 @@ void main() {
     );
     expect(
       light,
-      isSemantics(
-        label: '浅色主题',
-        isButton: true,
-        isSelected: false,
-      ),
+      isSemantics(label: '浅色主题', isButton: true, isSelected: false),
     );
 
     light.owner!.performAction(light.id, SemanticsAction.tap);
@@ -315,7 +307,9 @@ void main() {
     ).readAsStringSync();
 
     test('opens with 外观, before the library and recognition', () {
-      final appearance = screen.indexOf("key: ValueKey('settings-group:appearance')");
+      final appearance = screen.indexOf(
+        "key: ValueKey('settings-group:appearance')",
+      );
       final library = screen.indexOf("key: ValueKey('settings-group:library')");
       final recognition = screen.indexOf(
         "key: ValueKey('settings-group:recognition')",

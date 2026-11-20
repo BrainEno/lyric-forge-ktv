@@ -412,11 +412,7 @@ class _SongRowLeading extends StatelessWidget {
 ///
 /// Not read by screen readers; the row's label says the same in words.
 class AppSongRowBadge extends StatelessWidget {
-  const AppSongRowBadge({
-    super.key,
-    required this.icon,
-    this.color,
-  });
+  const AppSongRowBadge({super.key, required this.icon, this.color});
 
   final IconData icon;
 
@@ -428,11 +424,7 @@ class AppSongRowBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExcludeSemantics(
-      child: Icon(
-        icon,
-        size: iconSize,
-        color: color ?? AppColors.textTertiary,
-      ),
+      child: Icon(icon, size: iconSize, color: color ?? AppColors.textTertiary),
     );
   }
 }

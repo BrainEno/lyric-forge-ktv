@@ -430,11 +430,7 @@ class _RowNumber extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (playing) {
-      return Icon(
-        Icons.graphic_eq_rounded,
-        size: 18,
-        color: AppColors.accent,
-      );
+      return Icon(Icons.graphic_eq_rounded, size: 18, color: AppColors.accent);
     }
     // Three-digit rows at large text sizes are wider than the column; they
     // shrink to fit instead of overflowing.

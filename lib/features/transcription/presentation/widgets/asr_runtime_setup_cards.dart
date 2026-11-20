@@ -339,10 +339,7 @@ class AsrSetupComponentsCard extends StatelessWidget {
           for (var index = 0; index < components.length; index++) ...[
             AsrSetupComponentRow(component: components[index]),
             if (index != components.length - 1)
-              Divider(
-                height: AppSpacing.md,
-                color: AppColors.borderMuted,
-              ),
+              Divider(height: AppSpacing.md, color: AppColors.borderMuted),
           ],
         ],
       ),

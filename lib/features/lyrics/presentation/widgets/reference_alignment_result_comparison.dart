@@ -380,10 +380,7 @@ class _DiffRow extends StatelessWidget {
         ),
         Expanded(
           child: spans.isEmpty
-              ? Text(
-                  '（空）',
-                  style: TextStyle(color: AppColors.textTertiary),
-                )
+              ? Text('（空）', style: TextStyle(color: AppColors.textTertiary))
               : Text.rich(
                   TextSpan(children: spans),
                   style: Theme.of(
