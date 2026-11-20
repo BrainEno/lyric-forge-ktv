@@ -8,6 +8,7 @@ import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart'
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/models/vocal_separation_models.dart';
 
 void main() {
   late Directory root;
@@ -104,6 +105,63 @@ void main() {
       );
     },
   );
+
+  group('automatically separated vocal', () {
+    final marker = VocalStemMarker(
+      separatorRevision: 'htdemucs-ft-vocals-onnx-v1',
+      sourceFingerprint: '3:1700000000000:/song.wav',
+      vocalPath: '/stems/vocals.wav',
+      accompanimentPath: '/stems/accompaniment.wav',
+      provider: 'dml',
+      generatedAt: DateTime.utc(2026, 12, 9),
+    );
+
+    Future<ProjectManifest> withAutomaticStem() => repository.updateProject(
+      project.copyWith(
+        audioAsset: project.audioAsset!.copyWith(
+          vocalPath: '/stems/vocals.wav',
+          metadata: {
+            'keep': 'me',
+            VocalStemMarker.metadataKey: marker.toJson(),
+          },
+        ),
+      ),
+    );
+
+    test('an imported vocal replaces it and drops its marker', () async {
+      final separated = await withAutomaticStem();
+      expect(
+        VocalStemMarker.fromAudioMetadata(separated.audioAsset!.metadata),
+        isNotNull,
+      );
+
+      final updated = (await importer(
+        () async => source.path,
+      ).importVocalFor(separated))!;
+      final audio = updated.audioAsset!;
+      expect(audio.vocalPath, isNot('/stems/vocals.wav'));
+      expect(audio.metadata.containsKey(VocalStemMarker.metadataKey), isFalse);
+      expect(audio.metadata['keep'], 'me');
+
+      final reopened = FileProjectRepository(rootDirectory: root);
+      final stored = (await reopened.getProjectById(project.id))!.audioAsset!;
+      expect(VocalStemMarker.fromAudioMetadata(stored.metadata), isNull);
+      expect(stored.vocalPath, audio.vocalPath);
+    });
+
+    test('an imported accompaniment keeps it', () async {
+      final separated = await withAutomaticStem();
+      final updated = (await importer(
+        () async => source.path,
+      ).importFor(separated))!;
+      final audio = updated.audioAsset!;
+      expect(audio.vocalPath, '/stems/vocals.wav');
+      expect(
+        VocalStemMarker.fromAudioMetadata(audio.metadata)?.vocalPath,
+        '/stems/vocals.wav',
+      );
+    });
+  });
 
   test('cancel does not create storage or mutate project', () async {
     expect(await importer(() async => null).importVocalFor(project), isNull);

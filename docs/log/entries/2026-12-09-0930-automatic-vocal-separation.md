@@ -15,16 +15,18 @@
     - `LocalProjectTranscriptionWorkflow`: an optional separator runs after the start write in a new `separating` phase (cancellable), the stem and its `vocalSeparation` marker are saved under the run's revision, recognition uses the stem, and `metadata.transcription.vocalSeparation` records the outcome; an automatic stem is not trusted when separation is off or fails. Separation progress joins the progress stream as `preprocessing`.
     - `TranscriptionConfig.vocalSeparation` (`automatic` by default, older settings read as automatic), a switch in the recognition settings dialog, diagnostics, and the audio-sources hint no longer claims the app never separates.
     - The end-to-end smoke test workflow is built without a separator.
+    - Importing a vocal stem drops the automatic stem's marker, so the imported stem is treated as the user's from then on.
 - Files:
   - New: `native/vocal_separator/` (`src/`, `tests/`, `CMakeLists.txt`, `README.md`), `third_party/demucs_onnx/`, `tool/vocal_separator/`, `.github/workflows/build-vocal-separator.yml`.
   - New: `lib/features/transcription/domain/models/vocal_separation_models.dart`, `domain/services/vocal_separation_planner.dart`, `domain/services/project_vocal_separator.dart`, `data/services/separator_manifest.dart`, `separator_output_parser.dart`, `vocal_separator_runtime.dart`, `local_project_vocal_separator.dart`.
-  - `lib/features/transcription/data/services/local_project_transcription_workflow.dart`, `project_transcription_input.dart`, `domain/models/transcription_models.dart`, `presentation/widgets/transcription_config_dialog.dart`, `lib/app/app_services.dart`, `lib/app/diagnostics_assembly.dart`, `lib/features/project/presentation/widgets/project_audio_sources_section.dart`.
-  - New tests in `test/features/transcription/vocal_separation/`: manifest, output parser, release contract, planner, models and config, runtime install, process separator, workflow integration. Updated: `project_audio_sources_section_test.dart`.
-  - `docs/decisions.md` (D-043), `docs/high_quality_asr.md`, `docs/local_transcription.md`, `docs/handoff.md`.
+  - `lib/features/transcription/data/services/local_project_transcription_workflow.dart`, `project_transcription_input.dart`, `domain/models/transcription_models.dart`, `presentation/widgets/transcription_config_dialog.dart`, `lib/app/app_services.dart`, `lib/app/diagnostics_assembly.dart`, `lib/features/project/presentation/widgets/project_audio_sources_section.dart`, `lib/features/project/data/services/file_project_accompaniment_importer.dart`.
+  - New tests in `test/features/transcription/vocal_separation/`: manifest, output parser, release contract, planner, models and config, runtime install, process separator, workflow integration. Updated: `project_audio_sources_section_test.dart`, `file_project_vocal_importer_test.dart`, `documentation_references_contract_test.dart`.
+  - `README.md`, `docs/prd.md` (implementation status), `docs/decisions.md` (D-043), `docs/high_quality_asr.md`, `docs/local_transcription.md`, `docs/handoff.md`.
 - Validation:
   - Native core: `lfsep_tests` built with g++ `-Wall -Wextra -O2` in the sandbox, 18 tests and 154 checks pass; the stem checker and song generator were run against a fake separator, including a non-ASCII output folder.
   - The real engine, the model export and the Windows bundle can only be built in CI (no ONNX Runtime, CMake or Eigen in the sandbox) => the new workflow on the PR.
   - Dart format, analyze and tests => PR's Flutter Quality Gate and the temporary probe workflow.
+  - CI fixes found on the PR: the demucs.onnx pin, `diffq` (imported by `demucs.states`, no wheels for Python 3.11, only needed for quantized checkpoints) is stubbed, attention is exported without PyTorch's fused fast path, and the Linux job takes ONNX Runtime from NuGet like the Windows job. Failing steps now put their log tails in annotations.
 - Notes:
   - The bundle is about 200 MB (float32 model plus ONNX Runtime and DirectML), more than the 80 MB estimated before the work; the setting's description says so.
   - DirectML on the RTX 5080 is not exercised by CI (runners have no GPU); the CPU fallback is. The first real run on the target machine should check `metadata.transcription.vocalSeparation.provider`.

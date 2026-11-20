@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../player/domain/services/audio_library_import_service.dart';
+import '../../../transcription/domain/models/vocal_separation_models.dart';
 import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../../domain/services/project_accompaniment_importer.dart';
@@ -91,10 +92,16 @@ class FileProjectAccompanimentImporter
     // The repository can update its in-memory snapshot before a disk error.
     // Keep the new copy on every save failure so no live snapshot points at a
     // deleted file; unused copies can be cleaned up by a future safe GC.
+    // An imported vocal replaces any automatically separated one, so its
+    // marker goes too: the stem is the user's and must never be re-separated.
     return projectRepository.updateProjectIfUnchanged(
       project.copyWith(
         audioAsset: vocal
-            ? audio.copyWith(vocalPath: destination.path)
+            ? audio.copyWith(
+                vocalPath: destination.path,
+                metadata: Map<String, dynamic>.of(audio.metadata)
+                  ..remove(VocalStemMarker.metadataKey),
+              )
             : audio.copyWith(instrumentalPath: destination.path),
       ),
       expectedRevision: project.revision,
