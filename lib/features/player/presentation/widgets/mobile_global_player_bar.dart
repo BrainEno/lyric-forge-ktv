@@ -81,108 +81,108 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                   gradient: AppColors.vinylBarGradient,
                 ),
                 child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SeekableProgressBar.mini(
-                      state: playback,
-                      onSeek: _session.seek,
-                      hitHeight: 28,
-                      activeColor: AppColors.vinylBrass,
-                    ),
-                    SizedBox(
-                      height: 66,
-                      child: InkWell(
-                        // The title block below carries the label; the
-                        // buttons keep their own.
-                        excludeFromSemantics: true,
-                        onTap: openNowPlaying,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm,
-                            vertical: AppSpacing.xs,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: PlayerBarNowPlayingTarget(
-                                  title: item.title,
-                                  subtitle: subtitle,
-                                  onOpen: openNowPlaying,
-                                  child: Row(
-                                    children: [
-                                      AppVinylDisc(
-                                        size: MobileGlobalPlayerBar.discSize,
-                                        spinning: playback.isPlaying,
-                                        labelFraction: 0.62,
-                                        label: PlaybackArtwork(
-                                          item: item,
-                                          borderRadius: 0,
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SeekableProgressBar.mini(
+                        state: playback,
+                        onSeek: _session.seek,
+                        hitHeight: 28,
+                        activeColor: AppColors.vinylBrass,
+                      ),
+                      SizedBox(
+                        height: 66,
+                        child: InkWell(
+                          // The title block below carries the label; the
+                          // buttons keep their own.
+                          excludeFromSemantics: true,
+                          onTap: openNowPlaying,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: AppSpacing.xs,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: PlayerBarNowPlayingTarget(
+                                    title: item.title,
+                                    subtitle: subtitle,
+                                    onOpen: openNowPlaying,
+                                    child: Row(
+                                      children: [
+                                        AppVinylDisc(
+                                          size: MobileGlobalPlayerBar.discSize,
+                                          spinning: playback.isPlaying,
+                                          labelFraction: 0.62,
+                                          label: PlaybackArtwork(
+                                            item: item,
+                                            borderRadius: 0,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: AppSpacing.sm),
-                                      Expanded(
-                                        child: _TitleBlock(
-                                          title: item.title,
-                                          subtitle: subtitle,
+                                        const SizedBox(width: AppSpacing.sm),
+                                        Expanded(
+                                          child: _TitleBlock(
+                                            title: item.title,
+                                            subtitle: subtitle,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              IconButton(
-                                tooltip: '上一首',
-                                onPressed: session.canSkipPrevious
-                                    ? () => runPlaybackActionWithFeedback(
-                                        context,
-                                        _session.skipPrevious,
-                                      )
-                                    : null,
-                                icon: const Icon(Icons.skip_previous_rounded),
-                              ),
-                              SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: IconButton(
-                                  tooltip: PlayerBarSemantics.playPause(
-                                    playback,
-                                  ),
-                                  onPressed: busy
-                                      ? null
-                                      : () => runPlaybackActionWithFeedback(
+                                IconButton(
+                                  tooltip: '上一首',
+                                  onPressed: session.canSkipPrevious
+                                      ? () => runPlaybackActionWithFeedback(
                                           context,
-                                          _session.togglePlayPause,
-                                        ),
-                                  style: AppTheme.vinylPlayDisc,
-                                  icon: busy
-                                      ? const AppButtonSpinner()
-                                      : Icon(
-                                          playback.isPlaying
-                                              ? Icons.pause_rounded
-                                              : Icons.play_arrow_rounded,
-                                        ),
+                                          _session.skipPrevious,
+                                        )
+                                      : null,
+                                  icon: const Icon(Icons.skip_previous_rounded),
                                 ),
-                              ),
-                              IconButton(
-                                tooltip: '下一首',
-                                onPressed: session.canSkipNext
-                                    ? () => runPlaybackActionWithFeedback(
-                                        context,
-                                        _session.skipNext,
-                                      )
-                                    : null,
-                                icon: const Icon(Icons.skip_next_rounded),
-                              ),
-                            ],
+                                SizedBox(
+                                  width: 44,
+                                  height: 44,
+                                  child: IconButton(
+                                    tooltip: PlayerBarSemantics.playPause(
+                                      playback,
+                                    ),
+                                    onPressed: busy
+                                        ? null
+                                        : () => runPlaybackActionWithFeedback(
+                                            context,
+                                            _session.togglePlayPause,
+                                          ),
+                                    style: AppTheme.vinylPlayDisc,
+                                    icon: busy
+                                        ? const AppButtonSpinner()
+                                        : Icon(
+                                            playback.isPlaying
+                                                ? Icons.pause_rounded
+                                                : Icons.play_arrow_rounded,
+                                          ),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: '下一首',
+                                  onPressed: session.canSkipNext
+                                      ? () => runPlaybackActionWithFeedback(
+                                          context,
+                                          _session.skipNext,
+                                        )
+                                      : null,
+                                  icon: const Icon(Icons.skip_next_rounded),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
               ),
             );
           },

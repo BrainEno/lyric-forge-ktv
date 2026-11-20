@@ -185,10 +185,7 @@ void main() {
     });
 
     testWidgets('an unknown size gives an indeterminate bar', (tester) async {
-      await _pump(
-        tester,
-        const AppSongRow(title: '晴天', showProgress: true),
-      );
+      await _pump(tester, const AppSongRow(title: '晴天', showProgress: true));
 
       expect(
         tester
@@ -449,11 +446,7 @@ void main() {
       expect(actions, ['从音乐库移除']);
 
       final id = node.getSemanticsData().customSemanticsActionIds!.single;
-      tester.binding.pipelineOwner.semanticsOwner!.performAction(
-        node.id,
-        SemanticsAction.customAction,
-        id,
-      );
+      node.owner!.performAction(node.id, SemanticsAction.customAction, id);
       expect(removed, 1);
       handle.dispose();
     });

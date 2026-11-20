@@ -172,7 +172,9 @@ class _AppVinylDiscState extends State<AppVinylDisc>
             // The light does not turn with the record, which is what sells
             // the motion: the grooves slide under a still reflection.
             const Positioned.fill(
-              child: IgnorePointer(child: CustomPaint(painter: _SheenPainter())),
+              child: IgnorePointer(
+                child: CustomPaint(painter: _SheenPainter()),
+              ),
             ),
           ],
         ),
@@ -358,8 +360,8 @@ class _AppRhythmBarsState extends State<AppRhythmBars>
   Widget build(BuildContext context) {
     final size = widget.size;
     final gap = size / 8;
-    final barWidth = (size - gap * (AppRhythmBars.barCount - 1)) /
-        AppRhythmBars.barCount;
+    final barWidth =
+        (size - gap * (AppRhythmBars.barCount - 1)) / AppRhythmBars.barCount;
     return ExcludeSemantics(
       child: SizedBox.square(
         dimension: size,

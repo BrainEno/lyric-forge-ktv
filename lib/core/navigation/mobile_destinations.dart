@@ -72,7 +72,8 @@ MobileDestination? mobileDestinationForRoute(String? routeName) {
     return MobileDestination.listen;
   }
   return switch (destinationForRoute(routeName)) {
-    AppDestination.projects || AppDestination.review => MobileDestination.lyrics,
+    AppDestination.projects ||
+    AppDestination.review => MobileDestination.lyrics,
     AppDestination.library => MobileDestination.library,
     AppDestination.settings => MobileDestination.settings,
     null => null,

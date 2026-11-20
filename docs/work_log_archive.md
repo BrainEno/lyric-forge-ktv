@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-01 09:30] Drop the version suffix from smart proofreading ([entry](log/entries/2026-12-01-0930-drop-the-version-suffix-from-smart-proofreading.md))
 - [2026-11-30 11:00] Tidy the desktop transfer hub ([entry](log/entries/2026-11-30-1100-tidy-the-desktop-transfer-hub.md))
 - [2026-11-30 09:30] Show automatic pairings in settings ([entry](log/entries/2026-11-30-0930-show-automatic-pairings-in-settings.md))
 - [2026-11-29 11:00] Tidy reorder callbacks and pending colours ([entry](log/entries/2026-11-29-1100-tidy-reorder-callbacks-and-pending-colours.md))

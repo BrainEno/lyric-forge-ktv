@@ -181,8 +181,7 @@ class AppSongRow extends StatelessWidget {
     );
     final tap = unavailable ? null : onTap;
     final secondLine = unavailable ? unavailableLabel : subtitle;
-    final label =
-        semanticLabel ?? AppTapTarget.join([title, secondLine]);
+    final label = semanticLabel ?? AppTapTarget.join([title, secondLine]);
     final notice = this.notice;
 
     final titleColor = unavailable

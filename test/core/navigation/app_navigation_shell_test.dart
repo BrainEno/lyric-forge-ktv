@@ -293,9 +293,7 @@ void main() {
       ),
     );
 
-    testWidgets('shows the four phone places, listening first', (
-      tester,
-    ) async {
+    testWidgets('shows the four phone places, listening first', (tester) async {
       await pumpAt(
         tester,
         phoneBar(MobileDestination.listen),

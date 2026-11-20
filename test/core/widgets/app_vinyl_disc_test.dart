@@ -199,10 +199,7 @@ void main() {
           .toList();
 
       expect(shadowsOf('plain'), isEmpty);
-      expect(
-        shadowsOf('hero').single.color,
-        AppColors.vinylBrassMuted,
-      );
+      expect(shadowsOf('hero').single.color, AppColors.vinylBrassMuted);
     });
   });
 
@@ -243,9 +240,7 @@ void main() {
       ]);
     });
 
-    testWidgets('bounce while playing and rest again on pause', (
-      tester,
-    ) async {
+    testWidgets('bounce while playing and rest again on pause', (tester) async {
       _allowAmbientMotion();
       await tester.pumpWidget(
         _host(const AppRhythmBars(playing: true, size: 20)),
@@ -253,9 +248,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
       final moving = heights(tester);
-      expect(moving, isNot([
-        for (final fraction in AppRhythmBars.restingHeights) 20 * fraction,
-      ]));
+      expect(
+        moving,
+        isNot([
+          for (final fraction in AppRhythmBars.restingHeights) 20 * fraction,
+        ]),
+      );
 
       await tester.pumpWidget(
         _host(const AppRhythmBars(playing: false, size: 20)),

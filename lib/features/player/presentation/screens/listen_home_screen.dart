@@ -191,19 +191,15 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
 
   /// Reads 最近播放 again. On failure the shelf keeps what it showed; a
   /// pull to refresh reports the error.
-  Future<void> _loadRecent() => bestEffort(
-    'ListenHome',
-    'refresh recent plays',
-    () async {
-      final histories = await widget.dependencies.playHistoryRepository
-          .getRecentPlayHistory(limit: 30);
-      if (!mounted) return;
-      setState(() => _recent = ListenHomeScreen.distinctRecent(histories));
-    },
-  );
+  Future<void> _loadRecent() =>
+      bestEffort('ListenHome', 'refresh recent plays', () async {
+        final histories = await widget.dependencies.playHistoryRepository
+            .getRecentPlayHistory(limit: 30);
+        if (!mounted) return;
+        setState(() => _recent = ListenHomeScreen.distinctRecent(histories));
+      });
 
-  int get _availableCount =>
-      _entries.where((entry) => !entry.isMissing).length;
+  int get _availableCount => _entries.where((entry) => !entry.isMissing).length;
 
   Future<void> _playLibrary({required bool shuffle}) async {
     final queue = ListenHomeScreen.queueFrom(_entries);
@@ -355,9 +351,8 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
                     padding: EdgeInsets.symmetric(horizontal: gutter),
                     child: Text(
                       _loading ? '正在读取…' : '播放过的歌曲会出现在这里。',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.textTertiary),
                     ),
                   )
                 else
@@ -817,9 +812,8 @@ class _SectionTitle extends StatelessWidget {
         header: true,
         child: Text(
           title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w800),
         ),
       ),
     );

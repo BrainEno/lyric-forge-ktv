@@ -174,9 +174,7 @@ void main() {
       await _pumpAt(tester, _app(desktop: false), phone);
 
       final labels = tester
-          .widgetList<NavigationDestination>(
-            find.byType(NavigationDestination),
-          )
+          .widgetList<NavigationDestination>(find.byType(NavigationDestination))
           .map((destination) => destination.label);
       expect(labels, ['听歌', '音乐库', '歌词', '设置']);
       // The desktop's 工程 and 校对 are folded into 歌词.

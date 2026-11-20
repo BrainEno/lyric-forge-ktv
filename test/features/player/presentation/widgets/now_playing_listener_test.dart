@@ -88,6 +88,13 @@ void main() {
   });
 
   group('NowPlayingListener', () {
+    // A stream event lands after the frame that `pump` checks for, so the
+    // rebuild it asks for is drawn by the next one.
+    Future<void> deliver(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump();
+    }
+
     late _Session session;
     late _Audio audio;
     late List<NowPlaying> builds;
@@ -127,11 +134,11 @@ void main() {
       await tester.pumpWidget(host());
 
       audio.emit(_state(playing: true));
-      await tester.pump();
+      await deliver(tester);
       expect(builds.last.isPlaying, isTrue);
 
       audio.emit(_state(playing: false));
-      await tester.pump();
+      await deliver(tester);
       expect(builds.last.isPlaying, isFalse);
       expect(builds, hasLength(3));
     });
@@ -145,23 +152,21 @@ void main() {
           currentIndex: 0,
         ),
       );
-      await tester.pump();
+      await deliver(tester);
 
       expect(find.text('稻香'), findsOneWidget);
       expect(builds.last.localPath, other);
     });
 
-    testWidgets('ignores position reports that change nothing', (
-      tester,
-    ) async {
+    testWidgets('ignores position reports that change nothing', (tester) async {
       await tester.pumpWidget(host());
       audio.emit(_state(playing: true));
-      await tester.pump();
+      await deliver(tester);
       final before = builds.length;
 
       for (var ms = 200; ms <= 2000; ms += 200) {
         audio.emit(_state(playing: true, positionMs: ms));
-        await tester.pump();
+        await deliver(tester);
       }
 
       expect(builds, hasLength(before));
@@ -171,7 +176,7 @@ void main() {
       await tester.pumpWidget(host());
       session.emit(const PlaybackSessionState());
       audio.emit(_state(playing: true));
-      await tester.pump();
+      await deliver(tester);
 
       expect(builds.last.item, isNull);
       expect(builds.last.isPlaying, isFalse);

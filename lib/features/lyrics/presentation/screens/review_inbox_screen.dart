@@ -390,50 +390,50 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
 
   Widget _inbox(AppLayoutSpec layout) {
     return FutureBuilder<List<ReviewInboxEntry>>(
-          future: _entriesFuture,
-          builder: (context, snapshot) {
-            // A reload after a save keeps the current list on screen until
-            // the new one arrives instead of flashing the spinner.
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
-              return const AppLoadingState(message: '正在读取歌词工程');
-            }
-            if (snapshot.hasError) {
-              return AppErrorState(
-                title: '工程列表加载失败',
-                message: '歌词工程暂时无法读取，可以重新加载一次。',
-                onRetry: _refresh,
-              );
-            }
-            final entries = snapshot.data ?? const <ReviewInboxEntry>[];
-            if (entries.isEmpty) {
-              return AppEmptyState(
-                icon: Icons.playlist_add_check_circle_outlined,
-                title: '还没有可校对的歌词',
-                message: '导入并识别一首歌之后，它的歌词会出现在这里，并标出还有多少行需要复核。',
-                actions: [
-                  FilledButton.tonal(
-                    onPressed: _openImport,
-                    child: const Text('去导入'),
-                  ),
-                ],
-              );
-            }
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              color: AppColors.accent,
-              backgroundColor: AppColors.bgElevated,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.symmetric(
-                  horizontal: layout.pageGutter,
-                  vertical: AppSpacing.md,
-                ),
-                children: _rows(context, entries),
+      future: _entriesFuture,
+      builder: (context, snapshot) {
+        // A reload after a save keeps the current list on screen until
+        // the new one arrives instead of flashing the spinner.
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const AppLoadingState(message: '正在读取歌词工程');
+        }
+        if (snapshot.hasError) {
+          return AppErrorState(
+            title: '工程列表加载失败',
+            message: '歌词工程暂时无法读取，可以重新加载一次。',
+            onRetry: _refresh,
+          );
+        }
+        final entries = snapshot.data ?? const <ReviewInboxEntry>[];
+        if (entries.isEmpty) {
+          return AppEmptyState(
+            icon: Icons.playlist_add_check_circle_outlined,
+            title: '还没有可校对的歌词',
+            message: '导入并识别一首歌之后，它的歌词会出现在这里，并标出还有多少行需要复核。',
+            actions: [
+              FilledButton.tonal(
+                onPressed: _openImport,
+                child: const Text('去导入'),
               ),
-            );
-          },
+            ],
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          color: AppColors.accent,
+          backgroundColor: AppColors.bgElevated,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(
+              horizontal: layout.pageGutter,
+              vertical: AppSpacing.md,
+            ),
+            children: _rows(context, entries),
+          ),
         );
+      },
+    );
   }
 }
 
@@ -598,18 +598,16 @@ class _ReviewInboxTile extends StatelessWidget {
                         project.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: Theme.of(context).textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _subtitle(project, entry.queue),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(color: AppColors.textTertiary),
                       ),
                     ],
                   ),
@@ -716,9 +714,8 @@ class _ReviewedToggle extends StatelessWidget {
                 Expanded(
                   child: Text(
                     expanded ? '收起已复核的工程' : '已复核的工程 · $count 个',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                    style: Theme.of(context).textTheme.labelLarge
+                        ?.copyWith(color: AppColors.textSecondary),
                   ),
                 ),
               ],
@@ -803,9 +800,8 @@ class _MarkAllReviewedDialog extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             '之后改动任何一行的文字或时间，那一行会重新回到待复核。',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),

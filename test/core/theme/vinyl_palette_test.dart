@@ -113,7 +113,10 @@ void main() {
     });
 
     test('the bar gradient ends on the elevated surface of the controls', () {
-      expect(AppColors.vinylBarGradient.colors.first, AppColors.vinylSurfaceHigh);
+      expect(
+        AppColors.vinylBarGradient.colors.first,
+        AppColors.vinylSurfaceHigh,
+      );
       expect(AppColors.vinylBarGradient.colors.last, AppColors.bgElevated);
     });
   });

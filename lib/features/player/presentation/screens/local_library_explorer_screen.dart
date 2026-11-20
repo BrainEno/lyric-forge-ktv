@@ -69,6 +69,7 @@ class _LocalLibraryExplorerScreenState
   List<_ExplorerSong> _songs = const [];
   bool _loading = true;
   bool _working = false;
+
   /// The user's pick of grid or list; null follows the layout: a list on a
   /// phone, where a row shows title, artist and the playing song at a
   /// glance, and the cover grid on wider windows (D-041).
@@ -1023,7 +1024,8 @@ Map<String, VoidCallback?> _songActions(
   if (song.playable) '加入播放队列': menu.onEnqueue,
   if (song.playable) '编辑资料与封面': menu.onEdit,
   if (song.playable) (song.hasLyrics ? '打开歌词' : '导入歌词'): menu.onLyrics,
-  if (song.hasAutoPairedLyrics) LibraryLyricsLinkText.unpairAction: menu.onUnpair,
+  if (song.hasAutoPairedLyrics)
+    LibraryLyricsLinkText.unpairAction: menu.onUnpair,
   if (!song.playable) '重新定位文件': menu.onRelink,
   '从音乐库移除': menu.onRemove,
 };
@@ -1079,9 +1081,9 @@ class _ExplorerCard extends StatelessWidget {
       ),
       subtitle: song.playable ? (song.artist ?? '本地音乐') : '文件不可用',
       subtitleIsAlert: !song.playable,
-      caption: _songDetails(
-        song,
-      ).where((value) => value.isNotEmpty).join(' · '),
+      caption: _songDetails(song)
+          .where((value) => value.isNotEmpty)
+          .join(' · '),
     );
   }
 

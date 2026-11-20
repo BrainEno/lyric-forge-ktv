@@ -58,14 +58,17 @@ PlayHistory _history(
   lastPosition: position,
 );
 
-PlaybackItem _localItem(String path, {String title = '晴天', bool lyrics = false}) =>
-    PlaybackItem(
-      id: 'local:$path',
-      title: title,
-      artist: '周杰伦',
-      hasLyrics: lyrics,
-      audioAsset: AudioAsset(originalPath: path, format: 'mp3'),
-    );
+PlaybackItem _localItem(
+  String path, {
+  String title = '晴天',
+  bool lyrics = false,
+}) => PlaybackItem(
+  id: 'local:$path',
+  title: title,
+  artist: '周杰伦',
+  hasLyrics: lyrics,
+  audioAsset: AudioAsset(originalPath: path, format: 'mp3'),
+);
 
 PlaybackState _audio({bool playing = false}) => PlaybackState(
   isPlaying: playing,
@@ -144,7 +147,10 @@ void main() {
       expect(ListenHomeScreen.titleOf(_entry('/m/稻香.flac')), '稻香');
       expect(ListenHomeScreen.titleOf(_entry(r'C:\music\安静.mp3')), '安静');
       expect(ListenHomeScreen.titleOf(_entry('/m/.hidden')), '.hidden');
-      expect(ListenHomeScreen.titleOf(_entry('/m/no-extension')), 'no-extension');
+      expect(
+        ListenHomeScreen.titleOf(_entry('/m/no-extension')),
+        'no-extension',
+      );
     });
 
     test('a blank tag counts as none', () {
@@ -351,10 +357,7 @@ void main() {
         ..shuffle(math.Random(7));
       final queued = session.queues.single;
       expect(queued.map((item) => item.id), expected.map((item) => item.id));
-      expect(
-        queued.map((item) => item.title).toSet(),
-        {'安静', '晴天', '稻香'},
-      );
+      expect(queued.map((item) => item.title).toSet(), {'安静', '晴天', '稻香'});
     });
 
     testWidgets('says so when no file can be played', (tester) async {
@@ -374,7 +377,10 @@ void main() {
     ) async {
       session = _Session(
         PlaybackSessionState(
-          queue: [_localItem(qingtian), _localItem(daoxiang, title: '稻香')],
+          queue: [
+            _localItem(qingtian),
+            _localItem(daoxiang, title: '稻香'),
+          ],
           currentIndex: 0,
         ),
       );
@@ -399,7 +405,10 @@ void main() {
     testWidgets('the transport drives the session', (tester) async {
       session = _Session(
         PlaybackSessionState(
-          queue: [_localItem(qingtian), _localItem(daoxiang, title: '稻香')],
+          queue: [
+            _localItem(qingtian),
+            _localItem(daoxiang, title: '稻香'),
+          ],
           currentIndex: 0,
         ),
       );
@@ -478,7 +487,10 @@ void main() {
       audio = _Audio(_audio(playing: true));
       await pumpHome(tester);
 
-      expect(find.byKey(const ValueKey('listen-home:recent:h1')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('listen-home:recent:h1')),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('listen-home:recent:h0')), findsNothing);
       final playing = tester.widget<AppSongRow>(
         find.byKey(const ValueKey('listen-home:recent:h1')),
@@ -553,7 +565,11 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    for (final size in const [Size(320, 640), Size(390, 844), Size(820, 1180)]) {
+    for (final size in const [
+      Size(320, 640),
+      Size(390, 844),
+      Size(820, 1180),
+    ]) {
       testWidgets('fits a ${size.width.toInt()}-wide screen', (tester) async {
         session = _Session(
           PlaybackSessionState(
@@ -564,10 +580,7 @@ void main() {
         await pumpHome(tester, size: size);
 
         expect(tester.takeException(), isNull);
-        await tester.drag(
-          find.byType(ListView).first,
-          const Offset(0, -2000),
-        );
+        await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
         await tester.pump();
         expect(tester.takeException(), isNull);
       });
