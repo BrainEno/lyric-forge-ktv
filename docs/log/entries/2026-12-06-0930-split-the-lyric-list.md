@@ -24,6 +24,7 @@
   - The "did the search result change" check in `didUpdateWidget` compared text only and read old indices from the new document. It now runs the same filter on the old and the new document.
   - The reviewed rows are read once per build instead of once per row.
   - On phone widths, the times and badges move to a wrapping second line under the text. They used to share one line with it: in a 390-wide widget test, three badges pushed the row 96 px past its edge, and large text does the same on a device. Wide layouts are unchanged.
+  - The row number column shrinks a wide number (three digits, large text) to fit instead of overflowing; the 2× phone test found 5.5 px.
   - A row whose text cannot be edited passed a null message to `Tooltip`, which asserts. Every caller could edit, so it never showed. Such a row now has no tooltip.
   - A hand-edited line keeps its italic style when a selected long line expands to four lines.
   - The time field rejects `NaN` and `Infinity`.

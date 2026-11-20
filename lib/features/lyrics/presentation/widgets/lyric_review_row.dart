@@ -436,26 +436,32 @@ class _RowNumber extends StatelessWidget {
         color: AppColors.accent,
       );
     }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '${index + 1}',
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: AppColors.textTertiary),
-        ),
-        if (edited)
-          Container(
-            margin: const EdgeInsets.only(left: 3),
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: AppColors.accent,
-              shape: BoxShape.circle,
-            ),
+    // Three-digit rows at large text sizes are wider than the column; they
+    // shrink to fit instead of overflowing.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${index + 1}',
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: AppColors.textTertiary),
           ),
-      ],
+          if (edited)
+            Container(
+              margin: const EdgeInsets.only(left: 3),
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: AppColors.accent,
+                shape: BoxShape.circle,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
