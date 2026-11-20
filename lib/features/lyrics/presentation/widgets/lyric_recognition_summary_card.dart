@@ -4,6 +4,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/recognition_review_summary.dart';
+import '../../domain/models/vocal_check_record.dart';
 import '../../domain/services/lyric_draft_health_service.dart';
 import 'lyric_batch_text_edit.dart';
 
@@ -115,6 +116,44 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
 
   static String countLabel(int? value) => value == null ? '未采集' : '$value';
 
+  /// `m:ss.s`, as the other proofreading tools write times.
+  static String clock(Duration value) {
+    final tenths = (value.inMilliseconds / 100).round();
+    final minutes = tenths ~/ 600;
+    final seconds = tenths % 600;
+    return '$minutes:${'${seconds ~/ 10}'.padLeft(2, '0')}.${seconds % 10}';
+  }
+
+  /// How many stretches [vocalSpansLine] names before summing up the rest.
+  static const int listedVocalSpans = 3;
+
+  /// The stretches with singing but no lyrics, shown without expanding the
+  /// card because they are where to listen next; null when there are none.
+  static String? vocalSpansLine(RecognitionReviewSummary summary) {
+    final spans = summary.openVocalSpans;
+    if (spans.isEmpty) return null;
+    final listed = [
+      for (final span in spans.take(listedVocalSpans))
+        '${clock(span.start)}–${clock(span.end)}',
+    ].join('、');
+    final more = spans.length > listedVocalSpans ? ' 等 ${spans.length} 处' : '';
+    return '有人声但没有歌词：$listed$more。试听后可补写，或选中相邻的行用“重新识别这一段”';
+  }
+
+  /// What the vocal check changed in the draft, for the expanded card.
+  static List<String> vocalCheckLines(LyricVocalCheckRecord? record) {
+    if (record == null) return const [];
+    final removed = record.removedLines;
+    return [
+      if (removed.isNotEmpty)
+        '人声检查删除了 ${removed.length} 行没人唱的歌词'
+            '（${removed.take(2).map((line) => '“${line.text.trim()}”').join('、')}'
+            '${removed.length > 2 ? '等' : ''}），多是前奏、间奏或尾奏里编出来的',
+      if (record.retimedLines > 0) '按人声收紧了 ${record.retimedLines} 行的起止时间',
+      if (!record.changedDraft) '人声检查没有发现需要删除或收紧的行',
+    ];
+  }
+
   @override
   State<LyricRecognitionSummaryCard> createState() =>
       _LyricRecognitionSummaryCardState();
@@ -214,7 +253,14 @@ class _LyricRecognitionSummaryCardState
         attention: (summary.pendingSecondaryOnlySuggestions ?? 0) > 0,
       ),
       (label: '待复核', value: '$pending', attention: pending > 0),
+      if (summary.vocalCheck != null)
+        (
+          label: '有人声没歌词',
+          value: '${summary.openVocalSpans.length} 处',
+          attention: summary.openVocalSpans.isNotEmpty,
+        ),
     ];
+    final vocalSpans = LyricRecognitionSummaryCard.vocalSpansLine(summary);
 
     return Container(
       key: const ValueKey('lyric_recognition_summary_card'),
@@ -313,6 +359,18 @@ class _LyricRecognitionSummaryCardState
                 ),
             ],
           ),
+          if (vocalSpans != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              vocalSpans,
+              key: const ValueKey('lyric_recognition_summary_vocal_spans'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: AppColors.warning,
+              ),
+            ),
+          ],
           if (widget.health != null && widget.onOpenBatchTool != null)
             ..._healthChips(widget.health!, widget.onOpenBatchTool!),
           if (_expanded) ...[
@@ -324,6 +382,9 @@ class _LyricRecognitionSummaryCardState
                   '另有 ${summary.segmentationOnlySecondary} 处仅分段不同，未重复插入',
                 if (summary.ranTwoEngines)
                   '建议补入的行只有一个引擎听到，请试听后保留或删除；采用备选只替换文字，不改时间',
+                ...LyricRecognitionSummaryCard.vocalCheckLines(
+                  summary.vocalCheck,
+                ),
               ].join(' · '),
               style: theme.textTheme.labelSmall?.copyWith(
                 color: AppColors.textSecondary,

@@ -595,7 +595,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                 title: const Text('识别前自动分离人声'),
                 subtitle: const Text(
                   '先从歌曲中提取人声再识别，减少伴奏造成的错字、漏句和前奏间奏里的假歌词。'
-                  '首次使用需下载约 200 MB 的分离组件，每首歌多用 1–3 分钟；'
+                  '首次使用需下载约 110 MB 的分离组件（解压后约 200 MB），每首歌多用 1–3 分钟；'
                   '已导入人声的工程不受影响。目前仅 Windows 可用，失败时自动改用原曲。',
                 ),
                 value: _vocalSeparation == VocalSeparationPreference.automatic,

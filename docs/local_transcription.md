@@ -250,6 +250,10 @@ saves the project.
 - automatic vocal separation (D-043) runs only on Windows x64; elsewhere, and
   whenever separation is off or fails, recognition uses an imported vocal
   stem or falls back to the normalized/original mix;
+- the vocal check after recognition (D-044) needs a vocal stem: it deletes
+  rows with no singing, tightens row times and lists singing without lyrics,
+  but drafts recognised from the mix are left as recognised, and its
+  thresholds have not yet been evaluated on real songs;
 - the native ASR runtime release still needs a reliable published distribution;
 - automatically generated lyrics are drafts and require user review;
 - the current batch/persistence/UI branch still requires a real Flutter SDK run

@@ -177,11 +177,10 @@ class _AppNavigationRailState extends State<AppNavigationRail>
       onDestinationSelected: (index) =>
           press(AppDestination.values[index], widget.onSelect),
       // The brand mark from the app icon, not a generic Material
-      // icon (audit B-01).
-      leading: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Tooltip(message: appDisplayName, child: AppBrandMark(size: 28)),
-      ),
+      // icon (audit B-01). It sits on the destination icons' column: an
+      // extended rail centres its leading widget across the whole rail, which
+      // left the mark floating between the icons and their labels.
+      leading: const AppNavigationRailBrand(),
       destinations: [
         for (final destination in AppDestination.values)
           NavigationRailDestination(
@@ -196,6 +195,44 @@ class _AppNavigationRailState extends State<AppNavigationRail>
             label: Text(destination.label),
           ),
       ],
+    );
+  }
+}
+
+/// The brand mark at the top of [AppNavigationRail].
+///
+/// It is the only brand mark on wide windows: the dashboard header shows the
+/// product name beside it only when there is no rail (see
+/// [AppNavigationRailBrand.visibleIn]).
+class AppNavigationRailBrand extends StatelessWidget {
+  const AppNavigationRailBrand({super.key});
+
+  /// Height of the mark; the destination icons are 24.
+  static const double markSize = 26;
+
+  /// Whether the rail, and with it this mark, is on screen at [context]'s
+  /// window size. Pages that would otherwise repeat the mark ask this.
+  static bool visibleIn(BuildContext context) =>
+      AppResponsive.of(context).useNavigationRail;
+
+  @override
+  Widget build(BuildContext context) {
+    // Expanded or not, the destination icons are centred in the first
+    // collapsedWidth of the rail; the mark takes the same column.
+    return const Padding(
+      padding: EdgeInsets.only(top: 12, bottom: 20),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: SizedBox(
+          width: AppNavigationRail.collapsedWidth,
+          child: Center(
+            child: Tooltip(
+              message: appDisplayName,
+              child: AppBrandMark(size: markSize),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

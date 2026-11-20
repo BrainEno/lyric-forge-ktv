@@ -59,6 +59,7 @@ import '../features/transcription/data/services/local_asr_managed_storage_servic
 import '../features/transcription/data/services/local_asr_storage_preflight_service.dart';
 import '../features/transcription/data/services/local_project_transcription_workflow.dart';
 import '../features/transcription/data/services/local_project_vocal_separator.dart';
+import '../features/transcription/data/services/local_transcription_vocal_check.dart';
 import '../features/transcription/data/services/managed_asr_runtime_manager.dart';
 import '../features/transcription/data/services/managed_model_asr_runtime_manager.dart';
 import '../features/transcription/data/services/native_transcription_profile_resolver.dart';
@@ -428,6 +429,8 @@ class AppServices {
     vocalSeparator: separateVocals
         ? LocalProjectVocalSeparator(runtime: vocalSeparatorRuntime)
         : null,
+    // The end-to-end smoke test keeps the draft exactly as recognised.
+    vocalCheck: separateVocals ? const LocalTranscriptionVocalCheck() : null,
   );
 }
 

@@ -2,6 +2,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../services/lyric_review_decision_service.dart';
 import 'lyric_review_queue.dart';
 import 'secondary_only_suggestion.dart';
+import 'vocal_check_record.dart';
 
 /// What the editor can honestly say about a recognised draft right after
 /// recognition: who produced it, how many rows the engines disagreed on, how
@@ -54,6 +55,14 @@ class RecognitionReviewSummary {
 
   final int reviewedLines;
 
+  /// What the check against the vocal stem did (D-044); null when it did
+  /// not run, as for recognition of a mix or older projects.
+  final LyricVocalCheckRecord? vocalCheck;
+
+  /// Of the vocal check's stretches with singing but no row, those the
+  /// document still has no row for.
+  final List<LyricVocalCheckSpan> openVocalSpans;
+
   const RecognitionReviewSummary({
     required this.primaryEngine,
     required this.secondaryEngine,
@@ -69,6 +78,8 @@ class RecognitionReviewSummary {
     required this.segmentationOnlySecondary,
     required this.pendingReview,
     required this.reviewedLines,
+    this.vocalCheck,
+    this.openVocalSpans = const [],
   });
 
   /// Whether this document carries any recognition metadata at all. Imported
@@ -131,6 +142,7 @@ class RecognitionReviewSummary {
     }
 
     final segmentation = metadata['segmentationOnlySecondaryCount'];
+    final vocalCheck = LyricVocalCheckRecord.fromMetadata(metadata);
 
     return RecognitionReviewSummary(
       primaryEngine:
@@ -152,6 +164,8 @@ class RecognitionReviewSummary {
           : null,
       pendingReview: queue.needsReviewCount,
       reviewedLines: reviewed.length,
+      vocalCheck: vocalCheck,
+      openVocalSpans: vocalCheck?.openSpans(document) ?? const [],
     );
   }
 }

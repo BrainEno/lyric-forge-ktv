@@ -24,6 +24,8 @@ import '../../domain/services/project_vocal_separator.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
+import '../../domain/services/transcription_vocal_check.dart';
+import '../../domain/services/vocal_activity_lyric_gate.dart';
 import 'project_recognition_hints.dart';
 import 'project_transcription_input.dart';
 
@@ -55,6 +57,10 @@ class LocalProjectTranscriptionWorkflow
   /// Optional lead-vocal separation before recognition (D-043). Null keeps
   /// the earlier behaviour: recognise the imported stem or the mix.
   final ProjectVocalSeparator? _vocalSeparator;
+
+  /// Optional check of a draft recognised from a vocal stem against the
+  /// stem (D-044). Null keeps the draft exactly as recognised.
+  final TranscriptionVocalCheck? _vocalCheck;
   final StreamController<TranscriptionProgress> _separationProgress =
       StreamController<TranscriptionProgress>.broadcast(sync: true);
 
@@ -71,6 +77,7 @@ class LocalProjectTranscriptionWorkflow
     ChineseScriptUnificationService scriptUnification =
         const ChineseScriptUnificationService(),
     ProjectVocalSeparator? vocalSeparator,
+    TranscriptionVocalCheck? vocalCheck,
   }) : _projectRepository = projectRepository,
        _transcriptionService = transcriptionService,
        _settingsStore = settingsStore,
@@ -81,7 +88,8 @@ class LocalProjectTranscriptionWorkflow
        _playbackSession = playbackSession,
        _pathCanonicalizer = pathCanonicalizer,
        _scriptUnification = scriptUnification,
-       _vocalSeparator = vocalSeparator;
+       _vocalSeparator = vocalSeparator,
+       _vocalCheck = vocalCheck;
 
   /// Recognition progress, preceded by separation progress when a separator
   /// is configured.
@@ -262,11 +270,19 @@ class LocalProjectTranscriptionWorkflow
       );
 
       _checkCancelled();
+      final checked = await _checkAgainstVocal(
+        result,
+        inputPath: inputPath,
+        separation: separation,
+        audio: runProject.audioAsset,
+      );
+      _checkCancelled();
       // From here a project write may commit; do not report cancellation.
       _phase = _WorkflowPhase.committing;
-      final recognizedLyrics = result.lyrics.copyWith(
+      final draft = checked?.document ?? result.lyrics;
+      final recognizedLyrics = draft.copyWith(
         metadata: {
-          ...result.lyrics.metadata,
+          ...draft.metadata,
           'timelineFormat': 'lyricforge-timeline-v1',
           'editableDraft': true,
         },
@@ -320,6 +336,7 @@ class LocalProjectTranscriptionWorkflow
               },
               'inputPath': inputPath,
               'vocalSeparation': separation?.toJson(),
+              'vocalCheck': checked?.report.toJson(),
               'normalizedAudioPath': result.normalizedAudioPath,
               'rawJsonPath': result.rawJsonPath,
               'primaryModel':
@@ -370,6 +387,49 @@ class LocalProjectTranscriptionWorkflow
     } on TranscriptionException catch (error) {
       await _finishUncommittedRun(project, runId, error: error);
       rethrow;
+    }
+  }
+
+  /// The draft checked against the vocal stem it was recognised from, or
+  /// null without a configured check. A mix (or a normalized copy of it) is
+  /// loud everywhere, so it is reported and left alone.
+  Future<VocalCheckResult?> _checkAgainstVocal(
+    TranscriptionResult result, {
+    required String inputPath,
+    required VocalSeparationOutcome? separation,
+    required AudioAsset? audio,
+  }) async {
+    final check = _vocalCheck;
+    if (check == null) return null;
+    final separatedVocal = separation?.usesSeparatedVocal == true
+        ? separation?.vocalPath
+        : null;
+    final vocalInput =
+        inputPath == separatedVocal ||
+        (audio?.vocalPath != null &&
+            inputPath == audio?.vocalPath &&
+            inputPath != audio?.originalPath);
+    if (!vocalInput) {
+      return VocalCheckResult.unchanged(
+        result.lyrics,
+        const VocalCheckReport.skipped(VocalCheckSkipReason.notVocalInput),
+      );
+    }
+    try {
+      // Recognition's own 16 kHz mono copy first; the stem itself if that
+      // copy is gone or not a plain WAV.
+      return await check.check(
+        result.lyrics,
+        audioPaths: [result.normalizedAudioPath, inputPath],
+      );
+    } catch (error) {
+      return VocalCheckResult.unchanged(
+        result.lyrics,
+        VocalCheckReport.skipped(
+          VocalCheckSkipReason.failed,
+          error: error.toString(),
+        ),
+      );
     }
   }
 

@@ -75,6 +75,47 @@ void main() {
     expect(find.byTooltip('Elysium Player'), findsOneWidget);
   });
 
+  for (final width in [1400.0, 1000.0]) {
+    final mode = width >= 1200 ? '展开' : '收起';
+    testWidgets('$mode的侧边栏里品牌标记和导航图标在同一列', (tester) async {
+      await pumpAt(tester, buildShell(), Size(width, 900));
+
+      final mark = tester.getCenter(find.byType(AppBrandMark));
+      // Routes.home selects 工程; 设置 shows its unselected icon.
+      final icon = tester.getCenter(find.byIcon(AppDestination.settings.icon));
+      expect(mark.dx, moreOrLessEquals(icon.dx, epsilon: 0.5));
+      expect(
+        mark.dx,
+        moreOrLessEquals(AppNavigationRail.collapsedWidth / 2, epsilon: 0.5),
+      );
+      // Above the destinations, not beside them.
+      expect(
+        tester.getBottomLeft(find.byType(AppBrandMark)).dy,
+        lessThan(
+          tester
+              .getTopLeft(find.byIcon(AppDestination.projects.selectedIcon))
+              .dy,
+        ),
+      );
+    });
+  }
+
+  testWidgets('侧边栏品牌标记只在有侧边栏的窗口里算可见', (tester) async {
+    final answers = <bool>[];
+    Widget probe() => MaterialApp(
+      home: Builder(
+        builder: (context) {
+          answers.add(AppNavigationRailBrand.visibleIn(context));
+          return const SizedBox();
+        },
+      ),
+    );
+    await pumpAt(tester, probe(), const Size(1400, 900));
+    await pumpAt(tester, probe(), const Size(390, 844));
+    expect(answers.first, isTrue);
+    expect(answers.last, isFalse);
+  });
+
   testWidgets('窄屏底部导航不带品牌标记', (tester) async {
     await pumpAt(tester, buildShell(), const Size(390, 844));
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/diagnostics/app_build_info.dart';
 import '../../../../core/layout/app_responsive.dart';
+import '../../../../core/navigation/app_navigation_shell.dart';
 import '../../../../core/navigation/playback_destination.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/navigation/transfer_entry.dart';
@@ -410,15 +411,23 @@ class _Header extends StatelessWidget {
             ),
           ],
         );
-        // The icon's brand mark beside the name ties the header to the app
-        // icon (audit B-01); the name right next to it is the spoken label.
-        final identity = Row(
-          children: [
-            AppBrandMark(size: layout.isCompact ? 30 : 38, semanticLabel: ''),
-            const SizedBox(width: AppSpacing.md),
-            Flexible(child: name),
-          ],
-        );
+        // The icon's brand mark ties the header to the app icon (audit
+        // B-01). With a navigation rail the mark already sits at the rail's
+        // top, so the header shows only the name instead of a second mark a
+        // few centimetres away; on narrow windows the header is the only
+        // place for it.
+        final identity = AppNavigationRailBrand.visibleIn(context)
+            ? name
+            : Row(
+                children: [
+                  AppBrandMark(
+                    size: layout.isCompact ? 30 : 38,
+                    semanticLabel: '',
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Flexible(child: name),
+                ],
+              );
         final actions = Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,

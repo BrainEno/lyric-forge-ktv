@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/core/navigation/transfer_entry.dart';
 import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
+import 'package:lyric_forge_ktv/core/widgets/app_brand_mark.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_empty_state.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/dashboard_dependencies.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/screens/dashboard_screen.dart';
@@ -88,6 +89,26 @@ void main() {
       ),
       findsNWidgets(2),
     );
+  });
+
+  testWidgets('the header repeats the brand mark only without a rail', (
+    WidgetTester tester,
+  ) async {
+    // The default 800-wide test window has no navigation rail, so the
+    // header is the only place for the mark.
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBrandMark), findsOneWidget);
+    expect(find.text('Elysium Player'), findsOneWidget);
+
+    // A desktop window shows the mark at the top of the rail instead.
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBrandMark), findsNothing);
+    expect(find.text('Elysium Player'), findsOneWidget);
   });
 
   testWidgets('nothing playing: the hero is the only way to open music', (

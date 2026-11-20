@@ -1,0 +1,27 @@
+# [2026-12-10 09:30] Check recognised lyrics against the separated vocal
+
+- Scope: round 23. The user asked for the next round (the round 22 report's follow-up: use the separated vocal's loudness to find unsung passages, remove the lyrics invented there, improve line timing) and a small fix to the brand mark, which appeared twice on the dashboard and sat awkwardly. Changes (D-044):
+  - Vocal check after recognition:
+    - `PcmWavEnergyReader` (data): 20 ms RMS frames of a 16-bit PCM WAV (mono or stereo, `WAVE_FORMAT_EXTENSIBLE`, extra chunks, streaming writers' unknown data size), read in 1 MB chunks, run on a background isolate.
+    - `VocalActivityAnalyzer` (domain): song-relative thresholds (95th percentile minus 30 dB, floor plus 6 dB, at least -55 dBFS), breath bridging (250 ms) and blip removal (100 ms); too short, silent or low-contrast (< 18 dB) stems are reported as unreliable.
+    - `VocalActivityLyricGate` (domain): deletes rows with under 150 ms of singing (±200 ms) unless more than max(3, 35 %) rows look silent; pulls starts with ≥ 0.4 s and ends with ≥ 0.6 s of silence onto the singing (120 ms lead-in, 200 ms release) without crossing word timing or retiming second-engine suggestions; lists singing no row covers (≥ 1.2 s, pieces within 0.8 s joined unless a row sits between them); remaps row-indexed review evidence.
+    - `TranscriptionVocalCheck` / `LocalTranscriptionVocalCheck`: tries recognition's normalized copy, then the stem; every failure leaves the draft unchanged with a reason.
+    - `LocalProjectTranscriptionWorkflow`: runs the check when the input was a vocal stem (separated, reused or imported), before the commit; cancellation during the check commits nothing; `metadata.transcription.vocalCheck` records the report. The end-to-end smoke workflow has no check.
+    - `LyricVocalCheckRecord` (lyrics domain) in `LyricDocument.metadata.vocalCheck`: removed rows, retimed count, uncovered stretches; `openSpans` re-checks the stretches against the current rows.
+    - Recognition summary card: metric "有人声没歌词 N 处", a line with the first three stretches' times shown without expanding, and the change log in the expanded text.
+  - Brand mark: the navigation rail's mark (`AppNavigationRailBrand`, 26 px) now sits on the destination icons' column in both the collapsed and the extended rail, instead of being centred across the whole extended rail; the dashboard header shows the mark beside "Elysium Player" only when there is no rail, so wide windows show one mark.
+  - The vocal-separation switch's description gives the real download size (about 110 MB, about 200 MB unpacked).
+- Files:
+  - New: `lib/features/lyrics/domain/models/vocal_check_record.dart`, `lib/features/transcription/domain/models/vocal_activity.dart`, `domain/services/vocal_activity_analyzer.dart`, `domain/services/vocal_activity_lyric_gate.dart`, `domain/services/transcription_vocal_check.dart`, `data/services/pcm_wav_energy_reader.dart`, `data/services/local_transcription_vocal_check.dart`.
+  - `lib/features/transcription/data/services/local_project_transcription_workflow.dart`, `lib/app/app_services.dart`, `lib/features/lyrics/domain/models/recognition_review_summary.dart`, `lib/features/lyrics/presentation/widgets/lyric_recognition_summary_card.dart`, `lib/features/transcription/presentation/widgets/transcription_config_dialog.dart`.
+  - `lib/core/navigation/app_navigation_shell.dart`, `lib/features/home/presentation/screens/dashboard_screen.dart`.
+  - New tests in `test/features/transcription/vocal_check/` (record, analyzer, gate, WAV reader, local check with real WAV files, shared WAV fixture) and `test/features/lyrics/presentation/widgets/lyric_recognition_vocal_check_test.dart`; workflow integration cases in `test/features/transcription/vocal_separation/workflow_vocal_separation_test.dart`; brand mark cases in `test/core/navigation/app_navigation_shell_test.dart` and `test/features/home/presentation/screens/dashboard_screen_test.dart`.
+  - `docs/decisions.md` (D-044), `docs/high_quality_asr.md`, `docs/local_transcription.md`, `docs/handoff.md`.
+- Validation:
+  - No Dart SDK in the sandbox: format, analyze and tests => PR's Flutter Quality Gate and the temporary probe workflow.
+  - The end-to-end case writes a synthetic 40-second stem (intro, verse, interlude, chorus, outro) as 16 kHz mono and as 44.1 kHz stereo WAV and checks that the three invented rows are removed and the chorus' last row stops with the singing.
+- Notes:
+  - Thresholds come from synthetic audio and typical separator output, not from an evaluation on real songs; the run report keeps each song's loudness profile for tuning.
+  - The expanded recognition summary names the first two deleted rows; all of them, with their times, stay in `metadata.vocalCheck`. There is no one-click restore.
+  - Missed lyrics are only located, not recognised; the user types them or re-recognises a span.
+- Commit: `Check recognised lyrics against the separated vocal`
