@@ -87,11 +87,7 @@ class _StepLabel extends StatelessWidget {
             color: done || active ? AppColors.accent : AppColors.bgSurface,
           ),
           child: done
-              ? const Icon(
-                  Icons.check_rounded,
-                  size: 16,
-                  color: AppColors.onAccent,
-                )
+              ? Icon(Icons.check_rounded, size: 16, color: AppColors.onAccent)
               : Text(
                   '${step.index + 1}',
                   style: text.labelMedium?.copyWith(

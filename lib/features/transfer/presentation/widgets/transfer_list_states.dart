@@ -60,7 +60,7 @@ class TransferErrorBanner extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline_rounded,
               size: 18,
               color: AppColors.errorText,

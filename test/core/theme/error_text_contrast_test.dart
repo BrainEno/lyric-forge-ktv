@@ -21,7 +21,7 @@ double _hueDistance(Color a, Color b) {
   return difference > 180 ? 360 - difference : difference;
 }
 
-const _surfaces = {
+Map<String, Color> get _surfaces => {
   'bgBase': AppColors.bgBase,
   'bgElevated': AppColors.bgElevated,
   'bgSurface': AppColors.bgSurface,

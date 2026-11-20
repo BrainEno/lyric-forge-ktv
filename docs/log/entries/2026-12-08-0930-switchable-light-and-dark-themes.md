@@ -1,0 +1,45 @@
+# [2026-12-08 09:30] Add switchable light and dark themes
+
+- Scope: round 21. Round 20 left open whether the desktop should take the warm colours too; the user answered that it can have several themes to switch between, and chose dark (the existing grey and lavender) plus a new light theme, with every colour following the theme, switching from 设置 and from the desktop rail, the phone's settings included, and the choice remembered. Changes (D-042):
+  - Palettes (`core/theme/app_palette.dart`):
+    - `AppPalette` with 42 colour roles and a brightness, `dark` and `light`, and `tokens` listing every role in one order;
+    - the dark palette is exactly the colours of round 20, so 深色 leaves the app as it was;
+    - roles for colours that used to be hard-coded: `onSuccess`, `brandBars`, `onVinylBrass`, the disc centre, the hero top, the play disc (`playDisc` / `onPlayDisc` / `playDiscBusy`) and the KTV `stage`;
+    - the light palette: warm paper pages, ink text, a deep violet accent `#6236C9` (white 7.3:1) and bronze "now playing" `#8A5716` (white 6.1:1), each within 10° of the hue of its dark counterpart;
+    - `AppThemeVariant`: stable id, Chinese name, description, icon and palette, with `fromId`.
+  - `AppColors` (`color_tokens.dart`): every themable token is a getter over the palette in use, switched by `usePalette`; the brand red, the record, its grooves and sheen, the light brass of the label ring (`vinylBrassOnDark`) and pure black and white stay constants.
+  - Const removal: about 110 `const` expressions that wrapped tokens were removed (a scanner script, then a by-hand pass); default colour parameters became nullable and resolve in `build` (`AppSongRowBadge`, `KtvKaraokeLine`, `AppRhythmBars`); `production_steps` styles and the player bar button style became getters. The record and brand mark painters take their colours as fields and compare them in `shouldRepaint`.
+  - `AppTheme` (`app_theme.dart`): `themeFor(palette)` builds the whole `ThemeData` from the palette passed in (colour scheme on the Material defaults of its brightness, status bar icons, every component theme); each shared style has a `…For(palette)` builder and keeps its getter; `darkTheme`, `lightTheme` and `current`.
+  - Appearance:
+    - `AppAppearanceController` (`app_appearance.dart`): `select` switches at once and saves, returning whether it saved; a failed save keeps the theme and sets `saveError`; `restore` reads the saved theme at launch, and a pick made while it reads wins. `AppearanceStore` with `MemoryAppearanceStore`.
+    - `FileAppearanceStore` (`settings/data/services/`): `appearance_preferences.json` in the application support directory, `{"version":1,"theme":"light"}`; a missing, corrupt or unknown file loads as nothing saved.
+    - `AppAppearanceHost` (`app_appearance_host.dart`) wraps `MaterialApp`: on a change it switches the palette and marks every element below for rebuild, as a hot reload does, so const widgets repaint and state (routes, scroll, text, playback) survives. `AppAppearanceScope` hands the controller down.
+    - `ElysiumPlayerApp` builds `themeFor(variant.palette)` with a zero theme animation; `AppServices.appearance` starts in memory and `initialize` swaps in the file-backed controller and restores it.
+  - Switching:
+    - 设置 › 外观, the first group (`AppearanceSettingsCard`): one tile per theme with a miniature painted in that theme's own palette, the name and description, a check and accent outline on the theme in use, tiles stacked below 340 wide, a line of text when the choice could not be saved; read as a selectable button. Shown on phone and desktop when the dependencies carry a controller (`SettingsScreenDependencies.appearance`, wired in the assembly).
+    - The rail's theme button (`AppThemeMenuButton`) under the destinations: the icon of the theme in use, a `MenuAnchor` list of themes with a check, "外观 · 深色" on the wide rail. Absent without a controller in scope.
+  - Recolouring by role: the KTV stage, scrims and recording background use `stage`; the current lyric line, the recording label and the quick-play slider use `textPrimary`; the done check uses `onSuccess`; the song-row rhythm bars and the label ring keep the light brass on the black record.
+  - The settings intro and the 设置 descriptions of the rail and the phone bar mention 外观.
+- Files:
+  - New: `lib/core/theme/app_palette.dart`, `lib/core/theme/app_appearance.dart`, `lib/core/theme/app_appearance_host.dart`, `lib/core/widgets/app_theme_menu_button.dart`, `lib/features/settings/data/services/file_appearance_store.dart`, `lib/features/settings/presentation/widgets/appearance_settings_card.dart`.
+  - `lib/core/theme/color_tokens.dart`, `lib/core/theme/app_theme.dart`, `lib/core/navigation/app_navigation_shell.dart`, `app_destinations.dart`, `mobile_destinations.dart`.
+  - `lib/app/app.dart`, `lib/app/app_services.dart`, `lib/app/transcription_assembly.dart`.
+  - `lib/features/settings/presentation/screens/settings_screen.dart`, `settings_screen_dependencies.dart`.
+  - `lib/core/widgets/app_vinyl_disc.dart`, `app_brand_mark.dart`, `app_artwork.dart`, `app_song_row.dart`; the KTV, player, lyric, import, project, transcription and transfer widgets whose `const` wrapped a token.
+  - New tests: `test/core/theme/app_palette_contrast_test.dart`, `app_colors_palette_test.dart`, `app_theme_variants_test.dart`, `app_appearance_controller_test.dart`, `app_appearance_host_test.dart`, `test/core/widgets/app_theme_menu_button_test.dart`, `test/features/settings/data/file_appearance_store_test.dart`, `test/features/settings/presentation/widgets/appearance_settings_card_test.dart`.
+  - Updated tests: `test/widget_test.dart` (the root builds the chosen theme), `test/core/widgets/app_brand_mark_test.dart` and `app_vinyl_disc_test.dart` (light theme), `accent_palette_test.dart`, `error_text_contrast_test.dart`, `vinyl_palette_test.dart`, `app_artwork_test.dart`, `app_badge_test.dart`, `app_button_spinner_test.dart`.
+  - `docs/decisions.md` (D-042), `artifacts/ui-audit/reports/issues.md` (status section for round 21).
+- Validation:
+  - Palettes: for both, text on the three page greys (primary 7:1, secondary, tertiary, error text, accent and brass 4.5:1), status icons 3:1, every label on its fill, outlines and the focus ring 3:1, the warm surfaces, the brass wash, the hero top and the stage; hue separation of accent, statuses and brass; page and text order; which roles may be translucent; the dark palette equals the round-20 colours; `AppThemeVariant` ids, names and `fromId`.
+  - `AppColors`: each getter reads the palette in use for both palettes; gradients; the constants stay put; switching back restores every dark value.
+  - `AppTheme`: built while the other palette is in use, the colour scheme, pages and dialogs, status bar style, text colours, elevated / filled / outlined / segmented buttons, chips, switches, checkboxes, radios, navigation bar and rail, inputs, slider, progress, divider, tabs, snack bars and tooltips map the palette given; every `…For` builder; the getters follow the palette in use.
+  - Controller: fallback, restore (saved, nothing, load error, no save of what it read, a pick during the read wins, the file wins otherwise), select (notify once before saving, same theme, back and forth, failed save keeps the theme, recovery clears the error).
+  - File store: round trip of each theme, a second store sees it, the JSON shape, overwrite, nested folders, eight kinds of unreadable file, a newer file with extra keys, a relaunch with the controller, a folder that cannot be created.
+  - Host: initial theme, const widgets repaint, state and the route stack survive, back to dark, a restored theme, the scope, a new controller, disposal, no rebuild for the same theme.
+  - Rail button: icon and tooltip, the list with the check, picking switches and saves and closes, a second press closes, wide and narrow forms, 48 dp; in the rail, absent without a controller, at the foot, within both widths, and the rail itself recolours.
+  - Settings card: tiles, check, previews in their own palettes, tap, outline, semantics (selected button, tap action), side by side and stacked, 390 wide, the save-failed line and its recovery, the card recolouring; the screen opens with 外观, shows it only with a controller, and the assembly wires it.
+  - Format, analyze and tests => PR's Flutter Quality Gate and the temporary probe workflow.
+- Notes:
+  - Not looked at in a running app: the light theme needs a real look on desktop and phone, in particular the KTV stage on paper, the covers' dim and overlay (still black), and screenshots or QR scanning views that stay dark by design.
+  - The app opens dark and moves to a saved light theme once the file is read, so a light-theme user can see one dark frame at launch.
+- Commit: `Add switchable light and dark themes`

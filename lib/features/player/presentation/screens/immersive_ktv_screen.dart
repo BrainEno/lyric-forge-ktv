@@ -278,7 +278,7 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
     onExit: () => Navigator.maybePop(context),
     onCommand: (command) => GlobalPlaybackShortcuts.run(command, _session),
     builder: (context, controlsVisible) => Material(
-      color: AppColors.pureBlack,
+      color: AppColors.stage,
       child: SafeArea(
         child: StreamBuilder<PlaybackSessionState>(
           stream: _session.stateStream,
@@ -396,8 +396,8 @@ class _ControlLayer extends StatelessWidget {
       begin: top ? Alignment.topCenter : Alignment.bottomCenter,
       end: top ? Alignment.bottomCenter : Alignment.topCenter,
       colors: [
-        AppColors.pureBlack.withValues(alpha: ImmersiveKtvScreen.scrimAlpha),
-        AppColors.pureBlack.withValues(alpha: 0),
+        AppColors.stage.withValues(alpha: ImmersiveKtvScreen.scrimAlpha),
+        AppColors.stage.withValues(alpha: 0),
       ],
     ),
   );

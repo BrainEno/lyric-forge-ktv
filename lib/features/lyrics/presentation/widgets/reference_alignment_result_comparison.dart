@@ -220,7 +220,7 @@ class _AlignmentComparisonSheet extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.sm),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   '显示本次应用时的快照；试听复用当前播放会话，不会自动保存。',
                   style: TextStyle(color: AppColors.textSecondary),
@@ -380,10 +380,7 @@ class _DiffRow extends StatelessWidget {
         ),
         Expanded(
           child: spans.isEmpty
-              ? const Text(
-                  '（空）',
-                  style: TextStyle(color: AppColors.textTertiary),
-                )
+              ? Text('（空）', style: TextStyle(color: AppColors.textTertiary))
               : Text.rich(
                   TextSpan(children: spans),
                   style: Theme.of(

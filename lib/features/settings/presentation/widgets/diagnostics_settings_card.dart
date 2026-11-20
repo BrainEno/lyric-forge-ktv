@@ -188,7 +188,7 @@ class _DiagnosticsSettingsCardState extends State<DiagnosticsSettingsCard> {
       color: AppColors.bgElevated,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-        side: const BorderSide(color: AppColors.borderMuted),
+        side: BorderSide(color: AppColors.borderMuted),
       ),
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -198,7 +198,7 @@ class _DiagnosticsSettingsCardState extends State<DiagnosticsSettingsCard> {
           children: [
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.monitor_heart_outlined,
                   color: AppColors.textSecondary,
                 ),

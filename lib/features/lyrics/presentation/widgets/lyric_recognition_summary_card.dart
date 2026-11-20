@@ -239,7 +239,7 @@ class _LyricRecognitionSummaryCardState
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.fact_check_outlined,
                 size: 18,
                 color: AppColors.textSecondary,

@@ -6,7 +6,10 @@ import '../core/navigation/current_route_observer.dart';
 import '../core/navigation/destination_navigation.dart';
 import '../core/navigation/mobile_destinations.dart';
 import '../core/navigation/routes.dart';
+import '../core/theme/app_appearance.dart';
+import '../core/theme/app_appearance_host.dart';
 import '../core/theme/app_theme.dart';
+import '../features/player/presentation/local_library_dependencies.dart';
 import '../features/player/presentation/widgets/global_playback_shortcuts.dart';
 import '../features/player/presentation/widgets/global_player_bar.dart';
 import '../features/player/presentation/widgets/mobile_global_player_bar.dart';
@@ -55,10 +58,15 @@ class ElysiumPlayerApp extends StatelessWidget {
   final bool? desktopChromeOverride;
   final AppServices? services;
 
+  /// The theme controller; the services' one when null. Tests pass their own
+  /// to switch themes without touching the process-wide services.
+  final AppAppearanceController? appearance;
+
   const ElysiumPlayerApp({
     super.key,
     this.desktopChromeOverride,
     this.services,
+    this.appearance,
   });
 
   @override
@@ -76,10 +84,34 @@ class ElysiumPlayerApp extends StatelessWidget {
         ? assembleLocalLibraryDependencies(services)
         : null;
 
+    // The chosen theme (decision D-042): the host switches the palette that
+    // AppColors reads and rebuilds everything below when it changes.
+    return AppAppearanceHost(
+      controller: appearance ?? services.appearance,
+      builder: (context, variant) => _materialApp(
+        services: services,
+        router: router,
+        localLibrary: localLibrary,
+        desktopChrome: desktopChrome,
+        theme: AppTheme.themeFor(variant.palette),
+      ),
+    );
+  }
+
+  Widget _materialApp({
+    required AppServices services,
+    required AppRouter router,
+    required LocalLibraryDependencies? localLibrary,
+    required bool desktopChrome,
+    required ThemeData theme,
+  }) {
     return MaterialApp(
       title: 'Elysium Player',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: theme,
+      // AppColors switches at once; a cross-fade of the Material theme alone
+      // would leave the two disagreeing for a fifth of a second.
+      themeAnimationDuration: Duration.zero,
       navigatorKey: _navigatorKey,
       navigatorObservers: <NavigatorObserver>[_appRouteObserver],
       onGenerateRoute: router.onGenerateRoute,

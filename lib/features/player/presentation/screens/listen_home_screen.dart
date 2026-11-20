@@ -308,7 +308,7 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
                     padding: EdgeInsets.fromLTRB(gutter, 0, gutter, gutter),
                     child: Text(
                       _error!,
-                      style: const TextStyle(color: AppColors.errorText),
+                      style: TextStyle(color: AppColors.errorText),
                     ),
                   ),
                 Padding(
@@ -765,7 +765,7 @@ class _LyricsNudge extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.lyrics_rounded, color: AppColors.vinylBrass),
+            Icon(Icons.lyrics_rounded, color: AppColors.vinylBrass),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
@@ -884,7 +884,7 @@ class _LibraryShortcuts extends StatelessWidget {
                       Container(
                         width: 44,
                         height: 44,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppColors.vinylSurfaceHigh,
                         ),

@@ -48,7 +48,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: IconTheme(
           data: IconThemeData(color: AppColors.warning),
           child: Center(child: AppButtonSpinner(size: 24)),

@@ -481,7 +481,7 @@ class _ReferenceAlignmentDialogState extends State<ReferenceAlignmentDialog> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.error_outline_rounded,
                         size: 18,
                         color: AppColors.errorText,
@@ -547,7 +547,7 @@ class _SelectedFileSummary extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.lyrics_outlined, color: AppColors.textSecondary),
+          Icon(Icons.lyrics_outlined, color: AppColors.textSecondary),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(

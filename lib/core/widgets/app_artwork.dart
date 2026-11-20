@@ -29,7 +29,7 @@ class AppArtwork extends StatelessWidget {
     this.placeholderIcon = Icons.album_rounded,
     this.placeholderColor,
     this.circle = false,
-  });
+  }) : _missing = false;
 
   /// An artist's picture: round, with a person placeholder.
   const AppArtwork.person({super.key, this.path, this.size})
@@ -37,7 +37,8 @@ class AppArtwork extends StatelessWidget {
       borderRadius = 0,
       placeholderIcon = Icons.person_rounded,
       placeholderColor = null,
-      circle = true;
+      circle = true,
+      _missing = false;
 
   /// A song whose file cannot be found: its cover if one is still on disk,
   /// otherwise a broken-link placeholder in the error colour instead of the
@@ -49,8 +50,11 @@ class AppArtwork extends StatelessWidget {
     this.borderRadius = AppArtwork.tileRadius,
   }) : remoteUri = null,
        placeholderIcon = Icons.link_off_rounded,
-       placeholderColor = AppColors.error,
-       circle = false;
+       // The error colour is read when the placeholder is built, so it
+       // follows the theme (D-042); a constant constructor cannot hold it.
+       placeholderColor = null,
+       circle = false,
+       _missing = true;
 
   final String? path;
   final Uri? remoteUri;
@@ -68,6 +72,9 @@ class AppArtwork extends StatelessWidget {
 
   /// Clip to a circle instead of a rounded square; [borderRadius] is ignored.
   final bool circle;
+
+  /// Built by [AppArtwork.missing]: the placeholder takes the error colour.
+  final bool _missing;
 
   /// Corner radius of a cover that heads a card or a grid tile.
   static const double tileRadius = AppSpacing.radiusLarge;
@@ -100,7 +107,7 @@ class AppArtwork extends StatelessWidget {
 
     Widget placeholder() => AppArtworkPlaceholder(
       icon: placeholderIcon,
-      color: placeholderColor,
+      color: placeholderColor ?? (_missing ? AppColors.error : null),
       size: extent,
     );
 

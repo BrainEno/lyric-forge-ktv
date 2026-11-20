@@ -588,7 +588,7 @@ class _CatalogHero extends StatelessWidget {
             Text(
               subtitle,
               textAlign: compact ? TextAlign.center : TextAlign.start,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.md),
             FilledButton.icon(

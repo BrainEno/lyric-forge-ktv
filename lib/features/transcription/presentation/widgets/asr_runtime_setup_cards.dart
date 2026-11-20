@@ -339,10 +339,7 @@ class AsrSetupComponentsCard extends StatelessWidget {
           for (var index = 0; index < components.length; index++) ...[
             AsrSetupComponentRow(component: components[index]),
             if (index != components.length - 1)
-              const Divider(
-                height: AppSpacing.md,
-                color: AppColors.borderMuted,
-              ),
+              Divider(height: AppSpacing.md, color: AppColors.borderMuted),
           ],
         ],
       ),
@@ -449,7 +446,7 @@ class AsrSetupHint extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.lock_outline_rounded,
             size: 18,
             color: AppColors.textSecondary,

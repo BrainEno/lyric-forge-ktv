@@ -108,10 +108,7 @@ class LibraryLyricsUnpairDialog extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.lyrics_outlined,
-                      color: AppColors.textSecondary,
-                    ),
+                    Icon(Icons.lyrics_outlined, color: AppColors.textSecondary),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Column(

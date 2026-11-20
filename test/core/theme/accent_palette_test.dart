@@ -18,7 +18,7 @@ double _hueDistance(Color a, Color b) {
   return difference > 180 ? 360 - difference : difference;
 }
 
-const _surfaces = {
+Map<String, Color> get _surfaces => {
   'bgBase': AppColors.bgBase,
   'bgElevated': AppColors.bgElevated,
   'bgSurface': AppColors.bgSurface,
@@ -26,7 +26,7 @@ const _surfaces = {
 
 void main() {
   group('the accent stays apart from every status colour', () {
-    const statuses = {
+    final statuses = {
       'error': AppColors.error,
       'warning': AppColors.warning,
       'success': AppColors.success,

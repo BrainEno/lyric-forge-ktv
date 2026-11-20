@@ -261,7 +261,7 @@ class _MobileDownloadManagerScreenState
                 ),
                 child: Row(
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: AppSpacing.avatarRadius,
                       backgroundColor: AppColors.bgHighlight,
                       child: Icon(
@@ -499,7 +499,7 @@ class _DownloadedTrackTile extends StatelessWidget {
         borderRadius: AppArtwork.rowRadius,
         placeholderIcon: Icons.music_note_rounded,
       ),
-      badges: const [
+      badges: [
         AppSongRowBadge(
           icon: Icons.offline_pin_rounded,
           color: AppColors.vinylBrass,

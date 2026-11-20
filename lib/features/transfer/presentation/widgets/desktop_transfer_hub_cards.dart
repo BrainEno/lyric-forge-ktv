@@ -24,7 +24,7 @@ class DesktopHubSecurityNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Card(
+    return Card(
       child: ListTile(
         leading: Icon(Icons.shield_outlined, color: AppColors.warning),
         title: Text(DesktopTransferHubText.securityTitle),
@@ -281,7 +281,7 @@ class DesktopHubWaitingCard extends StatelessWidget {
             ? Center(child: AppInlineLoading(message: loading))
             : Column(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.qr_code_2_rounded,
                     size: 56,
                     color: AppColors.accent,

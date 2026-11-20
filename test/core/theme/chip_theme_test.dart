@@ -14,7 +14,13 @@ void main() {
       AppColors.accent,
     );
     expect(AppTheme.chipSide.resolve({})?.color, AppColors.borderSubtle);
-    expect(chips.side, same(AppTheme.chipSide));
+    final side = chips.side! as WidgetStateBorderSide;
+    for (final states in const <Set<WidgetState>>[
+      {},
+      {WidgetState.selected},
+    ]) {
+      expect(side.resolve(states), AppTheme.chipSide.resolve(states));
+    }
   });
 
   test('the selected fill keeps its label readable', () {

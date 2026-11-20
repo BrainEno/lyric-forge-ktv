@@ -302,12 +302,12 @@ class _MobileRemoteGroupedLibraryScreenState
                           overflow: TextOverflow.ellipsis,
                         ),
                         trailing: local == null
-                            ? const Icon(
+                            ? Icon(
                                 Icons.cloud_outlined,
                                 size: 18,
                                 color: AppColors.textTertiary,
                               )
-                            : const Icon(
+                            : Icon(
                                 Icons.offline_pin_rounded,
                                 size: 18,
                                 color: AppColors.accent,
@@ -433,7 +433,7 @@ class _DisconnectedCatalogState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.link_off_rounded,
               size: 52,
               color: AppColors.textTertiary,
@@ -446,7 +446,7 @@ class _DisconnectedCatalogState extends StatelessWidget {
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: AppSpacing.xs),
-            const Text(
+            Text(
               '连接成功后，艺人和专辑会自动按桌面音乐库资料分组。',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary),

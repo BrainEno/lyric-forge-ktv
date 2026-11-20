@@ -119,7 +119,7 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.md,
                     ),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       border: Border(
                         top: BorderSide(color: AppColors.borderMuted),
                         bottom: BorderSide(color: AppColors.borderMuted),
@@ -158,7 +158,7 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: AppSpacing.sm),
-                              const Text(
+                              Text(
                                 '·',
                                 style: TextStyle(color: AppColors.textTertiary),
                               ),
@@ -217,7 +217,7 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
                             onPressed: () => queue.pause(),
                             icon: const Icon(Icons.pause_rounded, size: 19),
                           ),
-                        const Icon(
+                        Icon(
                           Icons.chevron_right_rounded,
                           size: 18,
                           color: AppColors.textTertiary,

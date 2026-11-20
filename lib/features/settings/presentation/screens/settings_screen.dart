@@ -6,6 +6,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../settings_screen_dependencies.dart';
 import '../widgets/ai_transcription_settings_section.dart';
+import '../widgets/appearance_settings_card.dart';
 import '../widgets/asr_end_to_end_smoke_test_card.dart';
 import '../widgets/diagnostics_settings_card.dart';
 import '../widgets/library_folder_settings_card.dart';
@@ -15,7 +16,7 @@ import '../widgets/settings_columns.dart';
 /// The line under the app bar. It names only what the page holds; the
 /// navigation tooltip used to promise playback and storage settings that do
 /// not exist (audit SE-01).
-const String settingsIntro = '曲库目录、本地 AI 识别环境，以及出问题时的诊断与试识别。';
+const String settingsIntro = '外观、曲库目录、本地 AI 识别环境，以及出问题时的诊断与试识别。';
 
 class SettingsScreen extends StatelessWidget {
   final SettingsScreenDependencies dependencies;
@@ -26,6 +27,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final layout = AppResponsive.of(context);
     final libraryFolder = dependencies.libraryFolder;
+    final appearance = dependencies.appearance;
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
@@ -61,6 +63,23 @@ class SettingsScreen extends StatelessWidget {
                     primary: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // First: the one setting every user meets, on the
+                        // phone as on the desktop (decision D-042).
+                        if (appearance != null) ...[
+                          const SettingsGroupLabel(
+                            key: ValueKey('settings-group:appearance'),
+                            label: AppearanceSettingsText.group,
+                          ),
+                          SettingsSectionCard(
+                            icon: Icons.palette_outlined,
+                            title: AppearanceSettingsText.title,
+                            subtitle: AppearanceSettingsText.subtitle,
+                            child: AppearanceSettingsCard(
+                              controller: appearance,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                        ],
                         if (libraryFolder != null) ...[
                           const SettingsGroupLabel(
                             key: ValueKey('settings-group:library'),

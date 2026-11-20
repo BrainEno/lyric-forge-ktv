@@ -215,7 +215,7 @@ class _ImportHero extends StatelessWidget {
         color: AppColors.accent.withAlpha(24),
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
       ),
-      child: const Icon(
+      child: Icon(
         Icons.auto_awesome_rounded,
         color: AppColors.accent,
         size: 26,
@@ -427,7 +427,7 @@ class _ImportActionCard extends StatelessWidget {
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.arrow_forward_rounded,
                         size: 20,
                         color: AppColors.textSecondary,
@@ -442,7 +442,7 @@ class _ImportActionCard extends StatelessWidget {
                     ],
                   )
                 else
-                  const Icon(
+                  Icon(
                     Icons.arrow_forward_rounded,
                     size: 20,
                     color: AppColors.textSecondary,
@@ -494,7 +494,7 @@ class _SelectionPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.playlist_add_check_rounded,
                 size: 20,
                 color: AppColors.accent,
@@ -542,7 +542,7 @@ class _SelectionPanel extends StatelessWidget {
                     onRemove: () => onRemove(preview[index]),
                   ),
                   if (index != preview.length - 1)
-                    const Divider(
+                    Divider(
                       height: 1,
                       indent: 44,
                       color: AppColors.borderMuted,
@@ -591,7 +591,7 @@ class _SelectedPathTile extends StatelessWidget {
               color: AppColors.bgSurface,
               borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.music_note_rounded,
               size: 16,
               color: AppColors.textSecondary,

@@ -381,7 +381,12 @@ class _SongRowLeading extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppArtwork.rowRadius),
               child: ColoredBox(
                 color: AppColors.pureBlack.withAlpha(120),
-                child: Center(child: AppRhythmBars(playing: playing)),
+                child: Center(
+                  child: AppRhythmBars(
+                    playing: playing,
+                    color: AppColors.vinylBrassOnDark,
+                  ),
+                ),
               ),
             ),
         ],
@@ -407,21 +412,19 @@ class _SongRowLeading extends StatelessWidget {
 ///
 /// Not read by screen readers; the row's label says the same in words.
 class AppSongRowBadge extends StatelessWidget {
-  const AppSongRowBadge({
-    super.key,
-    required this.icon,
-    this.color = AppColors.textTertiary,
-  });
+  const AppSongRowBadge({super.key, required this.icon, this.color});
 
   final IconData icon;
-  final Color color;
+
+  /// Defaults to [AppColors.textTertiary] of the theme in use.
+  final Color? color;
 
   static const double iconSize = 14;
 
   @override
   Widget build(BuildContext context) {
     return ExcludeSemantics(
-      child: Icon(icon, size: iconSize, color: color),
+      child: Icon(icon, size: iconSize, color: color ?? AppColors.textTertiary),
     );
   }
 }

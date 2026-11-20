@@ -204,7 +204,7 @@ class LyricTapTransportError extends StatelessWidget {
       padding: const EdgeInsets.only(top: 4),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.error_outline_rounded,
             size: 16,
             color: AppColors.errorText,

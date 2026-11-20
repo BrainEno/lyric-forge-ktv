@@ -137,8 +137,24 @@ void main() {
 
     test('the theme uses those states', () {
       final style = theme.elevatedButtonTheme.style!;
-      expect(style.backgroundColor, same(AppTheme.accentFill));
-      expect(style.foregroundColor, same(AppTheme.accentForeground));
+      // The getters build a fresh property for the palette in use each
+      // time (D-042), so compare what they resolve to, state by state.
+      for (final states in const <Set<WidgetState>>[
+        {},
+        {WidgetState.hovered},
+        {WidgetState.focused},
+        {WidgetState.pressed},
+        {WidgetState.disabled},
+      ]) {
+        expect(
+          style.backgroundColor!.resolve(states),
+          AppTheme.accentFill.resolve(states),
+        );
+        expect(
+          style.foregroundColor!.resolve(states),
+          AppTheme.accentForeground.resolve(states),
+        );
+      }
     });
   });
 

@@ -447,7 +447,7 @@ class _NowPlayingDetails extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.volume_down_rounded,
               size: 20,
               color: AppColors.textTertiary,
@@ -460,7 +460,7 @@ class _NowPlayingDetails extends StatelessWidget {
                 onChanged: audio.setVolume,
               ),
             ),
-            const Icon(
+            Icon(
               Icons.volume_up_rounded,
               size: 20,
               color: AppColors.textTertiary,

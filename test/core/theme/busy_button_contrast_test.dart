@@ -158,9 +158,24 @@ void main() {
 
     test('the filled button theme uses them', () {
       final style = AppTheme.darkTheme.filledButtonTheme.style!;
-      expect(style.backgroundColor, same(AppTheme.disabledFill));
-      expect(style.foregroundColor, same(AppTheme.disabledForeground));
-      expect(style.iconColor, same(AppTheme.disabledForeground));
+      for (final states in const <Set<WidgetState>>[
+        {},
+        {WidgetState.pressed},
+        {WidgetState.disabled},
+      ]) {
+        expect(
+          style.backgroundColor!.resolve(states),
+          AppTheme.disabledFill.resolve(states),
+        );
+        expect(
+          style.foregroundColor!.resolve(states),
+          AppTheme.disabledForeground.resolve(states),
+        );
+        expect(
+          style.iconColor!.resolve(states),
+          AppTheme.disabledForeground.resolve(states),
+        );
+      }
     });
 
     testWidgets('a busy filled button shows its spinner at 3:1', (

@@ -749,7 +749,7 @@ class _ProcessingProgress extends StatelessWidget {
           LinearProgressIndicator(
             value: displayProgress,
             backgroundColor: AppColors.bgHighlight,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.accent),
             minHeight: 5,
             borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
           ),
@@ -1098,7 +1098,7 @@ class _ProjectMetadata extends StatelessWidget {
               ),
               Tooltip(
                 message: '工程 ID ${project.id}',
-                child: const Icon(
+                child: Icon(
                   Icons.info_outline_rounded,
                   size: 17,
                   color: AppColors.textTertiary,

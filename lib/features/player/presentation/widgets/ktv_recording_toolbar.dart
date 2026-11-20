@@ -155,7 +155,7 @@ class KtvRecordingIndicator extends StatelessWidget {
             : '正在导出混音';
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.pureBlack.withValues(alpha: 0.6),
+            color: AppColors.stage.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
             border: Border.all(color: AppColors.borderMuted),
           ),
@@ -178,7 +178,7 @@ class KtvRecordingIndicator extends StatelessWidget {
                 Text(
                   label,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.pureWhite,
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

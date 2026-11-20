@@ -22,7 +22,7 @@ double _hueDistance(Color a, Color b) {
 }
 
 void main() {
-  const pages = {
+  final pages = {
     'bgBase': AppColors.bgBase,
     'bgElevated': AppColors.bgElevated,
     'vinylSurface': AppColors.vinylSurface,

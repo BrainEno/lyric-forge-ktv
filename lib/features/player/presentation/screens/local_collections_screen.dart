@@ -362,7 +362,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
               ),
               child: Text(
                 _error!,
-                style: const TextStyle(color: AppColors.errorText),
+                style: TextStyle(color: AppColors.errorText),
               ),
             ),
           Expanded(
@@ -872,7 +872,7 @@ class _HeroText extends StatelessWidget {
           subtitle,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
       ],
     );
@@ -1032,7 +1032,7 @@ class _PlaylistTitleBlock extends StatelessWidget {
           subtitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
       ],
     );
@@ -1132,6 +1132,8 @@ class _PlaylistCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
         child: PopupMenuButton<String>(
           tooltip: '播放列表操作',
+          // White on the dimmed cover in either theme.
+          iconColor: AppColors.pureWhite,
           onSelected: (value) {
             if (value == 'rename') onRename();
             if (value == 'delete') onDelete();

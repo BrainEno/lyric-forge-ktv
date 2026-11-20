@@ -56,7 +56,7 @@ extension MobileDestinationX on MobileDestination {
     MobileDestination.listen => '正在播放、最近播放与随机播放',
     MobileDestination.library => '本机的歌曲、艺人、专辑与歌单',
     MobileDestination.lyrics => '导入歌词、校对与歌词工程',
-    MobileDestination.settings => '识别环境、诊断与试识别',
+    MobileDestination.settings => '外观主题、识别环境、诊断与试识别',
   };
 }
 

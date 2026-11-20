@@ -109,7 +109,7 @@ class _InlineLyricEditorRowState extends State<InlineLyricEditorRow> {
                     onTap: widget.onEditStartTime,
                   ),
                   // The arrow is read as part of neither time.
-                  const ExcludeSemantics(
+                  ExcludeSemantics(
                     child: Text(
                       ' → ',
                       style: TextStyle(color: AppColors.textTertiary),

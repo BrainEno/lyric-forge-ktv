@@ -1,66 +1,93 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import 'app_palette.dart';
 import 'color_tokens.dart';
 import 'spacing_tokens.dart';
 
+/// The Material theme and the shared control styles of Elysium Player.
+///
+/// Everything is built from an [AppPalette] (decision D-042): [themeFor]
+/// makes the [ThemeData] of one palette, and each shared style has a
+/// `…For(palette)` builder plus a getter for the palette in use, which is
+/// what screens call. The getters build a fresh style each time, so a style
+/// read during a rebuild always matches the current theme.
 class AppTheme {
   const AppTheme._();
 
   /// Chip outline: accent while selected, the subtle border otherwise.
-  static final WidgetStateBorderSide chipSide =
+  static WidgetStateBorderSide get chipSide => chipSideFor(AppColors.palette);
+  static WidgetStateProperty<Color> get accentFill =>
+      accentFillFor(AppColors.palette);
+  static WidgetStateProperty<Color> get accentForeground =>
+      accentForegroundFor(AppColors.palette);
+  static WidgetStateProperty<Color?> get fillOverlay =>
+      fillOverlayFor(AppColors.palette);
+  static WidgetStateBorderSide get outlinedSide =>
+      outlinedSideFor(AppColors.palette);
+  static WidgetStateProperty<Color?> get disabledFill =>
+      disabledFillFor(AppColors.palette);
+  static WidgetStateProperty<Color?> get disabledForeground =>
+      disabledForegroundFor(AppColors.palette);
+  static ButtonStyle get playDisc => playDiscFor(AppColors.palette);
+  static ButtonStyle get busyAccentDisc => busyAccentDiscFor(AppColors.palette);
+  static ButtonStyle get vinylPlayDisc => vinylPlayDiscFor(AppColors.palette);
+  static ButtonStyle get vinylFilled => vinylFilledFor(AppColors.palette);
+
+  /// Chip outline: accent while selected, the subtle border otherwise.
+  static WidgetStateBorderSide chipSideFor(AppPalette p) =>
       WidgetStateBorderSide.resolveWith(
         (states) => BorderSide(
           color: states.contains(WidgetState.selected)
-              ? AppColors.accent
-              : AppColors.borderSubtle,
+              ? p.accent
+              : p.borderSubtle,
         ),
       );
 
   /// Background of accent-filled buttons in each state.
-  static final WidgetStateProperty<Color> accentFill =
+  static WidgetStateProperty<Color> accentFillFor(AppPalette p) =>
       WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return AppColors.bgHighlight;
+          return p.bgHighlight;
         }
         if (states.contains(WidgetState.pressed)) {
-          return AppColors.accentPressed;
+          return p.accentPressed;
         }
         if (states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
-          return AppColors.accentHover;
+          return p.accentHover;
         }
-        return AppColors.accent;
+        return p.accent;
       });
 
   /// Label and icon on [accentFill].
-  static final WidgetStateProperty<Color> accentForeground =
+  static WidgetStateProperty<Color> accentForegroundFor(AppPalette p) =>
       WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.disabled)
-            ? AppColors.textTertiary
-            : AppColors.onAccent,
+        (states) =>
+            states.contains(WidgetState.disabled) ? p.textTertiary : p.onAccent,
       );
 
   /// Press and hover wash for buttons whose fill stays put: white at 10 %
   /// on hover and 20 % while pressed, so a press always shows.
-  static final WidgetStateProperty<Color?> fillOverlay =
+  static WidgetStateProperty<Color?> fillOverlayFor(AppPalette p) =>
       WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.pressed)) {
-          return AppColors.pressedOverlay;
+          return p.pressedOverlay;
         }
         if (states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
-          return AppColors.hoverOverlay;
+          return p.hoverOverlay;
         }
         return null;
       });
 
   /// Outline of outlined buttons: grey, dimmer when disabled.
-  static final WidgetStateBorderSide outlinedSide =
+  static WidgetStateBorderSide outlinedSideFor(AppPalette p) =>
       WidgetStateBorderSide.resolveWith(
         (states) => BorderSide(
           color: states.contains(WidgetState.disabled)
-              ? AppColors.borderSubtle
-              : AppColors.borderStrong,
+              ? p.borderSubtle
+              : p.borderStrong,
         ),
       );
 
@@ -70,120 +97,148 @@ class AppTheme {
   ///
   /// Material's default disabled colours are white at 12 % and 38 %, which
   /// leaves the label, and the spinner of a busy button, at 2.2:1.
-  static final WidgetStateProperty<Color?> disabledFill =
+  static WidgetStateProperty<Color?> disabledFillFor(AppPalette p) =>
       WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.disabled)
-            ? AppColors.bgHighlight
-            : null,
+        (states) =>
+            states.contains(WidgetState.disabled) ? p.bgHighlight : null,
       );
-  static final WidgetStateProperty<Color?> disabledForeground =
+  static WidgetStateProperty<Color?> disabledForegroundFor(AppPalette p) =>
       WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.disabled)
-            ? AppColors.textTertiary
-            : null,
+        (states) =>
+            states.contains(WidgetState.disabled) ? p.textTertiary : null,
       );
 
-  /// The white play/pause disc of the player bars and the transport.
+  /// The play/pause disc of the player bars and the transport: white with a
+  /// black icon in the dark theme, ink with a white icon in the light one.
   ///
-  /// The disc is disabled only while playback loads, and then shows a black
-  /// spinner. The disabled disc used to be transparent (desktop bar) or
-  /// #535353 (mobile bar, transport), leaving that spinner at 1.1:1 or 2.7:1;
-  /// it now stays light grey, 10:1 under black.
-  static final ButtonStyle playDisc = IconButton.styleFrom(
-    backgroundColor: AppColors.pureWhite,
-    foregroundColor: AppColors.pureBlack,
-    disabledBackgroundColor: AppColors.textSecondary,
-    disabledForegroundColor: AppColors.pureBlack,
+  /// The disc is disabled only while playback loads, and then shows a
+  /// spinner in the icon colour. The disabled disc used to be transparent
+  /// (desktop bar) or #535353 (mobile bar, transport), leaving that spinner
+  /// at 1.1:1 or 2.7:1; it now stays a quieter shade of the disc, 10:1 under
+  /// black (dark theme) and 7:1 under white (light theme).
+  static ButtonStyle playDiscFor(AppPalette p) => IconButton.styleFrom(
+    backgroundColor: p.playDisc,
+    foregroundColor: p.onPlayDisc,
+    disabledBackgroundColor: p.playDiscBusy,
+    disabledForegroundColor: p.onPlayDisc,
   );
 
   /// A filled (accent) icon button that is disabled only while it works,
   /// like the dashboard play button during buffering. It keeps the accent
   /// disc under a black spinner (9.2:1) rather than turning into the grey of
   /// an unavailable control, which read as "cannot play" instead of "loading".
-  static final ButtonStyle busyAccentDisc = IconButton.styleFrom(
-    disabledBackgroundColor: AppColors.accent,
-    disabledForegroundColor: AppColors.onAccent,
+  static ButtonStyle busyAccentDiscFor(AppPalette p) => IconButton.styleFrom(
+    disabledBackgroundColor: p.accent,
+    disabledForegroundColor: p.onAccent,
   );
 
   /// The brass play button of the phone's listening surfaces (D-041): the
-  /// record-black icon on brass is 10:1. It keeps its brass while it works
+  /// record-black icon on brass is 10:1, the white icon on the light theme's
+  /// bronze 6.1:1. It keeps its brass while it works
   /// under a spinner, for the reason [busyAccentDisc] gives.
-  static final ButtonStyle vinylPlayDisc = IconButton.styleFrom(
-    backgroundColor: AppColors.vinylBrass,
-    foregroundColor: AppColors.vinylDisc,
-    disabledBackgroundColor: AppColors.vinylBrass,
-    disabledForegroundColor: AppColors.vinylDisc,
+  static ButtonStyle vinylPlayDiscFor(AppPalette p) => IconButton.styleFrom(
+    backgroundColor: p.vinylBrass,
+    foregroundColor: p.onVinylBrass,
+    disabledBackgroundColor: p.vinylBrass,
+    disabledForegroundColor: p.onVinylBrass,
   );
 
   /// The brass filled button of the listening home (播放全部).
-  static final ButtonStyle vinylFilled = FilledButton.styleFrom(
-    backgroundColor: AppColors.vinylBrass,
-    foregroundColor: AppColors.vinylDisc,
+  static ButtonStyle vinylFilledFor(AppPalette p) => FilledButton.styleFrom(
+    backgroundColor: p.vinylBrass,
+    foregroundColor: p.onVinylBrass,
   );
 
   /// Navigation labels: grey, and bold white for the chosen destination.
-  static const TextStyle navigationLabel = TextStyle(
+  static TextStyle navigationLabelFor(AppPalette p) => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
-    color: AppColors.textSecondary,
+    color: p.textSecondary,
   );
-  static const TextStyle navigationLabelSelected = TextStyle(
+  static TextStyle navigationLabelSelectedFor(AppPalette p) => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w700,
-    color: AppColors.textPrimary,
+    color: p.textPrimary,
   );
 
-  static ThemeData get darkTheme {
-    return ThemeData.dark().copyWith(
-      scaffoldBackgroundColor: AppColors.bgBase,
-      canvasColor: AppColors.bgElevated,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.accent,
-        secondary: AppColors.accent,
-        surface: AppColors.bgSurface,
-        surfaceContainerHighest: AppColors.bgBase,
-        error: AppColors.error,
-        onPrimary: AppColors.onAccent,
-        onSecondary: AppColors.onAccent,
+  /// The theme of the dark palette, the one the app opens in.
+  static ThemeData get darkTheme => themeFor(AppPalette.dark);
+
+  /// The theme of the light palette.
+  static ThemeData get lightTheme => themeFor(AppPalette.light);
+
+  /// The theme of the palette in use.
+  static ThemeData get current => themeFor(AppColors.palette);
+
+  /// The Material theme of [p]: every colour of every component theme comes
+  /// from the palette, never from the palette in use, so the light theme can
+  /// be built and inspected while the app is dark.
+  static ThemeData themeFor(AppPalette p) {
+    final isLight = p.brightness == Brightness.light;
+    final navigationLabel = navigationLabelFor(p);
+    final navigationLabelSelected = navigationLabelSelectedFor(p);
+    final fillOverlay = fillOverlayFor(p);
+    final base = isLight ? ThemeData.light() : ThemeData.dark();
+    // The Material defaults of the palette's brightness for the roles not
+    // named below (inverse surface, scrim, shadow and the like).
+    final scheme = isLight
+        ? const ColorScheme.light()
+        : const ColorScheme.dark();
+    return base.copyWith(
+      scaffoldBackgroundColor: p.bgBase,
+      canvasColor: p.bgElevated,
+      colorScheme: scheme.copyWith(
+        primary: p.accent,
+        secondary: p.accent,
+        surface: p.bgSurface,
+        surfaceContainerHighest: p.bgBase,
+        error: p.error,
+        onPrimary: p.onAccent,
+        onSecondary: p.onAccent,
         // Selected chips, tonal buttons, segmented buttons and the
         // navigation indicator read these; left unset they copy the accent
         // and its black label.
-        primaryContainer: AppColors.accentContainer,
-        onPrimaryContainer: AppColors.onAccentContainer,
-        secondaryContainer: AppColors.accentContainer,
-        onSecondaryContainer: AppColors.onAccentContainer,
-        inversePrimary: AppColors.accentHover,
-        onSurface: AppColors.textPrimary,
+        primaryContainer: p.accentContainer,
+        onPrimaryContainer: p.onAccentContainer,
+        secondaryContainer: p.accentContainer,
+        onSecondaryContainer: p.onAccentContainer,
+        inversePrimary: p.accentHover,
+        onSurface: p.textPrimary,
         // Secondary text and icons: standard icon buttons, unselected chips,
         // tabs and navigation entries. Plain icon buttons take their grey
         // from here instead of from the icon button theme, which also
         // painted the icons of filled buttons.
-        onSurfaceVariant: AppColors.textSecondary,
-        onError: AppColors.onError,
-        outline: AppColors.borderStrong,
-        outlineVariant: AppColors.bgHighlight,
+        onSurfaceVariant: p.textSecondary,
+        onError: p.onError,
+        outline: p.borderStrong,
+        outlineVariant: p.bgHighlight,
         // No lavender wash over raised surfaces (menus, sheets, the bottom
         // navigation): the greys stay the greys of the palette.
         surfaceTint: Colors.transparent,
       ),
       // Typography
-      textTheme: _buildTextTheme(),
+      textTheme: _buildTextTheme(p),
       // App Bar
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.bgBase,
-        foregroundColor: AppColors.textPrimary,
+      appBarTheme: AppBarTheme(
+        backgroundColor: p.bgBase,
+        foregroundColor: p.textPrimary,
         elevation: 0,
         centerTitle: false,
+        // Dark status bar icons over the light theme's paper, light ones
+        // over the dark theme.
+        systemOverlayStyle: isLight
+            ? SystemUiOverlayStyle.dark
+            : SystemUiOverlayStyle.light,
         titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
+          color: p.textPrimary,
           letterSpacing: -0.5,
         ),
       ),
       // Cards
       cardTheme: CardThemeData(
-        color: AppColors.bgElevated,
+        color: p.bgElevated,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -196,8 +251,8 @@ class AppTheme {
       // grey on grey instead of a dimmed lavender.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ButtonStyle(
-          backgroundColor: accentFill,
-          foregroundColor: accentForeground,
+          backgroundColor: accentFillFor(p),
+          foregroundColor: accentForegroundFor(p),
           // The fill itself changes on hover and press; a white wash on top
           // would only grey it.
           overlayColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -229,9 +284,9 @@ class AppTheme {
       // grey of the elevated button.
       filledButtonTheme: FilledButtonThemeData(
         style: ButtonStyle(
-          backgroundColor: disabledFill,
-          foregroundColor: disabledForeground,
-          iconColor: disabledForeground,
+          backgroundColor: disabledFillFor(p),
+          foregroundColor: disabledForegroundFor(p),
+          iconColor: disabledForegroundFor(p),
           overlayColor: fillOverlay,
         ),
       ),
@@ -239,10 +294,10 @@ class AppTheme {
         style: ButtonStyle(
           foregroundColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.disabled)
-                ? AppColors.textDisabled
-                : AppColors.textPrimary,
+                ? p.textDisabled
+                : p.textPrimary,
           ),
-          side: outlinedSide,
+          side: outlinedSideFor(p),
           overlayColor: fillOverlay,
         ),
       ),
@@ -250,28 +305,26 @@ class AppTheme {
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.selected)
-                ? AppColors.accentContainer
+                ? p.accentContainer
                 : Colors.transparent,
           ),
           foregroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.disabled)) {
-              return AppColors.textDisabled;
+              return p.textDisabled;
             }
             return states.contains(WidgetState.selected)
-                ? AppColors.onAccentContainer
-                : AppColors.textSecondary;
+                ? p.onAccentContainer
+                : p.textSecondary;
           }),
-          side: const WidgetStatePropertyAll(
-            BorderSide(color: AppColors.borderStrong),
-          ),
+          side: WidgetStatePropertyAll(BorderSide(color: p.borderStrong)),
           overlayColor: fillOverlay,
         ),
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.accent,
-        foregroundColor: AppColors.onAccent,
-        hoverColor: AppColors.accentHover,
-        splashColor: AppColors.accentPressed,
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: p.accent,
+        foregroundColor: p.onAccent,
+        hoverColor: p.accentHover,
+        splashColor: p.accentPressed,
         elevation: 0,
         focusElevation: 0,
         hoverElevation: 0,
@@ -279,24 +332,23 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
-            return AppColors.textDisabled;
+            return p.textDisabled;
           }
           return states.contains(WidgetState.selected)
-              ? AppColors.onAccent
-              : AppColors.textSecondary;
+              ? p.onAccent
+              : p.textSecondary;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
-            return AppColors.bgSurface;
+            return p.bgSurface;
           }
           return states.contains(WidgetState.selected)
-              ? AppColors.accent
-              : AppColors.bgHighlight;
+              ? p.accent
+              : p.bgHighlight;
         }),
         trackOutlineColor: WidgetStateProperty.resolveWith(
-          (states) => states.contains(WidgetState.selected)
-              ? AppColors.accent
-              : AppColors.borderStrong,
+          (states) =>
+              states.contains(WidgetState.selected) ? p.accent : p.borderStrong,
         ),
       ),
       checkboxTheme: CheckboxThemeData(
@@ -305,52 +357,52 @@ class AppTheme {
             return Colors.transparent;
           }
           return states.contains(WidgetState.disabled)
-              ? AppColors.textDisabled
-              : AppColors.accent;
+              ? p.textDisabled
+              : p.accent;
         }),
-        checkColor: const WidgetStatePropertyAll(AppColors.onAccent),
+        checkColor: WidgetStatePropertyAll(p.onAccent),
         side: WidgetStateBorderSide.resolveWith(
           (states) => BorderSide(
             width: 2,
             color: states.contains(WidgetState.disabled)
-                ? AppColors.textDisabled
+                ? p.textDisabled
                 : states.contains(WidgetState.selected)
-                ? AppColors.accent
-                : AppColors.textSecondary,
+                ? p.accent
+                : p.textSecondary,
           ),
         ),
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
-            return AppColors.textDisabled;
+            return p.textDisabled;
           }
           return states.contains(WidgetState.selected)
-              ? AppColors.accent
-              : AppColors.textSecondary;
+              ? p.accent
+              : p.textSecondary;
         }),
       ),
-      tabBarTheme: const TabBarThemeData(
-        labelColor: AppColors.textPrimary,
-        unselectedLabelColor: AppColors.textSecondary,
-        indicatorColor: AppColors.accent,
-        dividerColor: AppColors.borderSubtle,
+      tabBarTheme: TabBarThemeData(
+        labelColor: p.textPrimary,
+        unselectedLabelColor: p.textSecondary,
+        indicatorColor: p.accent,
+        dividerColor: p.borderSubtle,
       ),
       // The persistent navigation: the deep lavender pill behind the chosen
       // destination, light lavender on it, bold white label under it.
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.bgElevated,
+        backgroundColor: p.bgElevated,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        indicatorColor: AppColors.accentContainer,
+        indicatorColor: p.accentContainer,
         overlayColor: fillOverlay,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             size: 24,
             color: states.contains(WidgetState.selected)
-                ? AppColors.onAccentContainer
-                : AppColors.textSecondary,
+                ? p.onAccentContainer
+                : p.textSecondary,
           ),
         ),
         labelTextStyle: WidgetStateProperty.resolveWith(
@@ -359,24 +411,18 @@ class AppTheme {
               : navigationLabel,
         ),
       ),
-      navigationRailTheme: const NavigationRailThemeData(
-        backgroundColor: AppColors.bgElevated,
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: p.bgElevated,
         useIndicator: true,
-        indicatorColor: AppColors.accentContainer,
-        selectedIconTheme: IconThemeData(
-          size: 24,
-          color: AppColors.onAccentContainer,
-        ),
-        unselectedIconTheme: IconThemeData(
-          size: 24,
-          color: AppColors.textSecondary,
-        ),
+        indicatorColor: p.accentContainer,
+        selectedIconTheme: IconThemeData(size: 24, color: p.onAccentContainer),
+        unselectedIconTheme: IconThemeData(size: 24, color: p.textSecondary),
         selectedLabelTextStyle: navigationLabelSelected,
         unselectedLabelTextStyle: navigationLabel,
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
+          foregroundColor: p.textPrimary,
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
@@ -392,14 +438,14 @@ class AppTheme {
       // from onSurfaceVariant, filled ones black, tonal ones light lavender.
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
-          hoverColor: AppColors.hoverOverlay,
-          highlightColor: AppColors.pressedOverlay,
+          hoverColor: p.hoverOverlay,
+          highlightColor: p.pressedOverlay,
         ),
       ),
       // Inputs
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.bgSurface,
+        fillColor: p.bgSurface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
           borderSide: BorderSide.none,
@@ -410,23 +456,23 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-          borderSide: const BorderSide(color: AppColors.accent, width: 2),
+          borderSide: BorderSide(color: p.accent, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.md,
         ),
-        hintStyle: const TextStyle(color: AppColors.textTertiary, fontSize: 14),
+        hintStyle: TextStyle(color: p.textTertiary, fontSize: 14),
         // Field errors are text too; the error border keeps the fill red.
-        errorStyle: const TextStyle(color: AppColors.errorText),
+        errorStyle: TextStyle(color: p.errorText),
       ),
       // List Tiles
-      listTileTheme: const ListTileThemeData(
+      listTileTheme: ListTileThemeData(
         contentPadding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
         minLeadingWidth: AppSpacing.lg,
-        iconColor: AppColors.textSecondary,
-        textColor: AppColors.textPrimary,
-        selectedTileColor: AppColors.bgHighlight,
+        iconColor: p.textSecondary,
+        textColor: p.textPrimary,
+        selectedTileColor: p.bgHighlight,
       ),
       // Chips: a selected chip used to differ from the others only by the
       // default grey fill, so a row of filter or section chips gave little
@@ -434,15 +480,15 @@ class AppTheme {
       // opaque accent container; its label and icon come from
       // onSecondaryContainer, light lavender instead of black.
       chipTheme: ChipThemeData(
-        selectedColor: AppColors.accentContainer,
-        checkmarkColor: AppColors.onAccentContainer,
-        side: chipSide,
+        selectedColor: p.accentContainer,
+        checkmarkColor: p.onAccentContainer,
+        side: chipSideFor(p),
       ),
       // Bottom Navigation
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.bgElevated,
-        selectedItemColor: AppColors.accent,
-        unselectedItemColor: AppColors.textSecondary,
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: p.bgElevated,
+        selectedItemColor: p.accent,
+        unselectedItemColor: p.textSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
         showSelectedLabels: true,
@@ -450,32 +496,32 @@ class AppTheme {
       ),
       // Slider
       sliderTheme: SliderThemeData(
-        activeTrackColor: AppColors.accent,
-        inactiveTrackColor: AppColors.bgHighlight,
-        thumbColor: AppColors.pureWhite,
-        overlayColor: AppColors.accent.withAlpha(26),
+        activeTrackColor: p.accent,
+        inactiveTrackColor: p.bgHighlight,
+        thumbColor: p.textPrimary,
+        overlayColor: p.accent.withAlpha(26),
         trackHeight: AppSpacing.unit,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
       ),
       // Progress Indicator
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.accent,
-        linearTrackColor: AppColors.bgHighlight,
-        circularTrackColor: AppColors.bgHighlight,
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: p.accent,
+        linearTrackColor: p.bgHighlight,
+        circularTrackColor: p.bgHighlight,
       ),
       // Divider
-      dividerTheme: const DividerThemeData(
-        color: AppColors.borderSubtle,
+      dividerTheme: DividerThemeData(
+        color: p.borderSubtle,
         thickness: 1,
         space: 1,
       ),
       // Tooltip
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
-          color: AppColors.bgSurface,
+          color: p.bgSurface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
         ),
-        textStyle: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+        textStyle: TextStyle(color: p.textPrimary, fontSize: 12),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
           vertical: AppSpacing.xs,
@@ -483,13 +529,13 @@ class AppTheme {
       ),
       // Snackbar
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.bgHighlight,
-        contentTextStyle: const TextStyle(
-          color: AppColors.pureWhite,
+        backgroundColor: p.bgHighlight,
+        contentTextStyle: TextStyle(
+          color: p.textPrimary,
           fontWeight: FontWeight.w600,
         ),
-        actionTextColor: AppColors.accentHover,
-        closeIconColor: AppColors.textSecondary,
+        actionTextColor: p.accentHover,
+        closeIconColor: p.textSecondary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
         ),
@@ -497,7 +543,7 @@ class AppTheme {
       ),
       // Dialog
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.bgElevated,
+        backgroundColor: p.bgElevated,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -505,16 +551,16 @@ class AppTheme {
       ),
       // Scrollbar
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(AppColors.textTertiary),
-        trackColor: WidgetStateProperty.all(AppColors.bgSurface),
+        thumbColor: WidgetStateProperty.all(p.textTertiary),
+        trackColor: WidgetStateProperty.all(p.bgSurface),
         radius: const Radius.circular(AppSpacing.radiusCircular),
         thickness: WidgetStateProperty.all(4),
       ),
     );
   }
 
-  static TextTheme _buildTextTheme() {
-    const baseTextStyle = TextStyle(color: AppColors.textPrimary);
+  static TextTheme _buildTextTheme(AppPalette p) {
+    final baseTextStyle = TextStyle(color: p.textPrimary);
 
     return TextTheme(
       displayLarge: baseTextStyle.copyWith(
@@ -570,7 +616,7 @@ class AppTheme {
         fontWeight: FontWeight.w600,
         letterSpacing: 0.1,
         height: 1.5,
-        color: AppColors.textSecondary,
+        color: p.textSecondary,
       ),
       bodyLarge: baseTextStyle.copyWith(
         fontSize: 16,
@@ -583,14 +629,14 @@ class AppTheme {
         fontWeight: FontWeight.w400,
         letterSpacing: 0,
         height: 1.5,
-        color: AppColors.textSecondary,
+        color: p.textSecondary,
       ),
       bodySmall: baseTextStyle.copyWith(
         fontSize: 12,
         fontWeight: FontWeight.w400,
         letterSpacing: 0.1,
         height: 1.5,
-        color: AppColors.textTertiary,
+        color: p.textTertiary,
       ),
       labelLarge: baseTextStyle.copyWith(
         fontSize: 14,
@@ -611,7 +657,7 @@ class AppTheme {
         fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
         height: 1.4,
-        color: AppColors.textTertiary,
+        color: p.textTertiary,
       ),
     );
   }

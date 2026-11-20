@@ -3,6 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_chrome_controller.dart';
 import 'package:lyric_forge_ktv/app/app.dart';
 import 'package:lyric_forge_ktv/core/navigation/routes.dart';
+import 'package:lyric_forge_ktv/core/theme/app_appearance_host.dart';
+import 'package:lyric_forge_ktv/core/theme/app_palette.dart';
+
+/// The MaterialApp the root builds for [variant]: the root is the appearance
+/// host (decision D-042), whose builder makes the MaterialApp.
+MaterialApp _materialAppOf(
+  ElysiumPlayerApp app,
+  BuildContext context, [
+  AppThemeVariant variant = AppThemeVariant.dark,
+]) {
+  final root = app.build(context);
+  expect(root, isA<AppAppearanceHost>());
+  return (root as AppAppearanceHost).builder(context, variant) as MaterialApp;
+}
 
 void main() {
   testWidgets('Elysium Player app root keeps production shell wiring', (
@@ -14,9 +28,7 @@ void main() {
       MaterialApp(
         home: Builder(
           builder: (context) {
-            final root = const ElysiumPlayerApp().build(context);
-            expect(root, isA<MaterialApp>());
-            builtApp = root as MaterialApp;
+            builtApp = _materialAppOf(const ElysiumPlayerApp(), context);
             return const SizedBox.shrink();
           },
         ),
@@ -42,11 +54,10 @@ void main() {
         MaterialApp(
           home: Builder(
             builder: (context) {
-              builtApp =
-                  const ElysiumPlayerApp(
-                        desktopChromeOverride: false,
-                      ).build(context)
-                      as MaterialApp;
+              builtApp = _materialAppOf(
+                const ElysiumPlayerApp(desktopChromeOverride: false),
+                context,
+              );
               return const SizedBox.shrink();
             },
           ),
@@ -85,6 +96,40 @@ void main() {
       // keeps the test isolated when it runs as part of the full suite.
       await tester.pumpWidget(const SizedBox.shrink());
       AppChromeController.exitImmersive();
+    }
+  });
+
+  testWidgets('the root builds the theme of the chosen variant', (
+    WidgetTester tester,
+  ) async {
+    final built = <AppThemeVariant, MaterialApp>{};
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            for (final variant in AppThemeVariant.values) {
+              built[variant] = _materialAppOf(
+                const ElysiumPlayerApp(),
+                context,
+                variant,
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+
+    expect(built[AppThemeVariant.dark]!.theme!.brightness, Brightness.dark);
+    expect(built[AppThemeVariant.light]!.theme!.brightness, Brightness.light);
+    expect(
+      built[AppThemeVariant.light]!.theme!.scaffoldBackgroundColor,
+      AppPalette.light.bgBase,
+    );
+    // AppColors switches at once, so the Material theme must not cross-fade.
+    for (final app in built.values) {
+      expect(app.themeAnimationDuration, Duration.zero);
     }
   });
 }

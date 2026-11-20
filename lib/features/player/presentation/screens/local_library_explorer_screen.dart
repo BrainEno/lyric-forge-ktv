@@ -497,7 +497,7 @@ class _LocalLibraryExplorerScreenState
                 padding: EdgeInsets.symmetric(horizontal: layout.pageGutter),
                 child: Text(
                   _error!,
-                  style: const TextStyle(color: AppColors.errorText),
+                  style: TextStyle(color: AppColors.errorText),
                 ),
               ),
             Expanded(
@@ -779,10 +779,10 @@ class _ExplorerHeader extends StatelessWidget {
                   Text(visible == total ? '$total 首歌曲' : '$visible / $total 首'),
                   Text(
                     '$playable 首当前可播放',
-                    style: const TextStyle(color: AppColors.textTertiary),
+                    style: TextStyle(color: AppColors.textTertiary),
                   ),
                   if (smartView == LocalLibrarySmartView.recentlyAdded)
-                    const Text(
+                    Text(
                       '最近添加 = 过去 30 天',
                       style: TextStyle(color: AppColors.textTertiary),
                     ),
