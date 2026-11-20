@@ -5,11 +5,13 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import 'playback_action_feedback.dart';
 import 'playback_artwork.dart';
 import 'playback_mode_controls.dart';
+import 'playback_queue_semantics.dart';
 import 'playback_queue_playlist_action.dart';
 
 class PlaybackQueuePanel extends StatelessWidget {
@@ -241,12 +243,25 @@ class _QueueRow extends StatelessWidget {
     required this.onRemove,
   });
 
+  /// The second line: artist, else where the song comes from.
+  String get source => item.artist?.trim().isNotEmpty == true
+      ? item.artist!
+      : item.projectId != null
+      ? '歌词工程'
+      : item.isRemoteStream
+      ? '桌面音乐库'
+      : '本地音乐';
+
+  /// The row is read as one button (audit A-04) and its label joins the
+  /// node the reorderable list puts around each row, so 上移/下移 stay on
+  /// the same stop. The remove button is left outside it, a stop of its own.
   @override
   Widget build(BuildContext context) {
     return Material(
       color: isCurrent ? AppColors.accent.withAlpha(16) : Colors.transparent,
       child: InkWell(
         onTap: onPlay,
+        excludeFromSemantics: true,
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm,
@@ -254,78 +269,30 @@ class _QueueRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              ReorderableDragStartListener(
-                index: index,
-                child: const Padding(
-                  padding: EdgeInsets.all(AppSpacing.xs),
-                  child: Icon(
-                    Icons.drag_indicator_rounded,
-                    size: 20,
-                    color: AppColors.textTertiary,
+              Expanded(
+                child: AppTapTarget(
+                  label: PlaybackQueueSemantics.row(
+                    position: index + 1,
+                    title: item.title,
+                    source: source,
+                    current: isCurrent,
+                  ),
+                  hint: isCurrent ? null : PlaybackQueueSemantics.playHint,
+                  selected: isCurrent,
+                  onTap: onPlay,
+                  container: false,
+                  child: _QueueRowContent(
+                    index: index,
+                    item: item,
+                    source: source,
+                    isCurrent: isCurrent,
                   ),
                 ),
               ),
-              const SizedBox(width: AppSpacing.xs),
-              PlaybackArtwork(item: item, size: 38),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        if (isCurrent) ...[
-                          const Icon(
-                            Icons.graphic_eq_rounded,
-                            size: 16,
-                            color: AppColors.accent,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                        ],
-                        Expanded(
-                          child: Text(
-                            item.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: isCurrent
-                                      ? AppColors.accent
-                                      : AppColors.textPrimary,
-                                  fontWeight: isCurrent
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.artist?.trim().isNotEmpty == true
-                          ? item.artist!
-                          : item.projectId != null
-                          ? '歌词工程'
-                          : item.isRemoteStream
-                          ? '桌面音乐库'
-                          : '本地音乐',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isCurrent)
-                const Padding(
-                  padding: EdgeInsets.only(left: AppSpacing.xs),
-                  child: _CurrentBadge(),
-                ),
               IconButton(
-                tooltip: isCurrent ? '从队列移除并播放下一首' : '从队列移除',
+                tooltip: PlaybackQueueSemantics.removeTooltip(
+                  current: isCurrent,
+                ),
                 onPressed: onRemove,
                 icon: const Icon(Icons.close_rounded, size: 18),
                 color: AppColors.textTertiary,
@@ -334,6 +301,92 @@ class _QueueRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Everything of a queue row except its remove button.
+class _QueueRowContent extends StatelessWidget {
+  final int index;
+  final PlaybackItem item;
+  final String source;
+  final bool isCurrent;
+
+  const _QueueRowContent({
+    required this.index,
+    required this.item,
+    required this.source,
+    required this.isCurrent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        ReorderableDragStartListener(
+          index: index,
+          child: const Padding(
+            padding: EdgeInsets.all(AppSpacing.xs),
+            child: Icon(
+              Icons.drag_indicator_rounded,
+              size: 20,
+              color: AppColors.textTertiary,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        PlaybackArtwork(item: item, size: 38),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  if (isCurrent) ...[
+                    const Icon(
+                      Icons.graphic_eq_rounded,
+                      size: 16,
+                      color: AppColors.accent,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                  ],
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: isCurrent
+                            ? AppColors.accent
+                            : AppColors.textPrimary,
+                        fontWeight: isCurrent
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                source,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
+              ),
+            ],
+          ),
+        ),
+        if (isCurrent)
+          const Padding(
+            padding: EdgeInsets.only(left: AppSpacing.xs),
+            child: _CurrentBadge(),
+          ),
+      ],
     );
   }
 }

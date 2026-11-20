@@ -9,6 +9,7 @@ import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -18,6 +19,7 @@ import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_collection_actions.dart';
+import '../widgets/local_library_semantics.dart';
 
 enum LocalCatalogView { artists, albums }
 
@@ -773,48 +775,55 @@ class _CatalogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return AppTapTarget(
+      label: LocalLibrarySemantics.catalogCard(title: title, detail: subtitle),
+      hint: roundArtwork
+          ? LocalLibrarySemantics.openArtistHint
+          : LocalLibrarySemantics.openAlbumHint,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-      child: Container(
-        padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-          border: Border.all(color: AppColors.borderMuted),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final size = constraints.biggest.shortestSide;
-                  return Center(
-                    child: _CatalogArtwork(
-                      path: artworkPath,
-                      size: size,
-                      round: roundArtwork,
-                    ),
-                  );
-                },
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
+        child: Container(
+          padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.bgElevated,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
+            border: Border.all(color: AppColors.borderMuted),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final size = constraints.biggest.shortestSide;
+                    return Center(
+                      child: _CatalogArtwork(
+                        path: artworkPath,
+                        size: size,
+                        round: roundArtwork,
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.textTertiary),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: AppColors.textTertiary),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -834,25 +843,33 @@ class _MiniAlbumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return AppTapTarget(
+      label: LocalLibrarySemantics.miniAlbum(
+        title: album.title,
+        songs: album.songs.length,
+      ),
+      hint: LocalLibrarySemantics.openAlbumHint,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _CatalogArtwork(path: album.artworkPath, size: artworkSize),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            album.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-          Text(
-            '${album.songs.length} 首',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CatalogArtwork(path: album.artworkPath, size: artworkSize),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              album.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            Text(
+              '${album.songs.length} 首',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
       ),
     );
   }

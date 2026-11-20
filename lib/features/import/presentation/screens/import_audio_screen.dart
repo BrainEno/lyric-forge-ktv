@@ -7,6 +7,7 @@ import '../transcription_import_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_button_spinner.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../../../transcription/presentation/widgets/transcription_queue_panel.dart';
 import '../widgets/import_step_indicator.dart';
 
@@ -352,89 +353,102 @@ class _ImportActionCard extends StatelessWidget {
     required this.onTap,
   });
 
+  /// Read as one button, title and explanation, with the action as the
+  /// hint; while an import runs it is read as disabled instead of as a card
+  /// that silently ignores taps (audit A-04).
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     return Material(
       color: AppColors.bgElevated,
       borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        hoverColor: AppColors.hoverOverlay,
-        child: Container(
-          constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
-          padding: EdgeInsets.all(
-            spec.isCompact ? AppSpacing.sm : AppSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-            border: Border.all(color: AppColors.borderMuted),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: spec.minimumInteractiveExtent,
-                height: spec.minimumInteractiveExtent,
-                decoration: BoxDecoration(
-                  color: AppColors.bgSurface,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+      child: AppTapTarget(
+        label: AppTapTarget.join([title, subtitle]),
+        hint: actionLabel,
+        enabled: enabled,
+        onTap: onTap,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+          hoverColor: AppColors.hoverOverlay,
+          child: Container(
+            constraints: BoxConstraints(
+              minHeight: spec.minimumInteractiveExtent,
+            ),
+            padding: EdgeInsets.all(
+              spec.isCompact ? AppSpacing.sm : AppSpacing.md,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+              border: Border.all(color: AppColors.borderMuted),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: spec.minimumInteractiveExtent,
+                  height: spec.minimumInteractiveExtent,
+                  decoration: BoxDecoration(
+                    color: AppColors.bgSurface,
+                    borderRadius: BorderRadius.circular(
+                      AppSpacing.radiusMedium,
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: enabled
+                        ? AppColors.textPrimary
+                        : AppColors.textDisabled,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  color: enabled
-                      ? AppColors.textPrimary
-                      : AppColors.textDisabled,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                        height: 1.35,
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                          height: 1.35,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              if (!spec.isCompact)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 20,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      actionLabel,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textTertiary,
+                const SizedBox(width: AppSpacing.sm),
+                if (!spec.isCompact)
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 20,
+                        color: AppColors.textSecondary,
                       ),
-                    ),
-                  ],
-                )
-              else
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 20,
-                  color: AppColors.textSecondary,
-                ),
-            ],
+                      const SizedBox(height: 2),
+                      Text(
+                        actionLabel,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+              ],
+            ),
           ),
         ),
       ),

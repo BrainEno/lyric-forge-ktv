@@ -621,4 +621,110 @@ void main() {
       expect(repository.writes, 2);
     });
   });
+
+  group('读屏', () {
+    Semantics tileOf(WidgetTester tester, String name) =>
+        tester.widget<Semantics>(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is Semantics &&
+                widget.properties.hint == ReviewInboxScreen.openEditorHint &&
+                (widget.properties.label ?? '').startsWith('$name，'),
+          ),
+        );
+
+    test('一行读成一句：名称、副标题和徽标', () {
+      expect(
+        ReviewInboxScreen.tileLabel(
+          name: '晴天',
+          subtitle: '周杰伦 · 32 行 · 20 行已确认',
+          pending: 12,
+          lowConfidence: 5,
+          unscored: 0,
+        ),
+        '晴天，周杰伦，32 行，20 行已确认，待复核 12 行，低置信度 5 行',
+      );
+    });
+
+    test('全部复核完时只说已复核', () {
+      expect(
+        ReviewInboxScreen.tileLabel(
+          name: '七里香',
+          subtitle: '8 行 · 8 行已确认',
+          pending: 0,
+          lowConfidence: 0,
+          unscored: 3,
+        ),
+        '七里香，8 行，8 行已确认，已复核',
+      );
+    });
+
+    test('未评分只在还有待复核时说，保存中也说出来', () {
+      expect(
+        ReviewInboxScreen.tileLabel(
+          name: '稻香',
+          subtitle: '10 行 · 0 行已确认',
+          pending: 4,
+          lowConfidence: 0,
+          unscored: 10,
+          saving: true,
+        ),
+        '稻香，10 行，0 行已确认，待复核 4 行，未评分 10 行，'
+        '${ReviewInboxScreen.savingLabel}',
+      );
+    });
+
+    testWidgets('一行是一个按钮，点按进入编辑器', (tester) async {
+      final handle = tester.ensureSemantics();
+      repository = _FakeProjectRepository([
+        _project(id: 'abc', name: '月亮代表我的心', lines: [_line('月亮')]),
+      ]);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      final tile = tileOf(tester, '月亮代表我的心');
+      expect(tile.properties.label, '月亮代表我的心，1 行，0 行已确认，已复核');
+      expect(tile.properties.button, isTrue);
+      expect(find.bySemanticsLabel(tile.properties.label!), findsOneWidget);
+      // The name and badge are no longer separate stops.
+      expect(find.bySemanticsLabel('月亮代表我的心'), findsNothing);
+      // Nothing to mark, so no action.
+      expect(tile.properties.customSemanticsActions, isNull);
+
+      tile.properties.onTap!();
+      await tester.pumpAndSettle();
+      expect(pushedRoutes, ['/project/abc/lyrics']);
+      handle.dispose();
+    });
+
+    testWidgets('全部标为已复核是这一行的读屏操作', (tester) async {
+      repository = _FakeProjectRepository([
+        _project(
+          id: 'p',
+          name: '待处理',
+          lines: [
+            _line('第 1 行', confidence: 20),
+            _line('第 2 行', confidence: 30, startSeconds: 4),
+            _line('第 3 行', startSeconds: 8),
+          ],
+        ),
+      ]);
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      final tile = tileOf(tester, '待处理');
+      expect(tile.properties.label, contains('待复核 2 行'));
+      final actions = tile.properties.customSemanticsActions!;
+      expect(actions.keys.map((action) => action.label), [
+        ReviewInboxScreen.markAllReviewedLabel,
+      ]);
+
+      actions.values.single();
+      await tester.pumpAndSettle();
+      // The same confirmation as the menu entry.
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.textContaining('「待处理」的 3 行都会记为人工确认'), findsOneWidget);
+      expect(repository.writes, 0);
+    });
+  });
 }

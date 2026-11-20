@@ -9,6 +9,7 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_button_spinner.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
@@ -21,6 +22,7 @@ import '../../domain/models/remote_audio_track.dart';
 import '../../domain/services/media_hub_client_service.dart';
 import '../../domain/services/media_hub_connection_store.dart';
 import '../../domain/services/media_transfer_queue_service.dart';
+import '../widgets/remote_library_semantics.dart';
 import '../widgets/remote_media_artwork.dart';
 import '../widgets/transfer_list_states.dart';
 import 'remote_catalog_utils.dart';
@@ -101,8 +103,9 @@ class _MobileRemoteMusicLibraryScreenState
     if (!mounted) return;
     var completedNewDownload = false;
     for (final item in snapshot.completed) {
-      if (item.direction != MediaTransferDirection.downloadFromDesktop)
+      if (item.direction != MediaTransferDirection.downloadFromDesktop) {
         continue;
+      }
       if (_handledCompletedTasks.add(item.id)) completedNewDownload = true;
     }
     setState(() {});
@@ -691,111 +694,132 @@ class _RemoteTrackTile extends StatelessWidget {
         : ((queueItem?.bytesTransferred ?? 0) / total)
               .clamp(0.0, 1.0)
               .toDouble();
+    final downloadState = downloaded || completed
+        ? RemoteTrackDownloadState.downloaded
+        : failed
+        ? RemoteTrackDownloadState.failed
+        : staleCompleted
+        ? RemoteTrackDownloadState.stale
+        : queued
+        ? RemoteTrackDownloadState.queued
+        : transferring
+        ? RemoteTrackDownloadState.transferring
+        : RemoteTrackDownloadState.none;
+    final downloadTooltip = RemoteLibrarySemantics.downloadTooltip(
+      downloadState,
+    );
+    final canDownload = RemoteLibrarySemantics.canDownload(downloadState);
 
     return Material(
       color: AppColors.bgElevated,
       borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+      child: AppTapTarget(
+        label: RemoteLibrarySemantics.trackTile(
+          title: track.title,
+          artist: track.artist?.trim(),
+          album: track.album?.trim(),
+          format: track.format,
+          hasLyrics: track.hasLyrics,
+          state: downloadState,
+          fraction: fraction,
+          error: queueItem?.error,
+        ),
+        hint: RemoteLibrarySemantics.playHint,
         onTap: onPlay,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Row(
-            children: [
-              RemoteMediaArtwork(
-                track: track,
-                client: client,
-                localPath: localEntry?.embeddedArtworkPath,
-                extent: 52,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      <String>[
-                        if (track.artist?.trim().isNotEmpty == true)
-                          track.artist!.trim(),
-                        if (track.album?.trim().isNotEmpty == true)
-                          track.album!.trim(),
-                        track.format.toUpperCase(),
-                      ].join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                    if (queued || transferring) ...[
-                      const SizedBox(height: 6),
-                      LinearProgressIndicator(
-                        value: transferring ? fraction : null,
-                      ),
-                    ],
-                    if (failed || staleCompleted) ...[
-                      const SizedBox(height: 4),
+        actions: {downloadTooltip: canDownload ? onDownload : null},
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+          onTap: onPlay,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Row(
+              children: [
+                RemoteMediaArtwork(
+                  track: track,
+                  client: client,
+                  localPath: localEntry?.embeddedArtworkPath,
+                  extent: 52,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        failed
-                            ? queueItem?.error ?? '下载失败，点击右侧重试'
-                            : '本地文件已不存在，可重新下载',
+                        track.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: failed
-                              ? AppColors.error
-                              : AppColors.textTertiary,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                      const SizedBox(height: 3),
+                      Text(
+                        <String>[
+                          if (track.artist?.trim().isNotEmpty == true)
+                            track.artist!.trim(),
+                          if (track.album?.trim().isNotEmpty == true)
+                            track.album!.trim(),
+                          track.format.toUpperCase(),
+                        ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      if (queued || transferring) ...[
+                        const SizedBox(height: 6),
+                        LinearProgressIndicator(
+                          value: transferring ? fraction : null,
+                        ),
+                      ],
+                      if (failed || staleCompleted) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          failed
+                              ? queueItem?.error ?? '下载失败，点击右侧重试'
+                              : '本地文件已不存在，可重新下载',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: failed
+                                    ? AppColors.error
+                                    : AppColors.textTertiary,
+                              ),
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-              ),
-              if (track.hasLyrics)
-                const Padding(
-                  padding: EdgeInsets.only(left: AppSpacing.xs),
-                  child: Icon(
-                    Icons.lyrics_rounded,
-                    size: 18,
-                    color: AppColors.textTertiary,
                   ),
                 ),
-              const SizedBox(width: AppSpacing.xs),
-              IconButton(
-                tooltip: downloaded || completed
-                    ? '已下载到手机'
-                    : failed || staleCompleted
-                    ? '重新下载'
-                    : queued
-                    ? '等待下载'
-                    : transferring
-                    ? '正在下载'
-                    : '下载到手机',
-                onPressed: downloaded || completed || queued || transferring
-                    ? null
-                    : onDownload,
-                icon: transferring
-                    ? const AppButtonSpinner(size: 20)
-                    : Icon(
-                        downloaded || completed
-                            ? Icons.download_done_rounded
-                            : failed || staleCompleted
-                            ? Icons.refresh_rounded
-                            : queued
-                            ? Icons.schedule_rounded
-                            : Icons.download_rounded,
-                      ),
-              ),
-            ],
+                if (track.hasLyrics)
+                  const Padding(
+                    padding: EdgeInsets.only(left: AppSpacing.xs),
+                    child: Icon(
+                      Icons.lyrics_rounded,
+                      size: 18,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                const SizedBox(width: AppSpacing.xs),
+                IconButton(
+                  tooltip: downloadTooltip,
+                  onPressed: canDownload ? onDownload : null,
+                  icon: transferring
+                      ? const AppButtonSpinner(size: 20)
+                      : Icon(
+                          downloaded || completed
+                              ? Icons.download_done_rounded
+                              : failed || staleCompleted
+                              ? Icons.refresh_rounded
+                              : queued
+                              ? Icons.schedule_rounded
+                              : Icons.download_rounded,
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

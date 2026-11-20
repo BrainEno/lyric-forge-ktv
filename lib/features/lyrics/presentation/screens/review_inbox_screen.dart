@@ -9,6 +9,7 @@ import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/lyric_review_queue.dart';
@@ -48,7 +49,34 @@ class ReviewInboxScreen extends StatefulWidget {
 
   static const String markAllReviewedLabel = '全部标为已复核';
   static const String moreActionsTooltip = '更多操作';
+  static const String openEditorHint = '打开歌词校对';
+  static const String savingLabel = '正在保存复核标记';
   static const String undoLabel = '撤销';
+
+  /// A project row as one spoken button (audit A-04): name, subtitle and the
+  /// badges, which were only read as loose words around a bare `InkWell`.
+  /// 全部标为已复核 is the row's custom action, so the ⋮ menu is not a
+  /// separate stop that only makes sense after the row.
+  static String tileLabel({
+    required String name,
+    required String subtitle,
+    required int pending,
+    required int lowConfidence,
+    required int unscored,
+    bool saving = false,
+  }) {
+    return AppTapTarget.join([
+      name,
+      subtitle.replaceAll(' · ', '，'),
+      pending > 0 ? '待复核 $pending 行' : '已复核',
+      if (lowConfidence > 0)
+        '低置信度 $lowConfidence 行'
+      else if (unscored > 0 && pending > 0)
+        '未评分 $unscored 行',
+      if (saving) savingLabel,
+    ]);
+  }
+
   static const String undoneMessage = '已撤销，复核标记恢复原样';
   static const String undoConflictMessage = '工程已有新的改动，没有撤销';
   static const String saveFailedMessage = '没能保存复核标记，请稍后再试';
@@ -401,79 +429,98 @@ class _ReviewInboxTile extends StatelessWidget {
     return Material(
       color: AppColors.bgElevated,
       borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      child: InkWell(
+      child: AppTapTarget(
+        label: ReviewInboxScreen.tileLabel(
+          name: project.name,
+          subtitle: _subtitle(project, entry.queue),
+          pending: pending,
+          lowConfidence: lowConfidence,
+          unscored: unscored,
+          saving: saving,
+        ),
+        hint: ReviewInboxScreen.openEditorHint,
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            children: [
-              // The song's cover when the project has one, so the list reads
-              // like the music it holds rather than a column of identical
-              // lyric icons (audit R-01).
-              AppArtwork(
-                path: project.audioAsset?.thumbnailPath,
-                size: _ReviewInboxTile.artworkExtent,
-                borderRadius: AppSpacing.radiusMedium,
-                placeholderIcon: Icons.lyrics_outlined,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      project.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _subtitle(project, entry.queue),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
+        actions: {
+          if (pending > 0 && !saving)
+            ReviewInboxScreen.markAllReviewedLabel: onMarkAllReviewed,
+        },
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                // The song's cover when the project has one, so the list reads
+                // like the music it holds rather than a column of identical
+                // lyric icons (audit R-01).
+                AppArtwork(
+                  path: project.audioAsset?.thumbnailPath,
+                  size: _ReviewInboxTile.artworkExtent,
+                  borderRadius: AppSpacing.radiusMedium,
+                  placeholderIcon: Icons.lyrics_outlined,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              if (pending > 0)
-                // A caution, as in the editor's status line; lavender is for
-                // things to press.
-                _Badge(label: '待复核 $pending', color: AppColors.warning)
-              else
-                const _Badge(label: '已复核', color: AppColors.textTertiary),
-              if (lowConfidence > 0) ...[
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        project.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _subtitle(project, entry.queue),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                if (pending > 0)
+                  // A caution, as in the editor's status line; lavender is for
+                  // things to press.
+                  _Badge(label: '待复核 $pending', color: AppColors.warning)
+                else
+                  const _Badge(label: '已复核', color: AppColors.textTertiary),
+                if (lowConfidence > 0) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  _Badge(
+                    label: '低置信度 $lowConfidence',
+                    color: AppColors.warning,
+                  ),
+                ] else if (unscored > 0 && pending > 0) ...[
+                  // "Unknown" rather than a red zero — the same rule the editor
+                  // toolbar follows.
+                  const SizedBox(width: AppSpacing.xs),
+                  _Badge(label: '未评分 $unscored', color: AppColors.textTertiary),
+                ],
+                if (pending > 0) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  _TileMenu(
+                    key: ValueKey('review-inbox:actions:${project.id}'),
+                    saving: saving,
+                    onMarkAllReviewed: onMarkAllReviewed,
+                  ),
+                ],
                 const SizedBox(width: AppSpacing.xs),
-                _Badge(label: '低置信度 $lowConfidence', color: AppColors.warning),
-              ] else if (unscored > 0 && pending > 0) ...[
-                // "Unknown" rather than a red zero — the same rule the editor
-                // toolbar follows.
-                const SizedBox(width: AppSpacing.xs),
-                _Badge(label: '未评分 $unscored', color: AppColors.textTertiary),
-              ],
-              if (pending > 0) ...[
-                const SizedBox(width: AppSpacing.xs),
-                _TileMenu(
-                  key: ValueKey('review-inbox:actions:${project.id}'),
-                  saving: saving,
-                  onMarkAllReviewed: onMarkAllReviewed,
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: AppColors.textTertiary,
                 ),
               ],
-              const SizedBox(width: AppSpacing.xs),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: AppColors.textTertiary,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -579,7 +626,7 @@ class _TileMenu extends StatelessWidget {
             dimension: spinnerSize,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              semanticsLabel: '正在保存复核标记',
+              semanticsLabel: ReviewInboxScreen.savingLabel,
             ),
           ),
         ),

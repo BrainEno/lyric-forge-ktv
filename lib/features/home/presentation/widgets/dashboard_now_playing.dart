@@ -10,8 +10,10 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_button_spinner.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/playback_session_service.dart';
+import 'dashboard_semantics.dart';
 import 'dashboard_surfaces.dart';
 
 class DashboardNowPlayingArea extends StatelessWidget {
@@ -443,58 +445,71 @@ class _QueueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final layout = AppResponsive.of(context);
+    final source = item.artist?.trim().isNotEmpty == true
+        ? item.artist!
+        : item.projectId == null
+        ? '本地音乐'
+        : '歌词工程';
     return Material(
       color: current ? AppColors.accent.withAlpha(16) : Colors.transparent,
       borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-      child: InkWell(
+      child: AppTapTarget(
+        label: DashboardSemantics.queueRow(
+          title: item.title,
+          source: source,
+          current: current,
+        ),
+        hint: current ? null : DashboardSemantics.playNowHint,
+        selected: current,
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              DashboardArtwork(
-                path: item.artworkPath,
-                size: layout.minimumInteractiveExtent,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: current
-                            ? AppColors.accent
-                            : AppColors.textPrimary,
-                        fontWeight: current ? FontWeight.w700 : FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      item.artist?.trim().isNotEmpty == true
-                          ? item.artist!
-                          : item.projectId == null
-                          ? '本地音乐'
-                          : '歌词工程',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: dashboardMutedLabel(context),
-                    ),
-                  ],
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                DashboardArtwork(
+                  path: item.artworkPath,
+                  size: layout.minimumInteractiveExtent,
                 ),
-              ),
-              Icon(
-                current ? Icons.graphic_eq_rounded : Icons.play_arrow_rounded,
-                size: 18,
-                color: current ? AppColors.accent : AppColors.textTertiary,
-              ),
-            ],
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: current
+                              ? AppColors.accent
+                              : AppColors.textPrimary,
+                          fontWeight: current
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        source,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: dashboardMutedLabel(context),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  current ? Icons.graphic_eq_rounded : Icons.play_arrow_rounded,
+                  size: 18,
+                  color: current ? AppColors.accent : AppColors.textTertiary,
+                ),
+              ],
+            ),
           ),
         ),
       ),
