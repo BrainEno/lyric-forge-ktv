@@ -32,7 +32,8 @@ cmake -S native/vocal_separator -B native-build
 cmake --build native-build && ./native-build/lfsep_tests
 ```
 
-The full tool needs Eigen 3.4 and an ONNX Runtime package:
+The full tool needs Eigen 3.4 and an ONNX Runtime package (CI takes the
+headers and library from the `Microsoft.ML.OnnxRuntime` NuGet package):
 
 ```sh
 cmake -S native/vocal_separator -B sep-build -DLFSEP_BUILD_CLI=ON \

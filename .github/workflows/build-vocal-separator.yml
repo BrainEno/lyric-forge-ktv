@@ -184,9 +184,29 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libeigen3-dev ninja-build
-          curl -fsSL --retry 5 -o ort.tgz \
-            "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-linux-x64-${ORT_VERSION}.tgz"
-          mkdir ort && tar -xzf ort.tgz -C ort --strip-components=1
+          # The same NuGet feed as the Windows job: GitHub release assets of
+          # onnxruntime are not reliably reachable from CI.
+          curl -fsSL --retry 5 -o ort.zip \
+            "https://www.nuget.org/api/v2/package/Microsoft.ML.OnnxRuntime/${ORT_VERSION}"
+          unzip -q ort.zip -d ort-pkg
+          mkdir -p ort/include ort/lib
+          header=$(find ort-pkg -name onnxruntime_cxx_api.h | head -n 1)
+          library=$(find ort-pkg -path '*linux-x64*' -name 'libonnxruntime.so*' | head -n 1)
+          if [ -z "$header" ] || [ -z "$library" ]; then
+            find ort-pkg -type f | sort
+            echo "::error::onnxruntime headers or linux-x64 library missing from the NuGet package"
+            exit 1
+          fi
+          cp "$(dirname "$header")"/*.h ort/include/
+          cp "$(dirname "$library")"/libonnxruntime.so* ort/lib/
+          if [ ! -e ort/lib/libonnxruntime.so ]; then
+            ln -s "$(basename "$library")" ort/lib/libonnxruntime.so
+          fi
+          # The executable records the SONAME; make sure that file exists too.
+          soname=$(readelf -d "$library" | sed -n 's/.*(SONAME).*\[\(.*\)\]/\1/p')
+          if [ -n "$soname" ] && [ ! -e "ort/lib/$soname" ]; then
+            cp "$library" "ort/lib/$soname"
+          fi
           ls ort/include ort/lib
 
       - name: Build lyricforge-separator
