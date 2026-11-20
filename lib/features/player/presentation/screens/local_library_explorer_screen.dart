@@ -982,7 +982,10 @@ class _ExplorerCard extends StatelessWidget {
       semanticActions: semanticActions,
       compact: compact,
       artwork: song.playable
-          ? AppArtwork(path: song.artworkPath, borderRadius: AppArtwork.tileRadius)
+          ? AppArtwork(
+              path: song.artworkPath,
+              borderRadius: AppArtwork.tileRadius,
+            )
           : AppArtwork.missing(path: song.artworkPath),
       title: song.title,
       titleTrailing: _SongMenu(

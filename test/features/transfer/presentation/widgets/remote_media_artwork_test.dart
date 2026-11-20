@@ -292,9 +292,7 @@ void main() {
     expect(find.byType(AppArtwork), findsNothing);
   });
 
-  testWidgets('artists can be round, as in the local library', (
-    tester,
-  ) async {
+  testWidgets('artists can be round, as in the local library', (tester) async {
     await _pump(
       tester,
       RemoteMediaArtwork(

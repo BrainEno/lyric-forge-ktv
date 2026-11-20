@@ -240,10 +240,7 @@ void main() {
       for (final state in RemoteTrackDownloadState.values) {
         final download = RemoteTrackDownload(state: state);
         expect(download.tooltip, RemoteLibrarySemantics.downloadTooltip(state));
-        expect(
-          download.canDownload,
-          RemoteLibrarySemantics.canDownload(state),
-        );
+        expect(download.canDownload, RemoteLibrarySemantics.canDownload(state));
       }
     });
 

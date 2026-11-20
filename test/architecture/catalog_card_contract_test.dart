@@ -100,7 +100,9 @@ void main() {
           if (!text.contains('borderRadius:')) continue;
           expect(
             text,
-            matches(RegExp(r'borderRadius: AppArtwork\.(tileRadius|rowRadius)')),
+            matches(
+              RegExp(r'borderRadius: AppArtwork\.(tileRadius|rowRadius)'),
+            ),
             reason: '$path: $text',
           );
         }
@@ -130,10 +132,7 @@ void main() {
           final start = source.indexOf(name);
           if (start < 0) continue;
           final next = source.indexOf('\nclass ', start + 1);
-          final body = source.substring(
-            start,
-            next < 0 ? source.length : next,
-          );
+          final body = source.substring(start, next < 0 ? source.length : next);
           expect(
             body,
             isNot(contains('BoxDecoration(')),

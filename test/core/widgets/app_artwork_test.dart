@@ -157,11 +157,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _host(
-          const SizedBox(
-            width: 200,
-            height: 120,
-            child: AppArtwork.person(),
-          ),
+          const SizedBox(width: 200, height: 120, child: AppArtwork.person()),
         ),
       );
 
@@ -209,7 +205,10 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _host(
-          const AppArtwork.missing(size: 44, borderRadius: AppArtwork.rowRadius),
+          const AppArtwork.missing(
+            size: 44,
+            borderRadius: AppArtwork.rowRadius,
+          ),
         ),
       );
 

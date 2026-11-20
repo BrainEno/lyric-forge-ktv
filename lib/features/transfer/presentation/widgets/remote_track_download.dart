@@ -16,11 +16,7 @@ import 'remote_library_semantics.dart';
 /// and every part of the row asks it.
 @immutable
 class RemoteTrackDownload {
-  const RemoteTrackDownload({
-    required this.state,
-    this.fraction,
-    this.error,
-  });
+  const RemoteTrackDownload({required this.state, this.fraction, this.error});
 
   /// The status of a track that the library already has as [localEntry]
   /// (when [downloaded]) and that the download queue holds as [queueItem].

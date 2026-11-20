@@ -186,7 +186,9 @@ void main() {
       expect(cover.center.dx, moreOrLessEquals(card.center.dx));
       expect(
         cover.width,
-        moreOrLessEquals(card.width - 2 * AppCatalogCard.paddingFor(compact: false)),
+        moreOrLessEquals(
+          card.width - 2 * AppCatalogCard.paddingFor(compact: false),
+        ),
       );
       expect(cover.bottom, lessThan(tester.getTopLeft(find.text('叶惠美')).dy));
     });
@@ -225,10 +227,7 @@ void main() {
       expect(surface.color, AppColors.bgElevated);
       expect(surface.clipBehavior, Clip.antiAlias);
       final shape = surface.shape! as RoundedRectangleBorder;
-      expect(
-        shape.borderRadius,
-        BorderRadius.circular(AppCatalogCard.radius),
-      );
+      expect(shape.borderRadius, BorderRadius.circular(AppCatalogCard.radius));
       // The InkWell sits inside the Material, not under an opaque box.
       expect(
         find.descendant(
@@ -263,9 +262,7 @@ void main() {
     ) async {
       await _pump(
         tester,
-        _card(
-          titleTrailing: const Icon(Icons.more_horiz_rounded, size: 20),
-        ),
+        _card(titleTrailing: const Icon(Icons.more_horiz_rounded, size: 20)),
       );
 
       final title = tester.getRect(find.text('叶惠美'));
@@ -279,9 +276,7 @@ void main() {
     ) async {
       await _pump(
         tester,
-        _card(
-          artworkOverlay: const Icon(Icons.more_vert_rounded, size: 24),
-        ),
+        _card(artworkOverlay: const Icon(Icons.more_vert_rounded, size: 24)),
       );
 
       final cover = tester.getRect(find.byType(AppArtwork));
@@ -307,17 +302,12 @@ void main() {
 
       await tester.tap(find.text('叶惠美'));
       expect(taps, 0);
-      expect(
-        tester.widget<InkWell>(find.byType(InkWell)).onTap,
-        isNull,
-      );
+      expect(tester.widget<InkWell>(find.byType(InkWell)).onTap, isNull);
     });
   });
 
   group('semantics', () {
-    testWidgets('reads as one button with the label and hint', (
-      tester,
-    ) async {
+    testWidgets('reads as one button with the label and hint', (tester) async {
       final handle = tester.ensureSemantics();
       var taps = 0;
       await _pump(tester, _card(onTap: () => taps++, caption: 'FLAC'));
@@ -378,11 +368,7 @@ void main() {
       final handle = tester.ensureSemantics();
       await _pump(
         tester,
-        _card(
-          onTap: () {},
-          enabled: false,
-          actions: {'重新定位文件': () {}},
-        ),
+        _card(onTap: () {}, enabled: false, actions: {'重新定位文件': () {}}),
       );
 
       final data = tester

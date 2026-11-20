@@ -20,7 +20,8 @@
 ## Git 现场
 
 - 分支：`arena/88638761-lyric-forge-ktv`，基于 main `51a16c1`。
-- 提交：`Share one catalog card and cover across the music libraries`，以及临时探针的添加、修正和删除。
+- PR #489（squash 合并）。
+- 提交：`Share one catalog card and cover across the music libraries`、`Add a temporary probe`、`Apply format and remove the probe`。
 
 ## 已改文件
 
@@ -28,7 +29,12 @@
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter。格式、analyze 和测试只在 PR 的 CI 上跑，另外用一个临时探针工作流（合并前删除）。工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`。CI 结果见 PR。
+沙箱里没有 Dart/Flutter。格式、analyze 和测试只在 PR #489 的 CI 上跑，另外用一个临时探针工作流（合并前已删除）。探针结果：
+- analyze：没有错误和警告，181 条提示，和上轮相同。
+- 测试：全部 3698 个通过、2 个跳过；本轮新增和改动的测试文件共 92 个用例，第一次就全过。
+- 格式：有 7 个文件的差异（都是把能放进一行的调用合并成一行），补丁已应用。
+
+工作日志用 `tool/work_log.dart` 的 Python 移植版跑了 `write` 和 `check`（0 错误）。
 
 ## 下一步
 
