@@ -65,6 +65,31 @@ def pick_source_model(bag, source: str):
     return index, bag.models[index], sources
 
 
+def stub_diffq() -> None:
+    """Lets `demucs.states` import without the `diffq` package.
+
+    `demucs.states` imports diffq at module level, but diffq is only used for
+    quantized checkpoints and ships no wheels for current Python versions.
+    htdemucs_ft is not quantized; should a quantized state ever be loaded,
+    the stub fails loudly instead of producing a wrong model.
+    """
+    try:
+        import diffq  # noqa: F401
+        return
+    except ImportError:
+        pass
+    import types
+
+    def unavailable(*_args, **_kwargs):
+        raise SystemExit("quantized Demucs checkpoints need the diffq package")
+
+    module = types.ModuleType("diffq")
+    module.DiffQuantizer = unavailable
+    module.UniformQuantizer = unavailable
+    module.restore_quantized_state = unavailable
+    sys.modules["diffq"] = module
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--demucs-src", required=True, type=Path)
@@ -73,6 +98,7 @@ def main() -> int:
     args = parser.parse_args()
 
     sys.path.insert(0, str(args.demucs_src.resolve()))
+    stub_diffq()
     import numpy as np  # noqa: E402
     import onnx  # noqa: E402
     import onnxruntime as ort  # noqa: E402
