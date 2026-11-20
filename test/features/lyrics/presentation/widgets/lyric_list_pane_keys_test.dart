@@ -276,6 +276,8 @@ void main() {
       await tester.pumpWidget(host());
 
       await tester.tap(find.text('00:04.00'));
+      // The row around the time also listens for a double tap.
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
       await tester.pumpAndSettle();
       expect(find.text('编辑开始时间'), findsOneWidget);
       await tester.enterText(find.byType(TextField), '00:05');
@@ -293,6 +295,8 @@ void main() {
       await tester.pumpWidget(host());
 
       await tester.tap(find.text('00:07.00'));
+      // The row around the time also listens for a double tap.
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), '00:03');
       await tester.tap(find.text('确定'));

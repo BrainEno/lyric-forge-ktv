@@ -23,6 +23,8 @@
   - Ctrl/Cmd + F was an empty branch. It now focuses the search field, and goes on to the app when the list has no search field.
   - The "did the search result change" check in `didUpdateWidget` compared text only and read old indices from the new document. It now runs the same filter on the old and the new document.
   - The reviewed rows are read once per build instead of once per row.
+  - On phone widths, the times and badges move to a wrapping second line under the text. They used to share one line with it: in a 390-wide widget test, three badges pushed the row 96 px past its edge, and large text does the same on a device. Wide layouts are unchanged.
+  - A row whose text cannot be edited passed a null message to `Tooltip`, which asserts. Every caller could edit, so it never showed. Such a row now has no tooltip.
   - A hand-edited line keeps its italic style when a selected long line expands to four lines.
   - The time field rejects `NaN` and `Infinity`.
 - Files:
@@ -43,6 +45,7 @@
     - menu order matches the screen-reader order, and each action runs its own callback;
     - display text, long text and wrapping, italic, the playing state and the time links;
     - the badges on wide and phone layouts and for a reviewed row;
+    - on a phone, the times and badges sit under the text, and a long row at 2× text grows instead of overflowing;
     - the right-click menu lists all nine actions, copy copies, delete is in the error colour, dismissing runs nothing.
   - Pane key tests:
     - the arrows, including through a filter;
@@ -56,6 +59,6 @@
   - The existing list, row semantics, structure and editor pane tests still import `lyric_list_pane.dart`.
   - Format, analyze and tests => PR's Flutter Quality Gate and the temporary probe workflow.
 - Notes:
-  - Not looked at in a running app. Apart from the menu entry, the key handling and the italic fix above, the layout and wording are unchanged.
+  - Not looked at in a running app. Apart from the menu entry, the key handling, the phone layout and the italic fix above, the layout and wording are unchanged.
   - The inline editor row was moved without changes.
 - Commit: `Split the editor's lyric list into rows, dialog, states and logic`

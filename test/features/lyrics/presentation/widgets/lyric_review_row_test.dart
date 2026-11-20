@@ -269,6 +269,54 @@ void main() {
       expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
     });
 
+    testWidgets('a phone puts times and badges under the text', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        row(candidate: const {'alternativeText': 'x'}, priority: priority),
+        size: const Size(390, 844),
+      );
+
+      final text = tester.getTopLeft(find.text(_line.text));
+      expect(tester.getTopLeft(find.text('00:10.00')).dy, greaterThan(text.dy));
+      expect(tester.getTopLeft(find.text('双擎')).dy, greaterThan(text.dy));
+    });
+
+    testWidgets('a phone with large text grows instead of overflowing', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: ListView(
+              children: [
+                row(
+                  line: _longLine,
+                  selected: true,
+                  edited: true,
+                  candidate: const {'alternativeText': 'x'},
+                  secondary: true,
+                  priority: priority,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('复核'), findsOneWidget);
+    });
+
     testWidgets('a reviewed row only says so', (tester) async {
       await pump(
         tester,

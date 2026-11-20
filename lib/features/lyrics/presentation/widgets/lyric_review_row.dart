@@ -221,7 +221,44 @@ class LyricReviewRow extends StatelessWidget {
         ? AppColors.accent.withAlpha(18)
         : Colors.transparent;
     final expanded = selected && isLongText;
-    final empty = line.text.trim().isEmpty;
+    final content = Container(
+      constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+        border: selected
+            ? Border.all(color: AppColors.accent.withAlpha(120))
+            : null,
+      ),
+      child: Row(
+        crossAxisAlignment: expanded || spec.isCompact
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: spec.isCompact ? 28 : 34,
+            child: _RowNumber(
+              index: index,
+              playing: playing,
+              edited: isManuallyEdited,
+            ),
+          ),
+          LyricRowAuditionButton(
+            hasAudio: hasAudio,
+            isPlaying: auditionIsPlaying,
+            onPressed: onPreview,
+          ),
+          if (hasAudio) const SizedBox(width: AppSpacing.xs),
+          if (spec.isCompact)
+            ..._compactBody(context, spec, expanded: expanded)
+          else
+            ..._wideBody(context, spec, expanded: expanded),
+        ],
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
@@ -235,109 +272,32 @@ class LyricReviewRow extends StatelessWidget {
           onSecondaryTapDown: (details) =>
               _showContextMenu(context, details.globalPosition),
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-          child: Tooltip(
-            message: onDoubleTap == null ? null : '双击直接编辑文字 · 右键更多操作',
-            child: Container(
-              constraints: BoxConstraints(
-                minHeight: spec.minimumInteractiveExtent,
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.sm,
-              ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-                border: selected
-                    ? Border.all(color: AppColors.accent.withAlpha(120))
-                    : null,
-              ),
-              child: Row(
-                crossAxisAlignment: expanded
-                    ? CrossAxisAlignment.start
-                    : CrossAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: spec.isCompact ? 28 : 34,
-                    child: _RowNumber(
-                      index: index,
-                      playing: playing,
-                      edited: isManuallyEdited,
-                    ),
-                  ),
-                  LyricRowAuditionButton(
-                    hasAudio: hasAudio,
-                    isPlaying: auditionIsPlaying,
-                    onPressed: onPreview,
-                  ),
-                  if (hasAudio) const SizedBox(width: AppSpacing.xs),
-                  _RowTime(time: line.startTime, onTap: onEditStartTime),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: Text(
-                      '–',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.borderSubtle,
-                      ),
-                    ),
-                  ),
-                  _RowTime(time: line.endTime, onTap: onEditEndTime),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      displayText,
-                      maxLines: expanded ? 4 : (spec.isCompact ? 1 : 2),
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: empty
-                            ? AppColors.textTertiary
-                            : AppColors.textPrimary,
-                        fontWeight: playing ? FontWeight.w700 : FontWeight.w500,
-                        fontStyle: isManuallyEdited ? FontStyle.italic : null,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  ..._badges(spec),
-                ],
-              ),
-            ),
-          ),
+          child: onDoubleTap == null
+              ? content
+              : Tooltip(message: rowTooltip, child: content),
         ),
       ),
     );
   }
 
-  /// The badges after the text, then the edit hint and the chevron.
-  List<Widget> _badges(AppLayoutSpec spec) {
-    final compact = spec.isCompact;
-    final score = priority?.score;
+  /// The hover hint of a row whose text can be edited.
+  static const String rowTooltip = '双击直接编辑文字 · 右键更多操作';
+
+  /// One line: times, text, badges, hint and chevron side by side.
+  List<Widget> _wideBody(
+    BuildContext context,
+    AppLayoutSpec spec, {
+    required bool expanded,
+  }) {
     return [
-      if (!compact && line.isChorus)
-        const LyricTinyBadge(label: '副歌', accent: true),
-      if (fallbackCandidate != null && !isReviewed) ...[
+      ..._times(context),
+      const SizedBox(width: AppSpacing.sm),
+      Expanded(child: _text(context, maxLines: expanded ? 4 : 2)),
+      for (final badge in _statusBadges(compact: false)) ...[
         const SizedBox(width: AppSpacing.xs),
-        LyricTinyBadge(label: compact ? '双擎' : '双引擎'),
+        badge,
       ],
-      if (isSecondarySuggestion && !isReviewed) ...[
-        const SizedBox(width: AppSpacing.xs),
-        LyricTinyBadge(label: compact ? '补入' : '建议补入', warning: true),
-      ],
-      if (isReviewed) ...[
-        const SizedBox(width: AppSpacing.xs),
-        const LyricTinyBadge(label: '已复核', accent: true),
-      ] else if (score != null) ...[
-        const SizedBox(width: AppSpacing.xs),
-        Tooltip(
-          message: priority!.reasons
-              .map(LyricReviewStrings.priorityReason)
-              .join('\n'),
-          child: LyricTinyBadge(
-            label: compact ? '复核' : '优先 $score',
-            warning: score >= warningScore,
-          ),
-        ),
-      ],
-      if (selected && onDoubleTap != null && !compact) ...[
+      if (selected && onDoubleTap != null) ...[
         const SizedBox(width: AppSpacing.xs),
         Tooltip(
           message: '双击或按 F2 编辑',
@@ -356,6 +316,104 @@ class LyricReviewRow extends StatelessWidget {
           color: AppColors.textTertiary,
         ),
       ],
+    ];
+  }
+
+  /// A phone has no room for both times, the text and the badges on one
+  /// line: in a 390-wide widget test, three badges pushed the row 96 px past
+  /// its edge, and large text does the same on a device. The text gets the
+  /// first line and the times and badges wrap below it, so a long row grows
+  /// taller instead of overflowing.
+  List<Widget> _compactBody(
+    BuildContext context,
+    AppLayoutSpec spec, {
+    required bool expanded,
+  }) {
+    return [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _text(context, maxLines: expanded ? 4 : 1),
+            const SizedBox(height: 2),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ..._times(context),
+                ..._statusBadges(compact: true),
+              ],
+            ),
+          ],
+        ),
+      ),
+      if (!spec.supportsTwoPane) ...[
+        const SizedBox(width: AppSpacing.xs),
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: AppColors.textTertiary,
+          ),
+        ),
+      ],
+    ];
+  }
+
+  List<Widget> _times(BuildContext context) => [
+    _RowTime(time: line.startTime, onTap: onEditStartTime),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Text(
+        '–',
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: AppColors.borderSubtle),
+      ),
+    ),
+    _RowTime(time: line.endTime, onTap: onEditEndTime),
+  ];
+
+  Widget _text(BuildContext context, {required int maxLines}) {
+    return Text(
+      displayText,
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: line.text.trim().isEmpty
+            ? AppColors.textTertiary
+            : AppColors.textPrimary,
+        fontWeight: playing ? FontWeight.w700 : FontWeight.w500,
+        fontStyle: isManuallyEdited ? FontStyle.italic : null,
+      ),
+    );
+  }
+
+  /// Chorus (wide layouts only), saved engine candidate, suggested
+  /// insertion, and the review state or priority; phones use short labels.
+  List<Widget> _statusBadges({required bool compact}) {
+    final priority = this.priority;
+    return [
+      if (!compact && line.isChorus)
+        const LyricTinyBadge(label: '副歌', accent: true),
+      if (fallbackCandidate != null && !isReviewed)
+        LyricTinyBadge(label: compact ? '双擎' : '双引擎'),
+      if (isSecondarySuggestion && !isReviewed)
+        LyricTinyBadge(label: compact ? '补入' : '建议补入', warning: true),
+      if (isReviewed)
+        const LyricTinyBadge(label: '已复核', accent: true)
+      else if (priority != null)
+        Tooltip(
+          message: priority.reasons
+              .map(LyricReviewStrings.priorityReason)
+              .join('\n'),
+          child: LyricTinyBadge(
+            label: compact ? '复核' : '优先 ${priority.score}',
+            warning: priority.score >= warningScore,
+          ),
+        ),
     ];
   }
 }

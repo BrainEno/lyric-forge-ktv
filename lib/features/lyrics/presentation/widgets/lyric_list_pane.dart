@@ -73,6 +73,7 @@ class LyricListPane extends StatefulWidget {
   final Set<int> manuallyEditedLineIndices;
 
   const LyricListPane({
+    super.key,
     required this.document,
     required this.visibleIndices,
     required this.review,

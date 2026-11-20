@@ -24,9 +24,9 @@ jobs:
           cat > /tmp/emit.sh <<'SH'
           # emit TITLE FILE: split FILE into chunks and publish them, rotating levels.
           emit() {
-            local title="$1" file="$2" size="${3:-6000}"
+            local title="$1" file="$2" size="${3:-3000}"
             [[ -s "$file" ]] || { echo "::notice title=$title::empty"; return; }
-            split -b "$size" -d -a 3 "$file" /tmp/chunk_
+            split -C "$size" -d -a 3 "$file" /tmp/chunk_
             local i=0 level
             for c in /tmp/chunk_*; do
               case $((i / 10)) in 0) level=error;; 1) level=warning;; 2) level=notice;; *) break;; esac
@@ -59,7 +59,7 @@ jobs:
           for f in "${files[@]}"; do grep -F "$f" /tmp/ana.txt >> /tmp/ana-touched.txt || true; done
           tail -3 /tmp/ana.txt > /tmp/ana-tail.txt
           emit ana-bad /tmp/ana-bad.txt
-          emit ana-touched /tmp/ana-touched.txt 4000
+          emit ana-touched /tmp/ana-touched.txt
           emit ana-tail /tmp/ana-tail.txt
       - name: touched tests
         continue-on-error: true
