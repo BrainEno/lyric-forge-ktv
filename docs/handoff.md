@@ -17,13 +17,14 @@
    - `LocalProjectVocalSeparator` 转码、分离、检查人声响度；
    - 识别工作流在识别前分离（可取消），人声轨写入工程，识别改用它，结果记在 `metadata.transcription.vocalSeparation`；任何失败都回退原曲；
    - 识别设置里的开关（默认开），诊断信息，工程音轨区的说明。
-4. 文档：D-043、README 和 PRD 的实现状态、`high_quality_asr.md`、`local_transcription.md`。
+4. 导入人声时去掉自动人声轨的标记，导入的人声永远由用户自己管理。
+5. 文档：D-043、README 和 PRD 的实现状态、`high_quality_asr.md`、`local_transcription.md`。
 
 ## Git 现场
 
 - 分支：`arena/afd7f12f-lyric-forge-ktv`，基于 main `22a9ea8`。
 - PR 合并方式：squash。
-- 提交：`Separate the lead vocal before lyric recognition`，之后是探针和格式修正的提交。
+- PR #494，squash 合并，标题 `Separate the lead vocal before lyric recognition`。临时探针已删除。
 
 ## 已改文件
 
@@ -32,8 +33,16 @@
 ## 检查结果
 
 - 沙箱里能编译的只有分离工具的核心部分：`lfsep_tests` 用 g++ `-Wall -Wextra -O2` 编译没有警告，18 个测试、154 个检查全部通过。歌曲生成和输出检查两个脚本用假分离器跑过，包括中文输出目录。
-- 真正的引擎、模型导出和 Windows 包只能在 CI 上构建（沙箱里没有 ONNX Runtime、CMake 和 Eigen），由新工作流验证。
-- 沙箱里没有 Dart/Flutter，格式、analyze 和测试在 PR 的 CI 和临时探针工作流上跑，结果见 PR。
+- 真正的引擎、模型导出和 Windows 包只能在 CI 上构建（沙箱里没有 ONNX Runtime、CMake 和 Eigen）。PR #494 上新工作流全部通过：
+  - 模型导出和 PyTorch 比对通过；
+  - Linux CPU 版真正分离了一首 20 秒的合成歌曲，输出检查通过；
+  - Windows x64 DirectML 包编译通过，单元测试通过，在中文目录下用 CPU 分离并检查通过。
+- PR 上暴露并已修好的问题：
+  - demucs.onnx 的提交号写错了；
+  - `diffq` 没有 Python 3.11 的包，已用桩模块代替（只有量化模型才用到它）；
+  - PyTorch 的注意力快速路径无法导出，已关闭；
+  - Linux 改从 NuGet 取 ONNX Runtime，和 Windows 一样。
+- 沙箱里没有 Dart/Flutter，靠 CI 和临时探针验证：Flutter Quality Gate 通过；全量 4471 个测试通过，其中改动涉及的测试 114 个；格式没有差异；analyze 只有原有的 info。
 - 新增八个 Dart 测试文件（`test/features/transcription/vocal_separation/`）：清单、输出解析、发布契约、分离决策、模型和设置、安装、进程分离器、识别工作流集成。
 
 ## 下一步
