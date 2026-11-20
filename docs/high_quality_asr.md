@@ -439,13 +439,25 @@ For the current high-end target machine, Qwen uses:
 A later productization phase can add automatic model/runtime installation for
 general users without changing the transcription architecture.
 
-## Current limitation: source separation
+## Automatic vocal separation (D-043)
 
-Highest Quality ASR already prefers `AudioAsset.vocalPath`.
+Highest Quality ASR prefers `AudioAsset.vocalPath`. On Windows x64 the
+project workflow now produces that stem itself before recognition:
 
-The repository does not yet contain the final local vocal/instrumental
-separation backend. Until that stage is implemented, transcription falls back
-to normalized audio or original audio when no vocal stem exists.
+- `lyricforge-separator` (`native/vocal_separator`) runs the fine-tuned
+  htdemucs vocals model exported to ONNX on ONNX Runtime, DirectML first
+  (any DirectX 12 GPU, the RTX 5080 target included) and CPU as fallback;
+- the bundle (`lyricforge-vocal-separator-windows-x64.zip`, release
+  `vocal-separator-v1`, built by `build-vocal-separator.yml`) is installed on
+  first use and verified against the release digest and its manifest;
+- the stem is linked as `vocalPath` with a provenance marker and reused
+  while the song file and separator revision are unchanged;
+- an imported vocal stem always wins, and every failure (no release yet, no
+  GPU, a decode error, a near-silent stem from an instrumental) falls back
+  to the mix and is recorded in `metadata.transcription.vocalSeparation`.
+
+Separation is a setting (`TranscriptionConfig.vocalSeparation`, on by
+default). Other platforms keep recognising the imported stem or the mix.
 
 The next quality-critical pipeline stage is therefore local source separation.
 

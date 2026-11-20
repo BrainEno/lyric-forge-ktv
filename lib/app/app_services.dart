@@ -58,6 +58,7 @@ import '../features/transcription/data/services/local_asr_end_to_end_smoke_test_
 import '../features/transcription/data/services/local_asr_managed_storage_service.dart';
 import '../features/transcription/data/services/local_asr_storage_preflight_service.dart';
 import '../features/transcription/data/services/local_project_transcription_workflow.dart';
+import '../features/transcription/data/services/local_project_vocal_separator.dart';
 import '../features/transcription/data/services/managed_asr_runtime_manager.dart';
 import '../features/transcription/data/services/managed_model_asr_runtime_manager.dart';
 import '../features/transcription/data/services/native_transcription_profile_resolver.dart';
@@ -67,6 +68,7 @@ import '../features/transcription/data/services/resumable_chunked_transcription_
 import '../features/transcription/data/services/retrying_asr_runtime_manager.dart';
 import '../features/transcription/data/services/storage_preflight_asr_runtime_manager.dart';
 import '../features/transcription/data/services/timed_transcription_service.dart';
+import '../features/transcription/data/services/vocal_separator_runtime.dart';
 import '../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
 import '../features/transcription/domain/services/asr_download_connection_checker.dart';
@@ -175,6 +177,9 @@ class AppServices {
   late final TranscriptionDownloadProxyStore transcriptionDownloadProxyStore;
   late final AsrDownloadConnectionChecker asrDownloadConnectionChecker;
   late final AsrResourceCoordinator asrResourceCoordinator;
+
+  /// Shared so concurrent workflows reuse one separator download (D-043).
+  late final VocalSeparatorRuntime vocalSeparatorRuntime;
   late final AsrEndToEndSmokeTestService asrEndToEndSmokeTestService;
   late final BatchTranscriptionQueue transcriptionQueue;
   late final MediaHubClientService mediaHubClientService;
@@ -381,9 +386,14 @@ class AppServices {
     );
     ktvTakeHistoryStore = const FileKtvTakeHistoryStore();
     asrResourceCoordinator = AsrResourceCoordinator();
+    vocalSeparatorRuntime = ManagedVocalSeparatorRuntime(
+      httpClientFactory: downloadHttpClientFactory,
+    );
     asrEndToEndSmokeTestService = LocalAsrEndToEndSmokeTestService(
       projectRepository: projectRepository,
-      workflow: createProjectTranscriptionWorkflow(),
+      // The smoke test checks the recognition engines on a short clip; a
+      // separator download would only slow it down.
+      workflow: createProjectTranscriptionWorkflow(separateVocals: false),
       settingsStore: transcriptionSettingsStore,
       runtimeManager: asrRuntimeManager,
     );
@@ -403,18 +413,22 @@ class AppServices {
   }
 
   /// Per-consumer cancellation ownership with one shared resource gate.
-  ProjectTranscriptionWorkflow createProjectTranscriptionWorkflow() =>
-      LocalProjectTranscriptionWorkflow(
-        projectRepository: projectRepository,
-        transcriptionService: transcriptionService,
-        settingsStore: transcriptionSettingsStore,
-        profileResolver: transcriptionProfileResolver,
-        runtimeManager: asrRuntimeManager,
-        resources: asrResourceCoordinator,
-        mediaMetadataRepository: localMediaMetadataRepository,
-        playbackSession: playbackSessionService,
-        pathCanonicalizer: audioPathCanonicalizer,
-      );
+  ProjectTranscriptionWorkflow createProjectTranscriptionWorkflow({
+    bool separateVocals = true,
+  }) => LocalProjectTranscriptionWorkflow(
+    projectRepository: projectRepository,
+    transcriptionService: transcriptionService,
+    settingsStore: transcriptionSettingsStore,
+    profileResolver: transcriptionProfileResolver,
+    runtimeManager: asrRuntimeManager,
+    resources: asrResourceCoordinator,
+    mediaMetadataRepository: localMediaMetadataRepository,
+    playbackSession: playbackSessionService,
+    pathCanonicalizer: audioPathCanonicalizer,
+    vocalSeparator: separateVocals
+        ? LocalProjectVocalSeparator(runtime: vocalSeparatorRuntime)
+        : null,
+  );
 }
 
 bool _isSupportedIncomingAudio(String path) {

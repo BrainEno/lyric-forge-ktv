@@ -4,13 +4,20 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/transcription_models.dart';
 
 /// The order must be shared by project transcription and candidate reruns.
-Future<String> resolveProjectTranscriptionInput(ProjectManifest project) async {
+///
+/// [includeVocal] false skips the vocal stem; the workflow uses it for an
+/// automatically separated stem that this run must not trust (separation
+/// switched off, or a fresh separation of a changed song failed).
+Future<String> resolveProjectTranscriptionInput(
+  ProjectManifest project, {
+  bool includeVocal = true,
+}) async {
   final audio = project.audioAsset;
   if (audio == null) {
     throw const TranscriptionException.input('工程还没有可识别的音频');
   }
   for (final path in [
-    audio.vocalPath,
+    if (includeVocal) audio.vocalPath,
     audio.normalizedPath,
     audio.originalPath,
   ]) {

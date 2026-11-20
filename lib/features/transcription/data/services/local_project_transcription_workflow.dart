@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -9,21 +10,24 @@ import '../../../player/domain/repositories/local_media_metadata_repository.dart
 import '../../../player/domain/services/audio_path_canonicalizer.dart';
 import '../../../player/domain/services/playback_lyrics_project_linker.dart';
 import '../../../player/domain/services/playback_session_service.dart';
+import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_degradation.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/models/vocal_separation_models.dart';
 import '../../domain/services/asr_resource_coordinator.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/project_transcription_workflow.dart';
+import '../../domain/services/project_vocal_separator.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
 import 'project_recognition_hints.dart';
 import 'project_transcription_input.dart';
 
-enum _WorkflowPhase { idle, preparing, recognizing, committing }
+enum _WorkflowPhase { idle, preparing, separating, recognizing, committing }
 
 /// Persists ASR output as the editable timeline consumed by lyric editing and
 /// synchronized playback surfaces. Playback consumers reload the persisted
@@ -48,6 +52,12 @@ class LocalProjectTranscriptionWorkflow
   final AudioPathCanonicalizer _pathCanonicalizer;
   final ChineseScriptUnificationService _scriptUnification;
 
+  /// Optional lead-vocal separation before recognition (D-043). Null keeps
+  /// the earlier behaviour: recognise the imported stem or the mix.
+  final ProjectVocalSeparator? _vocalSeparator;
+  final StreamController<TranscriptionProgress> _separationProgress =
+      StreamController<TranscriptionProgress>.broadcast(sync: true);
+
   LocalProjectTranscriptionWorkflow({
     required ProjectRepository projectRepository,
     required TranscriptionService transcriptionService,
@@ -60,6 +70,7 @@ class LocalProjectTranscriptionWorkflow
     required AudioPathCanonicalizer pathCanonicalizer,
     ChineseScriptUnificationService scriptUnification =
         const ChineseScriptUnificationService(),
+    ProjectVocalSeparator? vocalSeparator,
   }) : _projectRepository = projectRepository,
        _transcriptionService = transcriptionService,
        _settingsStore = settingsStore,
@@ -69,11 +80,26 @@ class LocalProjectTranscriptionWorkflow
        _mediaMetadataRepository = mediaMetadataRepository,
        _playbackSession = playbackSession,
        _pathCanonicalizer = pathCanonicalizer,
-       _scriptUnification = scriptUnification;
+       _scriptUnification = scriptUnification,
+       _vocalSeparator = vocalSeparator;
 
+  /// Recognition progress, preceded by separation progress when a separator
+  /// is configured.
   @override
-  Stream<TranscriptionProgress> get progressStream =>
-      _transcriptionService.progressStream;
+  Stream<TranscriptionProgress> get progressStream {
+    if (_vocalSeparator == null) return _transcriptionService.progressStream;
+    return Stream<TranscriptionProgress>.multi((controller) {
+      final subscriptions = [
+        _separationProgress.stream.listen(controller.addSync),
+        _transcriptionService.progressStream.listen(
+          controller.addSync,
+          onError: controller.addErrorSync,
+        ),
+      ];
+      controller.onCancel = () =>
+          Future.wait([for (final s in subscriptions) s.cancel()]);
+    }, isBroadcast: true);
+  }
 
   @override
   bool get isRunning => _phase != _WorkflowPhase.idle;
@@ -156,7 +182,15 @@ class LocalProjectTranscriptionWorkflow
       );
     }
 
-    final inputPath = await resolveProjectTranscriptionInput(project);
+    // An automatic stem is trusted only when this run's separation step
+    // confirms it (or, without a separator, unless separation is off).
+    final mixInput = await resolveProjectTranscriptionInput(
+      project,
+      includeVocal:
+          !_isAutomaticStem(audio) ||
+          (_vocalSeparator == null &&
+              runtimeConfig.vocalSeparation != VocalSeparationPreference.off),
+    );
     _checkCancelled();
     final outputDirectory = await _outputDirectory(project);
     _checkCancelled();
@@ -182,6 +216,41 @@ class LocalProjectTranscriptionWorkflow
     try {
       // If cancellation arrived during the start write, restore the run marker.
       _checkCancelled();
+      var runProject = started;
+      var inputPath = mixInput;
+      VocalSeparationOutcome? separation;
+      final separator = _vocalSeparator;
+      if (separator != null) {
+        _phase = _WorkflowPhase.separating;
+        final prepared = await separator.separate(
+          started,
+          config: runtimeConfig,
+          workDirectory:
+              '${outputDirectory.parent.path}${Platform.pathSeparator}stems',
+          onProgress: _separationProgress.add,
+        );
+        _checkCancelled();
+        separation = prepared.outcome;
+        final updatedAudio = prepared.updatedAudio;
+        if (updatedAudio != null) {
+          runProject = await _projectRepository.updateProjectIfUnchanged(
+            started.copyWith(audioAsset: updatedAudio),
+            expectedRevision: started.revision,
+          );
+          _checkCancelled();
+        }
+        final vocalPath = separation.vocalPath;
+        if (separation.usesSeparatedVocal && vocalPath != null) {
+          inputPath = vocalPath;
+        }
+        _separationProgress.add(
+          TranscriptionProgress(
+            stage: TranscriptionStage.preprocessing,
+            progress: 1,
+            message: separation.summary,
+          ),
+        );
+      }
       _phase = _WorkflowPhase.recognizing;
       final result = await _transcriptionService.transcribe(
         TranscriptionRequest(
@@ -250,6 +319,7 @@ class LocalProjectTranscriptionWorkflow
                 'noopReason': scriptPlan.noopReason?.name,
               },
               'inputPath': inputPath,
+              'vocalSeparation': separation?.toJson(),
               'normalizedAudioPath': result.normalizedAudioPath,
               'rawJsonPath': result.rawJsonPath,
               'primaryModel':
@@ -285,7 +355,7 @@ class LocalProjectTranscriptionWorkflow
             },
           },
         ),
-        expectedRevision: started.revision,
+        expectedRevision: runProject.revision,
       );
       await linkPlaybackLyricsProject(
         audioPath: savedProject.audioAsset!.originalPath,
@@ -392,9 +462,16 @@ class LocalProjectTranscriptionWorkflow
     if (_phase == _WorkflowPhase.idle || _phase == _WorkflowPhase.committing)
       return;
     _cancelRequested = true;
-    if (_phase == _WorkflowPhase.recognizing) {
+    if (_phase == _WorkflowPhase.separating) {
+      await (_pendingCancel ??= _vocalSeparator!.cancel());
+    } else if (_phase == _WorkflowPhase.recognizing) {
       await (_pendingCancel ??= _transcriptionService.cancel());
     }
+  }
+
+  static bool _isAutomaticStem(AudioAsset audio) {
+    final marker = VocalStemMarker.fromAudioMetadata(audio.metadata);
+    return marker != null && marker.vocalPath == audio.vocalPath;
   }
 
   void _checkCancelled() {

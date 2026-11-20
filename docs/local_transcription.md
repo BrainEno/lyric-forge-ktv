@@ -247,8 +247,9 @@ saves the project.
 
 ## Current limitations
 
-- source separation is still a separate future pipeline stage;
-- when no vocal stem exists, recognition falls back to normalized/original mix;
+- automatic vocal separation (D-043) runs only on Windows x64; elsewhere, and
+  whenever separation is off or fails, recognition uses an imported vocal
+  stem or falls back to the normalized/original mix;
 - the native ASR runtime release still needs a reliable published distribution;
 - automatically generated lyrics are drafts and require user review;
 - the current batch/persistence/UI branch still requires a real Flutter SDK run

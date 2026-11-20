@@ -59,7 +59,8 @@ void main() {
     await tester.tap(find.text('导入已有人声'));
     expect(accompaniment, 1);
     expect(vocal, 1);
-    expect(find.textContaining('应用不会自动分离或校准'), findsOneWidget);
+    expect(find.textContaining('应用不会校准时间轴'), findsOneWidget);
+    expect(find.textContaining('导入的人声优先'), findsOneWidget);
 
     await tester.tap(find.byKey(ProjectAudioSourcesSection.toggleKey));
     expect(toggles, [false]);

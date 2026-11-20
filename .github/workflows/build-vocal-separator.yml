@@ -1,0 +1,417 @@
+name: Build vocal separator
+
+# Automatic vocal separation (D-043): exports the fine-tuned htdemucs vocals
+# model to ONNX, builds lyricforge-separator against ONNX Runtime (DirectML +
+# CPU on Windows), separates a synthetic song end to end, and publishes the
+# Windows bundle to the `vocal-separator-v1` release the app installs from.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/build-vocal-separator.yml"
+      - "native/vocal_separator/**"
+      - "third_party/demucs_onnx/**"
+      - "tool/vocal_separator/**"
+      - "lib/features/transcription/data/services/separator_*.dart"
+      - "lib/features/transcription/data/services/vocal_separator_runtime.dart"
+      - "test/features/transcription/vocal_separation/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-vocal-separator.yml"
+      - "native/vocal_separator/**"
+      - "third_party/demucs_onnx/**"
+      - "tool/vocal_separator/**"
+      - "lib/features/transcription/data/services/separator_*.dart"
+      - "lib/features/transcription/data/services/vocal_separator_runtime.dart"
+      - "test/features/transcription/vocal_separation/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vocal-separator-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEMUCS_ONNX_REPO: https://github.com/sevagh/demucs.onnx.git
+  DEMUCS_ONNX_REV: 81fa192e6fcc88e35e887f6e6ccce91227f4e6f5
+  ORT_VERSION: "1.22.0"
+  DIRECTML_VERSION: "1.15.4"
+  SEPARATOR_TAG: vocal-separator-v1
+  SEPARATOR_REVISION: htdemucs-ft-vocals-onnx-v1
+  MODEL_FILE: htdemucs_ft_vocals.onnx
+
+jobs:
+  flutter-contracts:
+    name: Flutter separator contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout LyricForge
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Test separator install and protocol contracts
+        run: >-
+          flutter test
+          test/features/transcription/vocal_separation/separator_manifest_test.dart
+          test/features/transcription/vocal_separation/separator_output_parser_test.dart
+          test/features/transcription/vocal_separation/vocal_separator_release_contract_test.dart
+
+  core-tests:
+    name: Separator CLI unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout LyricForge
+        uses: actions/checkout@v4
+
+      - name: Build and run tests
+        run: |
+          cmake -S native/vocal_separator -B native-build -DLFSEP_BUILD_TESTS=ON
+          cmake --build native-build --parallel
+          ./native-build/lfsep_tests
+
+      - name: Package Eigen headers for the Windows build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libeigen3-dev
+          grep -m1 "EIGEN_WORLD_VERSION" /usr/include/eigen3/Eigen/src/Core/util/Macros.h
+          mkdir -p eigen && cp -r /usr/include/eigen3/Eigen /usr/include/eigen3/unsupported eigen/
+          cp /usr/share/doc/libeigen3-dev/copyright eigen/COPYING.txt
+
+      - name: Upload Eigen headers
+        uses: actions/upload-artifact@v4
+        with:
+          name: eigen-headers
+          path: eigen
+          if-no-files-found: error
+          retention-days: 3
+
+  export-model:
+    name: Export htdemucs_ft vocals to ONNX
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout LyricForge
+        uses: actions/checkout@v4
+
+      - name: Restore exported model
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: model
+          key: htdemucs-ft-vocals-onnx-${{ env.DEMUCS_ONNX_REV }}-${{ hashFiles('tool/vocal_separator/**') }}
+
+      - name: Set up Python
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install export environment
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.4.1 torchaudio==2.4.1
+          pip install -r tool/vocal_separator/requirements.txt
+
+      - name: Fetch pinned demucs.onnx
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --filter=blob:none "$DEMUCS_ONNX_REPO" demucs.onnx
+          git -C demucs.onnx checkout "$DEMUCS_ONNX_REV"
+
+      - name: Export and verify against PyTorch
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          set +e
+          python tool/vocal_separator/export_htdemucs_vocals_onnx.py \
+            --demucs-src demucs.onnx/demucs-for-onnx \
+            --output "model/$MODEL_FILE" 2>&1 | tee export.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            # Job logs are not always reachable; put the tail in an annotation.
+            python - <<'PY'
+          text = open('export.log', encoding='utf-8', errors='replace').read()[-3500:]
+          text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print(f'::error title=export failed::{text}')
+          PY
+            exit "$status"
+          fi
+          cp demucs.onnx/LICENSE model/demucs.onnx-LICENSE
+          cp demucs.onnx/demucs-for-onnx/LICENSE model/demucs-LICENSE
+
+      - name: Summarize model
+        run: |
+          ls -l model
+          echo "## Exported model" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat "model/$MODEL_FILE.json" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload model
+        uses: actions/upload-artifact@v4
+        with:
+          name: htdemucs-ft-vocals-onnx
+          path: model
+          if-no-files-found: error
+          retention-days: 7
+
+  linux-smoke:
+    name: Linux CPU separation smoke test
+    needs: [core-tests, export-model]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout LyricForge
+        uses: actions/checkout@v4
+
+      - name: Download model
+        uses: actions/download-artifact@v4
+        with:
+          name: htdemucs-ft-vocals-onnx
+          path: model
+
+      - name: Install Eigen and ONNX Runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libeigen3-dev ninja-build
+          # The same NuGet feed as the Windows job: GitHub release assets of
+          # onnxruntime are not reliably reachable from CI.
+          curl -fsSL --retry 5 -o ort.zip \
+            "https://www.nuget.org/api/v2/package/Microsoft.ML.OnnxRuntime/${ORT_VERSION}"
+          unzip -q ort.zip -d ort-pkg
+          mkdir -p ort/include ort/lib
+          header=$(find ort-pkg -name onnxruntime_cxx_api.h | head -n 1)
+          library=$(find ort-pkg -path '*linux-x64*' -name 'libonnxruntime.so*' | head -n 1)
+          if [ -z "$header" ] || [ -z "$library" ]; then
+            find ort-pkg -type f | sort
+            echo "::error::onnxruntime headers or linux-x64 library missing from the NuGet package"
+            exit 1
+          fi
+          cp "$(dirname "$header")"/*.h ort/include/
+          cp "$(dirname "$library")"/libonnxruntime.so* ort/lib/
+          if [ ! -e ort/lib/libonnxruntime.so ]; then
+            ln -s "$(basename "$library")" ort/lib/libonnxruntime.so
+          fi
+          # The executable records the SONAME; make sure that file exists too.
+          soname=$(readelf -d "$library" | sed -n 's/.*(SONAME).*\[\(.*\)\]/\1/p')
+          if [ -n "$soname" ] && [ ! -e "ort/lib/$soname" ]; then
+            cp "$library" "ort/lib/$soname"
+          fi
+          ls ort/include ort/lib
+
+      - name: Build lyricforge-separator
+        shell: bash
+        run: |
+          cmake -S native/vocal_separator -B sep-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLFSEP_BUILD_TESTS=OFF -DLFSEP_BUILD_CLI=ON \
+            -DEIGEN_DIR=/usr/include/eigen3 \
+            -DORT_INCLUDE_DIR="$PWD/ort/include" \
+            -DORT_LIBRARY="$PWD/ort/lib/libonnxruntime.so" 2>&1 | tee build.log
+          cmake --build sep-build 2>&1 | tee -a build.log
+          cp ort/lib/libonnxruntime.so* sep-build/
+
+      - name: Separate a synthetic song on CPU
+        shell: bash
+        run: |
+          python3 native/vocal_separator/tests/make_test_song.py song.wav --seconds 20
+          sep-build/lyricforge-separator --version | tee version.txt
+          grep -q "$SEPARATOR_REVISION" version.txt
+          time sep-build/lyricforge-separator \
+            --model "model/$MODEL_FILE" --input song.wav --output-dir stems \
+            --provider cpu | tee separator.log
+          python3 native/vocal_separator/tests/check_stems.py song.wav stems separator.log 2>&1 | tee check.log
+
+      - name: Annotate failure
+        if: failure()
+        run: python3 native/vocal_separator/tests/annotate_failure.py build.log separator.log check.log
+
+  windows:
+    name: Windows x64 DirectML bundle
+    needs: [core-tests, export-model]
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - name: Checkout LyricForge
+        uses: actions/checkout@v4
+
+      - name: Configure MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Download model
+        uses: actions/download-artifact@v4
+        with:
+          name: htdemucs-ft-vocals-onnx
+          path: model
+
+      - name: Download Eigen headers
+        uses: actions/download-artifact@v4
+        with:
+          name: eigen-headers
+          path: eigen
+
+      - name: Fetch ONNX Runtime DirectML and DirectML packages
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force deps | Out-Null
+          $packages = @{
+            "ort" = "https://www.nuget.org/api/v2/package/Microsoft.ML.OnnxRuntime.DirectML/$env:ORT_VERSION";
+            "dml" = "https://www.nuget.org/api/v2/package/Microsoft.AI.DirectML/$env:DIRECTML_VERSION"
+          }
+          foreach ($name in $packages.Keys) {
+            $archive = "deps/$name.zip"
+            Invoke-WebRequest -Uri $packages[$name] -OutFile $archive -MaximumRetryCount 5 -RetryIntervalSec 5
+            Expand-Archive -LiteralPath $archive -DestinationPath "deps/$name" -Force
+            "$name sha256: $((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower())" | Tee-Object -Append deps/hashes.txt
+          }
+
+          $cxx = Get-ChildItem deps/ort -Recurse -Filter onnxruntime_cxx_api.h | Select-Object -First 1
+          $dmlFactory = Get-ChildItem deps/ort -Recurse -Filter dml_provider_factory.h | Select-Object -First 1
+          $lib = Get-ChildItem deps/ort/runtimes/win-x64/native -Filter onnxruntime.lib | Select-Object -First 1
+          $dll = Get-ChildItem deps/ort/runtimes/win-x64/native -Filter onnxruntime.dll | Select-Object -First 1
+          $dmlDll = Get-ChildItem deps/dml -Recurse -Filter DirectML.dll | Where-Object { $_.FullName -match 'x64-win' } | Select-Object -First 1
+          $dmlHeader = Get-ChildItem deps/dml -Recurse -Filter DirectML.h | Select-Object -First 1
+          foreach ($item in @($cxx, $dmlFactory, $lib, $dll, $dmlDll, $dmlHeader)) {
+            if ($null -eq $item) {
+              Get-ChildItem deps -Recurse | Select-Object -ExpandProperty FullName
+              throw "An expected ONNX Runtime / DirectML file is missing"
+            }
+          }
+          "ORT_INCLUDE_DIR=$($cxx.DirectoryName)" >> $env:GITHUB_ENV
+          "ORT_LIBRARY=$($lib.FullName)" >> $env:GITHUB_ENV
+          "ORT_DLL_DIR=$($dll.DirectoryName)" >> $env:GITHUB_ENV
+          "DIRECTML_DLL=$($dmlDll.FullName)" >> $env:GITHUB_ENV
+          "DIRECTML_INCLUDE_DIR=$($dmlHeader.DirectoryName)" >> $env:GITHUB_ENV
+
+      - name: Build lyricforge-separator and unit tests
+        shell: pwsh
+        run: |
+          cmake -S native/vocal_separator -B sep-build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl `
+            -DLFSEP_BUILD_TESTS=ON -DLFSEP_BUILD_CLI=ON -DLFSEP_WITH_DIRECTML=ON `
+            -DEIGEN_DIR="$env:GITHUB_WORKSPACE/eigen" `
+            -DORT_INCLUDE_DIR="$env:ORT_INCLUDE_DIR" `
+            -DORT_LIBRARY="$env:ORT_LIBRARY" `
+            -DDIRECTML_INCLUDE_DIR="$env:DIRECTML_INCLUDE_DIR" *>&1 | Tee-Object build.log
+          if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
+          cmake --build sep-build *>&1 | Tee-Object -Append build.log
+          if ($LASTEXITCODE -ne 0) { throw "Build failed" }
+          ./sep-build/lfsep_tests.exe *>&1 | Tee-Object tests.log
+          if ($LASTEXITCODE -ne 0) { throw "Unit tests failed on Windows" }
+
+      - name: Assemble bundle
+        shell: pwsh
+        run: |
+          $root = "separator"
+          New-Item -ItemType Directory -Force "$root/bin", "$root/models", "$root/licenses" | Out-Null
+          Copy-Item sep-build/lyricforge-separator.exe "$root/bin/"
+          Copy-Item "$env:ORT_DLL_DIR/*.dll" "$root/bin/"
+          Copy-Item $env:DIRECTML_DLL "$root/bin/"
+          Copy-Item "model/$env:MODEL_FILE" "$root/models/"
+          Copy-Item model/demucs.onnx-LICENSE "$root/licenses/"
+          Copy-Item model/demucs-LICENSE "$root/licenses/"
+          Copy-Item eigen/COPYING.txt "$root/licenses/eigen-COPYING.txt"
+          Get-ChildItem deps/ort -File | Where-Object { $_.Name -match 'LICENSE|ThirdPartyNotices' } | ForEach-Object { Copy-Item $_.FullName "$root/licenses/onnxruntime-$($_.Name)" }
+          Get-ChildItem deps/dml -File | Where-Object { $_.Name -match 'LICENSE|ThirdPartyNotices' } | ForEach-Object { Copy-Item $_.FullName "$root/licenses/directml-$($_.Name)" }
+
+          $model = Get-Content "model/$env:MODEL_FILE.json" -Raw | ConvertFrom-Json
+          $actual = (Get-FileHash "$root/models/$env:MODEL_FILE" -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $model.sha256) { throw "Model hash changed between export and bundle" }
+          $manifest = [ordered]@{
+            schemaVersion = 1
+            separatorRevision = $env:SEPARATOR_REVISION
+            platform = "windows-x64"
+            executable = "bin/lyricforge-separator.exe"
+            providers = @("dml", "cpu")
+            model = [ordered]@{
+              file = "models/$env:MODEL_FILE"
+              bytes = [int64]$model.bytes
+              sha256 = $model.sha256
+              sources = $model.sources
+              vocalsIndex = [int]$model.vocalsIndex
+              sampleRate = [int]$model.sampleRate
+            }
+            onnxRuntime = $env:ORT_VERSION
+            directML = $env:DIRECTML_VERSION
+            demucsOnnxRevision = $env:DEMUCS_ONNX_REV
+            builtAt = (Get-Date).ToUniversalTime().ToString("o")
+          }
+          $manifest | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8NoBOM "$root/separator-manifest.json"
+          Get-Content "$root/separator-manifest.json"
+          Get-ChildItem $root -Recurse | Select-Object FullName, Length
+
+      - name: Separate a synthetic song on CPU
+        shell: pwsh
+        run: |
+          python native/vocal_separator/tests/make_test_song.py song.wav --seconds 15
+          ./separator/bin/lyricforge-separator.exe --version | Tee-Object version.txt
+          if (-not (Select-String -Path version.txt -Pattern $env:SEPARATOR_REVISION -Quiet)) { throw "Unexpected --version output" }
+          # A non-ASCII output directory, as under a Chinese Windows user name.
+          ./separator/bin/lyricforge-separator.exe --model "separator/models/$env:MODEL_FILE" --input song.wav --output-dir "stems-人声" --provider cpu | Tee-Object separator.log
+          if ($LASTEXITCODE -ne 0) { throw "CPU separation failed with exit code $LASTEXITCODE" }
+          python native/vocal_separator/tests/check_stems.py song.wav "stems-人声" separator.log *>&1 | Tee-Object check.log
+          if ($LASTEXITCODE -ne 0) { throw "Stem check failed" }
+
+      - name: Annotate failure
+        if: failure()
+        shell: pwsh
+        run: python native/vocal_separator/tests/annotate_failure.py build.log tests.log separator.log check.log
+
+      - name: Try DirectML (informational; runners have no GPU)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          ./separator/bin/lyricforge-separator.exe --model "separator/models/$env:MODEL_FILE" --input song.wav --output-dir stems-auto --provider auto | Tee-Object auto.log
+          Select-String -Path auto.log -Pattern "LF_PROVIDER|LF_FALLBACK|LF_ERROR" | ForEach-Object { $_.Line }
+          if ($LASTEXITCODE -ne 0) { throw "auto provider failed" }
+
+      - name: Zip bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path separator/* -DestinationPath dist/lyricforge-vocal-separator-windows-x64.zip
+          $zip = Get-Item dist/lyricforge-vocal-separator-windows-x64.zip
+          "## Windows bundle" >> $env:GITHUB_STEP_SUMMARY
+          "size: $($zip.Length) bytes, sha256: $((Get-FileHash $zip -Algorithm SHA256).Hash.ToLower())" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: lyricforge-vocal-separator-windows-x64
+          path: dist/lyricforge-vocal-separator-windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish vocal separator release
+    if: github.event_name != 'pull_request'
+    needs: [flutter-contracts, linux-smoke, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: lyricforge-vocal-separator-windows-x64
+          path: dist
+
+      - name: Create or update the separator release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! gh release view "$SEPARATOR_TAG" >/dev/null 2>&1; then
+            gh release create "$SEPARATOR_TAG" --title "LyricForge Vocal Separator v1" --prerelease --notes "Automatic vocal separation for LyricForge (htdemucs_ft vocals model on ONNX Runtime with DirectML, CPU fallback). Installed on demand by the app before lyric recognition."
+          fi
+          gh release upload "$SEPARATOR_TAG" dist/lyricforge-vocal-separator-windows-x64.zip --clobber
