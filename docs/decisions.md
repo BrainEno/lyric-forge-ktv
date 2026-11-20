@@ -673,3 +673,23 @@
   - `test/architecture/catalog_card_contract_test.dart` 防止页面重新画自己的卡片、网格或封面包装。
 - 状态：生效
 - 来源：第 16 轮交接后，按页面报告的 L-04、T-03（第 17 轮）；[工作日志](log/entries/2026-12-04-0930-share-one-catalog-card-and-cover.md)
+
+## D-039 首次识别准备对话框拆成控制器、卡片和文案
+
+- 日期：2026-12-05
+- 背景：`asr_runtime_setup_dialog.dart` 有 957 行。一个 State 里放了 14 个进度和错误字段，还有检测、空间检查、安装、暂停继续、识别已有模型、更换存储位置、高级设置等流程，约 420 行。build 方法约 200 行，文案直接写在里面，文件末尾还有 5 个私有卡片。同一个忙碌判断写了三遍，两段安装失败处理是复制的（审计 I-03）。
+- 决定：
+  - 照设置页（C-03、SE-04）的拆法：
+    - 状态和流程放进 `asr_runtime_setup_controller.dart` 的 `AsrRuntimeSetupController`（`ChangeNotifier`）。每次 await 之后都检查 `isDisposed`。忙碌判断有名字（`canUseExisting`、`canMoveStorage`、`canChangeMode`、`canClose`）。按钮由 `actionsFor` 和 `isEnabled` 决定。
+    - 无状态的卡片放进 `asr_runtime_setup_cards.dart`，全部公开。
+    - 所有句子放进 `asr_runtime_setup_text.dart` 的 `AsrSetupText`。
+    - 对话框只保留需要 `BuildContext` 的部分：选文件夹、路径对话框、高级设置对话框、提示条和关闭。
+  - 公开入口不变，仍是 `AsrRuntimeSetupDialog(dependencies:)`。其他功能只导入这个文件，所以展示层导入基线不变。新文件只在转写功能内部使用。
+  - 这个控制器不导入设置页的控制器，设置页也不导入它，避免 transcription 和 settings 之间产生新的依赖边。
+  - 读屏方面：标题和每一步是标题节点，步骤读成「第 N 步」，组件行读成一句（名称，状态，说明）。
+- 影响：
+  - 对话框文件从 957 行减到 248 行，流程有了单元测试，卡片有了组件测试。
+  - 三个源码契约测试改为一起读对话框、卡片、控制器和文案四个文件，原来要求的字面量和"先保存，再应用，再重新检测"的顺序都保留。
+  - 界面布局和文案没有变化，只多了读屏标签。
+- 状态：生效
+- 来源：第 17 轮交接的下一步第 1 项，审计 I-03（第 18 轮）；[工作日志](log/entries/2026-12-05-0930-split-the-asr-setup-dialog.md)

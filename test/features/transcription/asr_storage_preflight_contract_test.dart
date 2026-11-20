@@ -14,9 +14,7 @@ void main() {
   test(
     'first-run setup shows storage budget and blocks insufficient install',
     () {
-      final setup = File(
-        'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
-      ).readAsStringSync();
+      final setup = _setupSources();
 
       expect(setup, contains('AsrStoragePreflightCard('));
       expect(setup, contains('_ensureStorageBeforeInstall()'));
@@ -50,3 +48,12 @@ void main() {
     expect(card, contains('.part 断点'));
   });
 }
+
+/// The first-run setup dialog, its cards, controller and wording (audit I-03
+/// split the 957-line dialog into these files).
+String _setupSources() => [
+  'asr_runtime_setup_dialog.dart',
+  'asr_runtime_setup_cards.dart',
+  'asr_runtime_setup_controller.dart',
+  'asr_runtime_setup_text.dart',
+].map((name) => File('lib/features/transcription/presentation/widgets/$name').readAsStringSync()).join('\n');
