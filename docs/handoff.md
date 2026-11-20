@@ -19,8 +19,8 @@
 ## Git 现场
 
 - 分支：`arena/a5080b84-lyric-forge-ktv`，基于 main `1e72d01`。
-- PR 用 squash 合并。
-- 提交：`Split the speech recognition setup dialog into controller, cards and text`、`Add a temporary probe`、`Apply format and remove the probe`。
+- PR #490（squash 合并）。
+- 提交：`Split the speech recognition setup dialog into controller, cards and text`、`Add a temporary probe`、`Apply format, expand the mode menu and tidy the dialog tests`、`Remove the probe`。
 
 ## 已改文件
 
@@ -28,7 +28,15 @@
 
 ## 检查结果
 
-沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR 的 CI 上跑，另外用一个临时探针工作流（合并前删除）。探针跑 `dart format`、`flutter analyze`、改动的测试、全部测试和 `tool/work_log.dart write`；格式和 work log 的差异作为补丁应用。
+沙箱里没有 Dart/Flutter，所以格式、analyze 和测试都在 PR #490 的 CI 上跑，另外用一个临时探针工作流（合并前已删除）。探针结果：
+- 第一次：
+  - 新的手机宽度对话框测试发现质量模式菜单溢出 57 px，已修。
+  - 有一条未用参数警告，三处已弃用的 `containsSemantics`，都改掉了。
+  - 9 个 Dart 文件和 3 个 work log 文件有格式和生成差异，补丁已应用。
+- 第二次：
+  - analyze 没有错误和警告，181 条提示，和上轮相同。
+  - 测试全部 3784 个通过、2 个跳过，比上轮多 86 个。改动的测试和 `test/architecture` 共 176 个用例全过。
+  - 格式没有差异。
 
 - 三个源码契约测试改为一起读对话框、卡片、控制器和文案四个文件，原有的字面量和“先保存，再应用，再重新检测”的顺序都保留。
 - 导入方仍只导入 `asr_runtime_setup_dialog.dart`，展示层导入基线不变。
