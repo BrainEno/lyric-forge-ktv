@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
@@ -13,6 +14,7 @@ import '../../../player/domain/services/playback_session_service.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/remote_audio_track.dart';
 import '../../domain/services/media_hub_client_service.dart';
+import '../widgets/remote_library_semantics.dart';
 import '../widgets/remote_media_artwork.dart';
 import '../widgets/transfer_list_states.dart';
 import 'remote_catalog_utils.dart';
@@ -408,6 +410,9 @@ class _MobileRemoteGroupedLibraryScreenState
                             client: _client,
                             localArtworkPath: local?.embeddedArtworkPath,
                             icon: _fallbackIcon,
+                            openHint: widget.view == RemoteCatalogView.artists
+                                ? RemoteLibrarySemantics.openArtistHint
+                                : RemoteLibrarySemantics.openAlbumHint,
                             onTap: () => _openGroup(name, tracks),
                           );
                         },
@@ -463,6 +468,9 @@ class _CatalogGroupCard extends StatelessWidget {
   final MediaHubClientService client;
   final String? localArtworkPath;
   final IconData icon;
+
+  /// 打开歌手 or 打开专辑, spoken after the card's name.
+  final String openHint;
   final VoidCallback onTap;
 
   const _CatalogGroupCard({
@@ -472,6 +480,7 @@ class _CatalogGroupCard extends StatelessWidget {
     required this.client,
     required this.localArtworkPath,
     required this.icon,
+    required this.openHint,
     required this.onTap,
   });
 
@@ -480,41 +489,46 @@ class _CatalogGroupCard extends StatelessWidget {
     return Material(
       color: AppColors.bgElevated,
       borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      child: InkWell(
+      child: AppTapTarget(
+        label: RemoteLibrarySemantics.groupCard(name: name, count: count),
+        hint: openHint,
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: RemoteMediaArtwork(
-                  track: track,
-                  client: client,
-                  localPath: localArtworkPath,
-                  fallbackIcon: icon,
-                  extent: double.infinity,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: RemoteMediaArtwork(
+                    track: track,
+                    client: client,
+                    localPath: localArtworkPath,
+                    fallbackIcon: icon,
+                    extent: double.infinity,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$count 首',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$count 首',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+                ),
+              ],
+            ),
           ),
         ),
       ),

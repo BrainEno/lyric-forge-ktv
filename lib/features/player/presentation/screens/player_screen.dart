@@ -7,6 +7,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -17,6 +18,7 @@ import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../playback_screen_dependencies.dart';
 import '../widgets/ktv_entry_sheet.dart';
+import '../widgets/player_lyric_semantics.dart';
 import '../widgets/project_player_transport.dart';
 import 'immersive_ktv_screen.dart';
 
@@ -732,53 +734,64 @@ class _ScrollableLyricsState extends State<_ScrollableLyrics> {
         return Material(
           color: current ? AppColors.accent.withAlpha(18) : Colors.transparent,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-          child: InkWell(
+          child: AppTapTarget(
+            label: PlayerLyricSemantics.listRow(
+              time: _formatTime(line.startTime),
+              text: line.text,
+              chorus: line.isChorus,
+              current: current,
+            ),
+            hint: PlayerLyricSemantics.seekHint,
+            selected: current,
             onTap: () => widget.onLyricTap(line),
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-            child: Container(
-              constraints: BoxConstraints(
-                minHeight: spec.minimumInteractiveExtent,
-              ),
-              padding: EdgeInsets.symmetric(
-                horizontal: spec.isCompact ? AppSpacing.sm : AppSpacing.md,
-                vertical: spec.isShort ? 6 : AppSpacing.sm,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: spec.isCompact ? 48 : 58,
-                    child: Text(
-                      _formatTime(line.startTime),
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: current
-                            ? AppColors.accent
-                            : AppColors.textTertiary,
+            child: InkWell(
+              onTap: () => widget.onLyricTap(line),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+              child: Container(
+                constraints: BoxConstraints(
+                  minHeight: spec.minimumInteractiveExtent,
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: spec.isCompact ? AppSpacing.sm : AppSpacing.md,
+                  vertical: spec.isShort ? 6 : AppSpacing.sm,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: spec.isCompact ? 48 : 58,
+                      child: Text(
+                        _formatTime(line.startTime),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: current
+                              ? AppColors.accent
+                              : AppColors.textTertiary,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      line.text,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: current
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
-                        fontWeight: current ? FontWeight.w800 : FontWeight.w500,
-                        height: spec.isShort ? 1.3 : 1.45,
+                    Expanded(
+                      child: Text(
+                        line.text,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: current
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontWeight: current ? FontWeight.w800 : FontWeight.w500,
+                          height: spec.isShort ? 1.3 : 1.45,
+                        ),
                       ),
                     ),
-                  ),
-                  if (line.isChorus && !spec.isCompact)
-                    const Padding(
-                      padding: EdgeInsets.only(left: AppSpacing.sm),
-                      child: Icon(
-                        Icons.queue_music_rounded,
-                        size: 18,
-                        color: AppColors.accent,
+                    if (line.isChorus && !spec.isCompact)
+                      const Padding(
+                        padding: EdgeInsets.only(left: AppSpacing.sm),
+                        child: Icon(
+                          Icons.queue_music_rounded,
+                          size: 18,
+                          color: AppColors.accent,
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -839,18 +852,21 @@ class _KtvFocusLyrics extends StatelessWidget {
           children: [
             _FocusLyricLine(
               line: previous,
+              role: PlayerFocusLyricRole.previous,
               style: previousStyle,
               onTap: previous == null ? null : () => onLyricTap(previous),
             ),
             SizedBox(height: gap),
             _FocusLyricLine(
               line: current,
+              role: PlayerFocusLyricRole.current,
               style: currentStyle,
               onTap: () => onLyricTap(current),
             ),
             SizedBox(height: gap),
             _FocusLyricLine(
               line: next,
+              role: PlayerFocusLyricRole.next,
               style: nextStyle,
               onTap: next == null ? null : () => onLyricTap(next),
             ),
@@ -863,10 +879,16 @@ class _KtvFocusLyrics extends StatelessWidget {
 
 class _FocusLyricLine extends StatelessWidget {
   final LyricLine? line;
+  final PlayerFocusLyricRole role;
   final TextStyle? style;
   final VoidCallback? onTap;
 
-  const _FocusLyricLine({required this.line, required this.style, this.onTap});
+  const _FocusLyricLine({
+    required this.line,
+    required this.role,
+    required this.style,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -874,13 +896,19 @@ class _FocusLyricLine extends StatelessWidget {
     if (line == null) {
       return SizedBox(height: spec.isShort ? 18 : 32);
     }
-    return InkWell(
+    return AppTapTarget(
+      label: PlayerLyricSemantics.focusLine(role, line!.text),
+      hint: onTap == null ? null : PlayerLyricSemantics.seekHint,
+      selected: role == PlayerFocusLyricRole.current,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-      child: Container(
-        constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
-        padding: EdgeInsets.all(spec.isShort ? 6 : AppSpacing.sm),
-        child: Text(line!.text, textAlign: TextAlign.center, style: style),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+        child: Container(
+          constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
+          padding: EdgeInsets.all(spec.isShort ? 6 : AppSpacing.sm),
+          child: Text(line!.text, textAlign: TextAlign.center, style: style),
+        ),
       ),
     );
   }

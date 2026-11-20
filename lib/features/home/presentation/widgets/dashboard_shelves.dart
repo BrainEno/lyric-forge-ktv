@@ -11,8 +11,10 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../../../player/domain/models/play_history.dart';
 import '../../../project/domain/models/project_manifest.dart';
+import 'dashboard_semantics.dart';
 import 'dashboard_surfaces.dart';
 
 class DashboardSectionHeader extends StatelessWidget {
@@ -120,44 +122,53 @@ class _ListeningCard extends StatelessWidget {
       child: Material(
         color: AppColors.bgElevated,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        child: InkWell(
+        child: AppTapTarget(
+          label: DashboardSemantics.listeningCard(
+            title: history.name,
+            artist: history.artist,
+            playedAt: history.formattedPlayedAt,
+          ),
+          hint: DashboardSemantics.playHint,
           onTap: onTap,
-          hoverColor: AppColors.hoverOverlay,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // The cover recorded with the history entry, through the
-                // shared artwork component. Every card used to draw the same
-                // gradient and note icon (audit D-04); entries saved before
-                // covers were recorded still get the shared placeholder.
-                Expanded(
-                  child: AppArtwork(
-                    path: history.artworkPath,
-                    borderRadius: AppSpacing.radiusMedium,
-                    placeholderIcon: Icons.music_note_rounded,
+          child: InkWell(
+            onTap: onTap,
+            hoverColor: AppColors.hoverOverlay,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // The cover recorded with the history entry, through the
+                  // shared artwork component. Every card used to draw the same
+                  // gradient and note icon (audit D-04); entries saved before
+                  // covers were recorded still get the shared placeholder.
+                  Expanded(
+                    child: AppArtwork(
+                      path: history.artworkPath,
+                      borderRadius: AppSpacing.radiusMedium,
+                      placeholderIcon: Icons.music_note_rounded,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  history.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                Text(
-                  history.artist?.trim().isNotEmpty == true
-                      ? history.artist!
-                      : history.formattedPlayedAt,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: dashboardMutedLabel(context),
-                ),
-              ],
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    history.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    history.artist?.trim().isNotEmpty == true
+                        ? history.artist!
+                        : history.formattedPlayedAt,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: dashboardMutedLabel(context),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -217,77 +228,89 @@ class _ProjectCard extends StatelessWidget {
     return Material(
       color: AppColors.bgElevated,
       borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      child: InkWell(
+      child: AppTapTarget(
+        label: DashboardSemantics.projectCard(
+          name: project.name,
+          artist: project.artist,
+          status: project.status,
+          lyricLines: lyricCount,
+          stage: _stageLabel(project.currentStage),
+          progress: project.progressPercent,
+        ),
+        hint: DashboardSemantics.openProjectHint,
         onTap: onTap,
-        hoverColor: AppColors.hoverOverlay,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        child: Padding(
-          padding: EdgeInsets.all(
-            layout.isCompact ? AppSpacing.sm : AppSpacing.md,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DashboardArtwork(
-                    path: project.audioAsset?.thumbnailPath,
-                    size: layout.isCompact ? 52 : 64,
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          project.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          project.artist?.trim().isNotEmpty == true
-                              ? project.artist!
-                              : '歌词工程',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: dashboardMutedLabel(context),
-                        ),
-                      ],
+        child: InkWell(
+          onTap: onTap,
+          hoverColor: AppColors.hoverOverlay,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+          child: Padding(
+            padding: EdgeInsets.all(
+              layout.isCompact ? AppSpacing.sm : AppSpacing.md,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DashboardArtwork(
+                      path: project.audioAsset?.thumbnailPath,
+                      size: layout.isCompact ? 52 : 64,
                     ),
-                  ),
-                  _StatusDot(project.status),
-                ],
-              ),
-              const Spacer(),
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  _MetaChip(
-                    icon: project.hasLyrics
-                        ? Icons.lyrics_rounded
-                        : Icons.graphic_eq_rounded,
-                    label: project.hasLyrics ? '$lyricCount 行歌词' : '待生成歌词',
-                    accent: project.hasLyrics,
-                  ),
-                  _MetaChip(
-                    icon: Icons.schedule_rounded,
-                    label: _stageLabel(project.currentStage),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              LinearProgressIndicator(
-                value: project.progressPercent.clamp(0.0, 1.0).toDouble(),
-                minHeight: 3,
-                backgroundColor: AppColors.bgHighlight,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-              ),
-            ],
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            project.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            project.artist?.trim().isNotEmpty == true
+                                ? project.artist!
+                                : '歌词工程',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: dashboardMutedLabel(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _StatusDot(project.status),
+                  ],
+                ),
+                const Spacer(),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    _MetaChip(
+                      icon: project.hasLyrics
+                          ? Icons.lyrics_rounded
+                          : Icons.graphic_eq_rounded,
+                      label: project.hasLyrics ? '$lyricCount 行歌词' : '待生成歌词',
+                      accent: project.hasLyrics,
+                    ),
+                    _MetaChip(
+                      icon: Icons.schedule_rounded,
+                      label: _stageLabel(project.currentStage),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                LinearProgressIndicator(
+                  value: project.progressPercent.clamp(0.0, 1.0).toDouble(),
+                  minHeight: 3,
+                  backgroundColor: AppColors.bgHighlight,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -13,6 +13,7 @@ import 'package:lyric_forge_ktv/features/player/domain/services/ktv_take_history
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/playback_screen_dependencies.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/screens/player_screen.dart';
+import 'package:lyric_forge_ktv/features/player/presentation/widgets/player_lyric_semantics.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
@@ -262,6 +263,27 @@ void main() {
     expect(find.widgetWithText(ChoiceChip, '伴奏'), findsNothing);
     await _expectKtvBacking(tester, false);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a lyric line is one button that seeks there', (tester) async {
+    final session = _Session(_state(_original));
+    await _showPlayer(tester, _project(_original), session, _Audio());
+
+    // Audit A-04: the time and the text used to be two loose stops around a
+    // bare InkWell; the list row or focus line now reads as one sentence.
+    final lines = tester.widgetList<Semantics>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            widget.properties.hint == PlayerLyricSemantics.seekHint,
+      ),
+    );
+    expect(lines, isNotEmpty);
+    for (final line in lines) {
+      expect(line.properties.button, isTrue);
+      expect(line.properties.label, contains('歌词'));
+      expect(line.properties.onTap, isNotNull);
+    }
   });
 }
 

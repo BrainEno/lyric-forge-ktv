@@ -9,6 +9,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -20,6 +21,7 @@ import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_store_integrity_banner.dart';
 import '../widgets/local_collection_actions.dart';
+import '../widgets/local_library_semantics.dart';
 
 enum LocalCollectionView { favorites, playlists }
 
@@ -1128,70 +1130,80 @@ class _PlaylistCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
 
-    return InkWell(
+    return AppTapTarget(
+      label: LocalLibrarySemantics.playlistCard(
+        name: playlist.name,
+        songs: playlist.sourcePaths.length,
+        missing: missing,
+      ),
+      hint: LocalLibrarySemantics.openPlaylistHint,
       onTap: onOpen,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      child: Container(
-        padding: EdgeInsets.all(spec.isCompact ? AppSpacing.sm : AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-          border: Border.all(color: AppColors.borderMuted),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _CollectionArtwork(path: artworkPath, large: true),
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: Material(
-                      color: AppColors.pureBlack.withAlpha(90),
-                      borderRadius: BorderRadius.circular(
-                        AppSpacing.radiusCircular,
-                      ),
-                      child: PopupMenuButton<String>(
-                        tooltip: '播放列表操作',
-                        onSelected: (value) {
-                          if (value == 'rename') onRename();
-                          if (value == 'delete') onDelete();
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'rename', child: Text('重命名')),
-                          PopupMenuDivider(),
-                          PopupMenuItem(value: 'delete', child: Text('删除播放列表')),
-                        ],
+      actions: {'重命名': onRename, '删除播放列表': onDelete},
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+        child: Container(
+          padding: EdgeInsets.all(spec.isCompact ? AppSpacing.sm : AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.bgElevated,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+            border: Border.all(color: AppColors.borderMuted),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _CollectionArtwork(path: artworkPath, large: true),
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: Material(
+                        color: AppColors.pureBlack.withAlpha(90),
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusCircular,
+                        ),
+                        child: PopupMenuButton<String>(
+                          tooltip: '播放列表操作',
+                          onSelected: (value) {
+                            if (value == 'rename') onRename();
+                            if (value == 'delete') onDelete();
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(value: 'rename', child: Text('重命名')),
+                            PopupMenuDivider(),
+                            PopupMenuItem(value: 'delete', child: Text('删除播放列表')),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              playlist.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              [
-                '${playlist.sourcePaths.length} 首歌曲',
-                if (missing > 0) '$missing 首不可用',
-              ].join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: missing > 0
-                    ? AppColors.errorText
-                    : AppColors.textTertiary,
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                playlist.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
-            ),
-          ],
+              const SizedBox(height: 3),
+              Text(
+                [
+                  '${playlist.sourcePaths.length} 首歌曲',
+                  if (missing > 0) '$missing 首不可用',
+                ].join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: missing > 0
+                      ? AppColors.errorText
+                      : AppColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

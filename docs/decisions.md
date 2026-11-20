@@ -637,3 +637,16 @@
 - 影响：行内的徽章和按钮不再被单独读出（`find.bySemanticsLabel` 找不到行内片段，找得到整行）；指针和键盘操作不变。
 - 状态：生效
 - 来源：第 14 轮交接的后续建议（第 15 轮）；[工作日志](log/entries/2026-12-02-1100-give-editor-rows-one-spoken-label.md)
+
+## D-037 可点的卡片和行对读屏是一个按钮
+
+- 日期：2026-12-03
+- 背景：第 15 轮之后，首页、导入、校对收件箱、播放页、曲库、播放队列、后台解析条和手机端桌面曲库里还有 14 处卡片或行是裸 `InkWell`：读屏把标题、`·` 分隔的第二行和徽标当成零散文字读，不说点了会做什么；项目状态只是圆点的颜色，正在播放只是强调色，不可用的歌曲只是红边框；卡片里的 ⋯ 菜单是一个只有“显示菜单”的单独停顿（审计 A-04）。
+- 决定：
+  - 共用 `core/widgets/app_tap_target.dart` 的 `AppTapTarget`：`excludeSemantics` 的按钮节点，标签是一句话（`AppTapTarget.join` 用中文逗号连接、跳过空项），`hint` 说点按做什么，有禁用、`selected`（只给可能是“当前”的卡片）和 `value`。
+  - 卡片里的小按钮和菜单项作为自定义操作挂在卡片上，文字沿用菜单或按钮的提示；回调为空的不出现，没有操作时不设 `customSemanticsActions`（空表也会让节点带上自定义操作标记）。禁用的卡片保留操作，例如不可用的歌曲仍能“重新定位文件”。
+  - 可拖动排序的播放队列行用 `container: false`，标签并入列表给每行加的“上移/下移”节点，删除按钮留在外面单独读；这种情况不能再加自定义操作。
+  - 措辞放在各功能自己的文件（`dashboard_semantics.dart`、`player_lyric_semantics.dart`、`local_library_semantics.dart`、`playback_queue_semantics.dart`、`remote_library_semantics.dart`，收件箱和解析条用自身的静态方法），有单元测试；新加的卡片状态或卡内按钮要同时加进标签或操作。
+- 影响：这些卡片里的文字和徽标不再被单独读出（`find.bySemanticsLabel` 找整句）；指针和键盘操作不变。手机端曲库的下载按钮状态改为由 `RemoteTrackDownloadState` 推出，提示文字不变。
+- 状态：生效
+- 来源：第 15 轮交接的后续建议（第 16 轮）；[工作日志](log/entries/2026-12-03-0930-read-tappable-cards-as-one-button.md)

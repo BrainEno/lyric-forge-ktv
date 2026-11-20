@@ -9,6 +9,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
+import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_library_browse_item.dart';
 import '../../domain/models/local_media_library_entry.dart';
@@ -24,6 +25,7 @@ import '../../domain/services/library_lyrics_pairing.dart';
 import '../../domain/services/local_media_relink_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
+import '../widgets/local_library_semantics.dart';
 import '../widgets/local_media_metadata_dialog.dart';
 import '../widgets/library_lyrics_link_text.dart';
 import '../widgets/library_lyrics_unpair_action.dart';
@@ -968,68 +970,95 @@ class _ExplorerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: song.playable ? onPlay : null,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-      child: Container(
-        padding: EdgeInsets.all(compact ? AppSpacing.xs : AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-          border: Border.all(
-            color: song.playable
-                ? AppColors.borderMuted
-                : AppColors.error.withAlpha(80),
+    return AppTapTarget(
+      label: LocalLibrarySemantics.songCard(
+        title: song.title,
+        artist: song.artist,
+        playable: song.playable,
+        details: [
+          entryLabel(song),
+          if (song.hasUserOverride) '已编辑',
+          if (song.hasLyrics) song.lyricsLabel,
+        ],
+      ),
+      hint: LocalLibrarySemantics.playHint,
+      enabled: song.playable,
+      onTap: onPlay,
+      actions: semanticActions,
+      child: InkWell(
+        onTap: song.playable ? onPlay : null,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
+        child: Container(
+          padding: EdgeInsets.all(compact ? AppSpacing.xs : AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: AppColors.bgElevated,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
+            border: Border.all(
+              color: song.playable
+                  ? AppColors.borderMuted
+                  : AppColors.error.withAlpha(80),
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: _Artwork(song)),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    song.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _Artwork(song)),
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      song.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
-                ),
-                _SongMenu(
-                  song: song,
-                  onEnqueue: onEnqueue,
-                  onEdit: onEdit,
-                  onLyrics: onLyrics,
-                  onUnpair: onUnpair,
-                  onRelink: onRelink,
-                  onRemove: onRemove,
-                ),
-              ],
-            ),
-            Text(
-              song.playable ? (song.artist ?? '本地音乐') : '文件不可用',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              [
-                entryLabel(song),
-                if (song.hasUserOverride) '已编辑',
-                if (song.hasLyrics) song.lyricsLabel,
-              ].where((value) => value.isNotEmpty).join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+                  _SongMenu(
+                    song: song,
+                    onEnqueue: onEnqueue,
+                    onEdit: onEdit,
+                    onLyrics: onLyrics,
+                    onUnpair: onUnpair,
+                    onRelink: onRelink,
+                    onRemove: onRemove,
+                  ),
+                ],
+              ),
+              Text(
+                song.playable ? (song.artist ?? '本地音乐') : '文件不可用',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                [
+                  entryLabel(song),
+                  if (song.hasUserOverride) '已编辑',
+                  if (song.hasLyrics) song.lyricsLabel,
+                ].where((value) => value.isNotEmpty).join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  /// The ⋯ menu's entries as the card's screen-reader actions, in menu
+  /// order and with the menu's wording (audit A-04).
+  Map<String, VoidCallback?> get semanticActions => {
+    if (song.playable) '加入播放队列': onEnqueue,
+    if (song.playable) '编辑资料与封面': onEdit,
+    if (song.playable) (song.hasLyrics ? '打开歌词' : '导入歌词'): onLyrics,
+    if (song.hasAutoPairedLyrics) LibraryLyricsLinkText.unpairAction: onUnpair,
+    if (!song.playable) '重新定位文件': onRelink,
+    '从音乐库移除': onRemove,
+  };
 
   String entryLabel(_ExplorerSong song) => [
     if (song.entry.embeddedTrackNumber != null)

@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-29 09:30] Let the library take back paired lyrics ([entry](log/entries/2026-11-29-0930-let-the-library-take-back-paired-lyrics.md))
 - [2026-11-28 13:00] Pair lyric files in the library folder ([entry](log/entries/2026-11-28-1300-pair-lyric-files-in-the-library-folder.md))
 - [2026-11-28 11:00] Add a global bulk review button ([entry](log/entries/2026-11-28-1100-add-a-global-bulk-review-button.md))
 - [2026-11-28 09:30] Keep confirmed proofreading saved ([entry](log/entries/2026-11-28-0930-keep-confirmed-proofreading-saved.md))
