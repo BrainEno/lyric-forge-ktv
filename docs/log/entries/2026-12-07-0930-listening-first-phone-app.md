@@ -1,0 +1,85 @@
+# [2026-12-07 09:30] Make the phone app listening-first
+
+- Scope: round 20. The user chose the direction "vinyl, warm retro; player first; the core listening path". The phone is an offline player first and a lyric tool second, but before this round it opened on the desktop's project dashboard, used the desktop's 工程 / 校对 / 音乐库 / 设置 bar, and had seven song lists that each laid out their own row and never showed which song was playing. Changes (D-041):
+  - Phone navigation (`core/navigation/mobile_destinations.dart`):
+    - 听歌 / 音乐库 / 歌词 / 设置, with `mobileDestinationForRoute`, `planMobileDestinationTap` and `goToMobileDestination`;
+    - 听歌 pops to the root, and the other three are pushed on top of it, so one back press returns to listening;
+    - `AppMobileBottomNavigation` shares the press pulse and selection click with the desktop bar through a generic `_DestinationPresses` mixin;
+    - `AppChrome` takes `onSelectMobileDestination` and hides the mini player on the listening home.
+  - The listening home (`player/presentation/screens/listen_home_screen.dart`), routed at `/` on the phone through `AppRouter(listeningHome: true)`:
+    - a turning vinyl with the cover as its label, the title, a seek bar and the transport, over a blur of the cover; with nothing playing, a still record and a way to start;
+    - 播放全部 and 随机播放 over the library's songs whose files exist, sorted by title;
+    - a lyric-import nudge for a local song without lyrics;
+    - 最近播放, with one row per file and the playing song marked;
+    - five library shortcuts.
+    - `queueFrom`, `titleOf`, `itemFor` and `distinctRecent` are static and tested.
+  - 歌词: on the phone `ReviewInboxScreen(lyricsHub: true)` adds 导入并识别, 全部工程 (the dashboard) and a tip on importing LRC files from the library.
+  - One song row, `AppSongRow` (`core/widgets/app_song_row.dart`), now used by:
+    - the library's song list;
+    - the artist and album song lists;
+    - favourites and playlists;
+    - the phone's desktop-library and download lists.
+    - It owns the cover or track number, title, subtitle and badges, the unavailable state, the progress bar and notice, the trailing control, the reading as one button with the menu as custom actions, and the 48 dp minimum.
+    - The current song is brass on a brass wash with rhythm bars over its cover.
+  - `NowPlayingListener` now compares a `NowPlaying` value (song id, local path and playing state) and rebuilds only when it changes. A `StreamBuilder` over the audio state rebuilt every row on every position tick.
+  - Vinyl look:
+    - `AppColors.vinyl*` tokens and two gradients;
+    - `AppVinylDisc` (grooves, label, spindle, a still sheen and an optional glow), `AppRhythmBars` and `AppCoverGlow`;
+    - `AppTheme.vinylPlayDisc` and `AppTheme.vinylFilled`;
+    - the mini player restyled with a warm gradient, a small turning disc, and a brass progress line and play button.
+  - `AppMotion`: looping motion is off when the system asks for less motion and under `flutter test`. A paused record keeps its angle.
+  - The library explorer defaults to the list on compact widths and to the grid on wider ones; the user's toggle wins.
+- Files:
+  - New: `lib/core/theme/app_motion.dart`, `lib/core/widgets/app_vinyl_disc.dart`, `lib/core/widgets/app_song_row.dart`, `lib/core/navigation/mobile_destinations.dart`, `lib/features/player/presentation/screens/listen_home_screen.dart`.
+  - `lib/core/theme/color_tokens.dart`, `lib/core/theme/app_theme.dart`, `lib/core/navigation/app_navigation_shell.dart`, `lib/app/app.dart`, `lib/app/app_chrome.dart`, `lib/app/app_router.dart`.
+  - `lib/features/player/presentation/widgets/now_playing_listener.dart`, `mobile_global_player_bar.dart`.
+  - `lib/features/player/presentation/screens/local_library_explorer_screen.dart`, `local_artist_album_browser_screen.dart`, `local_collections_screen.dart`.
+  - `lib/features/transfer/presentation/screens/mobile_remote_music_library_screen.dart`, `mobile_download_manager_screen.dart`.
+  - `lib/features/lyrics/presentation/screens/review_inbox_screen.dart`.
+  - New tests: `test/core/theme/vinyl_palette_test.dart`, `test/core/widgets/app_vinyl_disc_test.dart`, `test/core/widgets/app_song_row_test.dart`, `test/core/navigation/mobile_destinations_test.dart`, `test/features/player/presentation/widgets/now_playing_listener_test.dart`, `test/features/player/presentation/screens/listen_home_screen_test.dart`.
+  - Updated tests: `test/app/app_chrome_test.dart`, `test/core/navigation/app_navigation_shell_test.dart`, `test/architecture/app_assembly_contract_test.dart`.
+  - `docs/decisions.md` (D-041), `artifacts/ui-audit/reports/issues.md` (T-03; status section for round 20).
+- Validation:
+  - Palette: brass reaches 7:1 on every page surface; the playing row's title and its secondary-grey subtitle stay AA on the brass wash; tertiary grey would not, which is why the row switches. Brass is apart from the warning amber and the lavender accent. The brass buttons reach 7:1, enabled and disabled.
+  - Motion and the disc:
+    - motion is off under `flutter test` and when the system disables animations;
+    - groove counts;
+    - the disc is hidden from screen readers;
+    - the blank label;
+    - a spinning disc turns and keeps its angle when it stops;
+    - it stays still in tests and under reduced motion;
+    - only the hero glows.
+    - Rhythm bars stay in range, never move in step, rest at the staggered heights and bounce only while playing. The cover glow blurs a cover and falls back to the gradient.
+  - Song row:
+    - the spoken label and `playbackFor`;
+    - cover size and the 48 dp minimum;
+    - ellipsis at 320;
+    - number-only and number-plus-cover layouts;
+    - badges, progress (determinate and indeterminate) and error notices;
+    - the card surface;
+    - the playing and paused current song;
+    - the unavailable state;
+    - tap, trailing and long press;
+    - semantics: one button with its state, the caller label, custom actions without the null ones, a disabled unavailable row that keeps its actions, and badges that are not read.
+  - `NowPlaying` equality, path matching (relative and absolute, streams, nothing loaded). The listener follows play, pause and the song, ignores position-only ticks, never shows a stopped queue as playing, and unsubscribes.
+  - Phone navigation:
+    - route mapping for every route family;
+    - the destination list;
+    - tap planning;
+    - `goToMobileDestination` against a real navigator (push over the home, replace, pop to the root, stay).
+    - The chrome test covers the phone bar's labels, the route following it, and the mini player hiding on the home.
+  - Listening home:
+    - `queueFrom`, `titleOf`, `itemFor`, `distinctRecent`;
+    - idle and empty-library heroes;
+    - 播放全部 order, seeded 随机播放, and the no-playable-file snack bar;
+    - the playing hero and its transport;
+    - the lyric nudge (shown, hidden with lyrics, hidden for a project song);
+    - recent rows with the playing mark and subtitles;
+    - resuming, shortcuts, refreshing on a song change, a load error;
+    - no overflow at 320, 390 and 820;
+    - the hero read as one button that opens the player.
+  - Format, analyze and tests => PR's Flutter Quality Gate and the temporary probe workflow.
+- Notes:
+  - Not looked at in a running app or on a device: the turning record, the blur and the warm colours need a real look, as does TalkBack / VoiceOver on the new rows.
+  - The desktop keeps its rail, dashboard home and colours; only the shared song row and the playing mark reach the desktop library lists.
+- Commit: `Make the phone app listening-first with a vinyl home and one song row`

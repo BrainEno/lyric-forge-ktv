@@ -98,6 +98,31 @@ abstract class AppColors {
   // used white for them, which outshone the filled buttons beside them.
   static const Color borderStrong = Color(0xFF7A7A7A);
 
+  // Vinyl: the warm, record-sleeve palette of the phone's listening surfaces
+  // (decision D-041). Brass marks what is playing — the spinning record's
+  // label ring, the rhythm bars, the playing row's title — and the warm
+  // browns tint the surfaces around it. They are decoration and "now
+  // playing" only: lavender stays the colour of selection and primary
+  // actions, and amber `warning` keeps meaning "needs attention".
+  // test/core/theme/vinyl_palette_test.dart pins the contrast numbers.
+  static const Color vinylBrass = Color(0xFFE6B87A);
+
+  // Brass at 16 %: the wash behind the playing row and the glow behind the
+  // record.
+  static const Color vinylBrassMuted = Color(0x29E6B87A);
+
+  // The record itself: near-black with a warm cast, and the faint light
+  // grooves and sheen drawn on it.
+  static const Color vinylDisc = Color(0xFF0E0C0B);
+  static const Color vinylGroove = Color(0x14FFFFFF);
+  static const Color vinylSheen = Color(0x2EFFE8C7);
+
+  // Warm surfaces: the hero card and the mini player sit on these instead of
+  // the neutral greys. Secondary text (#B3B3B3) stays above 7:1 on both and
+  // tertiary text (#8F8F8F) above 4.5:1.
+  static const Color vinylSurface = Color(0xFF1E1915);
+  static const Color vinylSurfaceHigh = Color(0xFF2A221C);
+
   // Gradients
   static const LinearGradient playerGradient = LinearGradient(
     begin: Alignment.topCenter,
@@ -109,5 +134,21 @@ abstract class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [Color(0xFF282828), Color(0xFF181818)],
+  );
+
+  // The listening home's backdrop: a warm brown that fades into the page.
+  static const LinearGradient vinylHeroGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFF3A2A1E), Color(0xFF1E1915), Color(0xFF121212)],
+    stops: [0, 0.45, 1],
+  );
+
+  // The mobile mini player: warm on the artwork side, neutral at the
+  // controls.
+  static const LinearGradient vinylBarGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFF2A221C), Color(0xFF181818)],
   );
 }

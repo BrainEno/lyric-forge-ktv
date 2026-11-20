@@ -358,12 +358,10 @@ void main() {
             'Assembly belongs in lib/app, so the route — not the screen — '
             'decides what the editor is made of.',
       );
-      expect(
-        router,
-        contains(
-          'ReviewInboxScreen(projectRepository: services.projectRepository)',
-        ),
-      );
+      expect(router, contains('ReviewInboxScreen('));
+      expect(router, contains('projectRepository: services.projectRepository,'));
+      // On the phone the inbox is also the 歌词 page (D-041).
+      expect(router, contains('lyricsHub: listeningHome'));
 
       final assembly = File(
         'lib/app/lyric_editor_assembly.dart',

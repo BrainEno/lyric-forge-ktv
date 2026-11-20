@@ -7,6 +7,7 @@ import '../theme/color_tokens.dart';
 import '../widgets/app_brand_mark.dart';
 import '../widgets/app_tap_pulse.dart';
 import 'app_destinations.dart';
+import 'mobile_destinations.dart';
 
 /// Persistent top-level navigation: a rail on wide windows, a bottom bar on
 /// narrow ones.
@@ -80,15 +81,13 @@ class AppNavigationShell extends StatelessWidget {
 /// the destination already open pushed its page again, so it looked like the
 /// press had been ignored. Each press now bumps the destination's counter,
 /// which pulses its icon (see [AppTapPulse]), and gives a selection click.
-mixin _DestinationPresses<T extends StatefulWidget> on State<T> {
-  final Map<AppDestination, int> _presses = {};
+mixin _DestinationPresses<T extends StatefulWidget, D extends Object>
+    on State<T> {
+  final Map<D, int> _presses = {};
 
-  int pressesOf(AppDestination destination) => _presses[destination] ?? 0;
+  int pressesOf(D destination) => _presses[destination] ?? 0;
 
-  void press(
-    AppDestination destination,
-    ValueChanged<AppDestination> onSelect,
-  ) {
+  void press(D destination, ValueChanged<D> onSelect) {
     HapticFeedback.selectionClick();
     setState(() => _presses[destination] = pressesOf(destination) + 1);
     onSelect(destination);
@@ -98,7 +97,7 @@ mixin _DestinationPresses<T extends StatefulWidget> on State<T> {
   /// the same way so the bar swaps the icon inside one pulse instead of
   /// starting a fresh one, which would cut the pulse short when the
   /// selection moves.
-  Widget pulsingIcon(AppDestination destination, IconData icon) {
+  Widget pulsingIcon(D destination, IconData icon) {
     return AppTapPulse(trigger: pressesOf(destination), child: Icon(icon));
   }
 }
@@ -122,7 +121,7 @@ class AppNavigationRail extends StatefulWidget {
 }
 
 class _AppNavigationRailState extends State<AppNavigationRail>
-    with _DestinationPresses<AppNavigationRail> {
+    with _DestinationPresses<AppNavigationRail, AppDestination> {
   @override
   Widget build(BuildContext context) {
     final selected = widget.selected;
@@ -198,7 +197,7 @@ class AppBottomNavigation extends StatefulWidget {
 }
 
 class _AppBottomNavigationState extends State<AppBottomNavigation>
-    with _DestinationPresses<AppBottomNavigation> {
+    with _DestinationPresses<AppBottomNavigation, AppDestination> {
   @override
   Widget build(BuildContext context) {
     // Colours, indicator and label weights come from the navigation bar
@@ -210,6 +209,47 @@ class _AppBottomNavigationState extends State<AppBottomNavigation>
           press(AppDestination.values[index], widget.onSelect),
       destinations: [
         for (final destination in AppDestination.values)
+          NavigationDestination(
+            icon: pulsingIcon(destination, destination.icon),
+            selectedIcon: pulsingIcon(destination, destination.selectedIcon),
+            label: destination.label,
+            tooltip: destination.description,
+          ),
+      ],
+    );
+  }
+}
+
+/// The phone's bottom bar: 听歌, 音乐库, 歌词 and 设置 (decision D-041).
+///
+/// Built like [AppBottomNavigation] — same theme, same press pulse and
+/// click — over the phone's own destinations.
+class AppMobileBottomNavigation extends StatefulWidget {
+  final MobileDestination selected;
+  final ValueChanged<MobileDestination> onSelect;
+
+  const AppMobileBottomNavigation({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  State<AppMobileBottomNavigation> createState() =>
+      _AppMobileBottomNavigationState();
+}
+
+class _AppMobileBottomNavigationState extends State<AppMobileBottomNavigation>
+    with _DestinationPresses<AppMobileBottomNavigation, MobileDestination> {
+  @override
+  Widget build(BuildContext context) {
+    return NavigationBar(
+      backgroundColor: AppColors.bgElevated,
+      selectedIndex: MobileDestination.values.indexOf(widget.selected),
+      onDestinationSelected: (index) =>
+          press(MobileDestination.values[index], widget.onSelect),
+      destinations: [
+        for (final destination in MobileDestination.values)
           NavigationDestination(
             icon: pulsingIcon(destination, destination.icon),
             selectedIcon: pulsingIcon(destination, destination.selectedIcon),

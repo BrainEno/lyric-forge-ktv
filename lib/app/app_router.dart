@@ -9,6 +9,7 @@ import '../features/import/presentation/screens/transcription_ready_import_scree
 import '../features/lyrics/presentation/screens/lyric_editor_screen.dart';
 import '../features/lyrics/presentation/screens/review_inbox_screen.dart';
 import '../features/player/domain/models/play_history.dart';
+import '../features/player/presentation/screens/listen_home_screen.dart';
 import '../features/player/presentation/screens/local_music_library_shell.dart';
 import '../features/player/presentation/screens/now_playing_screen.dart';
 import '../features/player/presentation/screens/player_screen.dart';
@@ -36,9 +37,14 @@ import 'transcription_assembly.dart';
 /// keeps that lookup explicit and lets a screen be handed exactly the
 /// dependencies it declares instead of finding them itself (Phase 4.2).
 class AppRouter {
-  const AppRouter(this.services);
+  const AppRouter(this.services, {this.listeningHome = false});
 
   final AppServices services;
+
+  /// Whether the root route is the phone's listening home rather than the
+  /// project dashboard (decision D-041). The dashboard stays reachable at
+  /// `/dashboard` either way, from the phone's 歌词 page.
+  final bool listeningHome;
 
   /// The music library is one screen with five sections; each route only
   /// differs in which section (and, for songs, which smart view) is selected.
@@ -55,6 +61,14 @@ class AppRouter {
     if (section != null) return _fadeRoute(_libraryShell(section), settings);
 
     switch (uri.path) {
+      case Routes.home when listeningHome:
+        return _fadeRoute(
+          ListenHomeScreen(
+            dependencies: assembleLocalLibraryDependencies(services),
+          ),
+          settings,
+        );
+
       case Routes.home:
       case Routes.dashboard:
         return _fadeRoute(
@@ -112,7 +126,10 @@ class AppRouter {
 
       case Routes.review:
         return _fadeRoute(
-          ReviewInboxScreen(projectRepository: services.projectRepository),
+          ReviewInboxScreen(
+            projectRepository: services.projectRepository,
+            lyricsHub: listeningHome,
+          ),
           settings,
         );
 

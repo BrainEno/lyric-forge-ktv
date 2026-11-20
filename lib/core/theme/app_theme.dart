@@ -104,6 +104,22 @@ class AppTheme {
     disabledForegroundColor: AppColors.onAccent,
   );
 
+  /// The brass play button of the phone's listening surfaces (D-041): the
+  /// record-black icon on brass is 10:1. It keeps its brass while it works
+  /// under a spinner, for the reason [busyAccentDisc] gives.
+  static final ButtonStyle vinylPlayDisc = IconButton.styleFrom(
+    backgroundColor: AppColors.vinylBrass,
+    foregroundColor: AppColors.vinylDisc,
+    disabledBackgroundColor: AppColors.vinylBrass,
+    disabledForegroundColor: AppColors.vinylDisc,
+  );
+
+  /// The brass filled button of the listening home (播放全部).
+  static final ButtonStyle vinylFilled = FilledButton.styleFrom(
+    backgroundColor: AppColors.vinylBrass,
+    foregroundColor: AppColors.vinylDisc,
+  );
+
   /// Navigation labels: grey, and bold white for the chosen destination.
   static const TextStyle navigationLabel = TextStyle(
     fontSize: 12,
