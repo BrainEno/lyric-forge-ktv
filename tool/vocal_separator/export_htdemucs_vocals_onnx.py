@@ -127,17 +127,23 @@ def main() -> int:
     inputs = (waveform, spectrum)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    # Under no_grad, eval-mode nn.MultiheadAttention takes the fused fast path
+    # (aten::_native_multi_head_attention), which has no ONNX export. Trace
+    # with autograd on (as upstream demucs.onnx does) and the fast path off.
+    mha = getattr(torch.backends, "mha", None)
+    if mha is not None and hasattr(mha, "set_fastpath_enabled"):
+        mha.set_fastpath_enabled(False)
+    torch.onnx.export(
+        model,
+        inputs,
+        str(args.output),
+        export_params=True,
+        opset_version=OPSET,
+        do_constant_folding=True,
+        input_names=["mix", "spec"],
+        output_names=["spec_out", "mix_out"],
+    )
     with torch.no_grad():
-        torch.onnx.export(
-            model,
-            inputs,
-            str(args.output),
-            export_params=True,
-            opset_version=OPSET,
-            do_constant_folding=True,
-            input_names=["mix", "spec"],
-            output_names=["spec_out", "mix_out"],
-        )
         expected = [t.numpy() for t in model(*inputs)]
 
     graph = onnx.load(str(args.output))
