@@ -1081,9 +1081,9 @@ class _ExplorerCard extends StatelessWidget {
       ),
       subtitle: song.playable ? (song.artist ?? '本地音乐') : '文件不可用',
       subtitleIsAlert: !song.playable,
-      caption: _songDetails(song)
-          .where((value) => value.isNotEmpty)
-          .join(' · '),
+      caption: _songDetails(
+        song,
+      ).where((value) => value.isNotEmpty).join(' · '),
     );
   }
 

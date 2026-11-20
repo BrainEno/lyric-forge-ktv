@@ -598,16 +598,18 @@ class _ReviewInboxTile extends StatelessWidget {
                         project.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         _subtitle(project, entry.queue),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelSmall
-                            ?.copyWith(color: AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ),
@@ -714,8 +716,9 @@ class _ReviewedToggle extends StatelessWidget {
                 Expanded(
                   child: Text(
                     expanded ? '收起已复核的工程' : '已复核的工程 · $count 个',
-                    style: Theme.of(context).textTheme.labelLarge
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -800,8 +803,9 @@ class _MarkAllReviewedDialog extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             '之后改动任何一行的文字或时间，那一行会重新回到待复核。',
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),

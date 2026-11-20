@@ -351,8 +351,9 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
                     padding: EdgeInsets.symmetric(horizontal: gutter),
                     child: Text(
                       _loading ? '正在读取…' : '播放过的歌曲会出现在这里。',
-                      style: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(color: AppColors.textTertiary),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   )
                 else
@@ -812,8 +813,9 @@ class _SectionTitle extends StatelessWidget {
         header: true,
         child: Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
       ),
     );
