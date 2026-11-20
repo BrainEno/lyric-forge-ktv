@@ -175,14 +175,21 @@ class AsrSetupModeField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final changed = onChanged;
+    // Expanded, so a narrow window shortens the option with an ellipsis
+    // instead of overflowing the field.
     return DropdownButtonFormField<TranscriptionMode>(
       initialValue: mode,
+      isExpanded: true,
       decoration: const InputDecoration(labelText: AsrSetupText.modeLabel),
       items: [
         for (final option in AsrSetupText.modes)
           DropdownMenuItem(
             value: option,
-            child: Text(AsrSetupText.modeOption(option)),
+            child: Text(
+              AsrSetupText.modeOption(option),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
       ],
       onChanged: changed == null

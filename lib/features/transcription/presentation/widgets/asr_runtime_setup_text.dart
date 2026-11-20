@@ -19,9 +19,8 @@ abstract final class AsrSetupText {
     return '首次使用，只需完成一次准备';
   }
 
-  static String headerSubtitle({required bool ready}) => ready
-      ? '之后可以直接导入歌曲并在后台生成歌词。'
-      : 'Elysium Player 会自动检测电脑、下载所需组件并完成配置。';
+  static String headerSubtitle({required bool ready}) =>
+      ready ? '之后可以直接导入歌曲并在后台生成歌词。' : 'Elysium Player 会自动检测电脑、下载所需组件并完成配置。';
 
   // Step 1: the plan.
 
@@ -87,8 +86,7 @@ abstract final class AsrSetupText {
 
   // Install.
 
-  static const String checkingExisting =
-      '正在检查已有组件并校验本地文件；只有缺失或校验失败的文件才会下载';
+  static const String checkingExisting = '正在检查已有组件并校验本地文件；只有缺失或校验失败的文件才会下载';
 
   /// The short name of a component in the retry button.
   static String componentName(AsrRuntimeComponent component) =>

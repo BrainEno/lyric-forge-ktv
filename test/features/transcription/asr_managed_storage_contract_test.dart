@@ -147,9 +147,16 @@ void main() {
 
 /// The first-run setup dialog, its cards, controller and wording (audit I-03
 /// split the 957-line dialog into these files).
-String _setupSources() => [
-  'asr_runtime_setup_dialog.dart',
-  'asr_runtime_setup_cards.dart',
-  'asr_runtime_setup_controller.dart',
-  'asr_runtime_setup_text.dart',
-].map((name) => File('lib/features/transcription/presentation/widgets/$name').readAsStringSync()).join('\n');
+String _setupSources() =>
+    [
+          'asr_runtime_setup_dialog.dart',
+          'asr_runtime_setup_cards.dart',
+          'asr_runtime_setup_controller.dart',
+          'asr_runtime_setup_text.dart',
+        ]
+        .map(
+          (name) => File(
+            'lib/features/transcription/presentation/widgets/$name',
+          ).readAsStringSync(),
+        )
+        .join('\n');

@@ -247,20 +247,17 @@ class FakeSetupStorage implements AsrManagedStorageService {
 
 class _Profiles implements TranscriptionProfileResolver {
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _Checker implements AsrDownloadConnectionChecker {
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _Proxy implements TranscriptionDownloadProxyStore {
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 /// The dialog's dependencies around the given fakes; the advanced settings

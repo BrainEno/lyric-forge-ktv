@@ -136,10 +136,7 @@ void main() {
   group('install', () {
     test('the retry button names the failed component', () {
       expect(AsrSetupText.retryLabel(null), '重试未完成组件');
-      expect(
-        AsrSetupText.retryLabel(AsrRuntimeComponent.ffmpeg),
-        '重试 FFmpeg',
-      );
+      expect(AsrSetupText.retryLabel(AsrRuntimeComponent.ffmpeg), '重试 FFmpeg');
       expect(
         AsrSetupText.retryLabel(AsrRuntimeComponent.qwenAligner),
         '重试 ForcedAligner',

@@ -375,7 +375,9 @@ class AsrRuntimeSetupController extends ChangeNotifier {
   ) async {
     if (_disposed) return;
     // 此步骤不会下载: only the components below the found root are inspected.
-    _set(() => _existingModelMessage = AsrSetupText.adopting(result.targetRoot));
+    _set(
+      () => _existingModelMessage = AsrSetupText.adopting(result.targetRoot),
+    );
     final repaired = await _runtimeManager.repair(_config);
     if (_disposed) return;
     _set(() => _config = repaired);

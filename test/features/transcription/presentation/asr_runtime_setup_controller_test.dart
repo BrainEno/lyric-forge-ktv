@@ -76,21 +76,26 @@ void main() {
       expect(controller.error, isNull);
     });
 
-    test('a ready computer is ready and hides the existing-model card', () async {
-      runtime.status = setupStatus(ready: true);
-      await started();
+    test(
+      'a ready computer is ready and hides the existing-model card',
+      () async {
+        runtime.status = setupStatus(ready: true);
+        await started();
 
-      expect(controller.ready, isTrue);
-      expect(controller.showsExistingModels, isFalse);
-      expect(controller.actions, [
-        AsrSetupAction.advanced,
-        AsrSetupAction.refresh,
-        AsrSetupAction.start,
-      ]);
-    });
+        expect(controller.ready, isTrue);
+        expect(controller.showsExistingModels, isFalse);
+        expect(controller.actions, [
+          AsrSetupAction.advanced,
+          AsrSetupAction.refresh,
+          AsrSetupAction.start,
+        ]);
+      },
+    );
 
     test('a recognition failure shows its own message', () async {
-      runtime.inspectError = const TranscriptionException.environment('缺少 FFmpeg');
+      runtime.inspectError = const TranscriptionException.environment(
+        '缺少 FFmpeg',
+      );
       await started();
 
       expect(controller.error, '缺少 FFmpeg');
@@ -563,7 +568,11 @@ void main() {
           paused: false,
           ready: false,
         ),
-        [AsrSetupAction.advanced, AsrSetupAction.refresh, AsrSetupAction.install],
+        [
+          AsrSetupAction.advanced,
+          AsrSetupAction.refresh,
+          AsrSetupAction.install,
+        ],
       );
       expect(
         AsrRuntimeSetupController.actionsFor(

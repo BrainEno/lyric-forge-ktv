@@ -17,6 +17,7 @@
   - A step reads as 「第 1 步，选择识别方案…」 instead of a bare 「1」.
   - A component row is one stop (「FFmpeg，已准备，系统已安装」) instead of four.
   - A component that is `installing` or `failed` explicitly reads 待准备, as the old else-branch did.
+  - The quality mode menu is expanded and ellipsizes its option. In a phone-width window, 「最高质量 · 双引擎校对（推荐）」 used to overflow the field by 57 px; the new 390-wide dialog test caught it.
 - Files:
   - New: `lib/features/transcription/presentation/widgets/asr_runtime_setup_controller.dart`, `asr_runtime_setup_cards.dart`, `asr_runtime_setup_text.dart`.
   - `lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart`.
@@ -40,7 +41,7 @@
   - The importers still import only `asr_runtime_setup_dialog.dart`, so the presentation import baseline is unchanged.
   - Format, analyze and tests => PR's Flutter Quality Gate and the temporary probe workflow.
 - Notes:
-  - Not looked at in a running app. The layout and wording are unchanged apart from the screen-reader labels above.
+  - Not looked at in a running app. The layout and wording are unchanged apart from the screen-reader labels and the expanded mode menu above.
   - Unlike the settings controller, this one does not save the plan after an install, because the caller receives it when the user taps 开始使用. That behaviour is kept.
   - The existing-model buttons are still greyed out by loading, installing and scanning only. Whether the runtime downloads elsewhere is checked when tapped, because it is not something the dialog can listen to.
 - Commit: `Split the speech recognition setup dialog into controller, cards and text`

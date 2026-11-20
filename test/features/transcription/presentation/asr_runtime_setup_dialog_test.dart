@@ -20,11 +20,10 @@ Widget _host(Widget child) {
 
 /// Opens the dialog from a button and records what it popped with.
 class _Launcher extends StatefulWidget {
-  const _Launcher({required this.runtime, this.preflight, this.store});
+  const _Launcher({required this.runtime, this.preflight});
 
   final FakeSetupRuntime runtime;
   final FakeSetupPreflight? preflight;
-  final FakeSetupStore? store;
 
   @override
   State<_Launcher> createState() => _LauncherState();
@@ -44,7 +43,6 @@ class _LauncherState extends State<_Launcher> {
               dependencies: setupDependencies(
                 runtime: widget.runtime,
                 preflight: widget.preflight,
-                store: widget.store,
               ),
             ),
           );
@@ -98,7 +96,7 @@ void main() {
       expect(find.text('正在准备本地歌词识别'), findsOneWidget);
       expect(find.byIcon(Icons.graphic_eq_rounded), findsOneWidget);
       final title = tester.getSemantics(find.text('正在准备本地歌词识别'));
-      expect(title, containsSemantics(isHeader: true));
+      expect(title, isSemantics(isHeader: true));
       expect(title.label, contains('正在准备本地歌词识别'));
 
       await tester.pumpWidget(
@@ -121,7 +119,7 @@ void main() {
       expect(node.label, contains('第 2 步'));
       expect(node.label, contains('检查这台电脑'));
       expect(node.label, contains('说明'));
-      expect(node, containsSemantics(isHeader: true));
+      expect(node, isSemantics(isHeader: true));
       semantics.dispose();
     });
 
@@ -202,11 +200,13 @@ void main() {
     testWidgets('a component row is read as one sentence', (tester) async {
       final semantics = tester.ensureSemantics();
       final component = setupStatus(ready: true).components.first;
-      await tester.pumpWidget(_host(AsrSetupComponentRow(component: component)));
+      await tester.pumpWidget(
+        _host(AsrSetupComponentRow(component: component)),
+      );
 
       expect(
         tester.getSemantics(find.byType(AsrSetupComponentRow)),
-        containsSemantics(label: 'FFmpeg，已准备，系统已安装'),
+        isSemantics(label: 'FFmpeg，已准备，系统已安装'),
       );
       semantics.dispose();
     });
@@ -271,9 +271,7 @@ void main() {
       }
     });
 
-    testWidgets('a blocked install says 空间不足 and is disabled', (
-      tester,
-    ) async {
+    testWidgets('a blocked install says 空间不足 and is disabled', (tester) async {
       await tester.pumpWidget(
         _host(
           const AsrSetupActionButton(
@@ -427,7 +425,8 @@ void main() {
       await _open(tester, runtime, size: const Size(390, 844));
 
       expect(find.byType(AsrRuntimeSetupDialog), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      final error = tester.takeException();
+      expect(error, isNull, reason: '$error');
       await runtime.progress.close();
     });
   });
