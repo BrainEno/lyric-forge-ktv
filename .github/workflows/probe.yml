@@ -1,0 +1,70 @@
+name: Probe
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Probe
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set +e
+          emit() {
+            local title="$1" file="$2"
+            if [[ ! -s "$file" ]]; then echo "::notice title=$title 0::(empty)"; return; fi
+            python3 - "$title" "$file" <<'PY'
+          import sys
+          title, path = sys.argv[1], sys.argv[2]
+          text = open(path, encoding='utf-8', errors='replace').read()
+          chunks = [text[i:i+3500] for i in range(0, len(text), 3500)][:12]
+          for n, c in enumerate(chunks):
+              c = c.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f"::notice title={title} {n}::{c}")
+          PY
+          }
+          flutter pub get --enforce-lockfile > /tmp/pub.txt 2>&1
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=AMR "$BASE_SHA" HEAD -- '*.dart')
+          mapfile -t tests < <(printf '%s\n' "${dart_files[@]}" | grep '^test/.*_test\.dart$')
+          flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings lib test tool > /tmp/ana.txt 2>&1
+          grep -E "error •|warning •" /tmp/ana.txt > /tmp/ana-bad.txt
+          : > /tmp/ana-touched.txt
+          for f in "${dart_files[@]}"; do grep -F "$f:" /tmp/ana.txt >> /tmp/ana-touched.txt; done
+          tail -3 /tmp/ana.txt > /tmp/ana-tail.txt
+          emit ana-bad /tmp/ana-bad.txt
+          emit ana-touched /tmp/ana-touched.txt
+          emit ana-tail /tmp/ana-tail.txt
+          if (( ${#tests[@]} > 0 )); then
+            flutter test --no-pub "${tests[@]}" > /tmp/test.txt 2>&1
+            echo "exit $?" >> /tmp/test.txt
+            grep -n -B2 -A25 "\[E\]\|EXCEPTION CAUGHT\|Expected:\|Error:" /tmp/test.txt | head -300 > /tmp/test-err.txt
+            tail -12 /tmp/test.txt > /tmp/test-tail.txt
+            emit test-err /tmp/test-err.txt
+            emit test-tail /tmp/test-tail.txt
+          fi
+          flutter test --no-pub > /tmp/full.txt 2>&1
+          echo "full exit $?" >> /tmp/full.txt
+          grep -n "\[E\]" /tmp/full.txt | head -40 > /tmp/full-err.txt
+          grep -n -A30 "EXCEPTION CAUGHT\|Expected:" /tmp/full.txt | head -200 >> /tmp/full-err.txt
+          tail -6 /tmp/full.txt > /tmp/full-tail.txt
+          emit full-err /tmp/full-err.txt
+          emit full-tail /tmp/full-tail.txt
+          mapfile -t am < <(git diff --name-only --diff-filter=AM "$BASE_SHA" HEAD -- '*.dart')
+          if (( ${#am[@]} > 0 )); then
+            dart format "${am[@]}" > /dev/null 2>&1
+            git --no-pager diff -U1 -- "${am[@]}" > /tmp/fmt.txt
+            if [[ -s /tmp/fmt.txt ]]; then emit fmt /tmp/fmt.txt; else echo "::notice title=fmt-ok::clean"; fi
+          fi
+          exit 0
