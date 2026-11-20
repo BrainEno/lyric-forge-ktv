@@ -1,0 +1,61 @@
+# [2026-12-06 09:30] Split the editor's lyric list
+
+- Scope: the optional split from the round 18 handoff. The editor's line list (`lyric_list_pane.dart`) was 1424 lines. It held:
+  - the list state;
+  - the inline editor row;
+  - the time dialog;
+  - the review row with a hand-written eight-entry menu;
+  - three empty states and the search bar.
+
+  Search, candidate highlights, the follow-playback scroll target and the key handling lived inline in `build`, `didUpdateWidget` and the key callback. It is now split by responsibility (D-040):
+  - `lyric_list_logic.dart`: `LyricListSearch`, `LyricCandidateHighlights` (with the summary line), `LyricListCommand` and `LyricListNavigation` (`commandFor`, `next`, `previous`, `followTarget`). These are plain functions with unit tests.
+  - `lyric_review_row.dart`: `LyricReviewRow` and the `LyricRowMenuAction` enum. The right-click menu and the screen-reader custom actions now come from the same list in the same order, and the menu gains 复制文字, which a screen reader could already reach.
+  - `lyric_inline_editor_row.dart`: `InlineLyricEditorRow`, moved verbatim.
+  - `timestamp_edit_dialog.dart`:
+    - `LyricTimeInput` for parsing and checks;
+    - `TimestampEditDialog`;
+    - `editLyricLineTime`, which replaces the two near-identical start and end editors.
+  - `lyric_list_states.dart`: the search field, the candidate summary and the three empty states.
+  - `lyric_list_pane.dart` (about 460 lines) keeps the state: the search text, the row being edited, scrolling and focus. It re-exports the rows and the dialog, so importers are unchanged.
+
+  Behaviour fixes made along the way:
+  - The list used to return `handled` for every key. With the list focused, Tab could not leave it and Space never reached the global playback shortcut. Keys the list does not use now go on to the app.
+  - Ctrl/Cmd + F was an empty branch. It now focuses the search field, and goes on to the app when the list has no search field.
+  - The "did the search result change" check in `didUpdateWidget` compared text only and read old indices from the new document. It now runs the same filter on the old and the new document.
+  - The reviewed rows are read once per build instead of once per row.
+  - A hand-edited line keeps its italic style when a selected long line expands to four lines.
+  - The time field rejects `NaN` and `Infinity`.
+- Files:
+  - New: `lib/features/lyrics/presentation/widgets/lyric_list_logic.dart`, `lyric_review_row.dart`, `lyric_inline_editor_row.dart`, `timestamp_edit_dialog.dart`, `lyric_list_states.dart`.
+  - `lib/features/lyrics/presentation/widgets/lyric_list_pane.dart`.
+  - New tests: `test/features/lyrics/presentation/widgets/lyric_list_logic_test.dart`, `timestamp_edit_dialog_test.dart`, `lyric_review_row_test.dart`, `lyric_list_pane_keys_test.dart`, `lyric_list_states_test.dart`.
+  - `docs/decisions.md` (D-040), `artifacts/ui-audit/reports/issues.md` (E-04 and A-04 rows; status section for round 19).
+- Validation:
+  - Logic unit tests:
+    - index comparison;
+    - search by text, start time and row number, plus identity for an empty query and skipping rows that no longer exist;
+    - candidate highlights: no list, no limit, reviewed rows, limit order, clamping, a non-numeric limit, broken entries, the summary;
+    - every key command, including the keys left to the app;
+    - next and previous at the ends and for hidden rows;
+    - the follow target, its clamping and slack.
+  - Time tests: every accepted format and a list of rejected inputs; the 10 ms rule for both ends; the dialog (initial value, format error, submit, cancel); `editLyricLineTime` (edit, refusal with a snack bar, cancel).
+  - Review row tests:
+    - menu order matches the screen-reader order, and each action runs its own callback;
+    - display text, long text and wrapping, italic, the playing state and the time links;
+    - the badges on wide and phone layouts and for a reviewed row;
+    - the right-click menu lists all nine actions, copy copies, delete is in the error colour, dismissing runs nothing.
+  - Pane key tests:
+    - the arrows, including through a filter;
+    - Tab and Space are passed on, and Tab moves focus;
+    - Delete alone versus Ctrl + Delete and Ctrl + Backspace;
+    - Enter and F2 edit;
+    - Ctrl + F with and without a search field;
+    - no selection, and keys while editing;
+    - copy through the clipboard, no merge on the last row, time edits and refusals, candidate highlights.
+  - State tests: both queue states and the show-all button; the filtered and search states; the search field's clear button and focus node; a 390-wide phone at 1.6× text.
+  - The existing list, row semantics, structure and editor pane tests still import `lyric_list_pane.dart`.
+  - Format, analyze and tests => PR's Flutter Quality Gate and the temporary probe workflow.
+- Notes:
+  - Not looked at in a running app. Apart from the menu entry, the key handling and the italic fix above, the layout and wording are unchanged.
+  - The inline editor row was moved without changes.
+- Commit: `Split the editor's lyric list into rows, dialog, states and logic`
