@@ -223,13 +223,14 @@ class LyricEditorProofreadingCoordinator {
         search: dependencies.onlineLyricSearch,
         matcher: OnlineLyricMatcher(parser: referenceParser),
       ),
-      reviewReference: ({required document, required revision, required input}) =>
-          reviewReferenceAlignment(
-            project: project,
-            document: document,
-            revision: revision,
-            input: input,
-          ),
+      reviewReference:
+          ({required document, required revision, required input}) =>
+              reviewReferenceAlignment(
+                project: project,
+                document: document,
+                revision: revision,
+                input: input,
+              ),
       pasteReference: ({required document, required revision}) =>
           openReferenceAlignment(
             project: project,

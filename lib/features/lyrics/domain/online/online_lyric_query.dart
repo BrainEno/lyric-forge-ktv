@@ -55,8 +55,7 @@ class OnlineLyricQuery {
   bool get isSearchable => title.trim().isNotEmpty;
 
   /// "歌名 歌手", for sources that search one keyword string.
-  String get keywords =>
-      artist.isEmpty ? title : '$title $artist';
+  String get keywords => artist.isEmpty ? title : '$title $artist';
 
   OnlineLyricQuery copyWith({String? title, String? artist}) =>
       OnlineLyricQuery(

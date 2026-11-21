@@ -79,6 +79,7 @@ class LyricAutoProofreadFlow {
             break;
         }
       }
+      if (!context.mounted) return;
       await _apply(context, messenger, outcome);
       return;
     }

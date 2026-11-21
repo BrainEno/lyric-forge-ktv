@@ -26,19 +26,14 @@ class OnlineLyricEndpoints {
     return Uri.https('lrclib.net', '/api/search', parameters);
   }
 
-  static Uri neteaseSearch(String keywords, {int limit = 6}) =>
-      Uri.https('music.163.com', '/api/cloudsearch/pc', {
-        's': keywords,
-        'type': '1',
-        'limit': '$limit',
-        'offset': '0',
-      });
-
-  static Uri neteaseLyric(String songId) => Uri.https(
+  static Uri neteaseSearch(String keywords, {int limit = 6}) => Uri.https(
     'music.163.com',
-    '/api/song/lyric',
-    {'id': songId, 'lv': '1'},
+    '/api/cloudsearch/pc',
+    {'s': keywords, 'type': '1', 'limit': '$limit', 'offset': '0'},
   );
+
+  static Uri neteaseLyric(String songId) =>
+      Uri.https('music.163.com', '/api/song/lyric', {'id': songId, 'lv': '1'});
 
   static Uri kugouSearch(String keyword, Duration? duration) =>
       Uri.https('krcs.kugou.com', '/search', {

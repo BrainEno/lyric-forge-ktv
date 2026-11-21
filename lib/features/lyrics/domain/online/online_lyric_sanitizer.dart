@@ -45,9 +45,10 @@ class OnlineLyricSanitizer {
   /// [raw] without credits, title header rows and site notices. Returns an
   /// empty string when nothing sung is left (an instrumental track).
   String sanitize(String raw, {String title = '', String artist = ''}) {
-    final lines = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split(
-      '\n',
-    );
+    final lines = raw
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .split('\n');
     final kept = <String>[];
     var sungRows = 0;
     var checkedHeaderRows = 0;
@@ -91,7 +92,8 @@ class OnlineLyricSanitizer {
     return text.runes.length <= 24;
   }
 
-  static String _normalize(String text) => text
-      .toLowerCase()
-      .replaceAll(RegExp(r'[\s\p{P}\p{S}]', unicode: true), '');
+  static String _normalize(String text) => text.toLowerCase().replaceAll(
+    RegExp(r'[\s\p{P}\p{S}]', unicode: true),
+    '',
+  );
 }

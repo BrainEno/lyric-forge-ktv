@@ -129,7 +129,7 @@ class OneClickProofreadUseCase {
     final protectedIds = <String>{
       for (final index in protectedIndices)
         if (index >= 0 && index < document.lines.length)
-          if (document.lines[index].id case final id?) id,
+          ?document.lines[index].id,
     };
     Set<int> protectedNow() => {
       for (var index = 0; index < document.lines.length; index++)
@@ -254,7 +254,8 @@ class OneClickProofreadUseCase {
               plan.protectedLineIndices.contains(asrIndex)) {
             continue;
           }
-          final index = result.appliedIndexByOriginalIndex[asrIndex] ?? asrIndex;
+          final index =
+              result.appliedIndexByOriginalIndex[asrIndex] ?? asrIndex;
           if (index >= lines.length) continue;
           final line = lines[index];
           if (!line.hasConfidenceScore || line.confidence >= 100) continue;

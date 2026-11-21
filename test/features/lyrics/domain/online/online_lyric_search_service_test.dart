@@ -14,7 +14,10 @@ void main() {
       sources: [
         FakeLyricSource(
           OnlineLyricSourceKind.netease,
-          results: [candidate(id: '1'), candidate(id: '1')],
+          results: [
+            candidate(id: '1'),
+            candidate(id: '1'),
+          ],
         ),
         FakeLyricSource(
           OnlineLyricSourceKind.kugou,

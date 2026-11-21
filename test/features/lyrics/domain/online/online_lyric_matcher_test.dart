@@ -63,12 +63,7 @@ void main() {
   test('同名但内容不同的歌不被接受', () {
     final other = candidate(
       id: '2',
-      lyricText: [
-        '海风吹过旧码头',
-        '船笛声里有离愁',
-        '我们约好明年再见',
-        '你说要我等你回头',
-      ].join('\n'),
+      lyricText: ['海风吹过旧码头', '船笛声里有离愁', '我们约好明年再见', '你说要我等你回头'].join('\n'),
     );
     final match = matcher.evaluate(
       draft: nightFlightDraft(),

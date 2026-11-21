@@ -283,7 +283,9 @@ class OnlineLyricMatcher {
     }
     if (deltas.length < 3) return null;
     final median = _median(deltas);
-    final spread = _median([for (final delta in deltas) (delta - median).abs()]);
+    final spread = _median([
+      for (final delta in deltas) (delta - median).abs(),
+    ]);
     if (spread > maximumTimingSpread.inMilliseconds) return null;
     return Duration(milliseconds: median);
   }

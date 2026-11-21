@@ -20,9 +20,8 @@ void main() {
     duration: Duration(seconds: 56),
   );
 
-  OnlineLyricMatch matchFor(LyricDocument draft) => matcher
-      .rank(draft: draft, candidates: [candidate()], query: query)
-      .first;
+  OnlineLyricMatch matchFor(LyricDocument draft) =>
+      matcher.rank(draft: draft, candidates: [candidate()], query: query).first;
 
   test('在线歌词改正错字，识别行的时间保持不变', () {
     final draft = nightFlightDraft();
