@@ -12,33 +12,37 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
-      - name: Download runtime asset
+      - name: Probe
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $log = New-Object System.Collections.Generic.List[string]
+          function Say($t) { $script:log.Add("$t") }
           New-Item -ItemType Directory -Force C:\probe\downloads | Out-Null
           gh release download asr-runtime-v3 --repo ${{ github.repository }} --pattern lyricforge-asr-runtime-windows-x64-cuda.zip --output C:\probe\downloads\asr-runtime.zip
-          (Get-Item C:\probe\downloads\asr-runtime.zip).Length
-          (Get-FileHash C:\probe\downloads\asr-runtime.zip -Algorithm SHA256).Hash
-      - name: List entries (.NET)
-        shell: pwsh
-        run: |
+          Say ("size=" + (Get-Item C:\probe\downloads\asr-runtime.zip).Length)
+          Say ("sha=" + (Get-FileHash C:\probe\downloads\asr-runtime.zip -Algorithm SHA256).Hash)
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $zip = [IO.Compression.ZipFile]::OpenRead('C:\probe\downloads\asr-runtime.zip')
-          "entries: $($zip.Entries.Count)"
-          $zip.Entries | Select-Object -First 80 | ForEach-Object { "{0}`t{1}`t{2}" -f $_.FullName, $_.Length, $_.CompressedLength }
-          $zip.Dispose()
-      - name: Expand like the app (Windows PowerShell 5.1)
-        shell: cmd
-        run: |
-          powershell -NoProfile -NonInteractive -Command "Expand-Archive -LiteralPath 'C:\probe\downloads\asr-runtime.zip' -DestinationPath 'C:\probe\bundle.staging' -Force"
-          echo exit=%ERRORLEVEL%
-          dir /s /b C:\probe\bundle.staging
-      - name: tar
-        shell: cmd
-        run: |
-          mkdir C:\probe\tar
-          tar -xf C:\probe\downloads\asr-runtime.zip -C C:\probe\tar
-          echo exit=%ERRORLEVEL%
-          dir /s /b C:\probe\tar
+          try {
+            $zip = [IO.Compression.ZipFile]::OpenRead('C:\probe\downloads\asr-runtime.zip')
+            Say "entries=$($zip.Entries.Count)"
+            foreach ($e in ($zip.Entries | Select-Object -First 60)) { Say ("E {0} | {1} | {2}" -f $e.FullName, $e.Length, $e.CompressedLength) }
+            $zip.Dispose()
+          } catch { Say "openread error: $_" }
+          $out = & powershell -NoProfile -NonInteractive -Command "Expand-Archive -LiteralPath 'C:\probe\downloads\asr-runtime.zip' -DestinationPath 'C:\probe\bundle.staging' -Force" 2>&1
+          Say "ps51 exit=$LASTEXITCODE"
+          foreach ($l in $out) { Say "ps51> $l" }
+          if (Test-Path C:\probe\bundle.staging) { Get-ChildItem C:\probe\bundle.staging -Recurse -Force | ForEach-Object { Say ("X " + $_.FullName + " " + $_.Length) } } else { Say "no staging" }
+          New-Item -ItemType Directory -Force C:\probe\tar | Out-Null
+          $tout = & tar -xf C:\probe\downloads\asr-runtime.zip -C C:\probe\tar 2>&1
+          Say "tar exit=$LASTEXITCODE"
+          foreach ($l in $tout) { Say "tar> $l" }
+          Get-ChildItem C:\probe\tar -Recurse -Force | ForEach-Object { Say ("T " + $_.FullName + " " + $_.Length) }
+          $text = ($log -join "`n")
+          $chunks = [Math]::Ceiling($text.Length / 2500)
+          for ($i = 0; $i -lt [Math]::Min($chunks, 25); $i++) {
+            $c = $text.Substring($i * 2500, [Math]::Min(2500, $text.Length - $i * 2500))
+            $c = $c.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::warning title=win-$i::$c"
+          }
