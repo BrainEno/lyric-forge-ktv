@@ -80,6 +80,7 @@ void main() {
         referenceAlignment: noop,
         referenceProofread: noop,
         smartProofread: noop,
+        autoProofread: noop,
         undoAlignment: noop,
         viewComparison: noop,
         restoreAlignment: noop,
@@ -126,6 +127,18 @@ void main() {
 
       expect(running.onSmartProofread, isNull);
       expect(running.onReferenceAlignment, isNotNull);
+    });
+
+    test('一键校对与智能校对共用一次只跑一遍的限制', () {
+      final idle = forDocument(hasLines: true);
+      expect(idle.onAutoProofread, isNotNull);
+      expect(idle.autoProofreadRunning, isFalse);
+
+      final running = forDocument(hasLines: true, smartProofreadRunning: true);
+      expect(running.onAutoProofread, isNull);
+      expect(running.autoProofreadRunning, isTrue);
+
+      expect(forDocument(hasLines: false).onAutoProofread, isNull);
     });
 
     test('alignment follow-ups survive deleting every row', () {

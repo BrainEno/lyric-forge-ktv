@@ -1,5 +1,11 @@
+import 'dart:io';
+
+import '../features/lyrics/data/services/online_lyrics/online_lyric_http.dart';
+import '../features/lyrics/data/services/online_lyrics/online_lyric_sources.dart';
+import '../features/lyrics/domain/online/online_lyric_candidate.dart';
 import '../features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import '../features/lyrics/presentation/lyric_editor_dependencies.dart';
+import '../features/transcription/data/services/asr_download_http_client_factory.dart';
 import '../features/transcription/data/services/project_proofread_evidence_loader.dart';
 import '../features/transcription/data/services/project_span_recognition_service.dart';
 import '../features/transcription/data/services/reference_alignment_audio_guard.dart';
@@ -46,6 +52,34 @@ LyricEditorDependencies assembleLyricEditorDependencies(AppServices services) {
       // The span service already holds the shared lease for its whole run.
       alignClip: _alignWithReadyRuntime(services),
     ),
+    onlineLyricSearch: buildOnlineLyricSearch(),
+  );
+}
+
+/// The lyric sites 一键校对 searches. Requests honour the same system or
+/// environment proxy as the model downloads, so a machine that can download
+/// models can also reach the lyric sites.
+OnlineLyricSearchService buildOnlineLyricSearch() {
+  final proxies = AsrDownloadHttpClientFactory();
+  final http = IoOnlineLyricHttp(
+    createClient: () async {
+      HttpClient client;
+      try {
+        client = await proxies.create();
+      } on Object {
+        // An unreadable proxy setting must not block the search; a direct
+        // connection still works on most networks.
+        client = HttpClient();
+      }
+      return client..connectionTimeout = const Duration(seconds: 8);
+    },
+  );
+  return OnlineLyricSearchService(
+    sources: [
+      NeteaseLyricSource(get: http.get),
+      KugouLyricSource(get: http.get),
+      LrclibLyricSource(get: http.get),
+    ],
   );
 }
 

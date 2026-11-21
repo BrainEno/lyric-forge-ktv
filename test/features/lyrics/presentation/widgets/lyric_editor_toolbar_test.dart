@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_review_queue.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/auto_proofread_dialogs.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_actions.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_review_controls.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart';
@@ -429,6 +430,47 @@ void main() {
 
       expect(find.textContaining('待复核 2'), findsWidgets);
     });
+  });
+
+  testWidgets('宽屏工具栏把一键校对放在校对菜单旁边', (tester) async {
+    await pumpAt(
+      tester,
+      buildToolbar(
+        proofread: LyricProofreadActions(
+          onAutoProofread: () => calls.add('auto'),
+          onSmartProofread: _noop,
+        ),
+      ),
+      const Size(1280, 900),
+    );
+
+    expect(find.text(AutoProofreadStrings.actionTitle), findsOneWidget);
+    await tester.tap(find.text(AutoProofreadStrings.actionTitle));
+    await tester.pumpAndSettle();
+    expect(calls, ['auto']);
+  });
+
+  testWidgets('校对进行中按钮变为不可点的「校对中…」', (tester) async {
+    await pumpAt(
+      tester,
+      buildToolbar(
+        proofread: const LyricProofreadActions(
+          autoProofreadRunning: true,
+          onSmartProofread: _noop,
+        ),
+      ),
+      const Size(1280, 900),
+    );
+
+    expect(find.text(AutoProofreadStrings.runningLabel), findsOneWidget);
+    expect(find.text(AutoProofreadStrings.actionTitle), findsNothing);
+    final button = tester.widget<FilledButton>(
+      find.ancestor(
+        of: find.text(AutoProofreadStrings.runningLabel),
+        matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+      ),
+    );
+    expect(button.onPressed, isNull);
   });
 
   testWidgets('校对分组原样交给菜单：批量工具按种类回调', (tester) async {

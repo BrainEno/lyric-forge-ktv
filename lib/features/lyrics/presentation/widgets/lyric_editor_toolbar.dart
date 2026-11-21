@@ -7,6 +7,7 @@ import '../../../player/presentation/widgets/seekable_progress_bar.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../lyric_review_strings.dart';
+import 'auto_proofread_dialogs.dart';
 import 'lyric_editor_actions.dart';
 import 'lyric_editor_review_controls.dart';
 import 'lyric_proofread_menu_button.dart';
@@ -146,6 +147,28 @@ class LyricEditorToolbar extends StatelessWidget {
                     onSelected: audition.onLoopCurrentLineChanged,
                     avatar: const Icon(Icons.repeat_rounded, size: 16),
                     label: const Text(LyricReviewStrings.loopCurrentLineLabel),
+                  ),
+                ),
+              // A static label while a pass runs: a spinner here would keep
+              // the editor animating behind every proofreading dialog.
+              if (showProofreadMenu &&
+                  (proofread.autoProofreadRunning ||
+                      proofread.onAutoProofread != null))
+                Tooltip(
+                  message: AutoProofreadStrings.tooltip,
+                  child: FilledButton.icon(
+                    onPressed: proofread.onAutoProofread,
+                    icon: Icon(
+                      proofread.autoProofreadRunning
+                          ? Icons.hourglass_top_rounded
+                          : Icons.bolt_rounded,
+                      size: 18,
+                    ),
+                    label: Text(
+                      proofread.autoProofreadRunning
+                          ? AutoProofreadStrings.runningLabel
+                          : AutoProofreadStrings.actionTitle,
+                    ),
                   ),
                 ),
               if (showProofreadMenu)

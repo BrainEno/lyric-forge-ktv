@@ -1,6 +1,7 @@
 import '../../player/domain/services/audio_player_service.dart';
 import '../../player/domain/services/playback_session_service.dart';
 import '../../project/domain/repositories/project_repository.dart';
+import '../domain/online/online_lyric_candidate.dart';
 import '../domain/proofreading/forced_alignment_proofread_service.dart';
 import '../domain/proofreading/reference_alignment_audio_guard.dart';
 import '../domain/proofreading/project_proofread_evidence.dart';
@@ -45,6 +46,10 @@ class LyricEditorDependencies {
   /// no local recognition runtime to offer.
   final LyricSpanRecognizer? spanRecognizer;
 
+  /// Finds the song's published lyric for 一键校对; null where the app must
+  /// not go online (tests), in which case only the offline steps run.
+  final OnlineLyricSearchService? onlineLyricSearch;
+
   const LyricEditorDependencies({
     required this.projectRepository,
     required this.playbackSession,
@@ -56,5 +61,6 @@ class LyricEditorDependencies {
     this.projectProofreadEvidencePreviewer,
     this.referenceAlignmentAudioGuard,
     this.spanRecognizer,
+    this.onlineLyricSearch,
   });
 }

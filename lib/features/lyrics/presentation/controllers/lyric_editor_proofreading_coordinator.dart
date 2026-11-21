@@ -7,7 +7,9 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/reference_lyric_input.dart';
+import '../../domain/online/online_lyric_matcher.dart';
 import '../../domain/proofreading/apply_reference_alignment_use_case.dart';
+import '../../domain/proofreading/auto_proofread_service.dart';
 import '../../domain/proofreading/forced_alignment_language.dart';
 import '../../domain/proofreading/forced_alignment_proofread_service.dart';
 import '../../domain/proofreading/proofread_result.dart';
@@ -21,9 +23,11 @@ import '../../domain/proofreading/run_reference_proofread_use_case.dart';
 import '../../domain/services/lyric_timeline_validator.dart';
 import '../../domain/services/reference_lyric_text_parser.dart';
 import '../controllers/line_audition_controller.dart';
+import '../controllers/lyric_auto_proofread_flow.dart';
 import '../controllers/reference_timing_audition_coordinator.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
+import '../widgets/chinese_script_unification_dialog.dart';
 import '../widgets/lyric_proofread_dialog.dart';
 import '../widgets/project_asr_snapshot_dialog.dart';
 import '../widgets/project_chunk_asr_snapshot_dialog.dart';
@@ -108,7 +112,23 @@ class LyricEditorProofreadingCoordinator {
         !host.proofreadIsCurrent(revision)) {
       return;
     }
+    await reviewReferenceAlignment(
+      project: project,
+      document: document,
+      revision: revision,
+      input: input,
+    );
+  }
 
+  /// The review and apply half of [openReferenceAlignment], for a lyric that
+  /// is already at hand (pasted, or found online by 一键校对).
+  Future<void> reviewReferenceAlignment({
+    required ProjectManifest project,
+    required LyricDocument document,
+    required int revision,
+    required ReferenceLyricInput input,
+  }) async {
+    final context = host.proofreadContext;
     final plan = const ApplyReferenceAlignmentUseCase().prepare(
       draft: document,
       input: input,
@@ -187,6 +207,61 @@ class LyricEditorProofreadingCoordinator {
       isReferenceProofread: false,
       message:
           '${parts.isEmpty ? '参考歌词已对齐' : parts.join('，')}$timelineWarning。请检查后保存。',
+    );
+  }
+
+  /// 一键校对: finds the song's lyric online and applies every safe
+  /// correction at once ([LyricAutoProofreadFlow]).
+  Future<void> runAutoProofread({
+    required ProjectManifest project,
+    required LyricDocument document,
+    required int revision,
+  }) {
+    final flow = LyricAutoProofreadFlow(
+      host: host,
+      service: AutoProofreadService(
+        search: dependencies.onlineLyricSearch,
+        matcher: OnlineLyricMatcher(parser: referenceParser),
+      ),
+      reviewReference:
+          ({required document, required revision, required input}) =>
+              reviewReferenceAlignment(
+                project: project,
+                document: document,
+                revision: revision,
+                input: input,
+              ),
+      pasteReference: ({required document, required revision}) =>
+          openReferenceAlignment(
+            project: project,
+            document: document,
+            revision: revision,
+          ),
+    );
+    return flow.run(project: project, document: document, revision: revision);
+  }
+
+  /// 统一简繁字形: previews, then applies as one undoable change without
+  /// saving.
+  Future<void> openChineseScriptUnification(LyricDocument document) async {
+    if (document.lines.isEmpty) return;
+    final context = host.proofreadContext;
+    final revision = host.proofreadDocumentRevision;
+    final plan = await showChineseScriptUnificationDialog(
+      context,
+      document: document,
+      protectedIndices: host.proofreadManuallyEditedLineIndices,
+      initialPreference: initialChineseScriptPreferenceFor(document),
+    );
+    if (plan == null || !plan.hasChanges || !host.proofreadIsMounted) return;
+    // The dialog worked on a snapshot; refuse to apply over newer edits.
+    if (host.proofreadDocumentRevision != revision) return;
+    host.applyProofreadDocument(
+      document: plan.applyTo(document),
+      label: ChineseScriptStrings.actionTitle,
+      selectedLineIndex: plan.changes.first.index,
+      isReferenceProofread: false,
+      message: '已统一 ${plan.changes.length} 行的简繁字形（未写入磁盘）',
     );
   }
 

@@ -23,7 +23,6 @@ import '../widgets/reference_alignment_backup_dialog.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../controllers/line_audition_controller.dart';
 import '../controllers/lyric_editor_document_controller.dart';
-import '../widgets/chinese_script_unification_dialog.dart';
 import '../controllers/lyric_editor_proofreading_coordinator.dart';
 import '../controllers/lyric_batch_text_tools_coordinator.dart';
 import '../controllers/lyric_export_coordinator.dart';
@@ -81,7 +80,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
   /// and the undo history; this screen only decides what to show.
   late final LyricEditorDocumentController _editor;
 
-  bool _smartProofreadInProgress = false;
+  bool _proofreadPassRunning = false;
   bool _followPlayback = true;
   LyricReviewFilter _filter = LyricReviewFilter.all;
 
@@ -413,23 +412,40 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
   }
 
   Future<void> _openSmartProofread(ProjectManifest project) async {
-    final document = _editingDocument;
-    if (_smartProofreadInProgress ||
-        document == null ||
-        document.lines.isEmpty) {
-      return;
-    }
-    final revision = _editor.documentRevision;
-    setState(() => _smartProofreadInProgress = true);
-    try {
-      await _proofreading.runSmartProofread(
+    await _runProofreadPass(
+      (document, revision) => _proofreading.runSmartProofread(
         project: project,
         document: document,
         revision: revision,
         projectRevision: _projectRevision ?? project.revision,
-      );
+      ),
+    );
+  }
+
+  Future<void> _runAutoProofread(ProjectManifest project) async {
+    await _runProofreadPass(
+      (document, revision) => _proofreading.runAutoProofread(
+        project: project,
+        document: document,
+        revision: revision,
+      ),
+    );
+  }
+
+  /// One proofreading pass at a time; the menu entries are disabled while
+  /// one runs.
+  Future<void> _runProofreadPass(
+    Future<void> Function(LyricDocument document, int revision) pass,
+  ) async {
+    final document = _editingDocument;
+    if (_proofreadPassRunning || document == null || document.lines.isEmpty) {
+      return;
+    }
+    setState(() => _proofreadPassRunning = true);
+    try {
+      await pass(document, _editor.documentRevision);
     } finally {
-      if (mounted) setState(() => _smartProofreadInProgress = false);
+      if (mounted) setState(() => _proofreadPassRunning = false);
     }
   }
 
@@ -516,28 +532,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
         duration: const Duration(seconds: 6),
         action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
       ),
-    );
-  }
-
-  /// 统一简繁字形：预览后作为一次可撤销的批量修改写入编辑中的文档，不自动保存。
-  Future<void> _openChineseScriptUnification() async {
-    final document = _editingDocument;
-    if (document == null || document.lines.isEmpty) return;
-    final plan = await showChineseScriptUnificationDialog(
-      context,
-      document: document,
-      protectedIndices: _manuallyEditedLineIndices,
-      initialPreference: initialChineseScriptPreferenceFor(document),
-    );
-    if (plan == null || !plan.hasChanges || !mounted) return;
-    // The dialog worked on a snapshot; refuse to apply over newer edits.
-    if (!identical(_editingDocument, document)) return;
-    applyProofreadDocument(
-      document: plan.applyTo(document),
-      label: ChineseScriptStrings.actionTitle,
-      selectedLineIndex: plan.changes.first.index,
-      isReferenceProofread: false,
-      message: '已统一 ${plan.changes.length} 行的简繁字形（未写入磁盘）',
     );
   }
 
@@ -1093,7 +1087,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                         ),
                         proofread: LyricProofreadActions.forDocument(
                           hasLines: document.lines.isNotEmpty,
-                          smartProofreadRunning: _smartProofreadInProgress,
+                          smartProofreadRunning: _proofreadPassRunning,
                           alignment: editorState.alignmentSnapshot,
                           canRestore: canRestore,
                           referenceAlignment: () =>
@@ -1101,11 +1095,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                           referenceProofread: () =>
                               _openReferenceProofread(project),
                           smartProofread: () => _openSmartProofread(project),
+                          autoProofread: () => _runAutoProofread(project),
                           undoAlignment: _undoAlignmentApply,
                           viewComparison: () =>
                               _showAlignmentComparison(project),
                           restoreAlignment: _restoreAlignmentBackup,
-                          unifyChineseScript: _openChineseScriptUnification,
+                          unifyChineseScript: () => _proofreading
+                              .openChineseScriptUnification(document),
                           batchTextTool: _batchTools.toolsFor(project),
                           vocalCheckAction: _batchTools.vocalCheckFor(project),
                         ),
