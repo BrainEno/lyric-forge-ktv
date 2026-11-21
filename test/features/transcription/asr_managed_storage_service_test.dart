@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/local_asr_managed_storage_service.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_managed_storage_service.dart';
 
 void main() {
   test('moves managed ASR tree to another parent and persists the root', () async {
@@ -286,7 +287,15 @@ void main() {
     );
 
     expect((await service.resolveRoot()).path, outerRoot.absolute.path);
-    expect(await nestedPartial.readAsString(), 'partial');
+    // The partial download moves up with the pointer so it resumes there
+    // (D-048); nothing is deleted.
+    expect(await nestedPartial.exists(), isFalse);
+    expect(
+      await File(
+        '${outerRoot.path}${separator}downloads${separator}asr-runtime.zip.part',
+      ).readAsString(),
+      'partial',
+    );
     final config =
         jsonDecode(await configFile.readAsString()) as Map<String, dynamic>;
     expect(config['managedRoot'], outerRoot.absolute.path);
@@ -344,7 +353,19 @@ void main() {
       expect(result.moved, isTrue);
       expect(result.targetRoot, outerRoot.absolute.path);
       expect((await service.resolveRoot()).path, outerRoot.absolute.path);
-      expect(await nestedWhisper.readAsString(), 'nested-partial-environment');
+      // D-048: what the nested copy had downloaded moves up instead of being
+      // downloaded again into the outer root; nothing is lost.
+      expect(await nestedWhisper.exists(), isFalse);
+      expect(
+        await File(
+          '${outerRoot.path}${separator}models${separator}whisper${separator}ggml-large-v3.bin',
+        ).readAsString(),
+        'nested-partial-environment',
+      );
+      expect(
+        result.movedUnits,
+        containsAll([AsrRuntimeUnit.runtime, AsrRuntimeUnit.whisperModel]),
+      );
     },
   );
 

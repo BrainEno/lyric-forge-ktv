@@ -311,6 +311,56 @@ void main() {
       expect(find.byType(AsrExistingModelCard), findsOneWidget);
     });
 
+    testWidgets('leftover copies are listed with a clean-up button (D-048)', (
+      tester,
+    ) async {
+      var cleaned = 0;
+      Widget withLeftovers() {
+        return AsrStorageSettingsCard(
+          ready: true,
+          loading: false,
+          storage: null,
+          location: const AsrManagedStorageLocation(
+            activeRoot: '/runtime',
+            defaultRoot: '/default',
+            managedBytes: 0,
+            isDefault: false,
+            leftovers: [
+              AsrRuntimeLeftover(
+                path: '/runtime/LyricForge/ASRRuntime',
+                kind: AsrRuntimeLeftoverKind.nestedCopy,
+                bytes: 1 << 30,
+                files: 3,
+              ),
+            ],
+          ),
+          scanningExisting: false,
+          existingModelMessage: null,
+          movingStorage: false,
+          movingCopiedBytes: 0,
+          movingTotalBytes: 0,
+          onCleanUpLeftovers: () => cleaned++,
+          onScan: () {},
+          onPastePath: () {},
+          onBrowse: () {},
+          onChangeLocation: () {},
+          onRestoreDefault: () {},
+        );
+      }
+
+      await _pump(tester, card(ready: true));
+      expect(find.byType(AsrLeftoverNotice), findsNothing);
+
+      await _pump(tester, withLeftovers());
+      expect(find.byType(AsrLeftoverNotice), findsOneWidget);
+      expect(
+        find.textContaining('/runtime/LyricForge/ASRRuntime'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('asr_leftover_clean_up')));
+      expect(cleaned, 1);
+    });
+
     testWidgets('restoring the default appears only after a move', (
       tester,
     ) async {

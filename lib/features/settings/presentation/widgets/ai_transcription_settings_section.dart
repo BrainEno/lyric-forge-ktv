@@ -45,6 +45,9 @@ class _AiTranscriptionSettingsSectionState
         notFound: AsrFolderText.notFound,
         pathNotRecognised: AsrFolderText.pathNotRecognised,
         checkingPath: AsrFolderText.checkingPath,
+        adoptionNote: AsrLeftoverText.adoptionNote,
+        cleanedUp: AsrLeftoverText.cleanedUp,
+        cleanupFailed: AsrLeftoverText.cleanupFailed,
       ),
     )..start();
   }
@@ -69,6 +72,16 @@ class _AiTranscriptionSettingsSectionState
     );
     if (path == null || path.trim().isEmpty || !mounted) return;
     await _controller.adoptExistingPath(path);
+  }
+
+  Future<void> _cleanUpLeftovers() async {
+    final location = _controller.managedStorageLocation;
+    if (!_controller.canStartExclusive || location == null) return;
+    if (location.leftovers.isEmpty) return;
+    if (!await confirmAsrLeftoverCleanup(context, location) || !mounted) {
+      return;
+    }
+    await _controller.cleanUpLeftovers();
   }
 
   Future<void> _changeManagedStorageLocation() async {
@@ -201,6 +214,9 @@ class _AiTranscriptionSettingsSectionState
           movingStorage: state.movingStorage,
           movingCopiedBytes: state.movingCopiedBytes,
           movingTotalBytes: state.movingTotalBytes,
+          cleaningLeftovers: state.cleaningLeftovers,
+          leftoverMessage: state.leftoverMessage,
+          onCleanUpLeftovers: unlessBusy(_cleanUpLeftovers),
           onScan: unlessBusy(state.scanExisting),
           onPastePath: unlessBusy(_pasteExistingModelPath),
           onBrowse: unlessBusy(_browseExistingModel),
