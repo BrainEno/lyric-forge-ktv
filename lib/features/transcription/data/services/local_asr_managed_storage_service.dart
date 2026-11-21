@@ -590,9 +590,9 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
         final outermost = nested.first;
         final needed =
             !_samePath(inUse.path, canonical.path) ||
-            (await _unitsOf(nested)).difference(
-              await AsrRuntimeTree(canonical).completeUnits(),
-            ).isNotEmpty;
+            (await _unitsOf(nested))
+                .difference(await AsrRuntimeTree(canonical).completeUnits())
+                .isNotEmpty;
         if (needed) {
           retained.add(outermost.path);
         } else {
@@ -640,9 +640,9 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       if (nested.isNotEmpty) {
         final outermost = nested.first;
         final stats = await _treeStats(outermost);
-        final missing = (await _unitsOf(nested)).difference(
-          await AsrRuntimeTree(canonical).completeUnits(),
-        );
+        final missing = (await _unitsOf(
+          nested,
+        )).difference(await AsrRuntimeTree(canonical).completeUnits());
         leftovers.add(
           AsrRuntimeLeftover(
             path: outermost.path,
@@ -782,10 +782,7 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       failures.addAll(outcome.failures);
     }
     if (failures.isNotEmpty) {
-      appLog.warning(
-        _logTag,
-        '内层重复目录中有 ${failures.length} 项未能移入当前识别环境',
-      );
+      appLog.warning(_logTag, '内层重复目录中有 ${failures.length} 项未能移入当前识别环境');
     }
     return AsrRuntimeMergeOutcome(
       movedUnits: _ordered(moved),

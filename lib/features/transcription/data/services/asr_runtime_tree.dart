@@ -84,9 +84,7 @@ class AsrRuntimeTree {
         AsrRuntimeUnit.qwenAsrLarge ||
         AsrRuntimeUnit.qwenAsrSmall ||
         AsrRuntimeUnit.forcedAligner => await _completeQwenModel(
-          Directory(
-            path(['models', 'qwen', qwenModelDirectories[unit]!]),
-          ),
+          Directory(path(['models', 'qwen', qwenModelDirectories[unit]!])),
         ),
       };
     } on FileSystemException {

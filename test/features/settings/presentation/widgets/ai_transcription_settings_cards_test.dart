@@ -353,7 +353,10 @@ void main() {
 
       await _pump(tester, withLeftovers());
       expect(find.byType(AsrLeftoverNotice), findsOneWidget);
-      expect(find.textContaining('/runtime/LyricForge/ASRRuntime'), findsOneWidget);
+      expect(
+        find.textContaining('/runtime/LyricForge/ASRRuntime'),
+        findsOneWidget,
+      );
       await tester.tap(find.byKey(const ValueKey('asr_leftover_clean_up')));
       expect(cleaned, 1);
     });

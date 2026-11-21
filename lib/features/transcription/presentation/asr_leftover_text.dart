@@ -132,7 +132,8 @@ abstract final class AsrLeftoverText {
       return '没有需要清理的重复文件夹。';
     }
     final summary = parts.isEmpty ? '' : '${parts.join('，')}。';
-    if (result.retainedPaths.isEmpty) return '$summary当前环境：${result.activeRoot}。';
+    if (result.retainedPaths.isEmpty)
+      return '$summary当前环境：${result.activeRoot}。';
     return '$summary以下文件夹已保留：${result.retainedPaths.join('、')}'
         '（含有当前环境没有的组件，或有文件正在使用；关闭正在运行的识别后可以再清理一次）。';
   }

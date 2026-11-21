@@ -206,10 +206,7 @@ void main() {
     test('the outer folder drops the nested suffix in any case', () {
       expect(AsrLeftoverText.outerOf(_nested), _outer);
       expect(AsrLeftoverText.outerOf('$_nested/'), _outer);
-      expect(
-        AsrLeftoverText.outerOf('$_outer/lyricforge/asrruntime'),
-        _outer,
-      );
+      expect(AsrLeftoverText.outerOf('$_outer/lyricforge/asrruntime'), _outer);
       expect(AsrLeftoverText.outerOf('/elsewhere'), '/elsewhere');
     });
 

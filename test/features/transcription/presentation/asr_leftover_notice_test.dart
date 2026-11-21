@@ -65,7 +65,11 @@ void main() {
   testWidgets('the button is disabled while cleaning or busy', (tester) async {
     await _pump(
       tester,
-      AsrLeftoverNotice(location: _location(), cleaning: true, onCleanUp: () {}),
+      AsrLeftoverNotice(
+        location: _location(),
+        cleaning: true,
+        onCleanUp: () {},
+      ),
     );
     expect(find.text(AsrLeftoverText.cleaningLabel), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -76,7 +80,11 @@ void main() {
 
     await _pump(
       tester,
-      AsrLeftoverNotice(location: _location(), cleaning: false, onCleanUp: null),
+      AsrLeftoverNotice(
+        location: _location(),
+        cleaning: false,
+        onCleanUp: null,
+      ),
     );
     button = tester.widget<ButtonStyleButton>(
       find.byKey(const ValueKey('asr_leftover_clean_up')),

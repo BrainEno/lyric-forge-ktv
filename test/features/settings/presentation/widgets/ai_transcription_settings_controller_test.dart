@@ -747,28 +747,31 @@ void main() {
       expect(controller.leftoverMessage, isNull);
     });
 
-    test('cleaning merges, repairs the plan, saves it and inspects again', () async {
-      storage.location = withLeftover;
-      storage.cleanupResult = const AsrRuntimeCleanupResult(
-        activeRoot: '/runtime',
-        movedUnits: [AsrRuntimeUnit.whisperModel],
-        removedPaths: ['/runtime/LyricForge/ASRRuntime'],
-        freedBytes: 1 << 30,
-      );
-      final controller = await started();
-      store.saved.clear();
-      storage.location = _location;
+    test(
+      'cleaning merges, repairs the plan, saves it and inspects again',
+      () async {
+        storage.location = withLeftover;
+        storage.cleanupResult = const AsrRuntimeCleanupResult(
+          activeRoot: '/runtime',
+          movedUnits: [AsrRuntimeUnit.whisperModel],
+          removedPaths: ['/runtime/LyricForge/ASRRuntime'],
+          freedBytes: 1 << 30,
+        );
+        final controller = await started();
+        store.saved.clear();
+        storage.location = _location;
 
-      final result = await controller.cleanUpLeftovers();
+        final result = await controller.cleanUpLeftovers();
 
-      expect(storage.cleanupCalls, 1);
-      expect(result?.removedPaths, ['/runtime/LyricForge/ASRRuntime']);
-      expect(store.saved, [_configured]);
-      expect(controller.leftoverMessage, 'cleaned 1');
-      expect(controller.managedStorageLocation?.leftovers, isEmpty);
-      expect(controller.cleaningLeftovers, isFalse);
-      expect(controller.busy, isFalse);
-    });
+        expect(storage.cleanupCalls, 1);
+        expect(result?.removedPaths, ['/runtime/LyricForge/ASRRuntime']);
+        expect(store.saved, [_configured]);
+        expect(controller.leftoverMessage, 'cleaned 1');
+        expect(controller.managedStorageLocation?.leftovers, isEmpty);
+        expect(controller.cleaningLeftovers, isFalse);
+        expect(controller.busy, isFalse);
+      },
+    );
 
     test('a running clean-up keeps every other flow out', () async {
       storage.location = withLeftover;
@@ -812,49 +815,55 @@ void main() {
       expect(storage.cleanupCalls, 0);
     });
 
-    test('an adopted environment adds the note about moved components', () async {
-      storage.discovered = const AsrManagedStorageMoveResult(
-        sourceRoot: '/runtime/LyricForge/ASRRuntime',
-        targetRoot: '/runtime',
-        copiedBytes: 0,
-        copiedFiles: 0,
-        moved: true,
-        adoptedExisting: true,
-        movedUnits: [AsrRuntimeUnit.whisperModel],
-      );
-      final controller = await started();
+    test(
+      'an adopted environment adds the note about moved components',
+      () async {
+        storage.discovered = const AsrManagedStorageMoveResult(
+          sourceRoot: '/runtime/LyricForge/ASRRuntime',
+          targetRoot: '/runtime',
+          copiedBytes: 0,
+          copiedFiles: 0,
+          moved: true,
+          adoptedExisting: true,
+          movedUnits: [AsrRuntimeUnit.whisperModel],
+        );
+        final controller = await started();
 
-      await controller.scanExisting();
+        await controller.scanExisting();
 
-      expect(controller.existingModelMessage, endsWith('note 1'));
-    });
+        expect(controller.existingModelMessage, endsWith('note 1'));
+      },
+    );
 
-    test('without texts for them the messages still say what happened', () async {
-      storage.location = withLeftover;
-      storage.cleanupResult = const AsrRuntimeCleanupResult(
-        activeRoot: '/runtime',
-        freedBytes: 1 << 30,
-      );
-      final controller = AiTranscriptionSettingsController(
-        settingsStore: store,
-        runtimeManager: runtime,
-        storagePreflightService: preflight,
-        managedStorageService: storage,
-        texts: const AsrExistingModelTexts(
-          scanning: 'scanning',
-          notFound: 'not found',
-          pathNotRecognised: 'not recognised',
-          checkingPath: _checking,
-        ),
-        directorySize: (path) async => 0,
-      )..start();
-      addTearDown(controller.dispose);
-      await _settle();
+    test(
+      'without texts for them the messages still say what happened',
+      () async {
+        storage.location = withLeftover;
+        storage.cleanupResult = const AsrRuntimeCleanupResult(
+          activeRoot: '/runtime',
+          freedBytes: 1 << 30,
+        );
+        final controller = AiTranscriptionSettingsController(
+          settingsStore: store,
+          runtimeManager: runtime,
+          storagePreflightService: preflight,
+          managedStorageService: storage,
+          texts: const AsrExistingModelTexts(
+            scanning: 'scanning',
+            notFound: 'not found',
+            pathNotRecognised: 'not recognised',
+            checkingPath: _checking,
+          ),
+          directorySize: (path) async => 0,
+        )..start();
+        addTearDown(controller.dispose);
+        await _settle();
 
-      await controller.cleanUpLeftovers();
+        await controller.cleanUpLeftovers();
 
-      expect(controller.leftoverMessage, contains('1.00 GB'));
-    });
+        expect(controller.leftoverMessage, contains('1.00 GB'));
+      },
+    );
   });
 
   group('measureDirectory', () {

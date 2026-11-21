@@ -117,9 +117,9 @@ void main() {
 
     test('a nested layout without files is reported as empty', () async {
       await _write(disk.outer, _whisper, 'model');
-      await Directory(_p(disk.nested, ['models', 'whisper'])).create(
-        recursive: true,
-      );
+      await Directory(
+        _p(disk.nested, ['models', 'whisper']),
+      ).create(recursive: true);
       await Directory(_p(disk.nested, ['ffmpeg'])).create(recursive: true);
       await disk.pointAt(disk.outer);
 
@@ -183,11 +183,10 @@ void main() {
     test('a staging folder of a failed move is reported', () async {
       await _write(disk.outer, _whisper, 'model');
       final staging = _p(disk.outer, ['..', '.ASRRuntime.migrating-12345']);
-      await _write(
-        Directory(staging).absolute.path,
-        ['models', 'part'],
-        'copy',
-      );
+      await _write(Directory(staging).absolute.path, [
+        'models',
+        'part',
+      ], 'copy');
       await disk.pointAt(disk.outer);
 
       final leftovers = (await disk.service().inspect()).leftovers;
@@ -241,20 +240,27 @@ void main() {
       ]);
     });
 
-    test('the standalone Whisper of a nested copy is kept, not deleted', () async {
-      await _write(disk.outer, _whisper, 'model');
-      await _write(disk.nested, ['whisper', 'v1.7.6', 'whisper-cli.exe'], 'b');
-      await disk.pointAt(disk.outer);
+    test(
+      'the standalone Whisper of a nested copy is kept, not deleted',
+      () async {
+        await _write(disk.outer, _whisper, 'model');
+        await _write(disk.nested, [
+          'whisper',
+          'v1.7.6',
+          'whisper-cli.exe',
+        ], 'b');
+        await disk.pointAt(disk.outer);
 
-      final result = await disk.service().cleanUpLeftovers();
+        final result = await disk.service().cleanUpLeftovers();
 
-      expect(result.movedUnits, [AsrRuntimeUnit.whisperRuntime]);
-      expect(
-        await _read(disk.outer, ['whisper', 'v1.7.6', 'whisper-cli.exe']),
-        'b',
-      );
-      expect(await Directory(disk.nested).exists(), isFalse);
-    });
+        expect(result.movedUnits, [AsrRuntimeUnit.whisperRuntime]);
+        expect(
+          await _read(disk.outer, ['whisper', 'v1.7.6', 'whisper-cli.exe']),
+          'b',
+        );
+        expect(await Directory(disk.nested).exists(), isFalse);
+      },
+    );
 
     test('a repeated chain is merged from the deepest copy up', () async {
       final deeper = _p(disk.nested, ['LyricForge', 'ASRRuntime']);
@@ -299,7 +305,11 @@ void main() {
     test('staging folders of failed moves are removed', () async {
       await _write(disk.outer, _whisper, 'model');
       final staging = Directory(
-        _p(disk.sandbox.path, ['Models', 'LyricForge', '.ASRRuntime.migrating-1']),
+        _p(disk.sandbox.path, [
+          'Models',
+          'LyricForge',
+          '.ASRRuntime.migrating-1',
+        ]),
       );
       await _write(staging.path, ['copy.bin'], 'copy');
       await disk.pointAt(disk.outer);
@@ -323,29 +333,32 @@ void main() {
   });
 
   group('adopting an existing environment', () {
-    test('a scan keeps the root in use when another is no more complete', () async {
-      // The root in use and the default location both have the runtime
-      // and Whisper; the default one has more evidence files.
-      await _write(disk.outer, _whisper, 'model');
-      await _write(disk.outer, _bundleBin, 'bin');
-      await _write(disk.defaultRoot, _whisper, 'model');
-      await _write(disk.defaultRoot, _bundleBin, 'bin');
-      await _write(disk.defaultRoot, _health, '{}');
-      await _write(disk.defaultRoot, [
-        'state',
-        'qwen_rtx5080HighQuality.ready.json',
-      ], '{}');
-      await disk.pointAt(disk.outer);
+    test(
+      'a scan keeps the root in use when another is no more complete',
+      () async {
+        // The root in use and the default location both have the runtime
+        // and Whisper; the default one has more evidence files.
+        await _write(disk.outer, _whisper, 'model');
+        await _write(disk.outer, _bundleBin, 'bin');
+        await _write(disk.defaultRoot, _whisper, 'model');
+        await _write(disk.defaultRoot, _bundleBin, 'bin');
+        await _write(disk.defaultRoot, _health, '{}');
+        await _write(disk.defaultRoot, [
+          'state',
+          'qwen_rtx5080HighQuality.ready.json',
+        ], '{}');
+        await disk.pointAt(disk.outer);
 
-      final result = await disk.service().discoverAndAdoptExisting();
+        final result = await disk.service().discoverAndAdoptExisting();
 
-      expect(result?.targetRoot, Directory(disk.outer).absolute.path);
-      expect(
-        result?.otherRoots,
-        contains(Directory(disk.defaultRoot).absolute.path),
-      );
-      expect(await disk.pointedAt(), Directory(disk.outer).absolute.path);
-    });
+        expect(result?.targetRoot, Directory(disk.outer).absolute.path);
+        expect(
+          result?.otherRoots,
+          contains(Directory(disk.defaultRoot).absolute.path),
+        );
+        expect(await disk.pointedAt(), Directory(disk.outer).absolute.path);
+      },
+    );
 
     test('a scan moves to a root that is more complete', () async {
       await _write(disk.outer, _whisper, 'model');

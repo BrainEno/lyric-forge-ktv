@@ -116,23 +116,32 @@ void main() {
       expect(await tree.hasAny(AsrRuntimeUnit.ffmpeg), isFalse);
     });
 
-    test('the runtime pieces include readiness markers of both copies', () async {
-      await _write(outer, ['state', 'qwen_rtx5080HighQuality.ready.json'], '');
-      await _write(nested, ['state', 'qwen_intelMacHighQuality.ready.json'], '');
-      await _write(nested, ['state', 'unrelated.json'], '');
+    test(
+      'the runtime pieces include readiness markers of both copies',
+      () async {
+        await _write(outer, [
+          'state',
+          'qwen_rtx5080HighQuality.ready.json',
+        ], '');
+        await _write(nested, [
+          'state',
+          'qwen_intelMacHighQuality.ready.json',
+        ], '');
+        await _write(nested, ['state', 'unrelated.json'], '');
 
-      final pieces = await AsrRuntimeTree(
-        nested,
-      ).pieces(AsrRuntimeUnit.runtime, other: AsrRuntimeTree(outer));
+        final pieces = await AsrRuntimeTree(
+          nested,
+        ).pieces(AsrRuntimeUnit.runtime, other: AsrRuntimeTree(outer));
 
-      expect(pieces, [
-        ['bundle'],
-        _revision,
-        _health,
-        ['state', 'qwen_intelMacHighQuality.ready.json'],
-        ['state', 'qwen_rtx5080HighQuality.ready.json'],
-      ]);
-    });
+        expect(pieces, [
+          ['bundle'],
+          _revision,
+          _health,
+          ['state', 'qwen_intelMacHighQuality.ready.json'],
+          ['state', 'qwen_rtx5080HighQuality.ready.json'],
+        ]);
+      },
+    );
 
     test('the runtime revision is read with its time', () async {
       expect(await AsrRuntimeTree(outer).runtimeRevision(), isNull);
@@ -161,10 +170,7 @@ void main() {
       final outcome = await merger.merge(from: nested, into: outer);
 
       expect(outcome.movedUnits, [AsrRuntimeUnit.whisperRuntime]);
-      expect(
-        await _read(outer, ['whisper', 'v1.7.6', 'whisper.dll']),
-        'dll',
-      );
+      expect(await _read(outer, ['whisper', 'v1.7.6', 'whisper.dll']), 'dll');
       expect(await Directory(_p(nested, ['whisper'])).exists(), isFalse);
     });
 
@@ -179,17 +185,20 @@ void main() {
       expect(await _read(nested, _whisper), 'nested-model');
     });
 
-    test('a partial piece of the target makes way for a complete one', () async {
-      await _write(outer, _whisperPart, 'outer-half');
-      await _write(nested, _whisper, 'nested-model');
+    test(
+      'a partial piece of the target makes way for a complete one',
+      () async {
+        await _write(outer, _whisperPart, 'outer-half');
+        await _write(nested, _whisper, 'nested-model');
 
-      await merger.merge(from: nested, into: outer);
+        await merger.merge(from: nested, into: outer);
 
-      expect(await _read(outer, _whisper), 'nested-model');
-      expect(await _read(outer, _whisperPart), isNull);
-      // Nothing is deleted: the partial file now sits in the leftover copy.
-      expect(await _read(nested, _whisperPart), 'outer-half');
-    });
+        expect(await _read(outer, _whisper), 'nested-model');
+        expect(await _read(outer, _whisperPart), isNull);
+        // Nothing is deleted: the partial file now sits in the leftover copy.
+        expect(await _read(nested, _whisperPart), 'outer-half');
+      },
+    );
 
     test('a complete runtime moves in as a whole with its state', () async {
       await _write(nested, _bundleBin, 'bin');
@@ -239,12 +248,18 @@ void main() {
       final nestedRevision = await _write(nested, _revision, 'r1');
       await nestedRevision.setLastModified(DateTime(2026, 10, 1));
 
-      expect((await merger.merge(from: nested, into: outer)).movedUnits, isEmpty);
+      expect(
+        (await merger.merge(from: nested, into: outer)).movedUnits,
+        isEmpty,
+      );
       expect(await _read(outer, _bundleBin), 'outer-bin');
 
       await nestedRevision.writeAsString('r2');
       await nestedRevision.setLastModified(DateTime(2026, 12, 1));
-      expect((await merger.merge(from: nested, into: outer)).movedUnits, isEmpty);
+      expect(
+        (await merger.merge(from: nested, into: outer)).movedUnits,
+        isEmpty,
+      );
       expect(await _read(outer, _bundleBin), 'outer-bin');
     });
 
@@ -253,7 +268,10 @@ void main() {
       await _write(outer, _revision, 'r1');
       await _write(nested, _bundleBin, 'nested-bin');
 
-      expect((await merger.merge(from: nested, into: outer)).movedUnits, isEmpty);
+      expect(
+        (await merger.merge(from: nested, into: outer)).movedUnits,
+        isEmpty,
+      );
       expect(await _read(outer, _bundleBin), 'outer-bin');
     });
 
@@ -282,7 +300,10 @@ void main() {
 
       await merger.merge(from: nested, into: outer);
 
-      expect(await _read(outer, ['downloads', 'asr-runtime.zip.part']), 'outer');
+      expect(
+        await _read(outer, ['downloads', 'asr-runtime.zip.part']),
+        'outer',
+      );
       expect(await _read(outer, ['downloads', 'ffmpeg.zip.part']), 'ffmpeg');
       expect(await _read(outer, ['downloads', 'asr-runtime.zip']), isNull);
       expect(
@@ -319,9 +340,14 @@ void main() {
 
       final names = await outer
           .list()
-          .map((entity) => entity.uri.pathSegments.where((s) => s.isNotEmpty).last)
+          .map(
+            (entity) => entity.uri.pathSegments.where((s) => s.isNotEmpty).last,
+          )
           .toList();
-      expect(names.where((name) => name.startsWith('.lyricforge-merge-')), isEmpty);
+      expect(
+        names.where((name) => name.startsWith('.lyricforge-merge-')),
+        isEmpty,
+      );
     });
 
     test('a missing source changes nothing', () async {
