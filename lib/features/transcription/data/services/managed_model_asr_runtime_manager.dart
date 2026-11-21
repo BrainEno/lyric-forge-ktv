@@ -97,7 +97,13 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   late final ResumableFileDownload _downloader = ResumableFileDownload(
     clientFactory: httpClientFactory,
     timeout: _downloadTimeout,
+    transientRetries: 3,
+    retryDelay: downloadRetryDelay,
   );
+
+  /// Base wait before a dropped model transfer reconnects from its part
+  /// file; tests shorten it.
+  final Duration downloadRetryDelay;
 
   ManagedModelAsrRuntimeManager({
     required this.delegate,
@@ -105,6 +111,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     this.managedRootResolver,
     AsrDownloadHttpClientFactory? httpClientFactory,
     AsrModelDownloadEndpoints? downloadEndpoints,
+    this.downloadRetryDelay = const Duration(seconds: 2),
   }) : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory(),
        downloadEndpoints =
            downloadEndpoints ?? AsrModelDownloadEndpoints.official {
@@ -515,6 +522,15 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         );
       } else {
         downloadedAnyFile = true;
+        metadata = await _preferSourceWithLongerPartial(
+          target: target,
+          modelId: modelId,
+          fileName: fileName,
+          metadata: metadata,
+          proxyOverride: proxyOverride,
+          component: component,
+          progress: _mapProgress(fileStart, startProgress, endProgress),
+        );
         Future<void> downloadWithMetadata(
           HuggingFaceFileMetadata fileMetadata,
         ) {
@@ -524,6 +540,17 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
             target: target,
             metadata: fileMetadata,
             proxyOverride: proxyOverride,
+            onRetry: (retry) => _emit(
+              component,
+              _mapProgress(fileStart, startProgress, endProgress),
+              describeDownloadRetry(
+                '${_modelLabel(modelId)} · $fileName',
+                retry,
+              ),
+              phase: AsrRuntimeInstallPhase.downloading,
+              downloadedBytes: retry.keptBytes,
+              totalBytes: retry.totalBytes,
+            ),
             onProgress: (progress) {
               final modelFraction =
                   fileStart + (fileEnd - fileStart) * (progress.fraction ?? 0);
@@ -566,19 +593,33 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
             final contentCompatible = metadata.isContentCompatibleWith(
               fallbackMetadata,
             );
-            // Keep partials scoped to their source. This switch never feeds
-            // Hugging Face bytes into a ModelScope response, even when metadata
-            // matches. ModelScope can resume only its own previous partial.
-            final huggingFacePartial = File('${target.path}.part');
-            if (await huggingFacePartial.exists()) {
-              await huggingFacePartial.delete();
+            final huggingFacePartial = File(
+              _partialDownloadPath(target, AsrModelDownloadSource.huggingFace),
+            );
+            String message;
+            if (!contentCompatible) {
+              // Different content: the Hugging Face bytes can never finish
+              // the ModelScope file, and they are stale for Hugging Face too.
+              if (await huggingFacePartial.exists()) {
+                await huggingFacePartial.delete();
+              }
+              message =
+                  'Hugging Face 与 ModelScope 的 $fileName 元数据不同；已清理 Hugging Face 临时分片，将从 ModelScope 完整下载并按 SHA-256 校验';
+            } else {
+              final carried = await _carryPartialAcrossSources(
+                target: target,
+                from: metadata,
+                to: fallbackMetadata,
+              );
+              message = carried > 0
+                  ? 'Hugging Face 下载中断，已保留 ${formatDownloadBytes(carried)}，'
+                        '将通过官方 ModelScope 备用源从断点继续：$downloadError'
+                  : 'Hugging Face 下载失败，已保留其断点文件，正在通过官方 ModelScope 备用源重试：$downloadError';
             }
             _emit(
               component,
               _mapProgress(fileStart, startProgress, endProgress),
-              contentCompatible
-                  ? 'Hugging Face 下载失败，已清理其临时分片，正在从头通过官方 ModelScope 备用源重试：$downloadError'
-                  : 'Hugging Face 与 ModelScope 的 $fileName 元数据不同；已清理 Hugging Face 临时分片，将从 ModelScope 完整下载并按 SHA-256 校验',
+              message,
             );
             await downloadWithMetadata(fallbackMetadata);
             metadata = fallbackMetadata;
@@ -635,6 +676,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required HuggingFaceFileMetadata metadata,
     required String proxyOverride,
     required void Function(DownloadProgress progress) onProgress,
+    void Function(DownloadRetry retry)? onRetry,
   }) async {
     final size = metadata.sizeBytes;
     final done = DownloadProgress(
@@ -666,6 +708,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         proxy: proxyOverride,
         expectedBytes: size,
         onProgress: onProgress,
+        onRetry: onRetry,
       );
     } on ResumableDownloadException catch (error) {
       final diagnostics = _downloadResponseDiagnostics(uri, error.response);
@@ -707,6 +750,107 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     }
     await ResumableFileDownload.promote(part, target);
     onProgress(done);
+  }
+
+  /// Moves the part file of [from]'s source to [to]'s source when it holds
+  /// more bytes, so switching mirrors continues instead of starting over.
+  ///
+  /// Both mirrors serve the same content-addressed blob, so the bytes are
+  /// interchangeable exactly when both sides publish the same SHA-256 and
+  /// size; the final SHA-256 check still guards the promoted file. Without
+  /// a digest on both sides each source keeps its own part file. Returns
+  /// the bytes carried over, or 0.
+  Future<int> _carryPartialAcrossSources({
+    required File target,
+    required HuggingFaceFileMetadata from,
+    required HuggingFaceFileMetadata to,
+  }) async {
+    if (from.source == to.source || !_sameDigest(from, to)) return 0;
+    final source = File(_partialDownloadPath(target, from.source));
+    final destination = File(_partialDownloadPath(target, to.source));
+    try {
+      if (!await source.exists()) return 0;
+      final carried = await source.length();
+      if (carried <= 0 || carried > to.sizeBytes) return 0;
+      final existing = await destination.exists()
+          ? await destination.length()
+          : 0;
+      if (existing >= carried) return 0;
+      if (await destination.exists()) await destination.delete();
+      await source.rename(destination.path);
+      return carried;
+    } on FileSystemException {
+      return 0;
+    }
+  }
+
+  static bool _sameDigest(
+    HuggingFaceFileMetadata a,
+    HuggingFaceFileMetadata b,
+  ) {
+    final digestA = a.sha256;
+    final digestB = b.sha256;
+    return a.sizeBytes == b.sizeBytes &&
+        digestA != null &&
+        digestB != null &&
+        digestA.toLowerCase() == digestB.toLowerCase();
+  }
+
+  /// Starts on the mirror that already holds the longer part file.
+  ///
+  /// Every attempt reads Hugging Face metadata first, so after a fall back
+  /// to ModelScope the next attempt used to begin again on Hugging Face and
+  /// ignore the ModelScope bytes. When ModelScope's part file is longer and
+  /// both mirrors publish the same digest, those bytes are continued.
+  Future<HuggingFaceFileMetadata> _preferSourceWithLongerPartial({
+    required File target,
+    required String modelId,
+    required String fileName,
+    required HuggingFaceFileMetadata metadata,
+    required String proxyOverride,
+    required AsrRuntimeComponent component,
+    required double progress,
+  }) async {
+    if (metadata.source != AsrModelDownloadSource.huggingFace ||
+        metadata.sha256 == null) {
+      return metadata;
+    }
+    final own = await _partLength(
+      File(_partialDownloadPath(target, metadata.source)),
+    );
+    final other = await _partLength(
+      File(_partialDownloadPath(target, AsrModelDownloadSource.modelScope)),
+    );
+    if (other <= own || other > metadata.sizeBytes) return metadata;
+    try {
+      final mirror = await _fetchModelScopeFileMetadata(
+        modelId: modelId,
+        fileName: fileName,
+        proxyOverride: proxyOverride,
+      );
+      if (!_sameDigest(metadata, mirror)) return metadata;
+      _emit(
+        component,
+        progress,
+        '发现 ModelScope 备用源的 $fileName 断点（${formatDownloadBytes(other)}），'
+        '将从断点继续下载',
+        phase: AsrRuntimeInstallPhase.downloading,
+        downloadedBytes: other,
+        totalBytes: metadata.sizeBytes,
+      );
+      return mirror;
+    } catch (_) {
+      _throwIfCancelled();
+      return metadata;
+    }
+  }
+
+  static Future<int> _partLength(File part) async {
+    try {
+      return await part.exists() ? await part.length() : 0;
+    } on FileSystemException {
+      return 0;
+    }
   }
 
   String _partialDownloadPath(File target, AsrModelDownloadSource source) {

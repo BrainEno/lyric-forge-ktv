@@ -7,7 +7,9 @@ import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import 'asr_download_http_client_factory.dart';
 import 'asr_endpoints.dart';
+import 'local_asr_storage_preflight_service.dart';
 import 'resumable_file_download.dart';
+import 'zip_bundle_extractor.dart';
 
 /// Keeps local transcription usable even when the optional Qwen runtime is
 /// temporarily unavailable.
@@ -36,6 +38,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
   late final ResumableFileDownload _downloader = ResumableFileDownload(
     clientFactory: httpClientFactory,
     timeout: _downloadTimeout,
+    transientRetries: 3,
   );
   double _delegatePhaseStart = 0;
   double _delegatePhaseEnd = 1;
@@ -301,17 +304,14 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   Future<void> _extractZip(String archive, String destination) async {
-    final result = await Process.run('powershell', [
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      'Expand-Archive -LiteralPath ${_psQuote(archive)} '
-          '-DestinationPath ${_psQuote(destination)} -Force',
-    ]);
-    if (result.exitCode != 0) {
+    try {
+      await ZipBundleExtractor(
+        freeSpaceReader: LocalAsrStoragePreflightService.readAvailableBytes,
+      ).extract(File(archive), Directory(destination));
+    } on ZipExtractionException catch (error) {
       throw TranscriptionException(
-        'Whisper runtime 解压失败',
-        details: result.stderr.toString(),
+        'Whisper runtime 解压失败：${error.message}',
+        details: error.details,
       );
     }
   }
@@ -407,10 +407,6 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
       }
     }
     return current;
-  }
-
-  String _psQuote(String value) {
-    return "'${value.replaceAll("'", "''")}'";
   }
 
   String _percent(double fraction) {

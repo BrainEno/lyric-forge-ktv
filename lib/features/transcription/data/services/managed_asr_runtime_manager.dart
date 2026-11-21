@@ -12,9 +12,11 @@ import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import 'asr_download_http_client_factory.dart';
 import 'asr_endpoints.dart';
+import 'local_asr_storage_preflight_service.dart';
 import 'qwen_runtime_session.dart';
 import 'resumable_file_download.dart';
 import 'runtime_release_asset_metadata.dart';
+import 'zip_bundle_extractor.dart';
 
 class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   static const Duration _downloadTimeout = Duration(seconds: 60);
@@ -46,7 +48,9 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   late final ResumableFileDownload _downloader = ResumableFileDownload(
     clientFactory: httpClientFactory,
     timeout: _downloadTimeout,
+    transientRetries: 3,
   );
+  final ZipBundleExtractor _zipExtractor;
   Process? _activeProcess;
 
   ManagedAsrRuntimeManager({
@@ -54,8 +58,15 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     this.managedRootResolver,
     AsrDownloadHttpClientFactory? httpClientFactory,
     QwenRuntimeLauncher? qwenRuntimeLauncher,
+    ZipBundleExtractor? zipExtractor,
   }) : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory(),
-       _qwenRuntimeLauncher = qwenRuntimeLauncher ?? QwenRuntimeLauncher();
+       _qwenRuntimeLauncher = qwenRuntimeLauncher ?? QwenRuntimeLauncher(),
+       _zipExtractor =
+           zipExtractor ??
+           ZipBundleExtractor(
+             freeSpaceReader:
+                 LocalAsrStoragePreflightService.readAvailableBytes,
+           );
 
   @override
   Stream<AsrRuntimeInstallProgress> get progressStream =>
@@ -431,45 +442,67 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       proxyOverride: proxyOverride,
     );
 
-    try {
-      await _download(
-        metadata.downloadUri,
-        archive,
-        component: AsrRuntimeComponent.qwenRuntime,
-        startProgress: 0.05,
-        endProgress: 0.22,
-        resumable: true,
-        proxyOverride: proxyOverride,
-      );
-    } on HttpException catch (error) {
-      throw TranscriptionException(
-        '无法下载 Elysium Player Qwen runtime。'
-        '可能是当前版本的 runtime release 尚未发布，请稍后重试。',
-        details: error.message,
-      );
-    }
-
-    _throwIfCancelled();
-    _emit(
-      AsrRuntimeComponent.qwenRuntime,
-      0.225,
-      '正在校验 Elysium Player 识别引擎完整性（刚下载的文件）',
-      phase: AsrRuntimeInstallPhase.verifying,
+    // A bundle that was downloaded and verified before is kept after a
+    // failed extraction, so a retry installs from it instead of fetching
+    // 1.2 GB again.
+    final reusedArchive = await _verifiedArchiveOnDisk(
+      archive,
+      sizeBytes: metadata.sizeBytes,
+      sha256: metadata.sha256,
     );
-
-    final actualSize = await archive.length();
-    if (actualSize != metadata.sizeBytes) {
-      await archive.delete();
-      throw TranscriptionException(
-        '识别引擎安装包大小校验失败，已删除损坏文件，请重新安装',
-        details: 'expected=${metadata.sizeBytes}, actual=$actualSize',
+    if (reusedArchive) {
+      _emit(
+        AsrRuntimeComponent.qwenRuntime,
+        0.225,
+        '已找到上次下载并校验通过的识别引擎安装包，跳过下载',
+        phase: AsrRuntimeInstallPhase.checkingExisting,
+        downloadedBytes: metadata.sizeBytes,
+        totalBytes: metadata.sizeBytes,
       );
-    }
+    } else {
+      try {
+        await _download(
+          metadata.downloadUri,
+          archive,
+          component: AsrRuntimeComponent.qwenRuntime,
+          startProgress: 0.05,
+          endProgress: 0.22,
+          resumable: true,
+          expectedBytes: metadata.sizeBytes,
+          proxyOverride: proxyOverride,
+        );
+      } on HttpException catch (error) {
+        throw TranscriptionException(
+          '无法下载 Elysium Player Qwen runtime。'
+          '可能是当前版本的 runtime release 尚未发布，请稍后重试。',
+          details: error.message,
+        );
+      }
 
-    final checksumValid = await _verifySha256(archive.path, metadata.sha256);
-    if (!checksumValid) {
-      await archive.delete();
-      throw const TranscriptionException('识别引擎安装包 SHA-256 校验失败，已删除损坏文件，请重新安装');
+      _throwIfCancelled();
+      _emit(
+        AsrRuntimeComponent.qwenRuntime,
+        0.225,
+        '正在校验 Elysium Player 识别引擎完整性（刚下载的文件）',
+        phase: AsrRuntimeInstallPhase.verifying,
+      );
+
+      final actualSize = await archive.length();
+      if (actualSize != metadata.sizeBytes) {
+        await archive.delete();
+        throw TranscriptionException(
+          '识别引擎安装包大小校验失败，已删除损坏文件，请重新安装',
+          details: 'expected=${metadata.sizeBytes}, actual=$actualSize',
+        );
+      }
+
+      final checksumValid = await _verifySha256(archive.path, metadata.sha256);
+      if (!checksumValid) {
+        await archive.delete();
+        throw const TranscriptionException(
+          '识别引擎安装包 SHA-256 校验失败，已删除损坏文件，请重新安装',
+        );
+      }
     }
 
     final bundle = Directory(_join(root.path, ['bundle']));
@@ -487,11 +520,11 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         '正在安装本地识别引擎',
         phase: AsrRuntimeInstallPhase.installing,
       );
-      await _extractZip(archive.path, staging.path);
+      final extraction = await _extractZip(archive.path, staging.path);
 
-      final manifest = await _findFile(staging, 'runtime-manifest.json');
+      final manifest = await _findFile(staging, _runtimeManifestName);
       if (manifest == null) {
-        throw const TranscriptionException('识别引擎安装包缺少运行时清单，已保留现有 runtime');
+        throw await _missingManifestError(extraction, staging);
       }
       String? actualPatchRevision;
       try {
@@ -660,14 +693,19 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       architecture: architecture,
     );
 
-    await _download(
-      release.downloadUri,
-      archive,
-      component: AsrRuntimeComponent.ffmpeg,
-      startProgress: 0.25,
-      endProgress: 0.34,
-      proxyOverride: proxyOverride,
-    );
+    final reuseFfmpegArchive =
+        await archive.exists() &&
+        await _verifySha256(archive.path, release.sha256);
+    if (!reuseFfmpegArchive) {
+      await _download(
+        release.downloadUri,
+        archive,
+        component: AsrRuntimeComponent.ffmpeg,
+        startProgress: 0.25,
+        endProgress: 0.34,
+        proxyOverride: proxyOverride,
+      );
+    }
 
     if (!await _verifySha256(archive.path, release.sha256)) {
       try {
@@ -888,6 +926,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     required double startProgress,
     required double endProgress,
     bool resumable = false,
+    int? expectedBytes,
     String proxyOverride = '',
   }) async {
     final part = ResumableFileDownload.partFileFor(target);
@@ -909,6 +948,15 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         cancellation: _transfer,
         proxy: proxyOverride,
         resume: resumable,
+        expectedBytes: expectedBytes,
+        onRetry: (retry) => _emit(
+          component,
+          startProgress,
+          describeDownloadRetry(label, retry),
+          phase: AsrRuntimeInstallPhase.downloading,
+          downloadedBytes: retry.keptBytes,
+          totalBytes: retry.totalBytes,
+        ),
         onProgress: (progress) {
           final fraction = progress.fraction;
           _emit(
@@ -958,32 +1006,79 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     }
   }
 
-  Future<void> _extractZip(String archive, String destination) async {
-    _throwIfCancelled();
+  static const String _runtimeManifestName = 'runtime-manifest.json';
 
-    ProcessResult result;
-    if (Platform.isWindows) {
-      result = await Process.run('powershell', [
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        'Expand-Archive -LiteralPath ${_psQuote(archive)} -DestinationPath ${_psQuote(destination)} -Force',
-      ]);
-    } else {
-      result = await Process.run('/usr/bin/unzip', [
-        '-o',
-        archive,
-        '-d',
-        destination,
-      ]);
+  /// Whether [archive] is already the complete, verified release asset.
+  Future<bool> _verifiedArchiveOnDisk(
+    File archive, {
+    required int sizeBytes,
+    required String sha256,
+  }) async {
+    try {
+      if (!await archive.exists()) return false;
+      if (await archive.length() != sizeBytes) {
+        // An older or damaged bundle; the download replaces it.
+        await archive.delete();
+        return false;
+      }
+      _emit(
+        AsrRuntimeComponent.qwenRuntime,
+        0.05,
+        '发现已下载的识别引擎安装包，正在校验是否可直接使用',
+        phase: AsrRuntimeInstallPhase.checkingExisting,
+      );
+      if (await _verifySha256(archive.path, sha256)) return true;
+      await archive.delete();
+      return false;
+    } on FileSystemException {
+      return false;
     }
+  }
 
-    if (result.exitCode != 0) {
+  /// Extracts with the first tool whose output matches the archive's own
+  /// file list; see [ZipBundleExtractor].
+  Future<ZipExtractionReport> _extractZip(
+    String archive,
+    String destination,
+  ) async {
+    _throwIfCancelled();
+    try {
+      return await _zipExtractor.extract(
+        File(archive),
+        Directory(destination),
+        beforeAttempt: _throwIfCancelled,
+      );
+    } on ZipExtractionException catch (error) {
       throw TranscriptionException(
-        '安装包解压失败',
-        details: result.stderr.toString(),
+        '${error.message}。已下载并校验的安装包已保留，重试时不会重新下载；'
+        '请确认磁盘空间充足，并检查杀毒软件是否拦截了识别引擎目录',
+        details: error.details,
       );
     }
+  }
+
+  Future<TranscriptionException> _missingManifestError(
+    ZipExtractionReport extraction,
+    Directory staging,
+  ) async {
+    final tree = await ZipBundleExtractor.describeTree(staging);
+    final details = [
+      'extracted with ${extraction.method}',
+      ...extraction.attempts.map((attempt) => attempt.describe()),
+      'staging: ${tree.isEmpty ? '(empty)' : tree.join(', ')}',
+    ].join('\n');
+    if (extraction.archiveContains(_runtimeManifestName) == false) {
+      // The release asset itself lacks the manifest: nothing a retry fixes.
+      return TranscriptionException(
+        '识别引擎安装包缺少运行时清单，已保留现有 runtime',
+        details: details,
+      );
+    }
+    return TranscriptionException(
+      '识别引擎安装包解压后未找到运行时清单，已保留现有 runtime 和已校验的安装包。'
+      '请确认磁盘空间充足、杀毒软件未拦截识别引擎目录，然后重试（不会重新下载）',
+      details: details,
+    );
   }
 
   Future<void> _verifyExecutable(
@@ -1104,9 +1199,8 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     if (!await root.exists()) return null;
     await for (final entity in root.list(recursive: true)) {
       if (entity is! File) continue;
-      final name = entity.uri.pathSegments.isEmpty
-          ? entity.path
-          : entity.uri.pathSegments.last;
+      final path = entity.path.replaceAll('\\', '/');
+      final name = path.substring(path.lastIndexOf('/') + 1);
       if (name.toLowerCase() == fileName.toLowerCase()) {
         return entity;
       }
@@ -1305,10 +1399,6 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       }
     }
     return current;
-  }
-
-  String _psQuote(String value) {
-    return "'${value.replaceAll("'", "''")}'";
   }
 
   String _percent(double fraction) {

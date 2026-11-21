@@ -84,6 +84,8 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-09 09:30] Separate the lead vocal before lyric recognition ([entry](log/entries/2026-12-09-0930-automatic-vocal-separation.md))
+- [2026-12-08 09:30] Add switchable light and dark themes ([entry](log/entries/2026-12-08-0930-switchable-light-and-dark-themes.md))
 - [2026-12-07 09:30] Make the phone app listening-first ([entry](log/entries/2026-12-07-0930-listening-first-phone-app.md))
 - [2026-12-06 09:30] Split the editor's lyric list ([entry](log/entries/2026-12-06-0930-split-the-lyric-list.md))
 - [2026-12-05 09:30] Split the speech recognition setup dialog ([entry](log/entries/2026-12-05-0930-split-the-asr-setup-dialog.md))

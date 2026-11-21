@@ -34,8 +34,16 @@ void main() {
           systemProxyLookup: () async => null,
         ),
         downloadEndpoints: fixture.endpoints,
+        downloadRetryDelay: Duration.zero,
       );
     });
+
+    File modelFile(String name) => File(
+      '${root.path}${Platform.pathSeparator}models'
+      '${Platform.pathSeparator}qwen'
+      '${Platform.pathSeparator}Qwen--Qwen3-ASR-0.6B'
+      '${Platform.pathSeparator}$name',
+    );
 
     tearDown(() async {
       await fixture.close();
@@ -277,6 +285,87 @@ void main() {
     );
 
     test(
+      'a dropped model transfer resumes in place from its break point',
+      () async {
+        fixture.huggingFaceSafetensorsCuts = 1;
+
+        await manager.installRecommended(_config);
+
+        expect(
+          fixture.rangeRequests,
+          contains(
+            '/hf/Qwen/Qwen3-ASR-0.6B/resolve/main/model.safetensors=bytes=10-',
+          ),
+        );
+        expect(
+          fixture.modelScopeFileRequests,
+          isNot(contains('Qwen/Qwen3-ASR-0.6B/model.safetensors')),
+        );
+        expect(
+          await modelFile('model.safetensors').readAsBytes(),
+          _DownloadFixture.payload,
+        );
+        expect(await modelFile('model.safetensors.part').exists(), isFalse);
+      },
+    );
+
+    test(
+      'switching to ModelScope continues the Hugging Face break point',
+      () async {
+        fixture.huggingFaceSafetensorsCuts = 1;
+        fixture.huggingFaceSafetensorsRangeFails = true;
+        final messages = <String>[];
+        final subscription = manager.progressStream.listen(
+          (progress) => messages.add(progress.message),
+        );
+
+        await manager.installRecommended(_config);
+        await subscription.cancel();
+
+        expect(
+          fixture.rangeRequests,
+          contains(
+            '/models/Qwen/Qwen3-ASR-0.6B/resolve/master/model.safetensors=bytes=10-',
+          ),
+        );
+        expect(
+          await modelFile('model.safetensors').readAsBytes(),
+          _DownloadFixture.payload,
+        );
+        expect(await modelFile('model.safetensors.part').exists(), isFalse);
+        expect(
+          await modelFile('model.safetensors.modelscope.part').exists(),
+          isFalse,
+        );
+        expect(messages, contains(contains('将通过官方 ModelScope 备用源从断点继续')));
+      },
+    );
+
+    test('a retry starts on the mirror holding the longer partial', () async {
+      final partial = modelFile('model.safetensors.modelscope.part');
+      await partial.parent.create(recursive: true);
+      await partial.writeAsBytes(_DownloadFixture.payload.sublist(0, 12));
+
+      await manager.installRecommended(_config);
+
+      expect(
+        fixture.rangeRequests,
+        contains(
+          '/models/Qwen/Qwen3-ASR-0.6B/resolve/master/model.safetensors=bytes=12-',
+        ),
+      );
+      expect(
+        fixture.huggingFaceFileRequests,
+        isNot(contains('Qwen/Qwen3-ASR-0.6B/model.safetensors')),
+      );
+      expect(
+        await modelFile('model.safetensors').readAsBytes(),
+        _DownloadFixture.payload,
+      );
+      expect(await partial.exists(), isFalse);
+    });
+
+    test(
       'does not reuse a partial file when source SHA-256 metadata differs',
       () async {
         fixture.mismatchModelScopeChecksum = true;
@@ -353,6 +442,13 @@ class _DownloadFixture {
   bool mismatchModelScopeChecksum = false;
   bool staleChatTemplateHeadMetadata = false;
   int huggingFaceConfigFailures = 0;
+
+  /// Full Hugging Face requests for the 0.6B weights still to cut off after
+  /// ten bytes.
+  int huggingFaceSafetensorsCuts = 0;
+
+  /// Answers Hugging Face range requests for the 0.6B weights with 503.
+  bool huggingFaceSafetensorsRangeFails = false;
 
   _DownloadFixture._(this.server) {
     server.listen((request) {
@@ -478,6 +574,25 @@ class _DownloadFixture {
       return;
     }
     huggingFaceFileRequests.add('$modelId/$fileName');
+
+    if (modelId == 'Qwen/Qwen3-ASR-0.6B' && fileName == 'model.safetensors') {
+      final range = request.headers.value(HttpHeaders.rangeHeader);
+      if (range == null && huggingFaceSafetensorsCuts > 0) {
+        huggingFaceSafetensorsCuts--;
+        request.response.contentLength = payload.length;
+        final socket = await request.response.detachSocket();
+        socket.add(payload.sublist(0, 10));
+        await socket.flush();
+        socket.destroy();
+        return;
+      }
+      if (range != null && huggingFaceSafetensorsRangeFails) {
+        rangeRequests.add('${request.uri.path}=$range');
+        request.response.statusCode = HttpStatus.serviceUnavailable;
+        await request.response.close();
+        return;
+      }
+    }
 
     if (modelId == 'Qwen/Qwen3-ASR-0.6B' && fileName == 'config.json') {
       huggingFaceConfigFailures++;
