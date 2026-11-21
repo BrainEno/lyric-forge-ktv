@@ -130,11 +130,8 @@ Future<LyricBatchTextEdit? Function()> _open(
                 initialSpan: initialSpan,
                 audioDuration: audioDuration,
                 onPreviewSpan: preview
-                    ? (index, start, end) => _previews.add((
-                        index: index,
-                        start: start,
-                        end: end,
-                      ))
+                    ? (index, start, end) =>
+                          _previews.add((index: index, start: start, end: end))
                     : null,
               ),
               child: const Text('open'),
@@ -181,12 +178,10 @@ void main() {
 
     await _tap(tester, find.byKey(const ValueKey('vocal_gap_confirm')));
     final edit = result()!;
-    expect([for (final line in edit.document.lines) line.text], [
-      'first line',
-      'found in the gap',
-      'second line',
-      'third line',
-    ]);
+    expect(
+      [for (final line in edit.document.lines) line.text],
+      ['first line', 'found in the gap', 'second line', 'third line'],
+    );
     expect(edit.selectedLineIndex, 1);
     expect(edit.label, LyricVocalCheckStrings.gapTitle);
     expect(edit.message, contains('插入 1 行'));
@@ -471,10 +466,7 @@ void main() {
 
   testWidgets('rows dropped at the edges are reported', (tester) async {
     final recognizer = _Recognizer()
-      ..lines = [
-        _line('kept', 20000, 22000),
-        _line('edge', 24250, 25000),
-      ];
+      ..lines = [_line('kept', 20000, 22000), _line('edge', 24250, 25000)];
     await _open(tester, document: _draft(), recognizer: recognizer);
     expect(find.textContaining('有 1 段识别结果落在范围边缘'), findsOneWidget);
     expect(find.text('插入 1 行'), findsOneWidget);
@@ -490,7 +482,10 @@ void main() {
       LyricVocalCheckStrings.dismissedMessage(_span(20000, 24000)),
       contains('不再提示'),
     );
-    expect(LyricVocalCheckStrings.restoredMessage(3), '已恢复 3 行被人声检查删除的歌词（未写入磁盘）');
+    expect(
+      LyricVocalCheckStrings.restoredMessage(3),
+      '已恢复 3 行被人声检查删除的歌词（未写入磁盘）',
+    );
     expect(
       LyricVocalCheckStrings.restoredMessage(3, overlapping: 1),
       contains('其中 1 行和已有的行时间重叠'),

@@ -41,10 +41,7 @@ RecognitionReviewSummary _summary(LyricDocument document) =>
     );
 
 final _record = LyricVocalCheckRecord(
-  removedLines: [
-    _removed('字幕由某某提供', 1, 5),
-    _removed('间奏里编出来的', 60, 64),
-  ],
+  removedLines: [_removed('字幕由某某提供', 1, 5), _removed('间奏里编出来的', 60, 64)],
   retimedLines: 1,
   uncoveredSpans: [_span(75, 79), _span(120, 124)],
 );
@@ -156,10 +153,9 @@ void main() {
     testWidgets('no removed rows, no restore buttons', (tester) async {
       await _pump(
         tester,
-        _document(
-          [_line('第一句', 10, 15)],
-          record: LyricVocalCheckRecord(uncoveredSpans: [_span(75, 79)]),
-        ),
+        _document([
+          _line('第一句', 10, 15),
+        ], record: LyricVocalCheckRecord(uncoveredSpans: [_span(75, 79)])),
       );
       expect(
         find.byKey(const ValueKey('lyric_recognition_summary_removed')),
@@ -213,9 +209,7 @@ void main() {
     });
 
     test('restored rows and dismissed stretches are counted', () {
-      final record = _record
-          .withRestored({0})
-          .withDismissed(_span(120, 124));
+      final record = _record.withRestored({0}).withDismissed(_span(120, 124));
       final lines = LyricRecognitionSummaryCard.vocalCheckLines(record);
       expect(lines, contains('已恢复 1 行被删除的歌词'));
       expect(lines, contains('已标记 1 处有人声的地方没有歌词'));
@@ -249,7 +243,10 @@ void main() {
     test('the follow-ups need a document with rows', () {
       void handler(LyricVocalCheckRequest _) {}
       expect(
-        actionsFor(hasLines: true, vocalCheckAction: handler).onVocalCheckAction,
+        actionsFor(
+          hasLines: true,
+          vocalCheckAction: handler,
+        ).onVocalCheckAction,
         isNotNull,
       );
       expect(

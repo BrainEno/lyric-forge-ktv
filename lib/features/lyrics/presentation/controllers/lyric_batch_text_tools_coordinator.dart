@@ -34,6 +34,7 @@ class LyricBatchTextToolsCoordinator {
   const LyricBatchTextToolsCoordinator({
     required this.host,
     this.spanRecognizer,
+    this.editingDocument,
   });
 
   final LyricEditorProofreadFlowHost host;
@@ -41,9 +42,27 @@ class LyricBatchTextToolsCoordinator {
   /// Runs "re-run this stretch"; null when the app has no local runtime.
   final LyricSpanRecognizer? spanRecognizer;
 
+  /// The document being edited when a tool is opened; the handlers from
+  /// [toolsFor] and [vocalCheckFor] read it then, not when they are built.
+  final LyricDocument? Function()? editingDocument;
+
   static const String staleMessage = '歌词在预览期间已被修改，本次批量更改未应用，请重新打开。';
 
   static const String tapSyncNeedsAudio = '本工程没有音频，无法打轴。';
+
+  /// Opens a batch tool on [project] and the document being edited.
+  ValueChanged<LyricBatchTextTool> toolsFor(ProjectManifest project) =>
+      (tool) => open(tool, project: project, document: editingDocument?.call());
+
+  /// Runs a vocal check follow-up on [project] and the document being
+  /// edited.
+  ValueChanged<LyricVocalCheckRequest> vocalCheckFor(
+    ProjectManifest project,
+  ) => (request) => openVocalCheck(
+    request,
+    project: project,
+    document: editingDocument?.call(),
+  );
 
   Future<void> open(
     LyricBatchTextTool tool, {

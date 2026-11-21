@@ -166,8 +166,7 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
             '${removed.length > 2 ? '等' : ''}），多是前奏、间奏或尾奏里编出来的',
       if (record.retimedLines > 0) '按人声收紧了 ${record.retimedLines} 行的起止时间',
       if (record.restoredLines > 0) '已恢复 ${record.restoredLines} 行被删除的歌词',
-      if (record.dismissedSpans > 0)
-        '已标记 ${record.dismissedSpans} 处有人声的地方没有歌词',
+      if (record.dismissedSpans > 0) '已标记 ${record.dismissedSpans} 处有人声的地方没有歌词',
       if (!record.changedDraft && record.restoredLines == 0)
         '人声检查没有发现需要删除或收紧的行',
     ];

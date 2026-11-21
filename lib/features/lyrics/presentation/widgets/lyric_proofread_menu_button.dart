@@ -414,7 +414,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.missedRepeatCheck => Icons.playlist_add_rounded,
       LyricProofreadAction.spanRecognition =>
         Icons.published_with_changes_rounded,
-      LyricProofreadAction.vocalGapRecognition => Icons.record_voice_over_rounded,
+      LyricProofreadAction.vocalGapRecognition =>
+        Icons.record_voice_over_rounded,
       LyricProofreadAction.restoreRemovedLines =>
         Icons.settings_backup_restore_rounded,
       LyricProofreadAction.lineStructure => Icons.view_agenda_outlined,

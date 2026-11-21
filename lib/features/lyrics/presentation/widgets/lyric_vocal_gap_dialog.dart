@@ -45,7 +45,8 @@ class LyricVocalCheckStrings {
 
   static String windowFailure(LyricVocalGapWindowFailure failure) =>
       switch (failure) {
-        LyricVocalGapWindowFailure.tooShort => '这一段夹在两行之间，不到 0.5 秒，无法单独识别；可以试听后手动补写。',
+        LyricVocalGapWindowFailure.tooShort =>
+          '这一段夹在两行之间，不到 0.5 秒，无法单独识别；可以试听后手动补写。',
         LyricVocalGapWindowFailure.tooLong => '这一段超过 90 秒，建议整首重新识别。',
       };
 
@@ -345,8 +346,11 @@ class _LyricVocalGapDialogState extends State<LyricVocalGapDialog> {
                 IconButton(
                   key: const ValueKey('vocal_gap_preview'),
                   tooltip: '试听这一段',
-                  onPressed: () =>
-                      widget.onPreviewSpan!(_anchorRow, window.start, window.end),
+                  onPressed: () => widget.onPreviewSpan!(
+                    _anchorRow,
+                    window.start,
+                    window.end,
+                  ),
                   icon: const Icon(Icons.hearing_rounded),
                 ),
             ],
@@ -404,9 +408,7 @@ class _LyricVocalGapDialogState extends State<LyricVocalGapDialog> {
             style: theme.textTheme.titleSmall,
           ),
           if (insertion.clippedCount > 0)
-            LyricBatchNote(
-              '有 ${insertion.clippedCount} 段识别结果落在范围边缘、太短，已舍弃。',
-            ),
+            LyricBatchNote('有 ${insertion.clippedCount} 段识别结果落在范围边缘、太短，已舍弃。'),
           for (final line in insertion.newLines)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs / 2),

@@ -14,7 +14,11 @@ LyricLine _line(String text, int startMs, int endMs, {String? id}) =>
     LyricLine(text: text, startTime: _ms(startMs), endTime: _ms(endMs), id: id);
 
 LyricVocalCheckRemovedLine _removed(String text, int startMs, int endMs) =>
-    LyricVocalCheckRemovedLine(text: text, start: _ms(startMs), end: _ms(endMs));
+    LyricVocalCheckRemovedLine(
+      text: text,
+      start: _ms(startMs),
+      end: _ms(endMs),
+    );
 
 final _record = LyricVocalCheckRecord(
   removedLines: [
@@ -59,18 +63,14 @@ Future<LyricBatchTextEdit? Function()> _open(
         body: Builder(
           builder: (context) => Center(
             child: TextButton(
-              onPressed: () async =>
-                  result = await showLyricVocalRestoreDialog(
-                    context,
-                    document: document,
-                    onPreviewSpan: preview
-                        ? (index, start, end) => _previews.add((
-                            index: index,
-                            start: start,
-                            end: end,
-                          ))
-                        : null,
-                  ),
+              onPressed: () async => result = await showLyricVocalRestoreDialog(
+                context,
+                document: document,
+                onPreviewSpan: preview
+                    ? (index, start, end) =>
+                          _previews.add((index: index, start: start, end: end))
+                    : null,
+              ),
               child: const Text('open'),
             ),
           ),
@@ -108,10 +108,7 @@ void main() {
     expect(find.text(LyricVocalCheckStrings.restoreTitle), findsOneWidget);
     expect(find.text('人声检查删除了 4 行'), findsOneWidget);
     for (var index = 0; index < 4; index++) {
-      expect(
-        find.byKey(ValueKey('vocal_restore_row_$index')),
-        findsOneWidget,
-      );
+      expect(find.byKey(ValueKey('vocal_restore_row_$index')), findsOneWidget);
       expect(_checked(tester, index), isTrue);
     }
     expect(find.text('whispered intro'), findsOneWidget);
@@ -169,10 +166,10 @@ void main() {
       edit.document.lines[3].id,
     });
     final record = LyricVocalCheckRecord.fromMetadata(edit.document.metadata)!;
-    expect([for (final line in record.removedLines) line.text], [
-      'whispered intro',
-      '   ',
-    ]);
+    expect(
+      [for (final line in record.removedLines) line.text],
+      ['whispered intro', '   '],
+    );
     expect(record.restoredLines, 2);
   });
 

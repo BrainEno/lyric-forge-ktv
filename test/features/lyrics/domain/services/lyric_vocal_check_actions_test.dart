@@ -15,7 +15,11 @@ LyricVocalCheckSpan _span(int startMs, int endMs) =>
     LyricVocalCheckSpan(_ms(startMs), _ms(endMs));
 
 LyricVocalCheckRemovedLine _removed(String text, int startMs, int endMs) =>
-    LyricVocalCheckRemovedLine(text: text, start: _ms(startMs), end: _ms(endMs));
+    LyricVocalCheckRemovedLine(
+      text: text,
+      start: _ms(startMs),
+      end: _ms(endMs),
+    );
 
 LyricDocument _document(
   List<LyricLine> lines, {
@@ -205,10 +209,10 @@ void main() {
       );
       expect(insertion.isEmpty, isFalse);
       expect(insertion.clippedCount, 0);
-      expect([for (final line in insertion.newLines) line.text], [
-        'earlier words',
-        'later words',
-      ]);
+      expect(
+        [for (final line in insertion.newLines) line.text],
+        ['earlier words', 'later words'],
+      );
       expect(insertion.newLines.every((line) => line.id == null), isTrue);
     });
 
@@ -253,10 +257,10 @@ void main() {
           _line('swallowed', 21600, 21900),
         ],
       );
-      expect([for (final line in insertion.newLines) line.text], [
-        'one',
-        'two',
-      ]);
+      expect(
+        [for (final line in insertion.newLines) line.text],
+        ['one', 'two'],
+      );
       expect(insertion.newLines[1].startTime, _ms(22000));
       expect(insertion.clippedCount, 1);
     });
@@ -477,10 +481,7 @@ void main() {
       );
       final bare = _document([_line('one', 0, 1000)]);
       expect(
-        identical(
-          _actions.dismiss(bare, record.uncoveredSpans.first),
-          bare,
-        ),
+        identical(_actions.dismiss(bare, record.uncoveredSpans.first), bare),
         isTrue,
       );
     });
@@ -532,9 +533,10 @@ void main() {
       final after = LyricVocalCheckRecord.fromMetadata(
         restored.document.metadata,
       )!;
-      expect([for (final line in after.removedLines) line.text], [
-        'quiet bridge',
-      ]);
+      expect(
+        [for (final line in after.removedLines) line.text],
+        ['quiet bridge'],
+      );
       expect(after.restoredLines, 2);
       expect(after.retimedLines, 1);
     });
@@ -583,10 +585,10 @@ void main() {
       final candidates =
           restored.document.metadata[LyricIndexedReviewMetadata.candidatesKey]
               as List;
-      expect([for (final entry in candidates) (entry as Map)['lineIndex']], [
-        1,
-        3,
-      ]);
+      expect(
+        [for (final entry in candidates) (entry as Map)['lineIndex']],
+        [1, 3],
+      );
       expect(restored.document.lines[1].text, 'verse one');
       expect(restored.document.lines[3].text, 'verse two');
     });
