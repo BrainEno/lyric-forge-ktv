@@ -288,6 +288,10 @@ void main() {
     }.entries) {
       await tester.tap(find.text(LyricProofreadMenuButton.label));
       await tester.pumpAndSettle();
+      if (find.text(entry.key).evaluate().isEmpty) {
+        await tester.tap(find.text(LyricProofreadGroup.checks.label));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text(entry.key));
       await tester.pumpAndSettle();
       expect(fired.last, entry.value);

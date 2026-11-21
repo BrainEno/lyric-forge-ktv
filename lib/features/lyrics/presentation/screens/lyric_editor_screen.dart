@@ -401,16 +401,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     );
   }
 
-  Future<void> _openReferenceProofread(ProjectManifest project) async {
-    final document = _editingDocument;
-    if (document == null || document.lines.isEmpty) return;
-    await _proofreading.openReferenceProofread(
-      project: project,
-      document: document,
-      revision: _editor.documentRevision,
-    );
-  }
-
   Future<void> _openSmartProofread(ProjectManifest project) async {
     await _runProofreadPass(
       (document, revision) => _proofreading.runSmartProofread(
@@ -1092,16 +1082,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                           canRestore: canRestore,
                           referenceAlignment: () =>
                               _openReferenceAlignment(project),
-                          referenceProofread: () =>
-                              _openReferenceProofread(project),
                           smartProofread: () => _openSmartProofread(project),
                           autoProofread: () => _runAutoProofread(project),
                           undoAlignment: _undoAlignmentApply,
                           viewComparison: () =>
                               _showAlignmentComparison(project),
                           restoreAlignment: _restoreAlignmentBackup,
-                          unifyChineseScript: () => _proofreading
-                              .openChineseScriptUnification(document),
                           batchTextTool: _batchTools.toolsFor(project),
                           vocalCheckAction: _batchTools.vocalCheckFor(project),
                         ),

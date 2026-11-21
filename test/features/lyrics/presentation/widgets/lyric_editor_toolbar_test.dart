@@ -497,7 +497,7 @@ void main() {
 
     await tester.tap(find.text('校对'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('参考歌词：纠正文字和时间轴'));
+    await tester.tap(find.text('粘贴参考歌词校对'));
     await tester.pumpAndSettle();
     expect(calls, ['alignment']);
   });

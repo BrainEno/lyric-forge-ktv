@@ -10,7 +10,7 @@ class LyricStructureStrings {
   const LyricStructureStrings._();
 
   static const String actionTitle = '整理断行';
-  static const String actionDetail = '不需要参考歌词；拆分过长的行、合并被停顿切碎的短行';
+  static const String actionDetail = '拆分过长的行、合并被停顿切碎的短行';
   static const String intro =
       '识别器按停顿切分，常把两句歌词并成一行，或把一句切出一个碎片。'
       '这里只列出建议：过长的行从最接近中间的空格或标点处拆开，分界时间按字数比例估算；'

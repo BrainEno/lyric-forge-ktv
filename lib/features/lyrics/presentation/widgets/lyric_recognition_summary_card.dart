@@ -6,6 +6,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/recognition_review_summary.dart';
 import '../../domain/models/vocal_check_record.dart';
 import '../../domain/services/lyric_draft_health_service.dart';
+import 'auto_proofread_dialogs.dart';
 import 'lyric_batch_text_edit.dart';
 import 'lyric_vocal_check_request.dart';
 
@@ -29,6 +30,11 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
   /// Opens the batch tool a hint refers to. Null hides the hints.
   final ValueChanged<LyricBatchTextTool>? onOpenBatchTool;
 
+  /// Runs 一键校对. When set, the hints it fixes by itself
+  /// ([oneClickTools]) collapse into one button instead of one tool each
+  /// (D-053); the others stay separate checks.
+  final VoidCallback? onAutoProofread;
+
   /// Runs a follow-up of the vocal check (D-045): recognise a stretch of
   /// singing without lyrics, restore removed rows. Null hides the buttons.
   final ValueChanged<LyricVocalCheckRequest>? onVocalCheckAction;
@@ -39,8 +45,17 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
     required this.onStartReview,
     this.health,
     this.onOpenBatchTool,
+    this.onAutoProofread,
     this.onVocalCheckAction,
   });
+
+  /// The batch tools whose default fixes are steps of 一键校对.
+  static const Set<LyricBatchTextTool> oneClickTools = {
+    LyricBatchTextTool.textCleanup,
+    LyricBatchTextTool.asrLoopCheck,
+    LyricBatchTextTool.repetitionConsistency,
+    LyricBatchTextTool.timelineRepair,
+  };
 
   /// One hint per tool that has work to do, in the order worth doing it:
   /// deleting caption rows and recognition loops first (they would otherwise
@@ -315,33 +330,72 @@ class _LyricRecognitionSummaryCardState
   ) {
     final hints = LyricRecognitionSummaryCard.healthHints(health);
     if (hints.isEmpty) return const [];
+    final auto = widget.onAutoProofread;
+    final fixedByAuto = auto == null
+        ? const <({LyricBatchTextTool tool, String label, String tooltip})>[]
+        : [
+            for (final hint in hints)
+              if (LyricRecognitionSummaryCard.oneClickTools.contains(hint.tool))
+                hint,
+          ];
+    final separate = [
+      for (final hint in hints)
+        if (!fixedByAuto.contains(hint)) hint,
+    ];
+    final labelStyle = Theme.of(
+      context,
+    ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary);
     return [
-      const SizedBox(height: AppSpacing.xs),
-      Wrap(
-        key: const ValueKey('lyric_recognition_summary_health'),
-        spacing: AppSpacing.xs,
-        runSpacing: AppSpacing.xs,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(
-            '可批量整理：',
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
-          ),
-          for (final hint in hints)
+      if (auto != null && fixedByAuto.isNotEmpty) ...[
+        const SizedBox(height: AppSpacing.xs),
+        Wrap(
+          key: const ValueKey('lyric_recognition_summary_auto_fix'),
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
             Tooltip(
-              message: hint.tooltip,
+              message: [
+                for (final hint in fixedByAuto) hint.tooltip,
+              ].join('\n'),
               child: ActionChip(
-                key: ValueKey('lyric_health_${hint.tool.name}'),
+                key: const ValueKey('lyric_health_auto_proofread'),
                 visualDensity: VisualDensity.compact,
-                avatar: const Icon(Icons.auto_fix_normal_rounded, size: 16),
-                label: Text(hint.label),
-                onPressed: () => open(hint.tool),
+                avatar: const Icon(Icons.bolt_rounded, size: 16),
+                label: Text('${AutoProofreadStrings.actionTitle}修复'),
+                onPressed: auto,
               ),
             ),
-        ],
-      ),
+            Text(
+              [for (final hint in fixedByAuto) hint.label].join('、'),
+              style: labelStyle,
+            ),
+          ],
+        ),
+      ],
+      if (separate.isNotEmpty) ...[
+        const SizedBox(height: AppSpacing.xs),
+        Wrap(
+          key: const ValueKey('lyric_recognition_summary_health'),
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(fixedByAuto.isEmpty ? '可批量整理：' : '还可检查：', style: labelStyle),
+            for (final hint in separate)
+              Tooltip(
+                message: hint.tooltip,
+                child: ActionChip(
+                  key: ValueKey('lyric_health_${hint.tool.name}'),
+                  visualDensity: VisualDensity.compact,
+                  avatar: const Icon(Icons.auto_fix_normal_rounded, size: 16),
+                  label: Text(hint.label),
+                  onPressed: () => open(hint.tool),
+                ),
+              ),
+          ],
+        ),
+      ],
     ];
   }
 

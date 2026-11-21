@@ -198,7 +198,7 @@ class _ProofreadRunOptionsDialogState
                 ),
                 _revealOnFocus(
                   ChoiceChip(
-                    label: const Text('ASR 优先'),
+                    label: const Text('识别结果优先'),
                     selected: _strategy == LyricSourceStrategy.asrFirst,
                     onSelected: (_) => setState(() {
                       _strategy = LyricSourceStrategy.asrFirst;
@@ -217,7 +217,7 @@ class _ProofreadRunOptionsDialogState
                   onChanged: (value) =>
                       setState(() => _useReference = value ?? false),
                   title: const Text('本次提供参考歌词'),
-                  subtitle: const Text('自动策略会先计算文本覆盖率；覆盖率不足时退回 ASR 复核。'),
+                  subtitle: const Text('先看参考歌词能对上多少；对上的太少时改用识别结果复核。'),
                   controlAffinity: ListTileControlAffinity.leading,
                 ),
               ),
@@ -227,7 +227,7 @@ class _ProofreadRunOptionsDialogState
               if (_useProjectEvidence ||
                   _secondaryTranscriptController.text.trim().isNotEmpty) ...[
                 const SizedBox(height: 8),
-                const Text('之前配置的 ASR 第二意见在参考歌词优先模式下不会使用；切回其他策略可继续编辑。'),
+                const Text('之前填写的第二份识别稿在参考歌词优先模式下不会使用；切回其他策略可继续编辑。'),
               ],
             ],
             const SizedBox(height: 8),
@@ -238,9 +238,9 @@ class _ProofreadRunOptionsDialogState
                 value: _useForcedAlignment,
                 onChanged: (value) =>
                     setState(() => _useForcedAlignment = value ?? false),
-                title: const Text('使用 ForcedAligner 词级时间证据'),
+                title: const Text('用本机对齐模型核对逐字时间'),
                 subtitle: const Text(
-                  '需要本机 Qwen ForcedAligner；ASR 优先对齐草稿，参考优先对齐参考文本。时间仅供复核，不会写入歌词。',
+                  '需要本机 Qwen ForcedAligner；识别结果优先时对齐草稿，参考优先对齐参考文本。时间仅供复核，不会写入歌词。',
                 ),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
@@ -248,14 +248,12 @@ class _ProofreadRunOptionsDialogState
             if (_strategy != LyricSourceStrategy.referenceFirst) ...[
               if (_strategy == LyricSourceStrategy.auto) ...[
                 const SizedBox(height: 8),
-                const Text(
-                  '第二份 ASR 仅在最终选择 ASR 优先时使用；ForcedAligner 使用最终策略的文本。填写的转写稿会先检查格式。',
-                ),
+                const Text('第二份识别稿仅在最终选择识别结果优先时使用；对齐模型使用最终策略的文本。填写的转写稿会先检查格式。'),
               ],
               const SizedBox(height: 8),
               const Text(
-                '可粘贴第二份带时间戳的转写稿（LRC、SRT 或 WebVTT）。'
-                '只有明确的时间戳证据才参与双 ASR 比对；不会自动覆盖原歌词。',
+                '可粘贴另一个识别引擎的带时间戳转写稿（LRC、SRT 或 WebVTT），'
+                '两份识别结果互相比对；不会自动覆盖原歌词。',
               ),
               const SizedBox(height: 8),
               if (_showProjectEvidenceOption) ...[

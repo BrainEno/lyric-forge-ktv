@@ -35,7 +35,7 @@ void main() {
   test('formats every strategy label and omits absent reference coverage', () {
     const labels = <LyricSourceStrategy, String>{
       LyricSourceStrategy.referenceFirst: '参考歌词优先',
-      LyricSourceStrategy.asrFirst: 'ASR 优先',
+      LyricSourceStrategy.asrFirst: '识别结果优先',
       LyricSourceStrategy.auto: '自动选择',
     };
     expect(labels.keys.toSet(), LyricSourceStrategy.values.toSet());

@@ -29,7 +29,7 @@ void main() {
     );
     await tester.tap(find.text('打开参考歌词'));
     await tester.pumpAndSettle();
-    expect(find.text('参考歌词：纠正文字和时间轴'), findsOneWidget);
+    expect(find.text('粘贴参考歌词校对'), findsOneWidget);
   }
 
   TextField fieldWithLabel(WidgetTester tester, String label) {
@@ -137,19 +137,15 @@ void main() {
       });
     }
 
-    test('the text-only flow never promises new timing', () {
-      final textOnly = ReferenceLyricPurpose.textOnly;
-      expect(textOnly.dialogDetail, contains('时间戳保持不变'));
-      expect(textOnly.dialogDetail, isNot(contains('推断时间')));
-      expect(textOnly.menuDetail, contains('时间戳保持不变'));
-      expect(ReferenceLyricPurpose.alignment.dialogDetail, contains('推断时间'));
+    test('the reference flow promises corrections, not lost timing', () {
+      final alignment = ReferenceLyricPurpose.alignment;
+      expect(alignment.dialogDetail, contains('推断时间'));
+      expect(alignment.dialogDetail, contains('原有时间轴默认保留'));
+      expect(alignment.menuDetail, contains('一键校对'));
     });
 
-    test('the two reference flows read as a pair', () {
-      const prefix = '参考歌词：';
-      expect(ReferenceLyricPurpose.alignment.title, startsWith(prefix));
-      expect(ReferenceLyricPurpose.textOnly.title, startsWith(prefix));
-      // Neither title carries a version number or engine jargon.
+    test('flow titles carry no version number or engine jargon', () {
+      expect(ReferenceLyricPurpose.values, hasLength(2));
       for (final purpose in ReferenceLyricPurpose.values) {
         expect(purpose.title, isNot(matches(RegExp(r'V\d'))));
         expect(purpose.title, isNot(contains('ASR')));

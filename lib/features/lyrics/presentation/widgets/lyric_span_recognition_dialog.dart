@@ -18,7 +18,7 @@ class LyricSpanRecognitionStrings {
   const LyricSpanRecognitionStrings._();
 
   static const String actionTitle = '重新识别这一段';
-  static const String actionDetail = '只把选中的几行重新识别或重新对齐；用另一个引擎找回识别错的、漏掉的歌词';
+  static const String actionDetail = '某几行识别错了或漏了时，只把这几行重新识别';
   static const String intro =
       '整首识别偶尔会把一段唱错、重复或漏掉，其余部分却没问题。'
       '这里只把选中的几行对应的音频剪出来重新处理，其他行和手动修改都不受影响。'

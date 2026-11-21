@@ -12,25 +12,20 @@ import '../../domain/services/reference_lyric_text_parser.dart';
 
 /// What the pasted reference lyrics will be used for.
 ///
-/// One input dialog serves three flows. It used to be titled 参考歌词纠正 and
-/// promise inferred timing in every case, so a user who had picked the
-/// text-only correction was told the opposite of what would happen, and the
-/// two menu entries could only be told apart by their subtitles (audit E-02).
-/// The menu and the dialog now share one name per flow, and the two reference
-/// flows read as a pair: 纠正文字和时间轴 versus 只改文字.
+/// One input dialog serves two flows; each has one name shared by the menu
+/// and the dialog (audit E-02). The text-only reference flow (只改文字) was
+/// removed in D-053: the alignment review already keeps the recording's
+/// timing unless the user ticks 同时采用参考歌词时间轴, so it did the same
+/// job behind a second, confusingly similar entry.
 enum ReferenceLyricPurpose {
-  /// Aligns the reference, can fill missed rows and replace timing.
+  /// Aligns the reference, corrects the text, can fill missed rows and,
+  /// for a timed lyric, replace the timing.
   alignment(
-    title: '参考歌词：纠正文字和时间轴',
-    menuDetail: '有参考歌词；可补全漏行并重算时间轴',
-    dialogDetail: '用正确的歌词文本纠正当前 ASR 草稿，并可补全漏行、推断时间；应用前会自动备份。',
-  ),
-
-  /// Corrects the text row by row and keeps the existing timestamps.
-  textOnly(
-    title: '参考歌词：只改文字',
-    menuDetail: '有参考歌词；逐行改正文字，时间戳保持不变',
-    dialogDetail: '逐行比对参考歌词，只改正文字，现有时间戳保持不变；每一处改动应用前都可以复核。',
+    title: '粘贴参考歌词校对',
+    menuDetail: '一键校对找不到歌词时用；粘贴或导入歌词，逐行对比后应用',
+    dialogDetail:
+        '用正确的歌词文本纠正识别结果，并可补全漏行、推断时间；'
+        '原有时间轴默认保留。应用前会自动备份。',
   ),
 
   /// Feeds the reference into the smart proofreading proposal.

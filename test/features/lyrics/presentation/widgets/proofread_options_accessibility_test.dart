@@ -24,8 +24,8 @@ void main() {
       await _open(tester);
       _expectNoException(tester, 'opening');
 
-      await tester.ensureVisible(find.text('ASR 优先'));
-      await tester.tap(find.text('ASR 优先'));
+      await tester.ensureVisible(find.text('识别结果优先'));
+      await tester.tap(find.text('识别结果优先'));
       await tester.pumpAndSettle();
       _expectNoException(tester, 'switching strategy');
 
@@ -74,8 +74,8 @@ void main() {
         ),
       );
       await _open(tester);
-      await tester.ensureVisible(find.text('ASR 优先'));
-      await tester.tap(find.text('ASR 优先'));
+      await tester.ensureVisible(find.text('识别结果优先'));
+      await tester.tap(find.text('识别结果优先'));
       await tester.pumpAndSettle();
       await tester.ensureVisible(
         find.byKey(const ValueKey('secondary_asr_transcript_input')),
@@ -103,8 +103,8 @@ void main() {
       _host(scale: 2, onResult: (value) => result = value),
     );
     await _open(tester);
-    await tester.ensureVisible(find.text('ASR 优先'));
-    await tester.tap(find.text('ASR 优先'));
+    await tester.ensureVisible(find.text('识别结果优先'));
+    await tester.tap(find.text('识别结果优先'));
     await tester.pumpAndSettle();
     final field = find.byKey(const ValueKey('secondary_asr_transcript_input'));
     await tester.ensureVisible(field);
@@ -114,8 +114,8 @@ void main() {
     await tester.ensureVisible(find.text('参考歌词优先'));
     await tester.tap(find.text('参考歌词优先'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('ASR 优先'));
-    await tester.tap(find.text('ASR 优先'));
+    await tester.ensureVisible(find.text('识别结果优先'));
+    await tester.tap(find.text('识别结果优先'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(field);
     expect(tester.widget<TextField>(field).controller!.text, text);
@@ -132,8 +132,8 @@ void main() {
       _host(scale: 2, onResult: (value) => result = value),
     );
     await _open(tester);
-    await tester.ensureVisible(find.text('ASR 优先'));
-    await tester.tap(find.text('ASR 优先'));
+    await tester.ensureVisible(find.text('识别结果优先'));
+    await tester.tap(find.text('识别结果优先'));
     await tester.pumpAndSettle();
     final field = find.byKey(const ValueKey('secondary_asr_transcript_input'));
     await tester.ensureVisible(field);
@@ -152,16 +152,13 @@ void main() {
     await _configureView(tester, const Size(320, 568));
     await tester.pumpWidget(_host(scale: 2, onResult: (_) {}));
     await _open(tester);
-    await tester.ensureVisible(find.text('ASR 优先'));
-    await tester.tap(find.text('ASR 优先'));
+    await tester.ensureVisible(find.text('识别结果优先'));
+    await tester.tap(find.text('识别结果优先'));
     await tester.pumpAndSettle();
     final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));
     await tester.ensureVisible(toggle);
     await tester.pumpAndSettle();
-    expect(
-      find.bySemanticsLabel(RegExp('使用 ForcedAligner 词级时间证据')),
-      findsWidgets,
-    );
+    expect(find.bySemanticsLabel(RegExp('用本机对齐模型核对逐字时间')), findsWidgets);
     expect(find.bySemanticsLabel(RegExp('继续')), findsWidgets);
     expect(find.bySemanticsLabel(RegExp('取消')), findsWidgets);
     _expectNoException(tester, 'semantics');
@@ -184,7 +181,7 @@ void main() {
       ),
     );
     await _open(tester);
-    await _tabUntil(tester, find.text('ASR 优先'));
+    await _tabUntil(tester, find.text('识别结果优先'));
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await tester.pumpAndSettle();
     final field = find.byKey(const ValueKey('secondary_asr_transcript_input'));
@@ -208,8 +205,8 @@ void main() {
         _host(scale: 2, onResult: (value) => result = value),
       );
       await _open(tester);
-      await tester.ensureVisible(find.text('ASR 优先'));
-      await tester.tap(find.text('ASR 优先'));
+      await tester.ensureVisible(find.text('识别结果优先'));
+      await tester.tap(find.text('识别结果优先'));
       await tester.pumpAndSettle();
       final field = find.byKey(
         const ValueKey('secondary_asr_transcript_input'),
@@ -247,7 +244,7 @@ void main() {
       _host(scale: 2, onResult: (value) => result = value),
     );
     await _open(tester);
-    await _tabUntil(tester, find.text('ASR 优先'));
+    await _tabUntil(tester, find.text('识别结果优先'));
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await tester.pumpAndSettle();
     final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));

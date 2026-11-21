@@ -111,7 +111,7 @@ void main() {
       await tester.ensureVisible(find.text('参考歌词优先'));
       await tester.tap(find.text('参考歌词优先'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('之前配置的 ASR 第二意见'), findsOneWidget);
+      expect(find.textContaining('之前填写的第二份识别稿'), findsOneWidget);
       await tester.tap(find.text('继续'));
       await tester.pumpAndSettle();
       expect(result!.useProjectEvidence, isFalse);

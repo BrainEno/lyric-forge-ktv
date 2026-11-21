@@ -958,7 +958,7 @@ void main() {
   });
 
   group('reference proofreading revision guards', () {
-    for (final action in ['参考歌词：纠正文字和时间轴', '参考歌词：只改文字']) {
+    for (final action in ['粘贴参考歌词校对']) {
       testWidgets('$action discards an edit made during reference input', (
         tester,
       ) async {
@@ -975,7 +975,6 @@ void main() {
         expect(editor.canUndo, isTrue);
         expect(find.textContaining('原提案已丢弃'), findsOneWidget);
         expect(find.byType(ReferenceAlignmentReviewSheet), findsNothing);
-        expect(find.text('导入独立 ASR 时间证据'), findsNothing);
         expect(tester.takeException(), isNull);
       });
 
@@ -1000,7 +999,7 @@ void main() {
       tester,
     ) async {
       final editor = await _openEditor(tester, _emptyAlignment);
-      await _openReferenceFlow(tester, '参考歌词：纠正文字和时间轴');
+      await _openReferenceFlow(tester, '粘贴参考歌词校对');
       _submitReference(tester, 'Human lyric');
       await tester.pumpAndSettle();
       expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
@@ -1031,93 +1030,6 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets(
-      'proofreading discards edits while timing evidence dialog is open',
-      (tester) async {
-        final editor = await _openEditor(tester, _emptyAlignment);
-        await _openReferenceFlow(tester, '参考歌词：只改文字');
-        _submitReference(tester, 'Human lyrics');
-        await tester.pumpAndSettle();
-        expect(find.text('导入独立 ASR 时间证据'), findsOneWidget);
-        editor.setLineReviewed(0, reviewed: true);
-        await tester.tap(find.text('跳过校时'));
-        await tester.pumpAndSettle();
-        expect(editor.document!.lines.single.text, 'Human lyric');
-        expect(find.text('参考歌词智能纠错'), findsNothing);
-        expect(find.textContaining('原提案已丢弃'), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      },
-    );
-
-    for (final withEvidence in [false, true]) {
-      testWidgets(
-        'proofreading review discards edits with evidence=$withEvidence',
-        (tester) async {
-          final editor = await _openEditor(
-            tester,
-            _emptyAlignment,
-            initialDocument: _document('Hello word'),
-          );
-          await _openReferenceFlow(tester, '参考歌词：只改文字');
-          _submitReference(tester, 'Hello world');
-          await tester.pumpAndSettle();
-          final timingTitle = find.text('导入独立 ASR 时间证据');
-          if (withEvidence) {
-            Navigator.of(
-              tester.element(timingTitle),
-            ).pop(_document('Hello world'));
-          } else {
-            await tester.tap(find.text('跳过校时'));
-          }
-          await tester.pumpAndSettle();
-          final title = find.text(withEvidence ? '参考歌词纠错与校时复核' : '参考歌词智能纠错');
-          expect(title, findsOneWidget);
-          editor.updateLine(
-            0,
-            editor.document!.lines.single.copyWith(
-              text: 'Changed during proofreading review',
-            ),
-          );
-          await tester.pump();
-          Navigator.of(tester.element(title)).pop(<int>{0});
-          await tester.pumpAndSettle();
-          expect(
-            editor.document!.lines.single.text,
-            'Changed during proofreading review',
-          );
-          expect(editor.alignmentSnapshot, isNull);
-          expect(find.textContaining('原提案已丢弃'), findsOneWidget);
-          expect(tester.takeException(), isNull);
-        },
-      );
-    }
-
-    testWidgets('unchanged text-only review applies and can be undone', (
-      tester,
-    ) async {
-      final editor = await _openEditor(
-        tester,
-        _emptyAlignment,
-        initialDocument: _document('Hello word'),
-      );
-      await _openReferenceFlow(tester, '参考歌词：只改文字');
-      _submitReference(tester, 'Hello world');
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('跳过校时'));
-      await tester.pumpAndSettle();
-      final title = find.text('参考歌词智能纠错');
-      expect(title, findsOneWidget);
-      Navigator.of(tester.element(title)).pop(<int>{0});
-      await tester.pumpAndSettle();
-      expect(editor.document!.lines.single.text, 'Hello world');
-      expect(editor.document!.lines.single.startTime, Duration.zero);
-      expect(editor.undo().applied, isTrue);
-      expect(editor.document!.lines.single.text, 'Hello word');
-      expect(editor.redo().applied, isTrue);
-      expect(editor.document!.lines.single.text, 'Hello world');
-      expect(tester.takeException(), isNull);
-    });
-
     testWidgets('selection changes alone do not invalidate reference review', (
       tester,
     ) async {
@@ -1126,14 +1038,11 @@ void main() {
         _emptyAlignment,
         initialDocument: _document('Hello word'),
       );
-      await _openReferenceFlow(tester, '参考歌词：只改文字');
+      await _openReferenceFlow(tester, '粘贴参考歌词校对');
       editor.select(null);
       _submitReference(tester, 'Hello world');
       await tester.pumpAndSettle();
-      expect(find.text('导入独立 ASR 时间证据'), findsOneWidget);
-      await tester.tap(find.text('跳过校时'));
-      await tester.pumpAndSettle();
-      expect(find.text('参考歌词智能纠错'), findsOneWidget);
+      expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
       expect(find.textContaining('原提案已丢弃'), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -1143,7 +1052,7 @@ void main() {
         'alignment timeline confirmation respects revision: edit=$changeDuringConfirmation',
         (tester) async {
           final editor = await _openEditor(tester, _emptyAlignment);
-          await _openReferenceFlow(tester, '参考歌词：纠正文字和时间轴');
+          await _openReferenceFlow(tester, '粘贴参考歌词校对');
           Navigator.of(
             tester.element(find.byType(ReferenceAlignmentDialog)),
           ).pop(
@@ -1222,7 +1131,7 @@ void main() {
         _emptyAlignment,
         initialDocument: _document('Hello word'),
       );
-      await _openReferenceFlow(tester, '参考歌词：纠正文字和时间轴');
+      await _openReferenceFlow(tester, '粘贴参考歌词校对');
       _submitReference(tester, 'Hello world');
       await tester.pumpAndSettle();
       expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
@@ -1270,7 +1179,7 @@ void main() {
       tester,
     ) async {
       final editor = await _openEditor(tester, _emptyAlignment);
-      await _openReferenceFlow(tester, '参考歌词：纠正文字和时间轴');
+      await _openReferenceFlow(tester, '粘贴参考歌词校对');
       Navigator.of(tester.element(find.byType(ReferenceAlignmentDialog))).pop(
         const ReferenceLyricInput(
           lines: [
@@ -1313,7 +1222,7 @@ void main() {
       tester,
     ) async {
       await _openEditor(tester, _emptyAlignment);
-      await _openReferenceFlow(tester, '参考歌词：纠正文字和时间轴');
+      await _openReferenceFlow(tester, '粘贴参考歌词校对');
       await tester.pumpWidget(const MaterialApp(home: SizedBox()));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
@@ -1676,7 +1585,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('智能校对'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('ASR 优先'));
+      await tester.tap(find.text('识别结果优先'));
       await tester.pumpAndSettle();
       final field = find.byKey(
         const ValueKey('secondary_asr_transcript_input'),
@@ -1743,7 +1652,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('智能校对'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('ASR 优先'));
+    await tester.tap(find.text('识别结果优先'));
     await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const ValueKey('forced_alignment_review_toggle')),
@@ -1971,7 +1880,7 @@ Future<void> _startAlignment(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text('智能校对'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('ASR 优先'));
+  await tester.tap(find.text('识别结果优先'));
   await tester.pumpAndSettle();
   await tester.tap(
     find.byKey(const ValueKey('forced_alignment_review_toggle')),

@@ -295,6 +295,7 @@ void main() {
     Future<List<LyricBatchTextTool>> pump(
       WidgetTester tester, {
       LyricDraftHealth? health,
+      VoidCallback? onAutoProofread,
     }) async {
       final opened = <LyricBatchTextTool>[];
       tester.view.physicalSize = const Size(1280, 800);
@@ -314,6 +315,7 @@ void main() {
                   onStartReview: null,
                   health: health,
                   onOpenBatchTool: opened.add,
+                  onAutoProofread: onAutoProofread,
                 ),
               ],
             ),
@@ -340,6 +342,31 @@ void main() {
         LyricBatchTextTool.textCleanup,
         LyricBatchTextTool.lineStructure,
       ]);
+    });
+
+    testWidgets('一键校对能修的问题合并为一个按钮，其余仍可单独检查', (tester) async {
+      var auto = 0;
+      final opened = await pump(
+        tester,
+        health: const LyricDraftHealthService().analyze(document),
+        onAutoProofread: () => auto++,
+      );
+      // Caption rows are cleaned by 一键校对; long lines are not.
+      expect(
+        find.byKey(const ValueKey('lyric_health_textCleanup')),
+        findsNothing,
+      );
+      expect(find.textContaining('字幕水印/标注 1 行'), findsOneWidget);
+      expect(find.text('还可检查：'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('lyric_health_auto_proofread')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('lyric_health_lineStructure')),
+      );
+      expect(auto, 1);
+      expect(opened, [LyricBatchTextTool.lineStructure]);
     });
 
     testWidgets('a clean draft or a missing health shows no hints', (

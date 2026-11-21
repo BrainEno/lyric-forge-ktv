@@ -52,12 +52,10 @@ class LyricProofreadActions {
     this.onAutoProofread,
     this.autoProofreadRunning = false,
     this.onReferenceAlignment,
-    this.onReferenceProofread,
     this.onSmartProofread,
     this.onUndoReferenceAlignment,
     this.onViewAlignmentComparison,
     this.onRestoreAlignment,
-    this.onUnifyChineseScript,
     this.onBatchTextTool,
     this.onVocalCheckAction,
   });
@@ -76,13 +74,11 @@ class LyricProofreadActions {
     LyricEditorSnapshot? alignment,
     bool canRestore = false,
     required VoidCallback referenceAlignment,
-    required VoidCallback referenceProofread,
     required VoidCallback smartProofread,
     VoidCallback? autoProofread,
     required VoidCallback undoAlignment,
     required VoidCallback viewComparison,
     required VoidCallback restoreAlignment,
-    required VoidCallback unifyChineseScript,
     required ValueChanged<LyricBatchTextTool> batchTextTool,
     ValueChanged<LyricVocalCheckRequest>? vocalCheckAction,
   }) {
@@ -93,14 +89,12 @@ class LyricProofreadActions {
           : null,
       autoProofreadRunning: smartProofreadRunning,
       onReferenceAlignment: hasLines ? referenceAlignment : null,
-      onReferenceProofread: hasLines ? referenceProofread : null,
       onSmartProofread: hasLines && !smartProofreadRunning
           ? smartProofread
           : null,
       onUndoReferenceAlignment: alignment == null ? null : undoAlignment,
       onViewAlignmentComparison: comparable ? viewComparison : null,
       onRestoreAlignment: canRestore ? restoreAlignment : null,
-      onUnifyChineseScript: hasLines ? unifyChineseScript : null,
       onBatchTextTool: hasLines ? batchTextTool : null,
       onVocalCheckAction: hasLines ? vocalCheckAction : null,
     );
@@ -114,12 +108,10 @@ class LyricProofreadActions {
   final bool autoProofreadRunning;
 
   final VoidCallback? onReferenceAlignment;
-  final VoidCallback? onReferenceProofread;
   final VoidCallback? onSmartProofread;
   final VoidCallback? onUndoReferenceAlignment;
   final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
-  final VoidCallback? onUnifyChineseScript;
 
   /// Opens one of the batch text tools (find-and-replace, repeated-line
   /// consistency, text clean-up, word timing).

@@ -11,8 +11,7 @@ class LyricAsrLoopStrings {
   const LyricAsrLoopStrings._();
 
   static const String actionTitle = '识别循环检查';
-  static const String actionDetail =
-      '找出识别器卡住时反复输出的句子：一行里重复十几遍，连续多行完全相同，或两三句来回循环';
+  static const String actionDetail = '删掉识别器卡住时反复输出的句子';
   static const String intro =
       '语音识别在长音、间奏或伴奏很响时容易“卡住”，把同一句反复输出。'
       '一行里同一个词句连续重复很多次时，建议只保留前几遍；'

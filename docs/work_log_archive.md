@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-11 09:30] One-click follow-ups of the vocal check ([entry](log/entries/2026-12-11-0930-vocal-check-one-click-follow-ups.md))
 - [2026-12-10 09:30] Check recognised lyrics against the separated vocal ([entry](log/entries/2026-12-10-0930-vocal-check-on-the-separated-stem.md))
 - [2026-12-09 09:30] Separate the lead vocal before lyric recognition ([entry](log/entries/2026-12-09-0930-automatic-vocal-separation.md))
 - [2026-12-08 09:30] Add switchable light and dark themes ([entry](log/entries/2026-12-08-0930-switchable-light-and-dark-themes.md))

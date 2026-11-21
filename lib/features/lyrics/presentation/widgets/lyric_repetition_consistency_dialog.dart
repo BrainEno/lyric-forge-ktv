@@ -12,7 +12,7 @@ class LyricRepetitionStrings {
   const LyricRepetitionStrings._();
 
   static const String actionTitle = '重复段落一致性检查';
-  static const String actionDetail = '不需要参考歌词；副歌等重复行识别不一致时，按多数写法统一';
+  static const String actionDetail = '副歌等重复行识别得不一样时，按多数写法统一';
   static const String intro =
       '副歌、重复句在不同位置往往被识别成不同的字。这里把几乎相同的行归为一组，'
       '建议统一为出现次数最多或你手动确认过的写法。只改文字，不改时间轴；'
