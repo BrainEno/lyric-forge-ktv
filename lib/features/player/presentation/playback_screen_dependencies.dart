@@ -1,3 +1,5 @@
+import '../../lyrics/domain/online/song_lyrics_lookup.dart';
+import '../../lyrics/domain/services/lyric_file_import_service.dart';
 import '../../project/domain/repositories/project_repository.dart';
 import '../domain/repositories/local_media_collection_repository.dart';
 import '../domain/repositories/local_media_metadata_repository.dart';
@@ -29,12 +31,25 @@ class PlayerScreenDependencies {
   /// Only used when opening the fullscreen KTV view from this screen.
   final ImmersiveKtvDependencies immersiveKtv;
 
+  /// Reads pasted text and lyric files for 添加歌词 on a project without
+  /// timed lyrics (D-054); null hides those actions.
+  final LyricFileImportService? lyricFileImport;
+
+  /// Searches the lyric sites for the same action; null hides 联网获取.
+  final SongLyricsLookup? songLyricsLookup;
+
   const PlayerScreenDependencies({
     required this.projectRepository,
     required this.audioPlayer,
     required this.playbackSession,
     required this.immersiveKtv,
+    this.lyricFileImport,
+    this.songLyricsLookup,
   });
+
+  /// The importer for pasted text and files, from either field.
+  LyricFileImportService? get lyricsImporter =>
+      lyricFileImport ?? songLyricsLookup?.importer;
 }
 
 /// What the app-scoped Now Playing screen needs.

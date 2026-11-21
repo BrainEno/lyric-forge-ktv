@@ -2002,10 +2002,11 @@ class _ReferenceTimingGuard implements ReferenceAlignmentAudioGuard {
     ReferenceAlignmentAudioSnapshot snapshot,
   ) async {
     verifyCalls++;
-    if (verifyCalls == failVerifyAt)
+    if (verifyCalls == failVerifyAt) {
       return const ReferenceAlignmentAudioCheck(
         status: ReferenceAlignmentAudioStatus.audioChanged,
       );
+    }
     return ReferenceAlignmentAudioCheck(
       status: ReferenceAlignmentAudioStatus.matches,
       snapshot: snapshot,

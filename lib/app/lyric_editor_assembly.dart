@@ -3,6 +3,7 @@ import 'dart:io';
 import '../features/lyrics/data/services/online_lyrics/online_lyric_http.dart';
 import '../features/lyrics/data/services/online_lyrics/online_lyric_sources.dart';
 import '../features/lyrics/domain/online/online_lyric_candidate.dart';
+import '../features/lyrics/domain/online/song_lyrics_lookup.dart';
 import '../features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import '../features/lyrics/presentation/lyric_editor_dependencies.dart';
 import '../features/transcription/data/services/asr_download_http_client_factory.dart';
@@ -80,6 +81,15 @@ OnlineLyricSearchService buildOnlineLyricSearch() {
       KugouLyricSource(get: http.get),
       LrclibLyricSource(get: http.get),
     ],
+  );
+}
+
+/// 联网获取歌词 for a song that has none yet (D-054): the same sites and
+/// proxy handling as 一键校对, read with the app's own lyric parser.
+SongLyricsLookup buildSongLyricsLookup(AppServices services) {
+  return SongLyricsLookup(
+    search: buildOnlineLyricSearch(),
+    importer: services.lyricFileImportService,
   );
 }
 

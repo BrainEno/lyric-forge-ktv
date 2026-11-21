@@ -322,9 +322,8 @@ class ProofreadTimedLinePreviewResult {
   const ProofreadTimedLinePreviewResult.success({this.message})
     : succeeded = true;
 
-  const ProofreadTimedLinePreviewResult.failure(String message)
-    : succeeded = false,
-      message = message;
+  const ProofreadTimedLinePreviewResult.failure(String this.message)
+    : succeeded = false;
 }
 
 typedef ProofreadTimedLinePreview =
@@ -764,8 +763,9 @@ class _LyricProofreadReviewDialogState
     final evidence = item.referenceTimingEvidence;
     if (!widget.allowReferenceTimingSelection ||
         evidence == null ||
-        item.verdict == LyricProofreadReviewVerdict.locked)
+        item.verdict == LyricProofreadReviewVerdict.locked) {
       return false;
+    }
     final accepted =
         item.verdict == LyricProofreadReviewVerdict.green ||
         _acceptedAmber.contains(item.proposalIndex);
