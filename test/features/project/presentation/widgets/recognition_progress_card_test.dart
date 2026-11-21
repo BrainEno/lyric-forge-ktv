@@ -71,18 +71,21 @@ void main() {
 
     expect(_text(tester, 'recognition_progress_title'), '正在准备识别');
     expect(_text(tester, 'recognition_progress_percent'), '0%');
-    expect(
-      _text(tester, 'recognition_progress_elapsed'),
-      '第 1/6 步 · 已用时 0:00',
-    );
+    expect(_text(tester, 'recognition_progress_elapsed'), '第 1/6 步 · 已用时 0:00');
     expect(
       _text(tester, 'recognition_progress_message'),
       TranscriptionRunText.preparingMessage,
     );
     expect(_text(tester, 'recognition_progress_remaining'), '正在估算剩余时间');
-    expect(find.byKey(const ValueKey('recognition_progress_quiet')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('recognition_progress_quiet')),
+      findsNothing,
+    );
     for (final step in TranscriptionRunStep.values) {
-      expect(find.byKey(ValueKey('recognition_step_${step.name}')), findsOneWidget);
+      expect(
+        find.byKey(ValueKey('recognition_step_${step.name}')),
+        findsOneWidget,
+      );
     }
   });
 
@@ -94,10 +97,7 @@ void main() {
 
     clock.advance(const Duration(seconds: 7));
     await tester.pump(const Duration(seconds: 1));
-    expect(
-      _text(tester, 'recognition_progress_elapsed'),
-      '第 1/6 步 · 已用时 0:07',
-    );
+    expect(_text(tester, 'recognition_progress_elapsed'), '第 1/6 步 · 已用时 0:07');
   });
 
   testWidgets('shows the step, the message and the overall of the run', (
@@ -118,10 +118,7 @@ void main() {
 
     expect(_text(tester, 'recognition_progress_title'), '正在识别歌词');
     expect(_text(tester, 'recognition_progress_percent'), '55%');
-    expect(
-      _text(tester, 'recognition_progress_elapsed'),
-      '第 3/6 步 · 已用时 1:01',
-    );
+    expect(_text(tester, 'recognition_progress_elapsed'), '第 3/6 步 · 已用时 1:01');
     expect(_text(tester, 'recognition_progress_message'), 'Qwen3-ASR 识别中');
     expect(_text(tester, 'recognition_progress_remaining'), '预计不到 1 分钟');
     final bars = tester.widgetList<LinearProgressIndicator>(
@@ -142,7 +139,10 @@ void main() {
     final tracker = TranscriptionRunTracker(startedAt: _t0)
       ..record(_event(TranscriptionRunStep.recognizing, 0.3), _t0);
     await _pump(tester, tracker, clock);
-    expect(find.byKey(const ValueKey('recognition_progress_quiet')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('recognition_progress_quiet')),
+      findsNothing,
+    );
 
     clock.advance(const Duration(seconds: 25));
     await tester.pump(const Duration(seconds: 1));

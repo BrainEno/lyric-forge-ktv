@@ -36,14 +36,11 @@ class _Folders {
     await File(
       _join([current, 'models', 'htdemucs_ft_vocals.onnx']),
     ).writeAsBytes(List<int>.generate(2048, (i) => i % 251));
-    await File(
-      _join([current, 'separator-manifest.json']),
-    ).writeAsString('{}');
+    await File(_join([current, 'separator-manifest.json'])).writeAsString('{}');
   }
 
-  File model(Directory root) => File(
-    _join([root.path, 'current', 'models', 'htdemucs_ft_vocals.onnx']),
-  );
+  File model(Directory root) =>
+      File(_join([root.path, 'current', 'models', 'htdemucs_ft_vocals.onnx']));
 }
 
 Future<_Folders> _folders() async {
@@ -152,26 +149,31 @@ void main() {
 
     expect(resolved.path, folders.target.path);
     expect(await folders.legacy.exists(), isFalse);
-    expect(await Directory(_join([folders.target.path, 'current'])).exists(),
-        isFalse);
-  });
-
-  test('a target folder with only downloads still receives the bundle', () async {
-    final folders = await _folders();
-    await Directory(
-      _join([folders.target.path, 'downloads']),
-    ).create(recursive: true);
-    await folders.install(folders.legacy);
-
-    final resolved = await folders.location().resolve();
-
-    expect(resolved.path, folders.target.path);
-    expect(await folders.model(folders.target).exists(), isTrue);
     expect(
-      await Directory(_join([folders.target.path, 'downloads'])).exists(),
-      isTrue,
+      await Directory(_join([folders.target.path, 'current'])).exists(),
+      isFalse,
     );
   });
+
+  test(
+    'a target folder with only downloads still receives the bundle',
+    () async {
+      final folders = await _folders();
+      await Directory(
+        _join([folders.target.path, 'downloads']),
+      ).create(recursive: true);
+      await folders.install(folders.legacy);
+
+      final resolved = await folders.location().resolve();
+
+      expect(resolved.path, folders.target.path);
+      expect(await folders.model(folders.target).exists(), isTrue);
+      expect(
+        await Directory(_join([folders.target.path, 'downloads'])).exists(),
+        isTrue,
+      );
+    },
+  );
 
   test('when the old place is the new place nothing moves', () async {
     final folders = await _folders();

@@ -10,8 +10,7 @@ import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/project_transcription_workflow.dart';
 import '../../domain/services/transcription_settings_store.dart';
 
-class LocalAsrEndToEndSmokeTestService
-    implements AsrEndToEndSmokeTestService {
+class LocalAsrEndToEndSmokeTestService implements AsrEndToEndSmokeTestService {
   static const _supportedExtensions = <String>{
     'mp3',
     'flac',
@@ -68,11 +67,7 @@ class LocalAsrEndToEndSmokeTestService
     var installedEnvironment = false;
 
     try {
-      _emit(
-        AsrEndToEndSmokeStage.validatingAudio,
-        0.02,
-        '正在检查真实音频文件',
-      );
+      _emit(AsrEndToEndSmokeStage.validatingAudio, 0.02, '正在检查真实音频文件');
       final source = File(audioPath);
       if (!await source.exists()) {
         throw const TranscriptionException('ASR 自检音频文件不存在');
@@ -97,16 +92,16 @@ class LocalAsrEndToEndSmokeTestService
           0.06,
           '识别环境不完整，正在自动准备 runtime 与模型',
         );
-        _runtimeProgressSubscription = runtimeManager.progressStream.listen(
-          (progress) {
-            final phaseProgress = progress.progress.clamp(0.0, 1.0).toDouble();
-            _emit(
-              AsrEndToEndSmokeStage.preparingEnvironment,
-              0.06 + phaseProgress * 0.44,
-              progress.message,
-            );
-          },
-        );
+        _runtimeProgressSubscription = runtimeManager.progressStream.listen((
+          progress,
+        ) {
+          final phaseProgress = progress.progress.clamp(0.0, 1.0).toDouble();
+          _emit(
+            AsrEndToEndSmokeStage.preparingEnvironment,
+            0.06 + phaseProgress * 0.44,
+            progress.message,
+          );
+        });
         config = await runtimeManager.installRecommended(config);
         installedEnvironment = true;
         await _runtimeProgressSubscription?.cancel();
@@ -116,9 +111,7 @@ class LocalAsrEndToEndSmokeTestService
       }
 
       if (!runtimeStatus.isReady) {
-        throw const TranscriptionException(
-          'ASR 自检无法开始：自动准备结束后识别环境仍未通过检查',
-        );
+        throw const TranscriptionException('ASR 自检无法开始：自动准备结束后识别环境仍未通过检查');
       }
 
       // Persist repaired/installed absolute paths before calling the production
@@ -126,11 +119,7 @@ class LocalAsrEndToEndSmokeTestService
       await settingsStore.save(config);
       _throwIfCancelled();
 
-      _emit(
-        AsrEndToEndSmokeStage.creatingProject,
-        0.52,
-        '正在创建真实歌词识别自检工程',
-      );
+      _emit(AsrEndToEndSmokeStage.creatingProject, 0.52, '正在创建真实歌词识别自检工程');
       final baseName = _basenameWithoutExtension(audioPath);
       var project = await projectRepository.createProject(
         name: '$baseName · ASR 自检',
@@ -157,41 +146,35 @@ class LocalAsrEndToEndSmokeTestService
       smokeProject = project;
       _throwIfCancelled();
 
-      _emit(
-        AsrEndToEndSmokeStage.transcribing,
-        0.56,
-        '正在使用生产识别链路转写真实音频',
-      );
-      _transcriptionProgressSubscription = workflow.progressStream.listen(
-        (progress) {
-          // The run's forward-only progress, not the step's own (D-049).
-          final phaseProgress = progress.displayFraction;
-          _emit(
-            AsrEndToEndSmokeStage.transcribing,
-            0.56 + phaseProgress * 0.36,
-            progress.message,
-          );
-        },
-      );
+      _emit(AsrEndToEndSmokeStage.transcribing, 0.56, '正在使用生产识别链路转写真实音频');
+      _transcriptionProgressSubscription = workflow.progressStream.listen((
+        progress,
+      ) {
+        // The run's forward-only progress, not the step's own (D-049).
+        final phaseProgress = progress.displayFraction;
+        _emit(
+          AsrEndToEndSmokeStage.transcribing,
+          0.56 + phaseProgress * 0.36,
+          progress.message,
+        );
+      });
       await workflow.transcribeProject(project.id);
       await _transcriptionProgressSubscription?.cancel();
       _transcriptionProgressSubscription = null;
       _throwIfCancelled();
 
-      _emit(
-        AsrEndToEndSmokeStage.verifyingResult,
-        0.94,
-        '正在验证歌词工程、时间轴与转写元数据',
-      );
+      _emit(AsrEndToEndSmokeStage.verifyingResult, 0.94, '正在验证歌词工程、时间轴与转写元数据');
       final verified = await projectRepository.getProjectById(project.id);
       if (verified == null) {
         throw const TranscriptionException('ASR 自检失败：转写完成后工程不存在');
       }
 
       final lyrics = verified.lyricDocument;
-      final hasVisibleLyrics = lyrics != null &&
+      final hasVisibleLyrics =
+          lyrics != null &&
           lyrics.lines.any((line) => line.text.trim().isNotEmpty);
-      final hasTranscriptionMetadata = verified.metadata['transcription'] is Map;
+      final hasTranscriptionMetadata =
+          verified.metadata['transcription'] is Map;
       if (!hasVisibleLyrics ||
           verified.currentStage != ProcessingStage.transcriptionComplete ||
           !hasTranscriptionMetadata) {
@@ -212,11 +195,7 @@ class LocalAsrEndToEndSmokeTestService
         },
       );
 
-      _emit(
-        AsrEndToEndSmokeStage.completed,
-        1.0,
-        '端到端歌词识别自检通过，正在打开校对页',
-      );
+      _emit(AsrEndToEndSmokeStage.completed, 1.0, '端到端歌词识别自检通过，正在打开校对页');
       return AsrEndToEndSmokeResult(
         projectId: finalProject.id,
         projectName: finalProject.name,
@@ -233,10 +212,7 @@ class LocalAsrEndToEndSmokeTestService
       if (smokeProject != null) {
         await _recordFailure(smokeProject.id, error.toString());
       }
-      throw TranscriptionException(
-        'ASR 端到端自检失败',
-        details: error.toString(),
-      );
+      throw TranscriptionException('ASR 端到端自检失败', details: error.toString());
     } finally {
       await _runtimeProgressSubscription?.cancel();
       _runtimeProgressSubscription = null;
@@ -251,11 +227,7 @@ class LocalAsrEndToEndSmokeTestService
   Future<void> cancel() async {
     if (!_running) return;
     _cancelRequested = true;
-    _emit(
-      AsrEndToEndSmokeStage.cancelling,
-      0,
-      '正在取消 ASR 端到端自检',
-    );
+    _emit(AsrEndToEndSmokeStage.cancelling, 0, '正在取消 ASR 端到端自检');
     if (runtimeManager.isInstalling) {
       await runtimeManager.cancel();
     }
@@ -300,11 +272,7 @@ class LocalAsrEndToEndSmokeTestService
       project.copyWith(
         metadata: {
           ...project.metadata,
-          'asrSmokeTest': {
-            ...smokeMetadata,
-            'status': status,
-            ...details,
-          },
+          'asrSmokeTest': {...smokeMetadata, 'status': status, ...details},
         },
       ),
     );
@@ -325,11 +293,7 @@ class LocalAsrEndToEndSmokeTestService
     return dot > 0 ? fileName.substring(0, dot) : fileName;
   }
 
-  void _emit(
-    AsrEndToEndSmokeStage stage,
-    double progress,
-    String message,
-  ) {
+  void _emit(AsrEndToEndSmokeStage stage, double progress, String message) {
     if (_progressController.isClosed) return;
     _progressController.add(
       AsrEndToEndSmokeProgress(

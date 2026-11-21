@@ -269,9 +269,10 @@ class _QuietNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(
-      context,
-    ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary, height: 1.4);
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: AppColors.textSecondary,
+      height: 1.4,
+    );
     return Container(
       key: const ValueKey('recognition_progress_quiet'),
       padding: const EdgeInsets.all(AppSpacing.sm),
@@ -360,7 +361,9 @@ class _StepChip extends StatelessWidget {
           color: active ? AppColors.accent.withAlpha(26) : Colors.transparent,
           borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
           border: Border.all(
-            color: active ? AppColors.accent.withAlpha(120) : AppColors.borderMuted,
+            color: active
+                ? AppColors.accent.withAlpha(120)
+                : AppColors.borderMuted,
           ),
         ),
         child: Row(

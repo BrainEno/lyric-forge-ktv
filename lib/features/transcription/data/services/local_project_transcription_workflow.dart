@@ -142,8 +142,8 @@ class LocalProjectTranscriptionWorkflow
 
   /// The step of the run the current phase belongs to.
   TranscriptionRunStep get _runStep => switch (_phase) {
-    _WorkflowPhase.idle || _WorkflowPhase.preparing =>
-      TranscriptionRunStep.preparing,
+    _WorkflowPhase.idle ||
+    _WorkflowPhase.preparing => TranscriptionRunStep.preparing,
     _WorkflowPhase.separating => TranscriptionRunStep.separating,
     _WorkflowPhase.recognizing => TranscriptionRunStep.recognizing,
     _WorkflowPhase.checking => TranscriptionRunStep.checking,
@@ -317,10 +317,7 @@ class LocalProjectTranscriptionWorkflow
         );
       }
       _phase = _WorkflowPhase.recognizing;
-      _announce(
-        '正在启动识别引擎',
-        stage: TranscriptionStage.loadingModel,
-      );
+      _announce('正在启动识别引擎', stage: TranscriptionStage.loadingModel);
       final result = await _transcriptionService.transcribe(
         TranscriptionRequest(
           inputAudioPath: inputPath,
@@ -333,10 +330,7 @@ class LocalProjectTranscriptionWorkflow
       _checkCancelled();
       if (_vocalCheck != null) {
         _phase = _WorkflowPhase.checking;
-        _announce(
-          '正在对照人声音轨检查歌词草稿',
-          stage: TranscriptionStage.parsing,
-        );
+        _announce('正在对照人声音轨检查歌词草稿', stage: TranscriptionStage.parsing);
       }
       final checked = await _checkAgainstVocal(
         result,
@@ -461,11 +455,7 @@ class LocalProjectTranscriptionWorkflow
         playbackSession: _playbackSession,
         pathCanonicalizer: _pathCanonicalizer,
       );
-      _announce(
-        '歌词草稿已保存',
-        progress: 1,
-        stage: TranscriptionStage.completed,
-      );
+      _announce('歌词草稿已保存', progress: 1, stage: TranscriptionStage.completed);
     } on ProjectUpdateConflictException {
       await _finishUncommittedRun(project, runId);
       throw const TranscriptionException.input('识别期间工程发生变化，未覆盖最新歌词；请刷新后重试。');

@@ -220,8 +220,7 @@ abstract final class TranscriptionRunText {
   /// What [step] usually takes, said when the program has been quiet.
   static String stepHint(TranscriptionRunStep step) => switch (step) {
     TranscriptionRunStep.preparing => '正在检查识别环境并备份现有歌词，通常只需几秒。',
-    TranscriptionRunStep.separating =>
-      '第一次使用会先下载人声分离组件；分离一首歌通常需要 30 秒到 2 分钟。',
+    TranscriptionRunStep.separating => '第一次使用会先下载人声分离组件；分离一首歌通常需要 30 秒到 2 分钟。',
     TranscriptionRunStep.recognizing =>
       '模型正在整首识别，这一步通常需要 1 到 5 分钟，期间进度可能长时间不变。',
     TranscriptionRunStep.checking => '正在对照人声音轨检查每一行，通常只需几秒。',

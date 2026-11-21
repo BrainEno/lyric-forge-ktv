@@ -80,7 +80,10 @@ void main() {
     test('out-of-range fractions are clamped, NaN counts as nothing', () {
       expect(
         TranscriptionRunPlan.overallAt(TranscriptionRunStep.checking, -1),
-        closeTo(TranscriptionRunPlan.startOf(TranscriptionRunStep.checking), 1e-9),
+        closeTo(
+          TranscriptionRunPlan.startOf(TranscriptionRunStep.checking),
+          1e-9,
+        ),
       );
       expect(
         TranscriptionRunPlan.overallAt(TranscriptionRunStep.checking, 3),
@@ -90,7 +93,10 @@ void main() {
         ),
       );
       expect(
-        TranscriptionRunPlan.overallAt(TranscriptionRunStep.preparing, double.nan),
+        TranscriptionRunPlan.overallAt(
+          TranscriptionRunStep.preparing,
+          double.nan,
+        ),
         0,
       );
     });
@@ -211,7 +217,10 @@ void main() {
       );
       expect(
         saving.overall,
-        closeTo(TranscriptionRunPlan.startOf(TranscriptionRunStep.saving), 1e-9),
+        closeTo(
+          TranscriptionRunPlan.startOf(TranscriptionRunStep.saving),
+          1e-9,
+        ),
       );
     });
 
@@ -444,7 +453,10 @@ void main() {
     });
 
     test('durations in words', () {
-      expect(TranscriptionRunText.duration(const Duration(seconds: 42)), '42 秒');
+      expect(
+        TranscriptionRunText.duration(const Duration(seconds: 42)),
+        '42 秒',
+      );
       expect(
         TranscriptionRunText.duration(const Duration(minutes: 3, seconds: 5)),
         '3 分 05 秒',
