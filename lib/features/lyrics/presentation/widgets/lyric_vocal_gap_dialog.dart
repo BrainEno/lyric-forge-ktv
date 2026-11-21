@@ -198,7 +198,10 @@ class _LyricVocalGapDialogState extends State<LyricVocalGapDialog> {
       if (!mounted || token != _runToken) return;
       final insertion = widget.actions.insertion(
         window,
-        recognized: [for (final line in result.lines) _toDocument(line)],
+        recognized: LyricVocalCheckActions.toDocumentTimeline(
+          result.lines,
+          _offset,
+        ),
       );
       setState(() {
         _insertion = insertion;
@@ -223,19 +226,6 @@ class _LyricVocalGapDialogState extends State<LyricVocalGapDialog> {
     });
     await widget.recognizer.cancel();
   }
-
-  LyricLine _toDocument(LyricLine line) => line.copyWith(
-    startTime: line.startTime - _offset,
-    endTime: line.endTime - _offset,
-    words: [
-      for (final word in line.words)
-        LyricWordTiming(
-          text: word.text,
-          start: word.start - _offset,
-          end: word.end - _offset,
-        ),
-    ],
-  );
 
   void _confirm() {
     final insertion = _insertion;

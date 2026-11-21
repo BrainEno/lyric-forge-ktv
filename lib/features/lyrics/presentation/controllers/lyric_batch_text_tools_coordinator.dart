@@ -17,6 +17,7 @@ import '../widgets/lyric_text_cleanup_dialog.dart';
 import '../widgets/lyric_timeline_repair_dialog.dart';
 import '../widgets/lyric_timing_shift_dialog.dart';
 import '../widgets/lyric_vocal_check_request.dart';
+import '../widgets/lyric_vocal_gap_batch_dialog.dart';
 import '../widgets/lyric_vocal_gap_dialog.dart';
 import '../widgets/lyric_vocal_restore_dialog.dart';
 import '../widgets/lyric_word_tap_dialog.dart';
@@ -81,8 +82,9 @@ class LyricBatchTextToolsCoordinator {
   }
 
   /// A one-click follow-up of the vocal check from the recognition summary
-  /// (D-045): recognise a given stretch of singing without lyrics, or put
-  /// the rows it removed back (all at once, or chosen in a dialog).
+  /// (D-045): recognise a given stretch of singing without lyrics, or all of
+  /// them in one go (D-046), or put the rows it removed back (all at once,
+  /// or chosen in a dialog).
   Future<void> openVocalCheck(
     LyricVocalCheckRequest request, {
     required ProjectManifest project,
@@ -96,6 +98,13 @@ class LyricBatchTextToolsCoordinator {
           project,
           document,
           span,
+        ),
+        LyricVocalGapBatchRequest() => _openVocalGaps(
+          context,
+          project,
+          document,
+          null,
+          batch: true,
         ),
         LyricRestoreRemovedRequest(all: true) => Future.value(
           _restoreAll(context, document),
@@ -300,8 +309,9 @@ class LyricBatchTextToolsCoordinator {
     BuildContext context,
     ProjectManifest project,
     LyricDocument document,
-    LyricVocalCheckSpan? span,
-  ) async {
+    LyricVocalCheckSpan? span, {
+    bool batch = false,
+  }) async {
     final spans =
         LyricVocalCheckRecord.fromMetadata(
           document.metadata,
@@ -319,6 +329,19 @@ class LyricBatchTextToolsCoordinator {
       _tell(context, unavailable ?? LyricSpanRecognitionStrings.noRecognizer);
       return null;
     }
+    void preview(int index, Duration start, Duration end) =>
+        _previewSpan(project, document, index, start, end);
+    if (batch) {
+      return showLyricVocalGapBatchDialog(
+        context,
+        document: document,
+        spans: spans,
+        projectId: project.id,
+        recognizer: recognizer,
+        audioDuration: project.audioAsset?.duration,
+        onPreviewSpan: preview,
+      );
+    }
     return showLyricVocalGapDialog(
       context,
       document: document,
@@ -327,8 +350,7 @@ class LyricBatchTextToolsCoordinator {
       recognizer: recognizer,
       initialSpan: span,
       audioDuration: project.audioAsset?.duration,
-      onPreviewSpan: (index, start, end) =>
-          _previewSpan(project, document, index, start, end),
+      onPreviewSpan: preview,
     );
   }
 

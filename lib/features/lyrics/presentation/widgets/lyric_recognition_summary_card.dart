@@ -223,6 +223,15 @@ class _LyricRecognitionSummaryCardState
         spacing: AppSpacing.xs,
         runSpacing: AppSpacing.xs,
         children: [
+          if (spans.length > 1)
+            ActionChip(
+              key: const ValueKey('lyric_vocal_gap_batch'),
+              visualDensity: VisualDensity.compact,
+              avatar: const Icon(Icons.playlist_add_rounded, size: 16),
+              tooltip: '依次识别每一处，识别完一次确认插入',
+              label: Text('全部识别（${spans.length} 处）'),
+              onPressed: () => act(const LyricVocalGapBatchRequest()),
+            ),
           for (final (index, span) in spans.take(listed).indexed)
             ActionChip(
               key: ValueKey('lyric_vocal_gap_$index'),

@@ -509,6 +509,18 @@ The record is also what the editor acts on:
 Both are single undoable edits and are also in the proofreading menu
 (`LyricVocalCheckActions` plans them; nothing is written until saving).
 
+With two or more open stretches the summary also offers "全部识别（N 处）"
+(D-046): `LyricVocalGapBatchDialog` recognises every stretch one after
+another as soon as it opens, in the same windows as above. A stretch the
+chosen engine hears nothing in (or fails on) is tried once with the other
+engine, since Qwen3-ASR and Whisper miss different things; a busy runtime
+or a stop ends the run, keeping what was found, and "再识别没有结果的 N 处"
+continues. The results are listed with a checkbox each; stretches that
+still have nothing can be marked as having no lyrics in the same edit.
+`LyricVocalGapBatch.apply` inserts everything in one pass against the
+original document, so row-indexed review evidence moves exactly once and
+rows of two stretches between the same rows are made consecutive.
+
 ## Arbitrary-text ForcedAligner boundary
 
 The official Qwen3-ASR Python API exposes `Qwen3ForcedAligner.align(audio, text, language)`, returning item-level text and start/end seconds. That is a real arbitrary-text alignment API, but it is a Python library call, not evidence that every server wrapping the model exposes the same request contract.

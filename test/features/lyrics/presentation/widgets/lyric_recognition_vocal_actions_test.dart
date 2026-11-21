@@ -94,6 +94,28 @@ void main() {
       expect(request.span, _span(120, 124));
     });
 
+    testWidgets('two or more stretches can be recognised all at once', (
+      tester,
+    ) async {
+      await _pump(tester, _document([_line('第一句', 10, 15)], record: _record));
+      expect(find.text('全部识别（2 处）'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('lyric_vocal_gap_batch')));
+      await tester.pump();
+      expect(_requests.single, isA<LyricVocalGapBatchRequest>());
+    });
+
+    testWidgets('a single stretch has no batch button', (tester) async {
+      await _pump(
+        tester,
+        _document(
+          [_line('第一句', 10, 15)],
+          record: LyricVocalCheckRecord(uncoveredSpans: [_span(75, 79)]),
+        ),
+      );
+      expect(find.byKey(const ValueKey('lyric_vocal_gap_batch')), findsNothing);
+      expect(find.byKey(const ValueKey('lyric_vocal_gap_0')), findsOneWidget);
+    });
+
     testWidgets('more stretches than listed get a walk-through button', (
       tester,
     ) async {
