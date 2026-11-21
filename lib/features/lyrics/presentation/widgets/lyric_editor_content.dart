@@ -386,6 +386,8 @@ class LyricEditorContent extends StatelessWidget {
                                         : const LyricDraftHealthService()
                                               .cached(document),
                                     onOpenBatchTool: proofread.onBatchTextTool,
+                                    onVocalCheckAction:
+                                        proofread.onVocalCheckAction,
                                     onStartReview: firstQueued == null
                                         ? null
                                         : () {

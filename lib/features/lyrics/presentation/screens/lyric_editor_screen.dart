@@ -70,6 +70,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
       LyricBatchTextToolsCoordinator(
         host: this,
         spanRecognizer: widget.dependencies.spanRecognizer,
+        editingDocument: () => _editingDocument,
       );
   final LyricExportCoordinator _lyricExport = LyricExportCoordinator();
   late Future<ProjectManifest?> _projectFuture;
@@ -1105,11 +1106,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                               _showAlignmentComparison(project),
                           restoreAlignment: _restoreAlignmentBackup,
                           unifyChineseScript: _openChineseScriptUnification,
-                          batchTextTool: (tool) => _batchTools.open(
-                            tool,
-                            project: project,
-                            document: _editingDocument,
-                          ),
+                          batchTextTool: _batchTools.toolsFor(project),
+                          vocalCheckAction: _batchTools.vocalCheckFor(project),
                         ),
                         edits: _lineEditActions,
                         audition: LyricAuditionControls(

@@ -7,6 +7,7 @@ import '../../domain/models/recognition_review_summary.dart';
 import '../../domain/models/vocal_check_record.dart';
 import '../../domain/services/lyric_draft_health_service.dart';
 import 'lyric_batch_text_edit.dart';
+import 'lyric_vocal_check_request.dart';
 
 /// A compact post-recognition summary above the lyric list.
 ///
@@ -28,12 +29,17 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
   /// Opens the batch tool a hint refers to. Null hides the hints.
   final ValueChanged<LyricBatchTextTool>? onOpenBatchTool;
 
+  /// Runs a follow-up of the vocal check (D-045): recognise a stretch of
+  /// singing without lyrics, restore removed rows. Null hides the buttons.
+  final ValueChanged<LyricVocalCheckRequest>? onVocalCheckAction;
+
   const LyricRecognitionSummaryCard({
     super.key,
     required this.summary,
     required this.onStartReview,
     this.health,
     this.onOpenBatchTool,
+    this.onVocalCheckAction,
   });
 
   /// One hint per tool that has work to do, in the order worth doing it:
@@ -129,7 +135,13 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
 
   /// The stretches with singing but no lyrics, shown without expanding the
   /// card because they are where to listen next; null when there are none.
-  static String? vocalSpansLine(RecognitionReviewSummary summary) {
+  ///
+  /// With [actionable] the card offers a button per stretch, so the hint
+  /// points at them instead of the manual route.
+  static String? vocalSpansLine(
+    RecognitionReviewSummary summary, {
+    bool actionable = false,
+  }) {
     final spans = summary.openVocalSpans;
     if (spans.isEmpty) return null;
     final listed = [
@@ -137,6 +149,9 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
         '${clock(span.start)}–${clock(span.end)}',
     ].join('、');
     final more = spans.length > listedVocalSpans ? ' 等 ${spans.length} 处' : '';
+    if (actionable) {
+      return '有人声但没有歌词：$listed$more。点下面的时间直接识别并插入，或试听后补写';
+    }
     return '有人声但没有歌词：$listed$more。试听后可补写，或选中相邻的行用“重新识别这一段”';
   }
 
@@ -150,7 +165,10 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
             '（${removed.take(2).map((line) => '“${line.text.trim()}”').join('、')}'
             '${removed.length > 2 ? '等' : ''}），多是前奏、间奏或尾奏里编出来的',
       if (record.retimedLines > 0) '按人声收紧了 ${record.retimedLines} 行的起止时间',
-      if (!record.changedDraft) '人声检查没有发现需要删除或收紧的行',
+      if (record.restoredLines > 0) '已恢复 ${record.restoredLines} 行被删除的歌词',
+      if (record.dismissedSpans > 0) '已标记 ${record.dismissedSpans} 处有人声的地方没有歌词',
+      if (!record.changedDraft && record.restoredLines == 0)
+        '人声检查没有发现需要删除或收紧的行',
     ];
   }
 
@@ -189,6 +207,77 @@ class _LyricRecognitionSummaryCardState
     );
     if (!summary.whisperProfileDegraded) return 'Whisper 参数：$effective';
     return 'Whisper 参数：$effective（运行时不支持歌词增强，已安全回退）';
+  }
+
+  /// One button per listed stretch: a click recognises it right away.
+  List<Widget> _vocalGapChips(
+    RecognitionReviewSummary summary,
+    ValueChanged<LyricVocalCheckRequest> act,
+  ) {
+    final spans = summary.openVocalSpans;
+    const listed = LyricRecognitionSummaryCard.listedVocalSpans;
+    return [
+      const SizedBox(height: AppSpacing.xs),
+      Wrap(
+        key: const ValueKey('lyric_recognition_summary_vocal_gaps'),
+        spacing: AppSpacing.xs,
+        runSpacing: AppSpacing.xs,
+        children: [
+          for (final (index, span) in spans.take(listed).indexed)
+            ActionChip(
+              key: ValueKey('lyric_vocal_gap_$index'),
+              visualDensity: VisualDensity.compact,
+              avatar: const Icon(Icons.record_voice_over_rounded, size: 16),
+              tooltip: '识别这一段并插入歌词',
+              label: Text(
+                '识别 ${LyricRecognitionSummaryCard.clock(span.start)}',
+              ),
+              onPressed: () => act(LyricVocalGapRequest(span)),
+            ),
+          if (spans.length > listed)
+            ActionChip(
+              key: const ValueKey('lyric_vocal_gap_all'),
+              visualDensity: VisualDensity.compact,
+              label: Text('逐处识别（共 ${spans.length} 处）'),
+              onPressed: () => act(const LyricVocalGapRequest()),
+            ),
+        ],
+      ),
+    ];
+  }
+
+  /// Restore all rows the vocal check removed with one click, or choose.
+  List<Widget> _removedLinesActions(
+    int count,
+    ValueChanged<LyricVocalCheckRequest> act,
+  ) {
+    final theme = Theme.of(context);
+    return [
+      const SizedBox(height: AppSpacing.xs),
+      Wrap(
+        key: const ValueKey('lyric_recognition_summary_removed'),
+        spacing: AppSpacing.xs,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            '人声检查删除了 $count 行没人唱的歌词',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('lyric_vocal_restore_review'),
+            onPressed: () => act(const LyricRestoreRemovedRequest()),
+            child: const Text('逐行查看'),
+          ),
+          TextButton(
+            key: const ValueKey('lyric_vocal_restore_all'),
+            onPressed: () => act(const LyricRestoreRemovedRequest(all: true)),
+            child: const Text('全部恢复'),
+          ),
+        ],
+      ),
+    ];
   }
 
   List<Widget> _healthChips(
@@ -260,7 +349,12 @@ class _LyricRecognitionSummaryCardState
           attention: summary.openVocalSpans.isNotEmpty,
         ),
     ];
-    final vocalSpans = LyricRecognitionSummaryCard.vocalSpansLine(summary);
+    final vocalAction = widget.onVocalCheckAction;
+    final vocalSpans = LyricRecognitionSummaryCard.vocalSpansLine(
+      summary,
+      actionable: vocalAction != null,
+    );
+    final removedLines = summary.vocalCheck?.removedLines ?? const [];
 
     return Container(
       key: const ValueKey('lyric_recognition_summary_card'),
@@ -371,6 +465,10 @@ class _LyricRecognitionSummaryCardState
               ),
             ),
           ],
+          if (vocalSpans != null && vocalAction != null)
+            ..._vocalGapChips(summary, vocalAction),
+          if (removedLines.isNotEmpty && vocalAction != null)
+            ..._removedLinesActions(removedLines.length, vocalAction),
           if (widget.health != null && widget.onOpenBatchTool != null)
             ..._healthChips(widget.health!, widget.onOpenBatchTool!),
           if (_expanded) ...[

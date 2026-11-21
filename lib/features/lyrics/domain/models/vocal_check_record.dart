@@ -55,6 +55,9 @@ class LyricVocalCheckRemovedLine {
     'endMs': end.inMilliseconds,
   };
 
+  /// The row as it goes back into the document; it gets a new id.
+  LyricLine toLine() => LyricLine(text: text, startTime: start, endTime: end);
+
   static LyricVocalCheckRemovedLine? tryFromJson(Object? json) {
     if (json is! Map) return null;
     final text = json['text'];
@@ -98,10 +101,20 @@ class LyricVocalCheckRecord {
   /// Stretches with singing but no row, in timeline order.
   final List<LyricVocalCheckSpan> uncoveredSpans;
 
+  /// Removed rows the user put back since (D-045); they are no longer in
+  /// [removedLines].
+  final int restoredLines;
+
+  /// Stretches the user said have no lyrics (humming, a sample, separation
+  /// leftovers); they are no longer in [uncoveredSpans].
+  final int dismissedSpans;
+
   const LyricVocalCheckRecord({
     this.removedLines = const [],
     this.retimedLines = 0,
     this.uncoveredSpans = const [],
+    this.restoredLines = 0,
+    this.dismissedSpans = 0,
   });
 
   bool get changedDraft => removedLines.isNotEmpty || retimedLines > 0;
@@ -113,6 +126,51 @@ class LyricVocalCheckRecord {
     'removedLines': [for (final line in removedLines) line.toJson()],
     'retimedLines': retimedLines,
     'uncoveredSpans': [for (final span in uncoveredSpans) span.toJson()],
+    if (restoredLines > 0) 'restoredLines': restoredLines,
+    if (dismissedSpans > 0) 'dismissedSpans': dismissedSpans,
+  };
+
+  /// The record without the removed rows at [indices] (positions in
+  /// [removedLines]), counted as restored. Unknown positions are ignored.
+  LyricVocalCheckRecord withRestored(Set<int> indices) {
+    final kept = <LyricVocalCheckRemovedLine>[];
+    var restored = 0;
+    for (var index = 0; index < removedLines.length; index++) {
+      if (indices.contains(index)) {
+        restored++;
+      } else {
+        kept.add(removedLines[index]);
+      }
+    }
+    return LyricVocalCheckRecord(
+      removedLines: kept,
+      retimedLines: retimedLines,
+      uncoveredSpans: uncoveredSpans,
+      restoredLines: restoredLines + restored,
+      dismissedSpans: dismissedSpans,
+    );
+  }
+
+  /// The record without [span], counted as dismissed; unchanged when the
+  /// record does not list it.
+  LyricVocalCheckRecord withDismissed(LyricVocalCheckSpan span) {
+    if (!uncoveredSpans.contains(span)) return this;
+    return LyricVocalCheckRecord(
+      removedLines: removedLines,
+      retimedLines: retimedLines,
+      uncoveredSpans: [
+        for (final other in uncoveredSpans)
+          if (other != span) other,
+      ],
+      restoredLines: restoredLines,
+      dismissedSpans: dismissedSpans + 1,
+    );
+  }
+
+  /// [metadata] with this record stored, as a new map.
+  Map<String, dynamic> writeTo(Map<String, dynamic> metadata) => {
+    ...metadata,
+    metadataKey: toJson(),
   };
 
   /// The record in [metadata]; null when absent, from a newer schema, or
@@ -123,6 +181,8 @@ class LyricVocalCheckRecord {
     final removed = raw['removedLines'];
     final spans = raw['uncoveredSpans'];
     final retimed = raw['retimedLines'];
+    final restored = raw['restoredLines'];
+    final dismissed = raw['dismissedSpans'];
     return LyricVocalCheckRecord(
       removedLines: [
         if (removed is List)
@@ -134,6 +194,8 @@ class LyricVocalCheckRecord {
         if (spans is List)
           for (final entry in spans) ?LyricVocalCheckSpan.tryFromJson(entry),
       ],
+      restoredLines: restored is int && restored > 0 ? restored : 0,
+      dismissedSpans: dismissed is int && dismissed > 0 ? dismissed : 0,
     );
   }
 
