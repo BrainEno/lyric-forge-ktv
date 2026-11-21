@@ -26,28 +26,27 @@ import 'reference_alignment_dialog.dart';
 /// in declaration order. Generation actions come first because they are what
 /// the user came for; reviewing and rolling back the last result is the last
 /// group, so the destructive-sounding entries are not the first thing under
-/// the cursor.
+/// the cursor. The single-purpose checks that 一键校对 already runs (and the
+/// expert checks) sit in one collapsed submenu (D-053).
 enum LyricProofreadAction {
   autoProofread(LyricProofreadGroup.correction),
   smartProofread(LyricProofreadGroup.correction),
   referenceAlignment(LyricProofreadGroup.correction),
-  referenceProofread(LyricProofreadGroup.correction),
   spanRecognition(LyricProofreadGroup.correction),
   vocalGapRecognition(LyricProofreadGroup.correction),
   restoreRemovedLines(LyricProofreadGroup.correction),
-  textCleanup(LyricProofreadGroup.text),
-  repetitionConsistency(LyricProofreadGroup.text),
-  asrLoopCheck(LyricProofreadGroup.text),
-  missedRepeatCheck(LyricProofreadGroup.text),
-  lineStructure(LyricProofreadGroup.text),
-  unifyChineseScript(LyricProofreadGroup.text),
   findReplace(LyricProofreadGroup.text),
-  timelineRepair(LyricProofreadGroup.timing),
-  paceCheck(LyricProofreadGroup.timing),
-  timingShift(LyricProofreadGroup.timing),
+  lineStructure(LyricProofreadGroup.text),
   tapSync(LyricProofreadGroup.timing),
   wordTap(LyricProofreadGroup.timing),
-  wordTimingCheck(LyricProofreadGroup.timing),
+  timingShift(LyricProofreadGroup.timing),
+  textCleanup(LyricProofreadGroup.checks),
+  asrLoopCheck(LyricProofreadGroup.checks),
+  repetitionConsistency(LyricProofreadGroup.checks),
+  timelineRepair(LyricProofreadGroup.checks),
+  missedRepeatCheck(LyricProofreadGroup.checks),
+  paceCheck(LyricProofreadGroup.checks),
+  wordTimingCheck(LyricProofreadGroup.checks),
   viewComparison(LyricProofreadGroup.review),
   undoAlignment(LyricProofreadGroup.review),
   restoreBackup(LyricProofreadGroup.review);
@@ -60,21 +59,35 @@ enum LyricProofreadAction {
 
 /// The labelled sections of the proofreading menu, in display order.
 enum LyricProofreadGroup {
-  /// Recognition-based and reference-based corrections.
+  /// 一键校对, the other whole-song corrections and re-recognition.
   correction('智能纠错'),
 
-  /// Text-only clean-up of the recognised lines.
+  /// Edits the user directs: replacing a word, re-breaking rows.
   text('文本整理'),
 
-  /// Timeline checks, shifting and tap-to-sync.
+  /// Tap-to-sync and moving timing by hand.
   timing('时间轴与打轴'),
+
+  /// Single-purpose checks, collapsed into one submenu: the first four are
+  /// steps of 一键校对, the rest are for detailed work.
+  checks(
+    '单项检查',
+    detail: '一键校对已包含清理、循环、重复段落和时间轴检查；这里可逐项查看',
+    collapsed: true,
+  ),
 
   /// Looking at and rolling back the last alignment.
   review('对比与回滚');
 
-  const LyricProofreadGroup(this.label);
+  const LyricProofreadGroup(this.label, {this.detail, this.collapsed = false});
 
   final String label;
+
+  /// Subtitle of a [collapsed] group's submenu entry.
+  final String? detail;
+
+  /// Shown as one submenu entry instead of a labelled section.
+  final bool collapsed;
 }
 
 /// One entry point for every proofreading flow.
@@ -90,8 +103,6 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.onAutoProofread,
     this.onSmartProofread,
     this.onReferenceAlignment,
-    this.onReferenceProofread,
-    this.onUnifyChineseScript,
     this.onRepetitionConsistency,
     this.onTextCleanup,
     this.onAsrLoopCheck,
@@ -133,8 +144,6 @@ class LyricProofreadMenuButton extends StatelessWidget {
       onAutoProofread: actions.onAutoProofread,
       onSmartProofread: actions.onSmartProofread,
       onReferenceAlignment: actions.onReferenceAlignment,
-      onReferenceProofread: actions.onReferenceProofread,
-      onUnifyChineseScript: actions.onUnifyChineseScript,
       onRepetitionConsistency: tool(LyricBatchTextTool.repetitionConsistency),
       onTextCleanup: tool(LyricBatchTextTool.textCleanup),
       onAsrLoopCheck: tool(LyricBatchTextTool.asrLoopCheck),
@@ -162,15 +171,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
   /// 智能校对: builds a proposal from the ASR evidence without writing it.
   final VoidCallback? onSmartProofread;
 
-  /// 参考歌词：纠正文字和时间轴 — aligns a pasted reference and can replace
-  /// timing.
+  /// 粘贴参考歌词校对 — aligns a pasted reference and can replace timing.
   final VoidCallback? onReferenceAlignment;
-
-  /// 参考歌词：只改文字 — text-only corrections from a pasted reference.
-  final VoidCallback? onReferenceProofread;
-
-  /// 统一简繁字形: previews and applies a simplified/traditional unification.
-  final VoidCallback? onUnifyChineseScript;
 
   /// 重复段落一致性检查: unifies repeats (choruses) recognised differently.
   final VoidCallback? onRepetitionConsistency;
@@ -230,6 +232,9 @@ class LyricProofreadMenuButton extends StatelessWidget {
   /// Menu title of the no-reference proposal flow ([onSmartProofread]).
   static const String smartProofreadTitle = '智能校对';
 
+  /// Its menu subtitle: when to use it, in plain words.
+  static const String smartProofreadDetail = '没有歌词原文时用；按识别结果给出逐行修改建议，确认后才应用';
+
   @override
   Widget build(BuildContext context) {
     final groups = _groups();
@@ -239,13 +244,16 @@ class LyricProofreadMenuButton extends StatelessWidget {
       menuChildren: [
         for (final (index, group) in groups.indexed) ...[
           if (index > 0) const Divider(height: 1),
-          _GroupHeader(group.$1.label),
-          for (final item in group.$2)
-            MenuItemButton(
-              onPressed: item.onPressed,
-              leadingIcon: Icon(item.icon, size: 18),
-              child: _MenuLabel(title: item.title, detail: item.detail),
-            ),
+          if (group.$1.collapsed)
+            SubmenuButton(
+              leadingIcon: const Icon(Icons.checklist_rounded, size: 18),
+              menuChildren: [for (final item in group.$2) _menuItem(item)],
+              child: _MenuLabel(title: group.$1.label, detail: group.$1.detail),
+            )
+          else ...[
+            _GroupHeader(group.$1.label),
+            for (final item in group.$2) _menuItem(item),
+          ],
         ],
       ],
       builder: (context, controller, child) {
@@ -265,7 +273,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
           );
         }
         return Tooltip(
-          message: '校对：智能纠错、文本整理、时间轴与打轴、对比与回滚',
+          message: '校对：一键校对、重新识别、文本与时间轴整理、单项检查',
           child: FilledButton.tonalIcon(
             onPressed: open,
             icon: const Icon(Icons.spellcheck_rounded, size: 18),
@@ -276,13 +284,18 @@ class LyricProofreadMenuButton extends StatelessWidget {
     );
   }
 
+  static Widget _menuItem(_ProofreadMenuItem item) => MenuItemButton(
+    onPressed: item.onPressed,
+    leadingIcon: Icon(item.icon, size: 18),
+    child: _MenuLabel(title: item.title, detail: item.detail),
+  );
+
   /// Available entries per group; groups without any entry are left out.
   List<(LyricProofreadGroup, List<_ProofreadMenuItem>)> _groups() {
     final actions = <LyricProofreadAction, VoidCallback?>{
       LyricProofreadAction.autoProofread: onAutoProofread,
       LyricProofreadAction.smartProofread: onSmartProofread,
       LyricProofreadAction.referenceAlignment: onReferenceAlignment,
-      LyricProofreadAction.referenceProofread: onReferenceProofread,
       LyricProofreadAction.repetitionConsistency: onRepetitionConsistency,
       LyricProofreadAction.textCleanup: onTextCleanup,
       LyricProofreadAction.asrLoopCheck: onAsrLoopCheck,
@@ -297,7 +310,6 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.tapSync: onTapSync,
       LyricProofreadAction.wordTap: onWordTap,
       LyricProofreadAction.wordTimingCheck: onWordTimingCheck,
-      LyricProofreadAction.unifyChineseScript: onUnifyChineseScript,
       LyricProofreadAction.findReplace: onFindReplace,
       LyricProofreadAction.viewComparison: onViewComparison,
       LyricProofreadAction.undoAlignment: onUndoAlignment,
@@ -334,15 +346,11 @@ class LyricProofreadMenuButton extends StatelessWidget {
       ),
       LyricProofreadAction.smartProofread => (
         smartProofreadTitle,
-        '不需要参考歌词；生成不写盘的提案，逐行对比后再应用',
+        smartProofreadDetail,
       ),
       LyricProofreadAction.referenceAlignment => (
         ReferenceLyricPurpose.alignment.title,
         ReferenceLyricPurpose.alignment.menuDetail,
-      ),
-      LyricProofreadAction.referenceProofread => (
-        ReferenceLyricPurpose.textOnly.title,
-        ReferenceLyricPurpose.textOnly.menuDetail,
       ),
       LyricProofreadAction.repetitionConsistency => (
         LyricRepetitionStrings.actionTitle,
@@ -400,10 +408,6 @@ class LyricProofreadMenuButton extends StatelessWidget {
         LyricWordTimingCheckStrings.actionTitle,
         LyricWordTimingCheckStrings.actionDetail,
       ),
-      LyricProofreadAction.unifyChineseScript => (
-        '统一简繁字形',
-        '不需要参考歌词；先预览改动行数，默认跳过手动编辑过的行',
-      ),
       LyricProofreadAction.findReplace => (
         LyricFindReplaceStrings.actionTitle,
         LyricFindReplaceStrings.actionDetail,
@@ -419,7 +423,6 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.autoProofread => Icons.bolt_rounded,
       LyricProofreadAction.smartProofread => Icons.auto_awesome_rounded,
       LyricProofreadAction.referenceAlignment => Icons.auto_fix_high_rounded,
-      LyricProofreadAction.referenceProofread => Icons.spellcheck_rounded,
       LyricProofreadAction.repetitionConsistency =>
         Icons.library_add_check_rounded,
       LyricProofreadAction.textCleanup => Icons.cleaning_services_rounded,
@@ -438,7 +441,6 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.tapSync => Icons.touch_app_rounded,
       LyricProofreadAction.wordTap => Icons.lyrics_outlined,
       LyricProofreadAction.wordTimingCheck => Icons.fact_check_outlined,
-      LyricProofreadAction.unifyChineseScript => Icons.translate_rounded,
       LyricProofreadAction.findReplace => Icons.find_replace_rounded,
       LyricProofreadAction.viewComparison => Icons.compare_arrows_rounded,
       LyricProofreadAction.undoAlignment => Icons.undo_rounded,

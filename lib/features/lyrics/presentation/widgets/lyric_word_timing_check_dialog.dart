@@ -12,8 +12,7 @@ class LyricWordTimingCheckStrings {
   const LyricWordTimingCheckStrings._();
 
   static const String actionTitle = '逐字时间检查';
-  static const String actionDetail =
-      '导出逐字 LRC / ASS 前检查：失效、偏移、拖得过长、挤成一团或中间有长停顿的逐字时间';
+  static const String actionDetail = '导出卡拉 OK 逐字歌词前，找出逐字时间错位或挤成一团的行';
   static const String intro =
       '逐字时间来自识别、导入的卡拉 OK 文件、逐字打轴或逐字微调。'
       '改字后字数不再匹配的行，导出会忽略它的逐字时间，可以清除；'

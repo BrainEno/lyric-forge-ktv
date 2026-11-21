@@ -15,7 +15,7 @@ class LyricMissedRepeatStrings {
   const LyricMissedRepeatStrings._();
 
   static const String actionTitle = '漏唱和声检查';
-  static const String actionDetail = '找出结尾反复的和声、口号被识别器缩短的地方：逐字时间挤在一起，或和声后留下长空白';
+  static const String actionDetail = '结尾反复唱的和声、口号只识别出一两遍时，补回漏掉的遍数';
   static const String intro =
       '识别器听到同一句和声反复很多遍时，往往只写一两遍，对齐器又对不上多出来的歌声。'
       '留下的痕迹有三种：许多字挤在同一时刻；一个字被拉长到六秒以上，盖住了没识别出的歌声或前奏；'

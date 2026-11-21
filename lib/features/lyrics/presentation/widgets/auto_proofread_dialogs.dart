@@ -11,7 +11,8 @@ class AutoProofreadStrings {
   const AutoProofreadStrings._();
 
   static const String actionTitle = '一键校对';
-  static const String actionDetail = '自动联网查找这首歌的歌词，改错字、补漏句、整理文本和时间轴；可撤销';
+  static const String actionDetail =
+      '自动联网查找这首歌的歌词，改错字、补漏句、统一简繁、整理文本和时间轴；可撤销';
   static const String runningLabel = '校对中…';
   static const String tooltip =
       '按歌名和歌手联网查找歌词（网易云音乐、酷狗音乐、LRCLIB），'
@@ -47,6 +48,7 @@ class AutoProofreadStrings {
       if (result.insertedLines > 0) '补全 ${result.insertedLines} 行',
       if (result.verifiedLines > 0) '确认 ${result.verifiedLines} 行无误',
       if (result.cleanedLines > 0) '清理 ${result.cleanedLines} 行',
+      if (result.scriptFixes > 0) '统一 ${result.scriptFixes} 行简繁字形',
       if (result.removedLines > 0) '删除 ${result.removedLines} 行非歌词',
       if (result.loopFixes > 0) '精简 ${result.loopFixes} 行循环',
       if (result.repetitionFixes > 0) '统一 ${result.repetitionFixes} 行重复段落',

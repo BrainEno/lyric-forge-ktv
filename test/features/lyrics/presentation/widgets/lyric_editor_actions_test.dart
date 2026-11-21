@@ -56,12 +56,10 @@ void main() {
       const none = LyricProofreadActions.none;
 
       expect(none.onReferenceAlignment, isNull);
-      expect(none.onReferenceProofread, isNull);
       expect(none.onSmartProofread, isNull);
       expect(none.onUndoReferenceAlignment, isNull);
       expect(none.onViewAlignmentComparison, isNull);
       expect(none.onRestoreAlignment, isNull);
-      expect(none.onUnifyChineseScript, isNull);
       expect(none.onBatchTextTool, isNull);
     });
 
@@ -78,13 +76,11 @@ void main() {
         alignment: alignment,
         canRestore: canRestore,
         referenceAlignment: noop,
-        referenceProofread: noop,
         smartProofread: noop,
         autoProofread: noop,
         undoAlignment: noop,
         viewComparison: noop,
         restoreAlignment: noop,
-        unifyChineseScript: noop,
         batchTextTool: (_) {},
       );
     }
@@ -102,9 +98,7 @@ void main() {
       final actions = forDocument(hasLines: true);
 
       expect(actions.onReferenceAlignment, isNotNull);
-      expect(actions.onReferenceProofread, isNotNull);
       expect(actions.onSmartProofread, isNotNull);
-      expect(actions.onUnifyChineseScript, isNotNull);
       expect(actions.onBatchTextTool, isNotNull);
       // Nothing applied yet, so nothing to undo, compare or restore.
       expect(actions.onUndoReferenceAlignment, isNull);
@@ -116,9 +110,7 @@ void main() {
       final actions = forDocument(hasLines: false);
 
       expect(actions.onReferenceAlignment, isNull);
-      expect(actions.onReferenceProofread, isNull);
       expect(actions.onSmartProofread, isNull);
-      expect(actions.onUnifyChineseScript, isNull);
       expect(actions.onBatchTextTool, isNull);
     });
 

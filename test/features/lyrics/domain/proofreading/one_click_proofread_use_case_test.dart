@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/data/services/local_lyric_file_import_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/models/chinese_script_preference.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/online/online_lyric_matcher.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/online/online_lyric_query.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/one_click_proofread_use_case.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/chinese_script_unification_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/reference_lyric_text_parser.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
@@ -196,5 +198,81 @@ void main() {
       lessThanOrEqualTo(result.document.lines[1].startTime),
     );
     expect(result.firstChangedIndex, 0);
+  });
+
+  group('简繁字形', () {
+    LyricDocument mixed({
+      List<String> texts = const ['我爱你', '让我们一起唱', '頭髮飄在風裡', '你在哪里'],
+      Map<String, dynamic> metadata = const {},
+    }) => LyricDocument(
+      language: 'zh',
+      metadata: metadata,
+      lines: [
+        for (var i = 0; i < texts.length; i++)
+          LyricLine(
+            text: texts[i],
+            startTime: Duration(seconds: i * 5),
+            endTime: Duration(seconds: i * 5 + 4),
+          ),
+      ],
+    );
+
+    test('少数派的繁体行统一为草稿的主要字形', () {
+      final result = useCase.build(draft: mixed(), appliedAt: appliedAt);
+      expect(result.scriptFixes, 1);
+      expect(result.hasChanges, isTrue);
+      expect(result.document.lines[2].text, '头发飘在风里');
+      expect(result.firstChangedIndex, 2);
+      expect(
+        result.document.metadata[ChineseScriptUnificationService.metadataKey],
+        isNotNull,
+      );
+    });
+
+    test('手动编辑过的行保持原样', () {
+      final result = useCase.build(
+        draft: mixed(),
+        protectedIndices: const {2},
+        appliedAt: appliedAt,
+      );
+      expect(result.scriptFixes, 0);
+      expect(result.skippedProtectedLines, 1);
+    });
+
+    test('沿用识别时记录的字形设置', () {
+      final draft = mixed(
+        texts: const ['我愛你', '讓我們一起唱', '我爱你'],
+        metadata: const {
+          ChineseScriptUnificationService.metadataKey: {
+            'target': 'simplified',
+            'preference': 'simplified',
+            'revision': 'test',
+            'convertedLineCount': 0,
+            'convertedLineIds': <String>[],
+          },
+        },
+      );
+      expect(
+        OneClickProofreadUseCase.scriptPreferenceFor(draft),
+        ChineseScriptPreference.simplified,
+      );
+      final result = useCase.build(draft: draft, appliedAt: appliedAt);
+      expect(result.scriptFixes, 2);
+      expect(result.document.lines.map((line) => line.text), [
+        '我爱你',
+        '让我们一起唱',
+        '我爱你',
+      ]);
+    });
+
+    test('选择保持原样时不转换', () {
+      final result = useCase.build(
+        draft: mixed(),
+        scriptPreference: ChineseScriptPreference.keep,
+        appliedAt: appliedAt,
+      );
+      expect(result.scriptFixes, 0);
+      expect(result.document.lines[2].text, '頭髮飄在風裡');
+    });
   });
 }

@@ -71,7 +71,7 @@ void main() {
 
       await tester.tap(find.text('open strategy'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('ASR 优先'));
+      await tester.tap(find.text('识别结果优先'));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const ValueKey('secondary_asr_transcript_input')),
@@ -108,7 +108,7 @@ void main() {
 
     await tester.tap(find.text('open strategy'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('ASR 优先'));
+    await tester.tap(find.text('识别结果优先'));
     await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const ValueKey('forced_alignment_review_toggle')),

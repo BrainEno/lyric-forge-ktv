@@ -193,6 +193,8 @@ void main() {
     );
     await tester.tap(find.text(LyricProofreadMenuButton.label));
     await tester.pumpAndSettle();
+    await tester.tap(find.text(LyricProofreadGroup.checks.label));
+    await tester.pumpAndSettle();
     expect(find.text(LyricMissedRepeatStrings.actionDetail), findsOneWidget);
     await tester.tap(find.text(LyricMissedRepeatStrings.actionTitle));
     await tester.pumpAndSettle();

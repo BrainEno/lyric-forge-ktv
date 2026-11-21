@@ -1,5 +1,7 @@
 import '../../../project/domain/models/lyric_document.dart';
+import '../models/chinese_script_preference.dart';
 import '../online/online_lyric_matcher.dart';
+import '../services/chinese_script_unification_service.dart';
 import '../services/lyric_alignment_service.dart';
 import '../services/lyric_asr_loop_detector.dart';
 import '../services/lyric_manual_edit_marker_service.dart';
@@ -32,6 +34,10 @@ class OneClickProofreadResult {
 
   /// Rows the mechanical clean-up rewrote (punctuation, [音乐] marks …).
   final int cleanedLines;
+
+  /// Rows written in the minority Chinese script (a 繁體 row in a 简体
+  /// draft) converted to the script the rest of the draft uses.
+  final int scriptFixes;
 
   /// Rows deleted as recogniser output that is not lyrics: captions such as
   /// 谢谢观看 and rows repeated by a recognition loop.
@@ -72,6 +78,7 @@ class OneClickProofreadResult {
     this.insertedLines = 0,
     this.verifiedLines = 0,
     this.cleanedLines = 0,
+    this.scriptFixes = 0,
     this.removedLines = 0,
     this.loopFixes = 0,
     this.repetitionFixes = 0,
@@ -91,6 +98,7 @@ class OneClickProofreadResult {
       insertedLines > 0 ||
       verifiedLines > 0 ||
       cleanedLines > 0 ||
+      scriptFixes > 0 ||
       removedLines > 0 ||
       loopFixes > 0 ||
       repetitionFixes > 0 ||
@@ -107,7 +115,8 @@ class OneClickProofreadResult {
 /// matched rows and fills missed rows into safe gaps, keeping the recording's
 /// own timing (D-052); rows spelt exactly like the lyric are marked as
 /// trusted. Then, with or without a lyric: the default text clean-up, the
-/// strong recognition-loop fixes, (without a lyric) the clear repetition
+/// simplified/traditional unification (D-053), the strong recognition-loop
+/// fixes, (without a lyric) the clear repetition
 /// unifications, and the confident timeline repairs. Rows edited by hand are
 /// never changed. Anything uncertain is counted, not guessed.
 class OneClickProofreadUseCase {
@@ -116,11 +125,15 @@ class OneClickProofreadUseCase {
   static const LyricManualEditMarkerService _markers =
       LyricManualEditMarkerService();
 
+  /// [scriptPreference] decides the Chinese script rows are unified to; by
+  /// default the one recognition last unified to (see
+  /// [scriptPreferenceFor]).
   OneClickProofreadResult build({
     required LyricDocument draft,
     OnlineLyricMatch? reference,
     Set<int> protectedIndices = const {},
     Duration? audioDuration,
+    ChineseScriptPreference? scriptPreference,
     required DateTime appliedAt,
   }) {
     // Stable ids let protection and the first changed row follow rows
@@ -166,6 +179,24 @@ class OneClickProofreadUseCase {
         markChanged(change.index);
       }
       document = cleanup.applyTo(document);
+    }
+
+    // Simplified/traditional: recognisers mix both in one song. Only the
+    // rows in the minority script change (or every row, when recognition
+    // was told to output one script), so a consistent draft is untouched.
+    final script = const ChineseScriptUnificationService().plan(
+      document,
+      preference: scriptPreference ?? scriptPreferenceFor(document),
+      protectedIndices: protectedNow(),
+    );
+    for (final index in script.skippedProtectedIndices) {
+      if (document.lines[index].id case final id?) skippedProtected.add(id);
+    }
+    if (script.hasChanges) {
+      for (final change in script.changes) {
+        markChanged(change.index);
+      }
+      document = script.applyTo(document);
     }
 
     // Recognition loops: only findings far beyond what songs repeat.
@@ -342,6 +373,7 @@ class OneClickProofreadUseCase {
       insertedLines: inserted,
       verifiedLines: verified,
       cleanedLines: cleanup.changes.length,
+      scriptFixes: script.changes.length,
       removedLines: removed,
       loopFixes: loopFixes,
       repetitionFixes: repetitionFixes,
@@ -364,6 +396,18 @@ class OneClickProofreadUseCase {
       );
     }
     return result;
+  }
+
+  /// The script preference recorded by the last unification (recognition
+  /// applies the user's 中文字形 setting and records it), else automatic.
+  static ChineseScriptPreference scriptPreferenceFor(LyricDocument document) {
+    final record = ChineseScriptUnificationRecord.tryParse(
+      document.metadata[ChineseScriptUnificationService.metadataKey],
+    );
+    if (record == null || record.preference == ChineseScriptPreference.keep) {
+      return ChineseScriptPreference.auto;
+    }
+    return record.preference;
   }
 
   static bool _breaksTimeline(ReferenceAlignmentProposal proposal) =>

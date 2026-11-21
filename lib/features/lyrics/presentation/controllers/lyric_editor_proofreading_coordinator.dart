@@ -19,7 +19,6 @@ import '../../domain/proofreading/reference_alignment_timing_applier.dart';
 import '../../domain/proofreading/reference_timing_audition_planner.dart';
 import '../../domain/proofreading/proofread_document_composer.dart';
 import '../../domain/proofreading/run_proofread_use_case.dart';
-import '../../domain/proofreading/run_reference_proofread_use_case.dart';
 import '../../domain/services/lyric_timeline_validator.dart';
 import '../../domain/services/reference_lyric_text_parser.dart';
 import '../controllers/line_audition_controller.dart';
@@ -27,15 +26,11 @@ import '../controllers/lyric_auto_proofread_flow.dart';
 import '../controllers/reference_timing_audition_coordinator.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
-import '../widgets/chinese_script_unification_dialog.dart';
 import '../widgets/lyric_proofread_dialog.dart';
 import '../widgets/project_asr_snapshot_dialog.dart';
 import '../widgets/project_chunk_asr_snapshot_dialog.dart';
 import '../widgets/reference_alignment_dialog.dart';
 import '../widgets/reference_alignment_review.dart';
-import '../widgets/reference_proofread_review_dialog.dart';
-import '../widgets/reference_proofread_timing_review_dialog.dart';
-import '../widgets/timing_evidence_import_dialog.dart';
 
 /// The presentation boundary between editor state and proofreading flows.
 ///
@@ -239,97 +234,6 @@ class LyricEditorProofreadingCoordinator {
           ),
     );
     return flow.run(project: project, document: document, revision: revision);
-  }
-
-  /// 统一简繁字形: previews, then applies as one undoable change without
-  /// saving.
-  Future<void> openChineseScriptUnification(LyricDocument document) async {
-    if (document.lines.isEmpty) return;
-    final context = host.proofreadContext;
-    final revision = host.proofreadDocumentRevision;
-    final plan = await showChineseScriptUnificationDialog(
-      context,
-      document: document,
-      protectedIndices: host.proofreadManuallyEditedLineIndices,
-      initialPreference: initialChineseScriptPreferenceFor(document),
-    );
-    if (plan == null || !plan.hasChanges || !host.proofreadIsMounted) return;
-    // The dialog worked on a snapshot; refuse to apply over newer edits.
-    if (host.proofreadDocumentRevision != revision) return;
-    host.applyProofreadDocument(
-      document: plan.applyTo(document),
-      label: ChineseScriptStrings.actionTitle,
-      selectedLineIndex: plan.changes.first.index,
-      isReferenceProofread: false,
-      message: '已统一 ${plan.changes.length} 行的简繁字形（未写入磁盘）',
-    );
-  }
-
-  Future<void> openReferenceProofread({
-    required ProjectManifest project,
-    required LyricDocument document,
-    required int revision,
-  }) async {
-    if (document.lines.isEmpty) return;
-
-    final context = host.proofreadContext;
-    final input = await showReferenceAlignmentDialog(
-      context,
-      parser: referenceParser,
-      initialTitle: project.name,
-      initialArtist: project.artist,
-      purpose: ReferenceLyricPurpose.textOnly,
-    );
-    if (input == null ||
-        !context.mounted ||
-        !host.proofreadIsCurrent(revision)) {
-      return;
-    }
-
-    final evidence = await showTimingEvidenceImportDialog(context);
-    if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
-    final plan = const RunReferenceProofreadUseCase().build(
-      draft: document,
-      reference: input,
-      timingEvidence: evidence,
-      protectedDraftIndices: host.proofreadManuallyEditedLineIndices,
-      audioDuration: project.audioAsset?.duration,
-    );
-    if (plan.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
-      return;
-    }
-    final selected = plan.hasTimingEvidence
-        ? await showReferenceProofreadTimingReviewDialog(
-            context,
-            document: document,
-            items: plan.timedItems,
-          )
-        : await showReferenceProofreadReviewDialog(
-            context,
-            document: document,
-            suggestions: plan.suggestions,
-          );
-    if (selected == null ||
-        selected.isEmpty ||
-        !context.mounted ||
-        !host.proofreadIsCurrent(revision)) {
-      return;
-    }
-    final applied = plan.apply(selected);
-    host.applyProofreadDocument(
-      document: applied.after,
-      label: '应用逐行纠错',
-      selectedLineIndex: applied.changedDraftIndices.isEmpty
-          ? host.proofreadSelectedLineIndex
-          : applied.changedDraftIndices.first,
-      isReferenceProofread: true,
-      message: plan.hasTimingEvidence
-          ? '已应用 ${applied.changedDraftIndices.length} 行文字与校时建议；请试听检查并保存。'
-          : '已应用 ${applied.changedDraftIndices.length} 行文字纠错；现有时间戳保持不变，请试听检查并保存。',
-    );
   }
 
   Future<void> runSmartProofread({

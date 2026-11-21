@@ -12,7 +12,7 @@ class LyricPaceCheckStrings {
   const LyricPaceCheckStrings._();
 
   static const String actionTitle = '语速异常检查';
-  static const String actionDetail = '找出唱得过快或过慢的行：常见于结束被截断、跨过间奏或漏字多字';
+  static const String actionDetail = '找出时间明显不对的行：结尾被截断，或跨过了间奏';
   static const String intro =
       '按全曲自己的语速（每秒唱几个字的中位数）逐行比较。'
       '过快的行多半是结束时间被截在换气处、开始偏晚，或识别多出了字；'

@@ -12,7 +12,7 @@ class LyricTimelineRepairStrings {
   const LyricTimelineRepairStrings._();
 
   static const String actionTitle = '检查时间轴';
-  static const String actionDetail = '不需要参考歌词；修复重叠、缺失结束时间和顺序颠倒的行';
+  static const String actionDetail = '修复重叠、缺失结束时间和顺序颠倒的行';
   static const String intro =
       '逐行检查开始和结束时间。能按相邻行推断的问题列在下面：'
       '与下一行重叠的收尾到下一行开始，结束不晚于开始的按字数估算结束时间，'

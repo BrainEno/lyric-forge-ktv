@@ -251,12 +251,10 @@ void main() {
     }) => LyricProofreadActions.forDocument(
       hasLines: hasLines,
       referenceAlignment: () {},
-      referenceProofread: () {},
       smartProofread: () {},
       undoAlignment: () {},
       viewComparison: () {},
       restoreAlignment: () {},
-      unifyChineseScript: () {},
       batchTextTool: (_) {},
       vocalCheckAction: vocalCheckAction,
     );

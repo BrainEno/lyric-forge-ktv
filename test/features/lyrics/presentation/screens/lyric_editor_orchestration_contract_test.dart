@@ -17,7 +17,7 @@ void main() {
 
   for (final signature in [
     'Future<void> _openReferenceAlignment(ProjectManifest project)',
-    'Future<void> _openReferenceProofread(ProjectManifest project)',
+    'Future<void> _runAutoProofread(ProjectManifest project)',
     'Future<void> _openSmartProofread(ProjectManifest project)',
   ]) {
     test('$signature remains a thin interaction entry point', () {

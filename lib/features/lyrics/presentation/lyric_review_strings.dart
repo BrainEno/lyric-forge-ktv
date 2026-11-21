@@ -231,7 +231,7 @@ abstract final class LyricReviewStrings {
   static String proofreadSummary(LyricProofreadReviewSummary summary) {
     final strategyLabel = switch (summary.effectiveStrategy) {
       LyricSourceStrategy.referenceFirst => '参考歌词优先',
-      LyricSourceStrategy.asrFirst => 'ASR 优先',
+      LyricSourceStrategy.asrFirst => '识别结果优先',
       LyricSourceStrategy.auto => '自动选择',
     };
     return [

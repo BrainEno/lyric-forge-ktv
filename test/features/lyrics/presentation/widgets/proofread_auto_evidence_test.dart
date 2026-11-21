@@ -13,7 +13,7 @@ void main() {
         ProofreadRunOptions? result;
         await configure(tester, size, scale, (value) => result = value);
         expect(find.text('自动选择'), findsOneWidget);
-        expect(find.textContaining('第二份 ASR 仅在最终选择 ASR 优先时使用'), findsOneWidget);
+        expect(find.textContaining('第二份识别稿仅在最终选择识别结果优先时使用'), findsOneWidget);
         await tester.ensureVisible(find.text('本次提供参考歌词'));
         await tester.tap(find.text('本次提供参考歌词'));
         await tester.pumpAndSettle();
@@ -110,7 +110,7 @@ void main() {
       await tester.ensureVisible(find.text('参考歌词优先'));
       await tester.tap(find.text('参考歌词优先'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('之前配置的 ASR 第二意见'), findsOneWidget);
+      expect(find.textContaining('之前填写的第二份识别稿'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('secondary_asr_transcript_input')),
         findsNothing,

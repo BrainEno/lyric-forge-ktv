@@ -10,7 +10,7 @@ class LyricTextCleanupStrings {
   const LyricTextCleanupStrings._();
 
   static const String actionTitle = '清理识别文本';
-  static const String actionDetail = '不需要参考歌词；去掉标点、[音乐] 标记和字幕水印等识别残留';
+  static const String actionDetail = '去掉标点、[音乐] 标记和字幕水印等识别残留';
   static const String intro =
       '去掉识别结果中不属于歌词的内容：句末标点、全角字母、[音乐] 之类的标注，'
       '以及识别器在静音处编造的字幕水印。只改写法，不改时间轴；'

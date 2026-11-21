@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/auto_proofread_dialogs.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_actions.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_find_replace_dialog.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_menu_button.dart';
 
 Widget _host(Widget child) => MaterialApp(
@@ -10,7 +11,7 @@ Widget _host(Widget child) => MaterialApp(
 );
 
 void main() {
-  testWidgets('one button replaces the six proofreading entry points', (
+  testWidgets('one button replaces the separate proofreading entry points', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -18,7 +19,6 @@ void main() {
         LyricProofreadMenuButton(
           onSmartProofread: () {},
           onReferenceAlignment: () {},
-          onReferenceProofread: () {},
           onViewComparison: () {},
           onUndoAlignment: () {},
           onRestoreBackup: () {},
@@ -29,8 +29,7 @@ void main() {
     expect(find.text(LyricProofreadMenuButton.label), findsOneWidget);
     // None of the individual flows is visible before the menu is opened.
     expect(find.text('智能校对'), findsNothing);
-    expect(find.text('参考歌词：纠正文字和时间轴'), findsNothing);
-    expect(find.text('参考歌词：只改文字'), findsNothing);
+    expect(find.text('粘贴参考歌词校对'), findsNothing);
     expect(find.text('撤销最近更改'), findsNothing);
     expect(find.text('恢复对齐前版本'), findsNothing);
   });
@@ -43,7 +42,6 @@ void main() {
         LyricProofreadMenuButton(
           onSmartProofread: () {},
           onReferenceAlignment: () {},
-          onReferenceProofread: () {},
         ),
       ),
     );
@@ -52,10 +50,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('智能校对'), findsOneWidget);
-    expect(find.text('不需要参考歌词；生成不写盘的提案，逐行对比后再应用'), findsOneWidget);
-    expect(find.text('参考歌词：纠正文字和时间轴'), findsOneWidget);
-    expect(find.text('参考歌词：只改文字'), findsOneWidget);
-    expect(find.text('有参考歌词；逐行改正文字，时间戳保持不变'), findsOneWidget);
+    expect(
+      find.text(LyricProofreadMenuButton.smartProofreadDetail),
+      findsOneWidget,
+    );
+    expect(find.text('粘贴参考歌词校对'), findsOneWidget);
+    expect(find.text('一键校对找不到歌词时用；粘贴或导入歌词，逐行对比后应用'), findsOneWidget);
+    // The removed text-only flow (D-053) has no entry.
+    expect(find.textContaining('只改文字'), findsNothing);
     // Availability-driven entries stay hidden when the editor has nothing to
     // show yet.
     expect(find.text('查看逐行对比'), findsNothing);
@@ -70,7 +72,6 @@ void main() {
         LyricProofreadMenuButton(
           onSmartProofread: () => fired.add('smart'),
           onReferenceAlignment: () => fired.add('alignment'),
-          onReferenceProofread: () => fired.add('proofread'),
           onViewComparison: () => fired.add('comparison'),
           onUndoAlignment: () => fired.add('undo'),
           onRestoreBackup: () => fired.add('restore'),
@@ -80,8 +81,7 @@ void main() {
 
     for (final entry in {
       '智能校对': 'smart',
-      '参考歌词：纠正文字和时间轴': 'alignment',
-      '参考歌词：只改文字': 'proofread',
+      '粘贴参考歌词校对': 'alignment',
       '查看逐行对比': 'comparison',
       '撤销最近更改': 'undo',
       '恢复对齐前版本': 'restore',
@@ -93,7 +93,7 @@ void main() {
       expect(fired.last, entry.value);
     }
 
-    expect(fired, hasLength(6));
+    expect(fired, hasLength(5));
   });
 
   testWidgets('entries are listed under labelled sections in a fixed order', (
@@ -104,6 +104,7 @@ void main() {
         LyricProofreadMenuButton(
           onRestoreBackup: () {},
           onTapSync: () {},
+          onFindReplace: () {},
           onTextCleanup: () {},
           onSmartProofread: () {},
         ),
@@ -117,9 +118,10 @@ void main() {
       LyricProofreadGroup.correction.label,
       LyricProofreadMenuButton.smartProofreadTitle,
       LyricProofreadGroup.text.label,
-      '清理识别文本',
+      LyricFindReplaceStrings.actionTitle,
       LyricProofreadGroup.timing.label,
       '打轴（边听边标时间）',
+      LyricProofreadGroup.checks.label,
       LyricProofreadGroup.review.label,
       '恢复对齐前版本',
     ];
@@ -133,9 +135,40 @@ void main() {
         reason: '${expectedOrder[index]} after ${expectedOrder[index - 1]}',
       );
     }
-    // Section titles are labels, not extra actions.
+    // Section titles are labels, not extra actions; the checks are one
+    // collapsed submenu until it is opened.
     expect(find.byType(MenuItemButton), findsNWidgets(4));
-    expect(find.byType(Divider), findsNWidgets(3));
+    expect(find.byType(SubmenuButton), findsOneWidget);
+    expect(find.text('清理识别文本'), findsNothing);
+    expect(find.byType(Divider), findsNWidgets(4));
+
+    await tester.tap(find.text(LyricProofreadGroup.checks.label));
+    await tester.pumpAndSettle();
+    expect(find.text('清理识别文本'), findsOneWidget);
+  });
+
+  testWidgets('一键校对已包含的单项检查收进一个子菜单', (tester) async {
+    final fired = <String>[];
+    await tester.pumpWidget(
+      _host(
+        LyricProofreadMenuButton(
+          onTextCleanup: () => fired.add('cleanup'),
+          onTimelineRepair: () => fired.add('repair'),
+          onPaceCheck: () => fired.add('pace'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text(LyricProofreadMenuButton.label));
+    await tester.pumpAndSettle();
+    expect(find.text(LyricProofreadGroup.checks.detail!), findsOneWidget);
+    expect(find.text(LyricProofreadGroup.checks.label), findsOneWidget);
+
+    await tester.tap(find.text(LyricProofreadGroup.checks.label));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('检查时间轴'));
+    await tester.pumpAndSettle();
+    expect(fired, ['repair']);
   });
 
   testWidgets('sections without an available entry are hidden', (tester) async {
@@ -180,7 +213,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('智能校对'), findsOneWidget);
-    expect(find.text('参考歌词：纠正文字和时间轴'), findsOneWidget);
+    expect(find.text('粘贴参考歌词校对'), findsOneWidget);
   });
 
   group('forActions', () {
@@ -234,18 +267,14 @@ void main() {
 
     test('passes the document-level callbacks through unchanged', () {
       void alignment() {}
-      void proofread() {}
       void smart() {}
-      void unify() {}
       void compare() {}
       void undo() {}
       void restore() {}
       final button = LyricProofreadMenuButton.forActions(
         LyricProofreadActions(
           onReferenceAlignment: alignment,
-          onReferenceProofread: proofread,
           onSmartProofread: smart,
-          onUnifyChineseScript: unify,
           onViewAlignmentComparison: compare,
           onUndoReferenceAlignment: undo,
           onRestoreAlignment: restore,
@@ -255,9 +284,7 @@ void main() {
 
       expect(button.compact, isTrue);
       expect(button.onReferenceAlignment, same(alignment));
-      expect(button.onReferenceProofread, same(proofread));
       expect(button.onSmartProofread, same(smart));
-      expect(button.onUnifyChineseScript, same(unify));
       expect(button.onViewComparison, same(compare));
       expect(button.onUndoAlignment, same(undo));
       expect(button.onRestoreBackup, same(restore));

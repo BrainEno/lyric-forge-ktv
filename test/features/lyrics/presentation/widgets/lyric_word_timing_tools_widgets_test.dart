@@ -303,6 +303,8 @@ void main() {
     );
     await tester.tap(find.text(LyricProofreadMenuButton.label));
     await tester.pumpAndSettle();
+    await tester.tap(find.text(LyricProofreadGroup.checks.label));
+    await tester.pumpAndSettle();
     await tester.tap(find.text(LyricWordTimingCheckStrings.actionTitle));
     await tester.pumpAndSettle();
     expect(fired, 1);
