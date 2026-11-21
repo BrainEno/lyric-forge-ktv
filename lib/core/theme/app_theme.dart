@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_palette.dart';
+import 'app_typography.dart';
 import 'color_tokens.dart';
 import 'spacing_tokens.dart';
 
@@ -150,16 +151,17 @@ class AppTheme {
   );
 
   /// Navigation labels: grey, and bold white for the chosen destination.
-  static TextStyle navigationLabelFor(AppPalette p) => TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w500,
-    color: p.textSecondary,
+  static TextStyle navigationLabelFor(AppPalette p) => AppTypography.apply(
+    TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: p.textSecondary),
   );
-  static TextStyle navigationLabelSelectedFor(AppPalette p) => TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w700,
-    color: p.textPrimary,
-  );
+  static TextStyle navigationLabelSelectedFor(AppPalette p) =>
+      AppTypography.apply(
+        TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: p.textPrimary,
+        ),
+      );
 
   /// The theme of the dark palette, the one the app opens in.
   static ThemeData get darkTheme => themeFor(AppPalette.dark);
@@ -217,7 +219,10 @@ class AppTheme {
         surfaceTint: Colors.transparent,
       ),
       // Typography
-      textTheme: _buildTextTheme(p),
+      // Every text style names the interface fonts, so the characters of one
+      // Chinese label come from one typeface (see AppTypography).
+      textTheme: AppTypography.applyToTheme(_buildTextTheme(p)),
+      primaryTextTheme: AppTypography.applyToTheme(base.primaryTextTheme),
       // App Bar
       appBarTheme: AppBarTheme(
         backgroundColor: p.bgBase,
@@ -229,11 +234,13 @@ class AppTheme {
         systemOverlayStyle: isLight
             ? SystemUiOverlayStyle.dark
             : SystemUiOverlayStyle.light,
-        titleTextStyle: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          color: p.textPrimary,
-          letterSpacing: -0.5,
+        titleTextStyle: AppTypography.apply(
+          TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: p.textPrimary,
+            letterSpacing: -0.5,
+          ),
         ),
       ),
       // Cards
@@ -268,11 +275,13 @@ class AppTheme {
               borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
             ),
           ),
-          textStyle: const WidgetStatePropertyAll(
-            TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
+          textStyle: WidgetStatePropertyAll(
+            AppTypography.apply(
+              const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
         ),
@@ -462,9 +471,11 @@ class AppTheme {
           horizontal: AppSpacing.md,
           vertical: AppSpacing.md,
         ),
-        hintStyle: TextStyle(color: p.textTertiary, fontSize: 14),
+        hintStyle: AppTypography.apply(
+          TextStyle(color: p.textTertiary, fontSize: 14),
+        ),
         // Field errors are text too; the error border keeps the fill red.
-        errorStyle: TextStyle(color: p.errorText),
+        errorStyle: AppTypography.apply(TextStyle(color: p.errorText)),
       ),
       // List Tiles
       listTileTheme: ListTileThemeData(
@@ -521,7 +532,9 @@ class AppTheme {
           color: p.bgSurface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
         ),
-        textStyle: TextStyle(color: p.textPrimary, fontSize: 12),
+        textStyle: AppTypography.apply(
+          TextStyle(color: p.textPrimary, fontSize: 12),
+        ),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.sm,
           vertical: AppSpacing.xs,
@@ -530,9 +543,8 @@ class AppTheme {
       // Snackbar
       snackBarTheme: SnackBarThemeData(
         backgroundColor: p.bgHighlight,
-        contentTextStyle: TextStyle(
-          color: p.textPrimary,
-          fontWeight: FontWeight.w600,
+        contentTextStyle: AppTypography.apply(
+          TextStyle(color: p.textPrimary, fontWeight: FontWeight.w600),
         ),
         actionTextColor: p.accentHover,
         closeIconColor: p.textSecondary,
