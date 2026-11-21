@@ -1,3 +1,4 @@
+import '../../lyrics/domain/online/song_lyrics_lookup.dart';
 import '../../lyrics/domain/services/lyric_file_import_service.dart';
 import '../domain/repositories/local_media_collection_repository.dart';
 import '../domain/repositories/local_media_library_repository.dart';
@@ -10,11 +11,12 @@ import '../domain/services/local_media_relink_service.dart';
 import '../domain/services/playback_lyrics_availability.dart';
 import '../domain/services/playback_session_service.dart';
 
-/// What "import a lyric file for this local song" is made of.
+/// What "add lyrics to this local song" is made of.
 ///
-/// Two things only: the resolver that decides whether the song already has a
-/// lyric project (and repairs the queue flag while it is there), and the file
-/// importer. The resolver already bundles the project repository, the media
+/// Two required things: the resolver that decides whether the song already
+/// has a lyric project (and repairs the queue flag while it is there), and the
+/// file importer; the online lookup and the player for its timing preview are
+/// optional (D-054). The resolver already bundles the project repository, the media
 /// metadata repository, the playback session and the path canonicalizer — the
 /// exact quartet the import writes back through — so this object does not
 /// repeat them.
@@ -22,9 +24,18 @@ class LyricsImportDependencies {
   final PlaybackLyricsResolver lyricsResolver;
   final LyricFileImportService importer;
 
+  /// Searches the lyric sites for 联网获取歌词 (D-054); null hides the option.
+  final SongLyricsLookup? songLyricsLookup;
+
+  /// Lets the timing preview follow and seek the song; null shows the
+  /// fetched lyrics without the listen-and-check controls.
+  final AudioPlayerService? audioPlayer;
+
   const LyricsImportDependencies({
     required this.lyricsResolver,
     required this.importer,
+    this.songLyricsLookup,
+    this.audioPlayer,
   });
 }
 

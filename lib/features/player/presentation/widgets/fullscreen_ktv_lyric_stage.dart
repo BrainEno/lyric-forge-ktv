@@ -4,6 +4,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/lyric_document.dart';
+import '../../../project/domain/models/lyric_timing.dart';
 import 'ktv_karaoke_line.dart';
 
 int? fullscreenKtvCurrentLyricIndex(
@@ -11,7 +12,7 @@ int? fullscreenKtvCurrentLyricIndex(
   Duration position,
 ) {
   final lines = document?.lines;
-  if (lines == null || lines.isEmpty) return null;
+  if (lines == null || lines.isEmpty || document!.isUntimed) return null;
   final offset = document?.globalOffset ?? Duration.zero;
   for (var index = lines.length - 1; index >= 0; index--) {
     final shifted = lines[index].startTime + offset;
@@ -25,6 +26,9 @@ class FullscreenKtvLyricStage extends StatelessWidget {
   final LyricDocument? document;
   final Duration position;
   final String emptyMessage;
+
+  /// Shown when the song only has reference lyrics without timing.
+  static const String untimedMessage = '这首歌只有参考歌词（无时间轴），打轴后才能跟唱';
 
   /// Whether playback is running; the current line then keeps its karaoke
   /// colour moving between position updates.
@@ -42,13 +46,20 @@ class FullscreenKtvLyricStage extends StatelessWidget {
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     final lyrics = document?.lines ?? const <LyricLine>[];
-    if (lyrics.isEmpty) {
+    // Reference lyrics have no timing to sing to (D-054); every line would
+    // sit on 0:00, so the stage says so instead of freezing on line one.
+    final untimed = document?.isUntimed ?? false;
+    if (lyrics.isEmpty || untimed) {
       return Center(
         child: Padding(
           padding: EdgeInsets.all(spec.pageGutter),
           child: Text(
-            emptyMessage,
-            key: const ValueKey('fullscreen-ktv-empty-lyrics'),
+            untimed ? untimedMessage : emptyMessage,
+            key: ValueKey(
+              untimed
+                  ? 'fullscreen-ktv-untimed-lyrics'
+                  : 'fullscreen-ktv-empty-lyrics',
+            ),
             textAlign: TextAlign.center,
             style: Theme.of(
               context,

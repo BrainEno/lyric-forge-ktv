@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_loading_state.dart';
 import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
+import '../../../project/domain/models/lyric_timing.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/ktv_backing_mode.dart';
@@ -18,8 +19,12 @@ import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../playback_screen_dependencies.dart';
 import '../widgets/ktv_entry_sheet.dart';
+import '../widgets/lyrics_source_sheet.dart';
 import '../widgets/player_lyric_semantics.dart';
 import '../widgets/project_player_transport.dart';
+import '../widgets/reference_lyrics_view.dart';
+import '../widgets/song_lyrics_acquisition.dart';
+import '../widgets/song_lyrics_preview_dialog.dart';
 import 'immersive_ktv_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -78,6 +83,40 @@ class _PlayerScreenState extends State<PlayerScreen> {
     await Navigator.pushNamed(context, Routes.lyricEditorPath(project.id));
     if (!mounted || _activeProjectId != project.id) return;
     setState(() => _loadProject(project.id));
+  }
+
+  /// 添加歌词 for a project without timed lyrics (D-054): fetch, paste or
+  /// import, then reload so the pane shows what was saved.
+  Future<void> _addLyrics(
+    ProjectManifest project,
+    LyricsSourceChoice? choice,
+  ) async {
+    final importer = widget.dependencies.lyricsImporter;
+    if (importer == null) return;
+    final saved = await addLyricsToProject(
+      context,
+      project: project,
+      repository: _repository,
+      importer: importer,
+      lookup: widget.dependencies.songLyricsLookup,
+      playback: _previewPlayback(project),
+      choice: choice,
+    );
+    if (!mounted || saved == null || _activeProjectId != project.id) return;
+    setState(() => _loadProject(project.id));
+  }
+
+  /// The timing preview follows and seeks this player; the song is already
+  /// the one playing, so there is nothing to start.
+  SongLyricsPreviewPlayback _previewPlayback(ProjectManifest project) {
+    return SongLyricsPreviewPlayback(
+      positionStream: _audioService.positionStream,
+      currentPosition: () => _audioService.currentState.position,
+      isCurrentSong: () =>
+          _playbackSession.currentState.currentItem?.projectId == project.id,
+      seek: _playbackSession.seek,
+      togglePlayPause: _playbackSession.togglePlayPause,
+    );
   }
 
   Future<void> _initializeAudio(ProjectManifest project) async {
@@ -147,6 +186,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
 
         final project = snapshot.data!;
+        final canAddLyrics =
+            widget.dependencies.lyricsImporter != null &&
+            project.audioAsset != null &&
+            !project.hasTimedLyrics;
         return _PlayerContent(
           key: ValueKey('player_${project.id}'),
           project: project,
@@ -156,6 +199,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
           immersiveKtv: widget.dependencies.immersiveKtv,
           onInitialize: () => _initializeAudio(project),
           onOpenLyricEditor: () => _openLyricEditor(project),
+          onAddLyrics: canAddLyrics
+              ? (choice) => _addLyrics(project, choice)
+              : null,
+          onlineLyricsAvailable: widget.dependencies.songLyricsLookup != null,
           onPlayPause: _playPause,
           onSeek: _seek,
           onSwitchSource: _switchSource,
@@ -205,6 +252,11 @@ class _PlayerContent extends StatefulWidget {
   final ImmersiveKtvDependencies immersiveKtv;
   final VoidCallback onInitialize;
   final Future<void> Function() onOpenLyricEditor;
+
+  /// Opens 添加歌词; null when the project already has timed lyrics or the
+  /// app has no importer. A null choice asks the user where from.
+  final ValueChanged<LyricsSourceChoice?>? onAddLyrics;
+  final bool onlineLyricsAvailable;
   final VoidCallback onPlayPause;
   final ValueChanged<Duration> onSeek;
   final ValueChanged<AudioSourceType> onSwitchSource;
@@ -220,6 +272,8 @@ class _PlayerContent extends StatefulWidget {
     required this.immersiveKtv,
     required this.onInitialize,
     required this.onOpenLyricEditor,
+    required this.onAddLyrics,
+    required this.onlineLyricsAvailable,
     required this.onPlayPause,
     required this.onSeek,
     required this.onSwitchSource,
@@ -241,7 +295,9 @@ class _PlayerContentState extends State<_PlayerContent> {
   }
 
   void _seekToLine(LyricLine line) {
-    widget.onSeek(_effectiveLyricStart(widget.project.lyricDocument, line));
+    final document = widget.project.lyricDocument;
+    if (document == null || document.isUntimed) return;
+    widget.onSeek(document.effectiveStart(line));
   }
 
   Future<void> _enterKtv() async {
@@ -250,7 +306,8 @@ class _PlayerContentState extends State<_PlayerContent> {
       widget.project,
       widget.playbackSession.currentState,
     );
-    if (document == null || document.lines.isEmpty || audioAsset == null) {
+    // Reference lyrics have no timing to sing to (D-054).
+    if (document == null || !document.isTimed || audioAsset == null) {
       return;
     }
 
@@ -330,7 +387,7 @@ class _PlayerContentState extends State<_PlayerContent> {
 
   Future<void> _openFullScreenKtv() async {
     final document = widget.project.lyricDocument;
-    if (document == null || document.lines.isEmpty) return;
+    if (document == null || !document.isTimed) return;
 
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -346,7 +403,7 @@ class _PlayerContentState extends State<_PlayerContent> {
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     final document = widget.project.lyricDocument;
-    final lyrics = document?.lines ?? const <LyricLine>[];
+    final timedLyrics = document?.isTimed ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
@@ -387,7 +444,7 @@ class _PlayerContentState extends State<_PlayerContent> {
               icon: const Icon(Icons.info_outline_rounded),
             ),
           ),
-          if (lyrics.isNotEmpty)
+          if (timedLyrics)
             SizedBox(
               width: spec.minimumInteractiveExtent,
               height: spec.minimumInteractiveExtent,
@@ -422,8 +479,7 @@ class _PlayerContentState extends State<_PlayerContent> {
               builder: (context, playbackSnapshot) {
                 final playback =
                     playbackSnapshot.data ?? const PlaybackState.idle();
-                final currentLyricIndex = _currentLyricIndex(
-                  document,
+                final currentLyricIndex = document?.activeLineIndex(
                   playback.position,
                 );
 
@@ -432,7 +488,7 @@ class _PlayerContentState extends State<_PlayerContent> {
                   document: document,
                   playback: playback,
                   session: session,
-                  ktvMode: _ktvMode,
+                  ktvMode: _ktvMode && timedLyrics,
                   currentLyricIndex: currentLyricIndex,
                   onPlayPause: widget.onPlayPause,
                   onSeek: widget.onSeek,
@@ -441,10 +497,11 @@ class _PlayerContentState extends State<_PlayerContent> {
                   onSkipPrevious: widget.onSkipPrevious,
                   onSkipNext: widget.onSkipNext,
                   onModeChanged: (ktvMode) =>
-                      setState(() => _ktvMode = ktvMode),
-                  onOpenFullScreenKtv: lyrics.isEmpty
-                      ? null
-                      : _openFullScreenKtv,
+                      setState(() => _ktvMode = ktvMode && timedLyrics),
+                  onOpenFullScreenKtv: timedLyrics ? _openFullScreenKtv : null,
+                  onOpenLyricEditor: widget.onOpenLyricEditor,
+                  onAddLyrics: widget.onAddLyrics,
+                  onlineLyricsAvailable: widget.onlineLyricsAvailable,
                 );
               },
             );
@@ -480,6 +537,9 @@ class _PlayerWorkspace extends StatelessWidget {
   final VoidCallback onSkipNext;
   final ValueChanged<bool> onModeChanged;
   final VoidCallback? onOpenFullScreenKtv;
+  final Future<void> Function() onOpenLyricEditor;
+  final ValueChanged<LyricsSourceChoice?>? onAddLyrics;
+  final bool onlineLyricsAvailable;
 
   const _PlayerWorkspace({
     required this.project,
@@ -496,11 +556,26 @@ class _PlayerWorkspace extends StatelessWidget {
     required this.onSkipNext,
     required this.onModeChanged,
     required this.onOpenFullScreenKtv,
+    required this.onOpenLyricEditor,
+    required this.onAddLyrics,
+    required this.onlineLyricsAvailable,
   });
 
   @override
   Widget build(BuildContext context) {
     final lyrics = document?.lines ?? const <LyricLine>[];
+    final pane = _LyricsPane(
+      lyrics: lyrics,
+      untimed: document?.isUntimed ?? false,
+      sourceLabel: document == null ? null : lyricSourceLabel(document!.metadata),
+      ktvMode: ktvMode,
+      currentIndex: currentLyricIndex,
+      onLyricTap: onLyricTap,
+      onOpenFullScreenKtv: onOpenFullScreenKtv,
+      onOpenLyricEditor: onOpenLyricEditor,
+      onAddLyrics: onAddLyrics,
+      onlineLyricsAvailable: onlineLyricsAvailable,
+    );
     final availableSources =
         _audioAssetForSession(project, session)?.availableSources ??
         const <AudioSourceType>[];
@@ -537,15 +612,7 @@ class _PlayerWorkspace extends StatelessWidget {
                 ),
               ),
               const VerticalDivider(width: 1),
-              Expanded(
-                child: _LyricsPane(
-                  lyrics: lyrics,
-                  ktvMode: ktvMode,
-                  currentIndex: currentLyricIndex,
-                  onLyricTap: onLyricTap,
-                  onOpenFullScreenKtv: onOpenFullScreenKtv,
-                ),
-              ),
+              Expanded(child: pane),
             ],
           );
         }
@@ -562,15 +629,7 @@ class _PlayerWorkspace extends StatelessWidget {
                   : ProjectPlayerTransportLayout.header,
             ),
             const Divider(height: 1),
-            Expanded(
-              child: _LyricsPane(
-                lyrics: lyrics,
-                ktvMode: ktvMode,
-                currentIndex: currentLyricIndex,
-                onLyricTap: onLyricTap,
-                onOpenFullScreenKtv: onOpenFullScreenKtv,
-              ),
-            ),
+            Expanded(child: pane),
           ],
         );
       },
@@ -580,22 +639,50 @@ class _PlayerWorkspace extends StatelessWidget {
 
 class _LyricsPane extends StatelessWidget {
   final List<LyricLine> lyrics;
+
+  /// Reference lyrics: shown statically, never followed or tapped to seek.
+  final bool untimed;
+  final String? sourceLabel;
   final bool ktvMode;
   final int? currentIndex;
   final ValueChanged<LyricLine> onLyricTap;
   final VoidCallback? onOpenFullScreenKtv;
+  final Future<void> Function() onOpenLyricEditor;
+  final ValueChanged<LyricsSourceChoice?>? onAddLyrics;
+  final bool onlineLyricsAvailable;
 
   const _LyricsPane({
     required this.lyrics,
+    required this.untimed,
+    required this.sourceLabel,
     required this.ktvMode,
     required this.currentIndex,
     required this.onLyricTap,
     required this.onOpenFullScreenKtv,
+    required this.onOpenLyricEditor,
+    required this.onAddLyrics,
+    required this.onlineLyricsAvailable,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (lyrics.isEmpty) return const _NoLyricsState();
+    final addLyrics = onAddLyrics;
+    if (lyrics.isEmpty) {
+      return _NoLyricsState(
+        onAddLyrics: addLyrics,
+        onlineLyricsAvailable: onlineLyricsAvailable,
+      );
+    }
+    if (untimed) {
+      return ReferenceLyricsView(
+        lines: lyrics,
+        sourceLabel: sourceLabel,
+        onOpenEditor: onOpenLyricEditor,
+        onFindTimedLyrics: addLyrics != null && onlineLyricsAvailable
+            ? () => addLyrics(LyricsSourceChoice.online)
+            : null,
+      );
+    }
     final spec = AppResponsive.of(context);
     final gutter = spec.pageGutter.clamp(12, 28).toDouble();
 
@@ -919,13 +1006,20 @@ class _FocusLyricLine extends StatelessWidget {
 }
 
 class _NoLyricsState extends StatelessWidget {
-  const _NoLyricsState();
+  final ValueChanged<LyricsSourceChoice?>? onAddLyrics;
+  final bool onlineLyricsAvailable;
+
+  const _NoLyricsState({
+    required this.onAddLyrics,
+    required this.onlineLyricsAvailable,
+  });
 
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
+    final addLyrics = onAddLyrics;
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: EdgeInsets.all(spec.pageGutter),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -939,34 +1033,49 @@ class _NoLyricsState extends StatelessWidget {
             Text('这个工程还没有歌词', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '可以继续普通播放，生成或编辑歌词后再进入 KTV 模式。',
+              addLyrics == null
+                  ? '可以继续普通播放，生成或编辑歌词后再进入 KTV 模式。'
+                  : '可以联网获取歌词，或粘贴纯文本歌词作为参考（静态显示、手动滚动）；'
+                        '有时间轴的歌词才能进入 KTV 模式。',
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             ),
+            if (addLyrics != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  if (onlineLyricsAvailable)
+                    FilledButton.icon(
+                      key: const ValueKey('player-fetch-lyrics'),
+                      onPressed: () => addLyrics(LyricsSourceChoice.online),
+                      icon: const Icon(Icons.travel_explore_rounded),
+                      label: const Text('联网获取歌词'),
+                    ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('player-paste-lyrics'),
+                    onPressed: () => addLyrics(LyricsSourceChoice.paste),
+                    icon: const Icon(Icons.content_paste_rounded),
+                    label: const Text('粘贴歌词'),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('player-import-lyrics-file'),
+                    onPressed: () => addLyrics(LyricsSourceChoice.file),
+                    icon: const Icon(Icons.file_open_outlined),
+                    label: const Text('导入歌词文件'),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
-}
-
-Duration _effectiveLyricStart(LyricDocument? document, LyricLine line) {
-  final shifted = line.startTime + (document?.globalOffset ?? Duration.zero);
-  return shifted.isNegative ? Duration.zero : shifted;
-}
-
-int? _currentLyricIndex(LyricDocument? document, Duration position) {
-  final lines = document?.lines;
-  if (lines == null || lines.isEmpty) return null;
-
-  for (var index = lines.length - 1; index >= 0; index--) {
-    if (position >= _effectiveLyricStart(document, lines[index])) {
-      return index;
-    }
-  }
-  return 0;
 }
 
 String _formatTime(Duration value) {

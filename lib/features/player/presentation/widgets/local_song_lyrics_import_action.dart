@@ -7,7 +7,9 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../lyrics/domain/online/online_lyric_query.dart';
 import '../../../lyrics/domain/services/lyric_file_import_service.dart';
+import '../../../project/domain/models/lyric_timing.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
@@ -15,8 +17,15 @@ import '../../domain/services/imported_lyrics_project.dart';
 import '../../domain/services/playback_lyrics_project_linker.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
+import 'lyrics_source_sheet.dart';
+import 'song_lyrics_acquisition.dart';
+import 'song_lyrics_preview_dialog.dart';
 
-/// Attaches a lyric file to a local song that does not have a lyric project yet.
+/// Adds lyrics to a local song that does not have a lyric project yet.
+///
+/// The user picks where they come from (D-054): the lyric sites, timed lyrics
+/// first and checked by ear before saving; a lyric file; or pasted text.
+/// Untimed lyrics are kept as reference lyrics the player shows statically.
 ///
 /// [dependencies] replaced five app-wide service lookups: the action is a
 /// function, not a widget, so it had nowhere to receive its collaborators from
@@ -33,8 +42,6 @@ Future<void> importLyricsForLocalPlaybackItem(
   final resolver = dependencies.lyricsResolver;
   final projectRepository = resolver.projectRepository;
   final mediaMetadataRepository = resolver.metadataRepository;
-  final playbackSession = resolver.playbackSession;
-  final pathCanonicalizer = resolver.pathCanonicalizer;
 
   // Do not treat a storage failure as an absent project: that could create a
   // duplicate project or replace an existing association.
@@ -66,6 +73,69 @@ Future<void> importLyricsForLocalPlaybackItem(
     return;
   }
 
+  final lookup = dependencies.songLyricsLookup;
+  final choice = await showLyricsSourceSheet(
+    context,
+    onlineAvailable: lookup != null,
+    songTitle: item.title,
+  );
+  if (choice == null || !context.mounted) return;
+  if (choice == LyricsSourceChoice.file) {
+    await _importLyricFileForItem(context, item, dependencies, project);
+    return;
+  }
+
+  final lyrics = await acquireSongLyrics(
+    context,
+    choice: choice,
+    importer: importer,
+    lookup: lookup,
+    playback: _previewPlayback(item, dependencies),
+    query: OnlineLyricQuery.fromProject(
+      name: item.title,
+      artist: item.artist,
+      duration: item.audioAsset.duration,
+    ),
+  );
+  if (lyrics == null || !context.mounted) return;
+
+  final ProjectManifest saved;
+  try {
+    saved = await _saveLyricsForItem(
+      item,
+      dependencies,
+      project,
+      lyrics.result,
+      source: lyrics.source,
+    );
+  } catch (error) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('歌词保存失败：$error')));
+    return;
+  }
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(savedSongLyricsMessage(lyrics))));
+  // Fetched and pasted lyrics are meant to be read while listening, so the
+  // song opens in the player rather than in the editor.
+  await Navigator.pushNamed(context, Routes.playerPath(saved.id));
+}
+
+/// The original 导入歌词文件 path: file picker, encoding choice, import.
+///
+/// Timed files open in the editor, as they always did; plain-text files are
+/// reference lyrics now (D-054) and open in the player, which shows them as
+/// static text.
+Future<void> _importLyricFileForItem(
+  BuildContext context,
+  PlaybackItem item,
+  LyricsImportDependencies dependencies,
+  ProjectManifest? project,
+) async {
+  final importer = dependencies.importer;
   final picked = await FilePicker.platform.pickFiles(
     dialogTitle: '导入歌词文件',
     type: FileType.custom,
@@ -98,45 +168,97 @@ Future<void> importLyricsForLocalPlaybackItem(
     return;
   }
 
-  project ??= await projectRepository.createProject(
-    name: item.title,
-    artist: item.artist ?? result.artist,
-    album: result.album,
-  );
-
-  final timed = result.document.metadata['timed'] == true;
-  final updated = projectWithImportedLyrics(
+  final savedProject = await _saveLyricsForItem(
+    item,
+    dependencies,
     project,
-    title: item.title,
-    artist: item.artist,
-    audioAsset: item.audioAsset,
-    artworkPath: item.artworkPath,
-    result: result,
-    now: DateTime.now(),
-  );
-  final savedProject = await projectRepository.updateProject(updated);
-
-  await linkPlaybackLyricsProject(
-    audioPath: item.audioAsset.originalPath,
-    projectId: savedProject.id,
-    metadataRepository: mediaMetadataRepository,
-    playbackSession: playbackSession,
-    pathCanonicalizer: pathCanonicalizer,
+    result,
   );
 
   if (!context.mounted) return;
+  final timed = result.document.isTimed;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(
         !timed
-            ? '文本歌词已导入，请在歌词编辑器中补时间轴'
+            ? '文本歌词已作为参考歌词导入：播放时静态显示，需要同步时再去打轴'
             : result.wordTimedRows > 0
             ? '歌词已导入（${result.wordTimedRows} 行带逐字时间），可直接校对或播放'
             : '歌词已导入，可直接校对或播放',
       ),
     ),
   );
-  await Navigator.pushNamed(context, Routes.lyricEditorPath(savedProject.id));
+  await Navigator.pushNamed(
+    context,
+    timed
+        ? Routes.lyricEditorPath(savedProject.id)
+        : Routes.playerPath(savedProject.id),
+  );
+}
+
+/// Creates the song's project when needed, stores [result] on it and links
+/// the song to it, so the library, the queue and Now Playing all see it.
+Future<ProjectManifest> _saveLyricsForItem(
+  PlaybackItem item,
+  LyricsImportDependencies dependencies,
+  ProjectManifest? project,
+  LyricImportResult result, {
+  String source = 'imported-file',
+}) async {
+  final resolver = dependencies.lyricsResolver;
+  final projectRepository = resolver.projectRepository;
+  final target =
+      project ??
+      await projectRepository.createProject(
+        name: item.title,
+        artist: item.artist ?? result.artist,
+        album: result.album,
+      );
+  final updated = projectWithImportedLyrics(
+    target,
+    title: item.title,
+    artist: item.artist,
+    audioAsset: item.audioAsset,
+    artworkPath: item.artworkPath,
+    result: result,
+    now: DateTime.now(),
+    source: source,
+  );
+  final savedProject = await projectRepository.updateProject(updated);
+  await linkPlaybackLyricsProject(
+    audioPath: item.audioAsset.originalPath,
+    projectId: savedProject.id,
+    metadataRepository: resolver.metadataRepository,
+    playbackSession: resolver.playbackSession,
+    pathCanonicalizer: resolver.pathCanonicalizer,
+  );
+  return savedProject;
+}
+
+/// Lets the timing preview hear the song: it seeks the app player, and
+/// starts this song first when another one is playing.
+SongLyricsPreviewPlayback? _previewPlayback(
+  PlaybackItem item,
+  LyricsImportDependencies dependencies,
+) {
+  final audio = dependencies.audioPlayer;
+  if (audio == null) return null;
+  final session = dependencies.lyricsResolver.playbackSession;
+  bool isCurrentSong() {
+    final current = session.currentState.currentItem;
+    if (current == null) return false;
+    return current.id == item.id ||
+        _samePath(current.audioAsset.originalPath, item.audioAsset.originalPath);
+  }
+
+  return SongLyricsPreviewPlayback(
+    positionStream: audio.positionStream,
+    currentPosition: () => audio.currentState.position,
+    isCurrentSong: isCurrentSong,
+    seek: session.seek,
+    playSong: () => session.playItem(item),
+    togglePlayPause: session.togglePlayPause,
+  );
 }
 
 Future<LyricImportResult> _importWithEncodingFallback(

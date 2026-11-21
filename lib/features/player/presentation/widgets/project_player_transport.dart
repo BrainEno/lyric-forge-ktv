@@ -5,6 +5,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../project/domain/models/audio_asset.dart';
+import '../../../project/domain/models/lyric_timing.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/playback_session_service.dart';
@@ -279,7 +280,8 @@ class ProjectPlayerTransport extends StatelessWidget {
   Widget _modes({required bool compact}) {
     return _PlayerModeControls(
       ktvMode: state.ktvMode,
-      hasLyrics: state.project.hasLyrics,
+      // Reference lyrics have no timing, so they cannot drive KTV (D-054).
+      hasLyrics: state.project.hasTimedLyrics,
       onModeChanged: actions.onModeChanged,
       onOpenFullScreenKtv: actions.onOpenFullScreenKtv,
       compact: compact,

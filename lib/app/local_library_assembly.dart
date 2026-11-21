@@ -1,5 +1,6 @@
 import '../features/player/presentation/local_library_dependencies.dart';
 import 'app_services.dart';
+import 'lyric_editor_assembly.dart';
 import 'playback_assembly.dart';
 
 /// What `/library`, `/collections` and `/quick-play` are made of.
@@ -36,5 +37,7 @@ LyricsImportDependencies assembleLyricsImportDependencies(
   return LyricsImportDependencies(
     lyricsResolver: buildPlaybackLyricsResolver(services),
     importer: services.lyricFileImportService,
+    songLyricsLookup: buildSongLyricsLookup(services),
+    audioPlayer: services.audioPlayerService,
   );
 }

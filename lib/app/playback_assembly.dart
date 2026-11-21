@@ -1,6 +1,7 @@
 import '../features/player/domain/services/playback_lyrics_availability.dart';
 import '../features/player/presentation/playback_screen_dependencies.dart';
 import 'app_services.dart';
+import 'lyric_editor_assembly.dart';
 
 /// Builds the lyric resolver every playback surface shares.
 ///
@@ -27,6 +28,8 @@ PlayerScreenDependencies assemblePlayerScreenDependencies(
     audioPlayer: services.audioPlayerService,
     playbackSession: services.playbackSessionService,
     immersiveKtv: assembleImmersiveKtvDependencies(services),
+    lyricFileImport: services.lyricFileImportService,
+    songLyricsLookup: buildSongLyricsLookup(services),
   );
 }
 
