@@ -200,6 +200,27 @@ class LyricVocalCheckActions {
     return lines.length;
   }
 
+  /// Recognised rows on the audio's timeline moved onto the document's: a
+  /// document's global offset shifts every row when it is played.
+  static List<LyricLine> toDocumentTimeline(
+    List<LyricLine> recognized,
+    Duration globalOffset,
+  ) => [
+    for (final line in recognized)
+      line.copyWith(
+        startTime: line.startTime - globalOffset,
+        endTime: line.endTime - globalOffset,
+        words: [
+          for (final word in line.words)
+            LyricWordTiming(
+              text: word.text,
+              start: word.start - globalOffset,
+              end: word.end - globalOffset,
+            ),
+        ],
+      ),
+  ];
+
   /// [recognized] must already be on the document's timeline.
   LyricVocalGapInsertion insertion(
     LyricVocalGapWindow window, {

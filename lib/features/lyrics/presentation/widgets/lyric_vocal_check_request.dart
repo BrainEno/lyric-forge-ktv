@@ -14,6 +14,12 @@ final class LyricVocalGapRequest extends LyricVocalCheckRequest {
   final LyricVocalCheckSpan? span;
 }
 
+/// Recognise every stretch of singing without rows one after another and
+/// insert the results in one edit (D-046).
+final class LyricVocalGapBatchRequest extends LyricVocalCheckRequest {
+  const LyricVocalGapBatchRequest();
+}
+
 /// Put rows the vocal check removed back: all at once, or after choosing
 /// them in a dialog.
 final class LyricRestoreRemovedRequest extends LyricVocalCheckRequest {
