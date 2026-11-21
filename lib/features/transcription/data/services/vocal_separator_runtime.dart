@@ -6,10 +6,12 @@ import 'package:path_provider/path_provider.dart';
 import '../../domain/models/transcription_models.dart';
 import 'asr_download_http_client_factory.dart';
 import 'asr_endpoints.dart';
+import 'local_asr_storage_preflight_service.dart';
 import 'resumable_file_download.dart';
 import 'runtime_release_asset_metadata.dart';
 import 'runtime_sha256.dart';
 import 'separator_manifest.dart';
+import 'zip_bundle_extractor.dart';
 
 /// A verified separator bundle on disk.
 class VocalSeparatorInstallation {
@@ -458,6 +460,7 @@ class ManagedVocalSeparatorRuntime implements VocalSeparatorRuntime {
     return ResumableFileDownload(
       clientFactory: _httpClientFactory,
       timeout: _timeout,
+      transientRetries: 3,
     ).fetch(
       uri,
       part,
@@ -473,24 +476,14 @@ class ManagedVocalSeparatorRuntime implements VocalSeparatorRuntime {
     String archive,
     String destination,
   ) async {
-    final result = Platform.isWindows
-        ? await Process.run('powershell', [
-            '-NoProfile',
-            '-NonInteractive',
-            '-Command',
-            'Expand-Archive -LiteralPath ${_psQuote(archive)} '
-                '-DestinationPath ${_psQuote(destination)} -Force',
-          ])
-        : await Process.run('/usr/bin/unzip', [
-            '-o',
-            archive,
-            '-d',
-            destination,
-          ]);
-    if (result.exitCode != 0) {
+    try {
+      await ZipBundleExtractor(
+        freeSpaceReader: LocalAsrStoragePreflightService.readAvailableBytes,
+      ).extract(File(archive), Directory(destination));
+    } on ZipExtractionException catch (error) {
       throw VocalSeparatorInstallException(
-        '人声分离组件解压失败',
-        details: '${result.stderr}'.trim(),
+        '人声分离组件解压失败：${error.message}',
+        details: error.details,
       );
     }
   }
@@ -509,8 +502,6 @@ class ManagedVocalSeparatorRuntime implements VocalSeparatorRuntime {
     }
     return '${result.stdout}';
   }
-
-  static String _psQuote(String value) => "'${value.replaceAll("'", "''")}'";
 
   static Future<void> _deleteQuietly(FileSystemEntity entity) async {
     try {

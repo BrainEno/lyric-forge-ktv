@@ -102,6 +102,52 @@ enum DownloadFailure {
   oversized,
 }
 
+/// A transport failure that [ResumableFileDownload.fetch] is about to retry
+/// from the kept part file.
+class DownloadRetry {
+  const DownloadRetry({
+    required this.attempt,
+    required this.maxConsecutiveAttempts,
+    required this.keptBytes,
+    required this.totalBytes,
+    required this.delay,
+    required this.error,
+  });
+
+  /// 1 for the first retry of this fetch.
+  final int attempt;
+
+  /// How many failures in a row without new bytes end the fetch.
+  final int maxConsecutiveAttempts;
+
+  /// Bytes already in the part file; the retry asks for the rest.
+  final int keptBytes;
+  final int? totalBytes;
+  final Duration delay;
+  final Object error;
+}
+
+/// The progress line shown while [retry] waits to continue [label].
+String describeDownloadRetry(String label, DownloadRetry retry) {
+  final total = retry.totalBytes;
+  final kept = total != null && total > 0
+      ? '${formatDownloadBytes(retry.keptBytes)} / ${formatDownloadBytes(total)}'
+      : formatDownloadBytes(retry.keptBytes);
+  return '$label 网络中断，已保留 $kept，'
+      '${retry.delay.inSeconds > 0 ? '${retry.delay.inSeconds} 秒后' : '正在'}'
+      '从断点继续下载（第 ${retry.attempt} 次重连）';
+}
+
+/// `1.23 GB`, `45.6 MB`, `12 KB` or `512 B`.
+String formatDownloadBytes(int bytes) {
+  const gib = 1024 * 1024 * 1024;
+  const mib = 1024 * 1024;
+  if (bytes >= gib) return '${(bytes / gib).toStringAsFixed(2)} GB';
+  if (bytes >= mib) return '${(bytes / mib).toStringAsFixed(1)} MB';
+  if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+  return '$bytes B';
+}
+
 class ResumableDownloadException implements Exception {
   const ResumableDownloadException(
     this.failure,
@@ -151,15 +197,35 @@ class ResumableDownloadException implements Exception {
 ///
 /// Promoting the part file is left to the caller, which usually verifies a
 /// digest first; [promote] does the final rename.
+///
+/// With [transientRetries] above zero, a dropped connection, a timeout or a
+/// short body is retried in place with a byte range for the bytes still
+/// missing, so a brief network interruption costs only the bytes that were
+/// in flight. Only failures that add no new bytes count against the limit;
+/// HTTP errors and corrupt resumes are left to the caller, which may switch
+/// to another source.
 class ResumableFileDownload {
   ResumableFileDownload({
     required this.clientFactory,
     this.timeout = const Duration(seconds: 60),
     this.userAgent = 'LyricForge/1.0',
+    this.transientRetries = 0,
+    this.retryDelay = const Duration(seconds: 2),
     Stopwatch Function()? stopwatch,
-  }) : _stopwatch = stopwatch ?? Stopwatch.new;
+  }) : assert(transientRetries >= 0),
+       _stopwatch = stopwatch ?? Stopwatch.new;
 
   final AsrDownloadHttpClientFactory clientFactory;
+
+  /// Retries allowed in a row without new bytes for a transport failure.
+  final int transientRetries;
+
+  /// Base wait before a retry; it grows with each failure in a row.
+  final Duration retryDelay;
+
+  /// Hard cap on the attempts of one fetch, even when every attempt made
+  /// progress, so a connection that drops every few kilobytes still ends.
+  static const int _maxAttemptsPerFetch = 64;
 
   /// Bound on connecting, on the response headers and on each gap between
   /// chunks.
@@ -191,7 +257,9 @@ class ResumableFileDownload {
   ///
   /// Throws [ResumableDownloadException] for the failures it names, the
   /// cancellation once [cancellation] is requested, and network errors
-  /// (socket, TLS, timeout) as they are.
+  /// (socket, TLS, timeout) as they are. Before giving up on a transport
+  /// failure it retries up to [transientRetries] times in a row, reporting
+  /// each retry to [onRetry]; the part file is always kept for that.
   Future<void> fetch(
     Uri uri,
     File part, {
@@ -200,6 +268,96 @@ class ResumableFileDownload {
     bool resume = true,
     int? expectedBytes,
     void Function(DownloadProgress progress)? onProgress,
+    void Function(DownloadRetry retry)? onRetry,
+  }) async {
+    var attempts = 0;
+    var failuresInARow = 0;
+    var resumeThisAttempt = resume;
+    while (true) {
+      attempts++;
+      final before = await _partLength(part);
+      try {
+        await _fetchOnce(
+          uri,
+          part,
+          cancellation: cancellation,
+          proxy: proxy,
+          resume: resumeThisAttempt,
+          expectedBytes: expectedBytes,
+          onProgress: onProgress,
+        );
+        return;
+      } catch (error) {
+        if (cancellation.isRequested || !isTransientFailure(error)) rethrow;
+        final kept = await _partLength(part);
+        failuresInARow = kept > before ? 1 : failuresInARow + 1;
+        if (failuresInARow > transientRetries ||
+            attempts >= _maxAttemptsPerFetch) {
+          rethrow;
+        }
+        final delay = retryDelay * failuresInARow;
+        onRetry?.call(
+          DownloadRetry(
+            attempt: attempts,
+            maxConsecutiveAttempts: transientRetries,
+            keptBytes: kept,
+            totalBytes: expectedBytes,
+            delay: delay,
+            error: error,
+          ),
+        );
+        await _waitForRetry(delay, cancellation);
+        // The bytes received so far are this transfer's own, so the next
+        // attempt continues them even when the caller asked for a fresh
+        // start.
+        resumeThisAttempt = true;
+      }
+    }
+  }
+
+  /// Whether [error] is a dropped or stalled connection worth retrying
+  /// with a byte range, as opposed to an answer from the server.
+  static bool isTransientFailure(Object error) {
+    if (error is ResumableDownloadException) {
+      return error.failure == DownloadFailure.incomplete;
+    }
+    if (error is FileSystemException) return false;
+    return error is SocketException ||
+        error is HttpException ||
+        error is TimeoutException;
+  }
+
+  static Future<int> _partLength(File part) async {
+    try {
+      return await part.exists() ? await part.length() : 0;
+    } on FileSystemException {
+      return 0;
+    }
+  }
+
+  static Future<void> _waitForRetry(
+    Duration delay,
+    AsrTransferCancellation cancellation,
+  ) async {
+    const tick = Duration(milliseconds: 100);
+    var remaining = delay;
+    while (remaining > Duration.zero) {
+      cancellation.throwIfRequested();
+      final step = remaining < tick ? remaining : tick;
+      await Future<void>.delayed(step);
+      remaining -= step;
+    }
+    cancellation.throwIfRequested();
+  }
+
+  Future<void> _fetchOnce(
+    Uri uri,
+    File part, {
+    required AsrTransferCancellation cancellation,
+    required String proxy,
+    required bool resume,
+    required int? expectedBytes,
+    required void Function(DownloadProgress progress)? onProgress,
   }) async {
     await part.parent.create(recursive: true);
     var existing = await _keptBytes(part, resume, expectedBytes);

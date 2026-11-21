@@ -231,7 +231,11 @@ class LocalAsrStoragePreflightService implements AsrStoragePreflightService {
   Future<int?> _readFreeSpace(String path) async {
     final injected = freeSpaceReader;
     if (injected != null) return injected(path);
+    return readAvailableBytes(path);
+  }
 
+  /// Free bytes on the volume holding [path], or null when unknown.
+  static Future<int?> readAvailableBytes(String path) async {
     try {
       if (Platform.isWindows) {
         final escaped = path.replaceAll("'", "''");
