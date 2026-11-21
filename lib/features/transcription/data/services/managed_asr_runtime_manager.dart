@@ -64,7 +64,8 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
        _zipExtractor =
            zipExtractor ??
            ZipBundleExtractor(
-             freeSpaceReader: LocalAsrStoragePreflightService.readAvailableBytes,
+             freeSpaceReader:
+                 LocalAsrStoragePreflightService.readAvailableBytes,
            );
 
   @override

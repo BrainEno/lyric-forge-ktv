@@ -47,12 +47,7 @@ void main() {
 
   group('ZipCentralDirectory', () {
     test('lists files, directories and sizes without extracting', () async {
-      await archive.writeAsBytes(
-        _zip({
-          'bin/': const <int>[],
-          ..._bundle,
-        }),
-      );
+      await archive.writeAsBytes(_zip({'bin/': const <int>[], ..._bundle}));
 
       final entries = await ZipCentralDirectory.read(archive);
 
@@ -204,7 +199,9 @@ void main() {
       final error = await _extractionFailure(
         extractor((call) async {
           if (call == 1) {
-            await writeTree(staging, {'bin/qwen3-asr.exe': _bundle.values.first});
+            await writeTree(staging, {
+              'bin/qwen3-asr.exe': _bundle.values.first,
+            });
             return ProcessResult(call, 0, '', '');
           }
           return ProcessResult(call, 1, '', 'Access to the path is denied.');
@@ -257,18 +254,23 @@ void main() {
       expect(error.attempts.single.method, 'free-space');
     });
 
-    test('accepts any non-empty output when the archive is unreadable', () async {
-      await archive.writeAsString('not a zip, but the tools may know better');
+    test(
+      'accepts any non-empty output when the archive is unreadable',
+      () async {
+        await archive.writeAsString('not a zip, but the tools may know better');
 
-      final report = await extractor((call) async {
-        await writeTree(staging, {'runtime-manifest.json': utf8.encode('{}')});
-        return ProcessResult(call, 0, '', '');
-      }).extract(archive, staging);
+        final report = await extractor((call) async {
+          await writeTree(staging, {
+            'runtime-manifest.json': utf8.encode('{}'),
+          });
+          return ProcessResult(call, 0, '', '');
+        }).extract(archive, staging);
 
-      expect(report.method, 'tar');
-      expect(report.archiveEntries, isNull);
-      expect(report.archiveContains('runtime-manifest.json'), isNull);
-    });
+        expect(report.method, 'tar');
+        expect(report.archiveEntries, isNull);
+        expect(report.archiveContains('runtime-manifest.json'), isNull);
+      },
+    );
 
     test('refuses archives with unsafe paths before running a tool', () async {
       await archive.writeAsBytes(_zip({'../outside.dll': utf8.encode('x')}));
@@ -338,12 +340,15 @@ Uint8List _zip(Map<String, List<int>> files, {bool zip64 = false}) {
   final directory = BytesBuilder();
   var count = 0;
 
-  void u16(BytesBuilder b, int value) =>
-      b.add((ByteData(2)..setUint16(0, value, Endian.little)).buffer.asUint8List());
-  void u32(BytesBuilder b, int value) =>
-      b.add((ByteData(4)..setUint32(0, value, Endian.little)).buffer.asUint8List());
-  void u64(BytesBuilder b, int value) =>
-      b.add((ByteData(8)..setUint64(0, value, Endian.little)).buffer.asUint8List());
+  void u16(BytesBuilder b, int value) => b.add(
+    (ByteData(2)..setUint16(0, value, Endian.little)).buffer.asUint8List(),
+  );
+  void u32(BytesBuilder b, int value) => b.add(
+    (ByteData(4)..setUint32(0, value, Endian.little)).buffer.asUint8List(),
+  );
+  void u64(BytesBuilder b, int value) => b.add(
+    (ByteData(8)..setUint64(0, value, Endian.little)).buffer.asUint8List(),
+  );
 
   for (final entry in files.entries) {
     final name = utf8.encode(entry.key);

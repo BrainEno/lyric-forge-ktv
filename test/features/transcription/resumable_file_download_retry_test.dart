@@ -137,9 +137,7 @@ void main() {
         expectedBytes: payload.length,
         onRetry: retries.add,
       ),
-      throwsA(
-        predicate<Object>(ResumableFileDownload.isTransientFailure),
-      ),
+      throwsA(predicate<Object>(ResumableFileDownload.isTransientFailure)),
     );
 
     // The first failure made progress and counts as one in a row; the
@@ -210,10 +208,8 @@ void main() {
       part,
       cancellation: cancellation,
       expectedBytes: payload.length,
-      onRetry: (_) => Timer(
-        const Duration(milliseconds: 50),
-        cancellation.cancel,
-      ),
+      onRetry: (_) =>
+          Timer(const Duration(milliseconds: 50), cancellation.cancel),
     );
 
     await expectLater(

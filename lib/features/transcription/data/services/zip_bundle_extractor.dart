@@ -132,7 +132,9 @@ class ZipCentralDirectory {
       if (size == 0xffffffff) {
         size = _zip64Size(view, extraStart, extraLength);
       }
-      entries.add(ZipEntryInfo(path: normalisePath(name), uncompressedSize: size));
+      entries.add(
+        ZipEntryInfo(path: normalisePath(name), uncompressedSize: size),
+      );
       offset = next;
     }
     return entries;
@@ -214,9 +216,13 @@ class ZipExtractionAttempt {
   bool get succeeded => exitCode == 0 && missing.isEmpty && extractedFiles > 0;
 
   String describe() {
-    final buffer = StringBuffer('[$method] exit=$exitCode, files=$extractedFiles');
+    final buffer = StringBuffer(
+      '[$method] exit=$exitCode, files=$extractedFiles',
+    );
     if (missing.isNotEmpty) {
-      buffer.write(', missing ${missing.length}: ${missing.take(6).join(', ')}');
+      buffer.write(
+        ', missing ${missing.length}: ${missing.take(6).join(', ')}',
+      );
       if (missing.length > 6) buffer.write(', …');
     }
     final error = stderr.trim();
@@ -262,7 +268,8 @@ class ZipExtractionException implements Exception {
   final String message;
   final List<ZipExtractionAttempt> attempts;
 
-  String get details => attempts.map((attempt) => attempt.describe()).join('\n');
+  String get details =>
+      attempts.map((attempt) => attempt.describe()).join('\n');
 
   @override
   String toString() => 'ZipExtractionException($message)\n$details';
@@ -486,36 +493,26 @@ class ZipBundleExtractor {
     return [
       if (_executableExists(tar))
         _ExtractionTool('tar', tar, ['-x', '-f', archive, '-C', destination]),
-      _ExtractionTool(
-        '.NET ZipFile',
-        powershell,
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-Command',
-          r"$ErrorActionPreference = 'Stop'; "
-              'Add-Type -AssemblyName System.IO.Compression.FileSystem; '
-              '[System.IO.Compression.ZipFile]::ExtractToDirectory($a, $d)',
-        ],
-        environment: psEnvironment,
-      ),
-      _ExtractionTool(
-        'Expand-Archive',
-        powershell,
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-Command',
-          r"$ErrorActionPreference = 'Stop'; "
-              r"$ProgressPreference = 'SilentlyContinue'; "
-              'Expand-Archive -LiteralPath $a -DestinationPath $d -Force',
-        ],
-        environment: psEnvironment,
-      ),
+      _ExtractionTool('.NET ZipFile', powershell, [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        r"$ErrorActionPreference = 'Stop'; "
+            'Add-Type -AssemblyName System.IO.Compression.FileSystem; '
+            '[System.IO.Compression.ZipFile]::ExtractToDirectory($a, $d)',
+      ], environment: psEnvironment),
+      _ExtractionTool('Expand-Archive', powershell, [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        r"$ErrorActionPreference = 'Stop'; "
+            r"$ProgressPreference = 'SilentlyContinue'; "
+            'Expand-Archive -LiteralPath $a -DestinationPath $d -Force',
+      ], environment: psEnvironment),
     ];
   }
 
@@ -560,7 +557,10 @@ class ZipBundleExtractor {
 
   /// Up to [limit] files under [root], relative and `/`-separated, for
   /// error reports.
-  static Future<List<String>> describeTree(Directory root, {int limit = 20}) async {
+  static Future<List<String>> describeTree(
+    Directory root, {
+    int limit = 20,
+  }) async {
     final names = <String>[];
     if (!await root.exists()) return names;
     final prefix = root.path.length + 1;

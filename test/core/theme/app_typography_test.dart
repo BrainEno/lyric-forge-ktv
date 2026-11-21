@@ -18,16 +18,18 @@ void _expectInterfaceFonts(TextStyle? style, String name) {
 
 void main() {
   group('AppTypography', () {
-    test('Windows: Segoe UI for Latin, Microsoft YaHei UI first for Chinese',
-        () {
-      expect(AppTypography.familyFor(TargetPlatform.windows), 'Segoe UI');
-      final fallback = AppTypography.fallbackFor(TargetPlatform.windows);
-      expect(fallback.first, 'Microsoft YaHei UI');
-      expect(fallback, contains('Microsoft YaHei'));
-      // No Traditional Chinese or Japanese font may come before them.
-      expect(fallback, isNot(contains('Microsoft JhengHei')));
-      expect(fallback, isNot(contains('Yu Gothic')));
-    });
+    test(
+      'Windows: Segoe UI for Latin, Microsoft YaHei UI first for Chinese',
+      () {
+        expect(AppTypography.familyFor(TargetPlatform.windows), 'Segoe UI');
+        final fallback = AppTypography.fallbackFor(TargetPlatform.windows);
+        expect(fallback.first, 'Microsoft YaHei UI');
+        expect(fallback, contains('Microsoft YaHei'));
+        // No Traditional Chinese or Japanese font may come before them.
+        expect(fallback, isNot(contains('Microsoft JhengHei')));
+        expect(fallback, isNot(contains('Yu Gothic')));
+      },
+    );
 
     test('macOS and iOS prefer PingFang SC', () {
       for (final platform in [TargetPlatform.macOS, TargetPlatform.iOS]) {
@@ -119,36 +121,38 @@ void main() {
         }
       });
 
-      test('component styles that do not merge with the text theme ($name)',
-          () {
-        final theme = AppTheme.themeFor(palette);
-        _expectInterfaceFonts(
-          theme.navigationRailTheme.selectedLabelTextStyle,
-          'rail selected',
-        );
-        _expectInterfaceFonts(
-          theme.navigationRailTheme.unselectedLabelTextStyle,
-          'rail unselected',
-        );
-        _expectInterfaceFonts(theme.appBarTheme.titleTextStyle, 'app bar');
-        _expectInterfaceFonts(theme.tooltipTheme.textStyle, 'tooltip');
-        _expectInterfaceFonts(
-          theme.snackBarTheme.contentTextStyle,
-          'snack bar',
-        );
-        _expectInterfaceFonts(
-          theme.inputDecorationTheme.hintStyle,
-          'input hint',
-        );
-        _expectInterfaceFonts(
-          theme.inputDecorationTheme.errorStyle,
-          'input error',
-        );
-        _expectInterfaceFonts(
-          AppTheme.navigationLabelFor(palette),
-          'navigation label',
-        );
-      });
+      test(
+        'component styles that do not merge with the text theme ($name)',
+        () {
+          final theme = AppTheme.themeFor(palette);
+          _expectInterfaceFonts(
+            theme.navigationRailTheme.selectedLabelTextStyle,
+            'rail selected',
+          );
+          _expectInterfaceFonts(
+            theme.navigationRailTheme.unselectedLabelTextStyle,
+            'rail unselected',
+          );
+          _expectInterfaceFonts(theme.appBarTheme.titleTextStyle, 'app bar');
+          _expectInterfaceFonts(theme.tooltipTheme.textStyle, 'tooltip');
+          _expectInterfaceFonts(
+            theme.snackBarTheme.contentTextStyle,
+            'snack bar',
+          );
+          _expectInterfaceFonts(
+            theme.inputDecorationTheme.hintStyle,
+            'input hint',
+          );
+          _expectInterfaceFonts(
+            theme.inputDecorationTheme.errorStyle,
+            'input error',
+          );
+          _expectInterfaceFonts(
+            AppTheme.navigationLabelFor(palette),
+            'navigation label',
+          );
+        },
+      );
     }
   });
 

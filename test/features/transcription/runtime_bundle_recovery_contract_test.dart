@@ -11,7 +11,9 @@ void main() {
 
   test('a verified runtime bundle on disk is installed without a download', () {
     final source = read('managed_asr_runtime_manager.dart');
-    final start = source.indexOf('Future<(String, String)> _installManagedRuntimeBundle(');
+    final start = source.indexOf(
+      'Future<(String, String)> _installManagedRuntimeBundle(',
+    );
     final end = source.indexOf('Future<String> _installFfmpeg(', start);
     expect(start, greaterThanOrEqualTo(0));
     expect(end, greaterThan(start));
@@ -28,7 +30,9 @@ void main() {
     expect(installer, contains('if (reusedArchive)'));
     expect(installer, contains('expectedBytes: metadata.sizeBytes'));
     // A failed extraction must not discard the verified 1.2 GB archive.
-    final catchBlock = installer.substring(installer.lastIndexOf('} catch (_) {'));
+    final catchBlock = installer.substring(
+      installer.lastIndexOf('} catch (_) {'),
+    );
     expect(catchBlock, isNot(contains('archive.delete')));
 
     expect(source, contains('reuseFfmpegArchive'));

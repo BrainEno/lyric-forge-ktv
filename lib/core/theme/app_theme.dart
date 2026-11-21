@@ -152,7 +152,11 @@ class AppTheme {
 
   /// Navigation labels: grey, and bold white for the chosen destination.
   static TextStyle navigationLabelFor(AppPalette p) => AppTypography.apply(
-    TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: p.textSecondary),
+    TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+      color: p.textSecondary,
+    ),
   );
   static TextStyle navigationLabelSelectedFor(AppPalette p) =>
       AppTypography.apply(

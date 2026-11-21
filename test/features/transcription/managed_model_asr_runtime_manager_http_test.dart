@@ -337,10 +337,7 @@ void main() {
           await modelFile('model.safetensors.modelscope.part').exists(),
           isFalse,
         );
-        expect(
-          messages,
-          contains(contains('将通过官方 ModelScope 备用源从断点继续')),
-        );
+        expect(messages, contains(contains('将通过官方 ModelScope 备用源从断点继续')));
       },
     );
 
