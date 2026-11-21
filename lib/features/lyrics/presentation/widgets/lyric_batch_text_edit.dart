@@ -43,6 +43,13 @@ enum LyricBatchTextTool {
 
   /// Re-recognises or re-aligns a stretch of rows (重新识别这一段).
   spanRecognition,
+
+  /// Recognises singing the vocal check found without lyrics and inserts it
+  /// (识别有人声没歌词的段落, D-045).
+  vocalGapRecognition,
+
+  /// Puts rows the vocal check removed back (恢复人声检查删除的行, D-045).
+  restoreRemovedLines,
 }
 
 /// What a batch text tool (find-and-replace, repeated-line consistency, text

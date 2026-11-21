@@ -1110,6 +1110,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                             project: project,
                             document: _editingDocument,
                           ),
+                          vocalCheckAction: (request) =>
+                              _batchTools.openVocalCheck(
+                                request,
+                                project: project,
+                                document: _editingDocument,
+                              ),
                         ),
                         edits: _lineEditActions,
                         audition: LyricAuditionControls(

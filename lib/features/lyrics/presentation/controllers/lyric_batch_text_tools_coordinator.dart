@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
+import '../../domain/models/vocal_check_record.dart';
 import '../../domain/services/lyric_span_rerecognition.dart';
 import '../widgets/lyric_asr_loop_dialog.dart';
 import '../widgets/lyric_batch_text_edit.dart';
@@ -15,6 +16,9 @@ import '../widgets/lyric_tap_sync_dialog.dart';
 import '../widgets/lyric_text_cleanup_dialog.dart';
 import '../widgets/lyric_timeline_repair_dialog.dart';
 import '../widgets/lyric_timing_shift_dialog.dart';
+import '../widgets/lyric_vocal_check_request.dart';
+import '../widgets/lyric_vocal_gap_dialog.dart';
+import '../widgets/lyric_vocal_restore_dialog.dart';
 import '../widgets/lyric_word_tap_dialog.dart';
 import '../widgets/lyric_word_timing_check_dialog.dart';
 import '../widgets/lyric_word_timing_edit_dialog.dart';
@@ -45,19 +49,62 @@ class LyricBatchTextToolsCoordinator {
     LyricBatchTextTool tool, {
     required ProjectManifest project,
     required LyricDocument? document,
-  }) async {
-    if (document == null || document.lines.isEmpty) return;
+  }) {
+    if (document == null || document.lines.isEmpty) return Future.value();
+    return _present(
+      (context, protectedIndices) => _show(
+        tool,
+        context,
+        project: project,
+        document: document,
+        protectedIndices: protectedIndices,
+      ),
+    );
+  }
+
+  /// A one-click follow-up of the vocal check from the recognition summary
+  /// (D-045): recognise a given stretch of singing without lyrics, or put
+  /// the rows it removed back (all at once, or chosen in a dialog).
+  Future<void> openVocalCheck(
+    LyricVocalCheckRequest request, {
+    required ProjectManifest project,
+    required LyricDocument? document,
+  }) {
+    if (document == null || document.lines.isEmpty) return Future.value();
+    return _present(
+      (context, _) => switch (request) {
+        LyricVocalGapRequest(:final span) => _openVocalGaps(
+          context,
+          project,
+          document,
+          span,
+        ),
+        LyricRestoreRemovedRequest(all: true) => Future.value(
+          _restoreAll(context, document),
+        ),
+        LyricRestoreRemovedRequest() => _openRestore(
+          context,
+          project,
+          document,
+        ),
+      },
+    );
+  }
+
+  /// Shows a tool on a snapshot of the document and applies its confirmed
+  /// edit as one undoable change, unless the document changed meanwhile.
+  Future<void> _present(
+    Future<LyricBatchTextEdit?> Function(
+      BuildContext context,
+      Set<int> protectedIndices,
+    )
+    show,
+  ) async {
     final context = host.proofreadContext;
     final revision = host.proofreadDocumentRevision;
     final protectedIndices = host.proofreadManuallyEditedLineIndices;
 
-    final edit = await _show(
-      tool,
-      context,
-      project: project,
-      document: document,
-      protectedIndices: protectedIndices,
-    );
+    final edit = await show(context, protectedIndices);
     if (edit == null || !context.mounted || !host.proofreadIsMounted) return;
     if (!host.proofreadIsCurrent(revision)) {
       ScaffoldMessenger.of(
@@ -210,7 +257,93 @@ class LyricBatchTextToolsCoordinator {
           : (index, start, end) =>
                 _previewSpan(project, document, index, start, end),
     ),
+    LyricBatchTextTool.vocalGapRecognition => _openVocalGaps(
+      context,
+      project,
+      document,
+      null,
+    ),
+    LyricBatchTextTool.restoreRemovedLines => _openRestore(
+      context,
+      project,
+      document,
+    ),
   };
+
+  void _tell(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Recognising a stretch needs a stretch, the project's audio and a local
+  /// runtime; without any of them the user is told why.
+  Future<LyricBatchTextEdit?> _openVocalGaps(
+    BuildContext context,
+    ProjectManifest project,
+    LyricDocument document,
+    LyricVocalCheckSpan? span,
+  ) async {
+    final spans =
+        LyricVocalCheckRecord.fromMetadata(
+          document.metadata,
+        )?.openSpans(document) ??
+        const <LyricVocalCheckSpan>[];
+    final recognizer = spanRecognizer;
+    final unavailable = spans.isEmpty
+        ? LyricVocalCheckStrings.noGaps
+        : project.audioAsset == null
+        ? LyricSpanRecognitionStrings.noAudio
+        : recognizer == null
+        ? LyricSpanRecognitionStrings.noRecognizer
+        : null;
+    if (unavailable != null || recognizer == null) {
+      _tell(context, unavailable ?? LyricSpanRecognitionStrings.noRecognizer);
+      return null;
+    }
+    return showLyricVocalGapDialog(
+      context,
+      document: document,
+      spans: spans,
+      projectId: project.id,
+      recognizer: recognizer,
+      initialSpan: span,
+      audioDuration: project.audioAsset?.duration,
+      onPreviewSpan: (index, start, end) =>
+          _previewSpan(project, document, index, start, end),
+    );
+  }
+
+  Future<LyricBatchTextEdit?> _openRestore(
+    BuildContext context,
+    ProjectManifest project,
+    LyricDocument document,
+  ) async {
+    final removed =
+        LyricVocalCheckRecord.fromMetadata(document.metadata)?.removedLines ??
+        const <LyricVocalCheckRemovedLine>[];
+    if (removed.isEmpty) {
+      _tell(context, LyricVocalCheckStrings.noRemoved);
+      return null;
+    }
+    return showLyricVocalRestoreDialog(
+      context,
+      document: document,
+      onPreviewSpan: project.audioAsset == null
+          ? null
+          : (index, start, end) =>
+                _previewSpan(project, document, index, start, end),
+    );
+  }
+
+  LyricBatchTextEdit? _restoreAll(
+    BuildContext context,
+    LyricDocument document,
+  ) {
+    final edit = lyricRestoreAllRemovedLinesEdit(document);
+    if (edit == null) _tell(context, LyricVocalCheckStrings.noRemoved);
+    return edit;
+  }
 
   /// Re-running a stretch needs the project's audio and a local runtime;
   /// without either the user is told why instead of seeing a dead dialog.

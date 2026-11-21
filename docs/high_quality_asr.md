@@ -487,6 +487,28 @@ the report (`metadata.transcription.vocalCheck`). The editor's recognition
 summary shows the stretches that still have no lyrics, with times, until a
 row covers them. Drafts recognised from the mix are not checked.
 
+### One-click follow-ups (D-045)
+
+The record is also what the editor acts on:
+
+- every listed stretch of singing without lyrics has a button on the
+  recognition summary ("识别 m:ss.s"; with more than three stretches, a
+  walk-through button). It opens a dialog that immediately recognises the
+  stretch, padded by 0.3 s on each side but never into the neighbouring
+  rows, with Qwen3-ASR (Whisper is one click away and re-runs at once);
+  the recognised rows are clipped to that window and inserted as new rows,
+  leaving every existing row untouched. A stretch that is humming or a
+  sample can be marked "这里没有歌词" instead, which removes it from the
+  record (`dismissedSpans` counts them). Stretches squeezed under 0.5 s or
+  over 90 s are not sent;
+- rows the check deleted can be restored all at once ("全部恢复") or after
+  reviewing them with a checkbox each ("逐行查看", with a preview of the old
+  time). Restored rows go back at their recognised times, are protected like
+  hand edits, and leave the record (`restoredLines` counts them).
+
+Both are single undoable edits and are also in the proofreading menu
+(`LyricVocalCheckActions` plans them; nothing is written until saving).
+
 ## Arbitrary-text ForcedAligner boundary
 
 The official Qwen3-ASR Python API exposes `Qwen3ForcedAligner.align(audio, text, language)`, returning item-level text and start/end seconds. That is a real arbitrary-text alignment API, but it is a Python library call, not evidence that every server wrapping the model exposes the same request contract.

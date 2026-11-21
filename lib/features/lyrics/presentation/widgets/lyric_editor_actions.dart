@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../controllers/lyric_editor_document_controller.dart';
 import 'lyric_batch_text_edit.dart';
+import 'lyric_vocal_check_request.dart';
 
 // Groups of LyricEditorContent inputs that belong together.
 //
@@ -56,6 +57,7 @@ class LyricProofreadActions {
     this.onRestoreAlignment,
     this.onUnifyChineseScript,
     this.onBatchTextTool,
+    this.onVocalCheckAction,
   });
 
   /// Nothing available, as for a project without lyrics.
@@ -79,6 +81,7 @@ class LyricProofreadActions {
     required VoidCallback restoreAlignment,
     required VoidCallback unifyChineseScript,
     required ValueChanged<LyricBatchTextTool> batchTextTool,
+    ValueChanged<LyricVocalCheckRequest>? vocalCheckAction,
   }) {
     final comparable = alignment != null && !alignment.isReferenceProofread;
     return LyricProofreadActions(
@@ -92,6 +95,7 @@ class LyricProofreadActions {
       onRestoreAlignment: canRestore ? restoreAlignment : null,
       onUnifyChineseScript: hasLines ? unifyChineseScript : null,
       onBatchTextTool: hasLines ? batchTextTool : null,
+      onVocalCheckAction: hasLines ? vocalCheckAction : null,
     );
   }
 
@@ -106,6 +110,10 @@ class LyricProofreadActions {
   /// Opens one of the batch text tools (find-and-replace, repeated-line
   /// consistency, text clean-up, word timing).
   final ValueChanged<LyricBatchTextTool>? onBatchTextTool;
+
+  /// Runs a one-click follow-up of the vocal check from the recognition
+  /// summary (D-045): recognise a given stretch, restore removed rows.
+  final ValueChanged<LyricVocalCheckRequest>? onVocalCheckAction;
 }
 
 /// Edits to single rows and to the document offset.

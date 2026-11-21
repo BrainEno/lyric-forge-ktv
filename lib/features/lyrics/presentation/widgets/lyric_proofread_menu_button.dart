@@ -14,6 +14,7 @@ import 'lyric_tap_sync_dialog.dart';
 import 'lyric_text_cleanup_dialog.dart';
 import 'lyric_timeline_repair_dialog.dart';
 import 'lyric_timing_shift_dialog.dart';
+import 'lyric_vocal_gap_dialog.dart';
 import 'lyric_word_tap_dialog.dart';
 import 'lyric_word_timing_check_dialog.dart';
 import 'reference_alignment_dialog.dart';
@@ -30,6 +31,8 @@ enum LyricProofreadAction {
   referenceAlignment(LyricProofreadGroup.correction),
   referenceProofread(LyricProofreadGroup.correction),
   spanRecognition(LyricProofreadGroup.correction),
+  vocalGapRecognition(LyricProofreadGroup.correction),
+  restoreRemovedLines(LyricProofreadGroup.correction),
   textCleanup(LyricProofreadGroup.text),
   repetitionConsistency(LyricProofreadGroup.text),
   asrLoopCheck(LyricProofreadGroup.text),
@@ -91,6 +94,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.onAsrLoopCheck,
     this.onMissedRepeatCheck,
     this.onSpanRecognition,
+    this.onVocalGapRecognition,
+    this.onRestoreRemovedLines,
     this.onLineStructure,
     this.onTimelineRepair,
     this.onTimingShift,
@@ -131,6 +136,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
       onAsrLoopCheck: tool(LyricBatchTextTool.asrLoopCheck),
       onMissedRepeatCheck: tool(LyricBatchTextTool.missedRepeatCheck),
       onSpanRecognition: tool(LyricBatchTextTool.spanRecognition),
+      onVocalGapRecognition: tool(LyricBatchTextTool.vocalGapRecognition),
+      onRestoreRemovedLines: tool(LyricBatchTextTool.restoreRemovedLines),
       onLineStructure: tool(LyricBatchTextTool.lineStructure),
       onTimelineRepair: tool(LyricBatchTextTool.timelineRepair),
       onTimingShift: tool(LyricBatchTextTool.timingShift),
@@ -172,6 +179,13 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   /// 重新识别这一段: re-runs a stretch of rows through a recogniser.
   final VoidCallback? onSpanRecognition;
+
+  /// 识别有人声没歌词的段落: recognises singing the vocal check found
+  /// without lyrics.
+  final VoidCallback? onVocalGapRecognition;
+
+  /// 恢复人声检查删除的行: puts rows the vocal check removed back.
+  final VoidCallback? onRestoreRemovedLines;
 
   /// 整理断行: splits over-long rows and merges fragments.
   final VoidCallback? onLineStructure;
@@ -266,6 +280,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.asrLoopCheck: onAsrLoopCheck,
       LyricProofreadAction.missedRepeatCheck: onMissedRepeatCheck,
       LyricProofreadAction.spanRecognition: onSpanRecognition,
+      LyricProofreadAction.vocalGapRecognition: onVocalGapRecognition,
+      LyricProofreadAction.restoreRemovedLines: onRestoreRemovedLines,
       LyricProofreadAction.lineStructure: onLineStructure,
       LyricProofreadAction.timelineRepair: onTimelineRepair,
       LyricProofreadAction.timingShift: onTimingShift,
@@ -340,6 +356,14 @@ class LyricProofreadMenuButton extends StatelessWidget {
         LyricSpanRecognitionStrings.actionTitle,
         LyricSpanRecognitionStrings.actionDetail,
       ),
+      LyricProofreadAction.vocalGapRecognition => (
+        LyricVocalCheckStrings.gapTitle,
+        LyricVocalCheckStrings.gapDetail,
+      ),
+      LyricProofreadAction.restoreRemovedLines => (
+        LyricVocalCheckStrings.restoreTitle,
+        LyricVocalCheckStrings.restoreDetail,
+      ),
       LyricProofreadAction.timelineRepair => (
         LyricTimelineRepairStrings.actionTitle,
         LyricTimelineRepairStrings.actionDetail,
@@ -390,6 +414,9 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.missedRepeatCheck => Icons.playlist_add_rounded,
       LyricProofreadAction.spanRecognition =>
         Icons.published_with_changes_rounded,
+      LyricProofreadAction.vocalGapRecognition => Icons.record_voice_over_rounded,
+      LyricProofreadAction.restoreRemovedLines =>
+        Icons.settings_backup_restore_rounded,
       LyricProofreadAction.lineStructure => Icons.view_agenda_outlined,
       LyricProofreadAction.timelineRepair => Icons.healing_rounded,
       LyricProofreadAction.timingShift => Icons.timer_outlined,
