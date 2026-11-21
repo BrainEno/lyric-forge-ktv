@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/auto_proofread_dialogs.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_actions.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_menu_button.dart';
@@ -273,5 +274,30 @@ void main() {
       expect(find.text(LyricProofreadMenuButton.label), findsNothing);
       expect(find.byType(IconButton), findsNothing);
     });
+  });
+
+  testWidgets('一键校对排在最前，点击即运行', (tester) async {
+    final fired = <String>[];
+    await tester.pumpWidget(
+      _host(
+        LyricProofreadMenuButton(
+          onAutoProofread: () => fired.add('auto'),
+          onSmartProofread: () => fired.add('smart'),
+          onReferenceAlignment: () {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text(LyricProofreadMenuButton.label));
+    await tester.pumpAndSettle();
+
+    final auto = tester.getTopLeft(find.text(AutoProofreadStrings.actionTitle));
+    final smart = tester.getTopLeft(find.text('智能校对'));
+    expect(auto.dy, lessThan(smart.dy));
+    expect(find.text(AutoProofreadStrings.actionDetail), findsOneWidget);
+
+    await tester.tap(find.text(AutoProofreadStrings.actionTitle));
+    await tester.pumpAndSettle();
+    expect(fired, ['auto']);
   });
 }

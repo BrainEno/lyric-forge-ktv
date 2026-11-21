@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
+import 'auto_proofread_dialogs.dart';
 import 'lyric_asr_loop_dialog.dart';
 import 'lyric_batch_text_edit.dart';
 import 'lyric_editor_actions.dart';
@@ -27,6 +28,7 @@ import 'reference_alignment_dialog.dart';
 /// group, so the destructive-sounding entries are not the first thing under
 /// the cursor.
 enum LyricProofreadAction {
+  autoProofread(LyricProofreadGroup.correction),
   smartProofread(LyricProofreadGroup.correction),
   referenceAlignment(LyricProofreadGroup.correction),
   referenceProofread(LyricProofreadGroup.correction),
@@ -85,6 +87,7 @@ enum LyricProofreadGroup {
 class LyricProofreadMenuButton extends StatelessWidget {
   const LyricProofreadMenuButton({
     super.key,
+    this.onAutoProofread,
     this.onSmartProofread,
     this.onReferenceAlignment,
     this.onReferenceProofread,
@@ -127,6 +130,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
     return LyricProofreadMenuButton(
       key: key,
       compact: compact,
+      onAutoProofread: actions.onAutoProofread,
       onSmartProofread: actions.onSmartProofread,
       onReferenceAlignment: actions.onReferenceAlignment,
       onReferenceProofread: actions.onReferenceProofread,
@@ -151,6 +155,9 @@ class LyricProofreadMenuButton extends StatelessWidget {
       onRestoreBackup: actions.onRestoreAlignment,
     );
   }
+
+  /// 一键校对: finds the lyric online and applies every safe correction.
+  final VoidCallback? onAutoProofread;
 
   /// 智能校对: builds a proposal from the ASR evidence without writing it.
   final VoidCallback? onSmartProofread;
@@ -272,6 +279,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
   /// Available entries per group; groups without any entry are left out.
   List<(LyricProofreadGroup, List<_ProofreadMenuItem>)> _groups() {
     final actions = <LyricProofreadAction, VoidCallback?>{
+      LyricProofreadAction.autoProofread: onAutoProofread,
       LyricProofreadAction.smartProofread: onSmartProofread,
       LyricProofreadAction.referenceAlignment: onReferenceAlignment,
       LyricProofreadAction.referenceProofread: onReferenceProofread,
@@ -320,6 +328,10 @@ class LyricProofreadMenuButton extends StatelessWidget {
   /// Title plus the one-line explanation that distinguishes the strategies.
   static (String, String?) _textFor(LyricProofreadAction action) {
     return switch (action) {
+      LyricProofreadAction.autoProofread => (
+        AutoProofreadStrings.actionTitle,
+        AutoProofreadStrings.actionDetail,
+      ),
       LyricProofreadAction.smartProofread => (
         smartProofreadTitle,
         '不需要参考歌词；生成不写盘的提案，逐行对比后再应用',
@@ -404,6 +416,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   static IconData _iconFor(LyricProofreadAction action) {
     return switch (action) {
+      LyricProofreadAction.autoProofread => Icons.bolt_rounded,
       LyricProofreadAction.smartProofread => Icons.auto_awesome_rounded,
       LyricProofreadAction.referenceAlignment => Icons.auto_fix_high_rounded,
       LyricProofreadAction.referenceProofread => Icons.spellcheck_rounded,

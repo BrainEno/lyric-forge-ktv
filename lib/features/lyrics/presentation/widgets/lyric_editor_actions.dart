@@ -49,6 +49,8 @@ class LyricUndoRedoControls {
 @immutable
 class LyricProofreadActions {
   const LyricProofreadActions({
+    this.onAutoProofread,
+    this.autoProofreadRunning = false,
     this.onReferenceAlignment,
     this.onReferenceProofread,
     this.onSmartProofread,
@@ -64,7 +66,7 @@ class LyricProofreadActions {
   static const LyricProofreadActions none = LyricProofreadActions();
 
   /// The tools for the current document. The text tools need lyrics, smart
-  /// proofreading runs one pass at a time, and the alignment follow-ups
+  /// proofreading and 一键校对 run one pass at a time, and the alignment follow-ups
   /// depend only on the applied [alignment], so they stay available after
   /// every row was deleted. Only a reference alignment, not a proofreading
   /// pass, has a before/after comparison.
@@ -76,6 +78,7 @@ class LyricProofreadActions {
     required VoidCallback referenceAlignment,
     required VoidCallback referenceProofread,
     required VoidCallback smartProofread,
+    VoidCallback? autoProofread,
     required VoidCallback undoAlignment,
     required VoidCallback viewComparison,
     required VoidCallback restoreAlignment,
@@ -85,6 +88,10 @@ class LyricProofreadActions {
   }) {
     final comparable = alignment != null && !alignment.isReferenceProofread;
     return LyricProofreadActions(
+      onAutoProofread: hasLines && !smartProofreadRunning
+          ? autoProofread
+          : null,
+      autoProofreadRunning: smartProofreadRunning,
       onReferenceAlignment: hasLines ? referenceAlignment : null,
       onReferenceProofread: hasLines ? referenceProofread : null,
       onSmartProofread: hasLines && !smartProofreadRunning
@@ -98,6 +105,13 @@ class LyricProofreadActions {
       onVocalCheckAction: hasLines ? vocalCheckAction : null,
     );
   }
+
+  /// 一键校对: online lyric plus every safe correction in one undoable pass.
+  final VoidCallback? onAutoProofread;
+
+  /// A proofreading pass is running; the toolbar shows progress instead of
+  /// the 一键校对 button.
+  final bool autoProofreadRunning;
 
   final VoidCallback? onReferenceAlignment;
   final VoidCallback? onReferenceProofread;
