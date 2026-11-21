@@ -158,10 +158,7 @@ void main() {
     final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));
     await tester.ensureVisible(toggle);
     await tester.pumpAndSettle();
-    expect(
-      find.bySemanticsLabel(RegExp('用本机对齐模型核对逐字时间')),
-      findsWidgets,
-    );
+    expect(find.bySemanticsLabel(RegExp('用本机对齐模型核对逐字时间')), findsWidgets);
     expect(find.bySemanticsLabel(RegExp('继续')), findsWidgets);
     expect(find.bySemanticsLabel(RegExp('取消')), findsWidgets);
     _expectNoException(tester, 'semantics');

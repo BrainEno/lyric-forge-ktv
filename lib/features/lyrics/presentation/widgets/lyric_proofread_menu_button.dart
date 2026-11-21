@@ -70,11 +70,7 @@ enum LyricProofreadGroup {
 
   /// Single-purpose checks, collapsed into one submenu: the first four are
   /// steps of 一键校对, the rest are for detailed work.
-  checks(
-    '单项检查',
-    detail: '一键校对已包含清理、循环、重复段落和时间轴检查；这里可逐项查看',
-    collapsed: true,
-  ),
+  checks('单项检查', detail: '一键校对已包含清理、循环、重复段落和时间轴检查；这里可逐项查看', collapsed: true),
 
   /// Looking at and rolling back the last alignment.
   review('对比与回滚');

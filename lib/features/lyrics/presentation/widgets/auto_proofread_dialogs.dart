@@ -11,8 +11,7 @@ class AutoProofreadStrings {
   const AutoProofreadStrings._();
 
   static const String actionTitle = '一键校对';
-  static const String actionDetail =
-      '自动联网查找这首歌的歌词，改错字、补漏句、统一简繁、整理文本和时间轴；可撤销';
+  static const String actionDetail = '自动联网查找这首歌的歌词，改错字、补漏句、统一简繁、整理文本和时间轴；可撤销';
   static const String runningLabel = '校对中…';
   static const String tooltip =
       '按歌名和歌手联网查找歌词（网易云音乐、酷狗音乐、LRCLIB），'

@@ -248,9 +248,7 @@ class _ProofreadRunOptionsDialogState
             if (_strategy != LyricSourceStrategy.referenceFirst) ...[
               if (_strategy == LyricSourceStrategy.auto) ...[
                 const SizedBox(height: 8),
-                const Text(
-                  '第二份识别稿仅在最终选择识别结果优先时使用；对齐模型使用最终策略的文本。填写的转写稿会先检查格式。',
-                ),
+                const Text('第二份识别稿仅在最终选择识别结果优先时使用；对齐模型使用最终策略的文本。填写的转写稿会先检查格式。'),
               ],
               const SizedBox(height: 8),
               const Text(

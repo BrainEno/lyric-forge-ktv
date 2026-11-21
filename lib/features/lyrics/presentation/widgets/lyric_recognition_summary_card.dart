@@ -335,9 +335,7 @@ class _LyricRecognitionSummaryCardState
         ? const <({LyricBatchTextTool tool, String label, String tooltip})>[]
         : [
             for (final hint in hints)
-              if (LyricRecognitionSummaryCard.oneClickTools.contains(
-                hint.tool,
-              ))
+              if (LyricRecognitionSummaryCard.oneClickTools.contains(hint.tool))
                 hint,
           ];
     final separate = [
