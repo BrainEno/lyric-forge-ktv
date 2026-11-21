@@ -23,8 +23,7 @@ extension LyricDocumentTiming on LyricDocument {
   bool get isTimed => lines.isNotEmpty && !isUntimed;
 
   /// Number of lines that carry a timestamp.
-  int get timedLineCount =>
-      lines.where((line) => !_lineIsUntimed(line)).length;
+  int get timedLineCount => lines.where((line) => !_lineIsUntimed(line)).length;
 
   /// The same words as reference text: every time, word timing and the
   /// global offset removed, `metadata['timed']` set to false.
@@ -54,7 +53,10 @@ extension LyricDocumentTiming on LyricDocument {
   /// The line playing at [position], counting [globalOffset] and an
   /// [extraOffset] (a nudge the user is previewing); null when the document
   /// is untimed or empty.
-  int? activeLineIndex(Duration position, {Duration extraOffset = Duration.zero}) {
+  int? activeLineIndex(
+    Duration position, {
+    Duration extraOffset = Duration.zero,
+  }) {
     if (lines.isEmpty || isUntimed) return null;
     for (var index = lines.length - 1; index >= 0; index--) {
       if (position >= effectiveStart(lines[index], extraOffset: extraOffset)) {

@@ -128,11 +128,15 @@ void main() {
     );
     expect(ktvChip.onSelected, isNull);
     // The way to timing is offered.
-    expect(find.byKey(const ValueKey('reference-lyrics-open-editor')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reference-lyrics-open-editor')),
+      findsOneWidget,
+    );
     // Without lyric sites there is no online search button.
-    expect(find.byKey(const ValueKey('reference-lyrics-find-timed')),
-        findsNothing);
+    expect(
+      find.byKey(const ValueKey('reference-lyrics-find-timed')),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 

@@ -186,9 +186,7 @@ void main() {
   test('project timing helpers', () {
     expect(_project(null).hasTimedLyrics, isFalse);
     expect(_project(null).hasUntimedLyrics, isFalse);
-    final plain = _project(
-      LyricDocument(language: 'zh', lines: [_plain('一')]),
-    );
+    final plain = _project(LyricDocument(language: 'zh', lines: [_plain('一')]));
     expect(plain.hasUntimedLyrics, isTrue);
     expect(plain.hasTimedLyrics, isFalse);
     final timed = _project(

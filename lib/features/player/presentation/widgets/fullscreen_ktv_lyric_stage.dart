@@ -13,7 +13,7 @@ int? fullscreenKtvCurrentLyricIndex(
 ) {
   final lines = document?.lines;
   if (lines == null || lines.isEmpty || document!.isUntimed) return null;
-  final offset = document?.globalOffset ?? Duration.zero;
+  final offset = document.globalOffset ?? Duration.zero;
   for (var index = lines.length - 1; index >= 0; index--) {
     final shifted = lines[index].startTime + offset;
     final effective = shifted.isNegative ? Duration.zero : shifted;

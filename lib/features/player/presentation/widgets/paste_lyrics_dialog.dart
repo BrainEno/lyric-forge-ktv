@@ -192,7 +192,9 @@ class _PasteLyricsDialogState extends State<PasteLyricsDialog> {
         ),
         FilledButton.icon(
           key: const ValueKey('paste-lyrics-save'),
-          onPressed: parsed == null ? null : () => Navigator.of(context).pop(parsed),
+          onPressed: parsed == null
+              ? null
+              : () => Navigator.of(context).pop(parsed),
           icon: const Icon(Icons.save_rounded),
           label: const Text('保存歌词'),
         ),

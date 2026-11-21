@@ -24,8 +24,10 @@ void main() {
     test('pasted LRC keeps its timing', () {
       final result = parsePastedLyrics(importer, _lrc)!;
       expect(result.document.isTimed, isTrue);
-      expect(result.document.lines[1].startTime,
-          const Duration(milliseconds: 3500));
+      expect(
+        result.document.lines[1].startTime,
+        const Duration(milliseconds: 3500),
+      );
       expect(result.document.metadata['source'], pastedLyricsSource);
     });
 
@@ -84,9 +86,7 @@ void main() {
     expect(result!.document.isUntimed, isTrue);
   });
 
-  testWidgets('timed text can be saved without its timestamps', (
-    tester,
-  ) async {
+  testWidgets('timed text can be saved without its timestamps', (tester) async {
     final future = await open(tester);
     await tester.enterText(
       find.byKey(const ValueKey('paste-lyrics-text')),

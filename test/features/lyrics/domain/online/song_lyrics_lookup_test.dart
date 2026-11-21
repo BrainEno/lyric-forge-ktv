@@ -203,7 +203,10 @@ void main() {
         converted.document.metadata['scriptConvertedTo'],
         'traditionalTaiwan',
       );
-      expect(scriptConvertedImportResult(option.plain, null), same(option.plain));
+      expect(
+        scriptConvertedImportResult(option.plain, null),
+        same(option.plain),
+      );
     });
   });
 }

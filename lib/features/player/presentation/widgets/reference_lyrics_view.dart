@@ -61,10 +61,11 @@ class _ReferenceLyricsViewState extends State<ReferenceLyricsView> {
           ),
           child: Text(
             referenceLyricsTitle,
-            style: (spec.isCompact || spec.isShort
-                    ? theme.titleMedium
-                    : theme.titleLarge)
-                ?.copyWith(fontWeight: FontWeight.w800),
+            style:
+                (spec.isCompact || spec.isShort
+                        ? theme.titleMedium
+                        : theme.titleLarge)
+                    ?.copyWith(fontWeight: FontWeight.w800),
           ),
         ),
         Padding(

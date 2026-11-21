@@ -273,7 +273,8 @@ class _SongLyricsPreviewDialogState extends State<SongLyricsPreviewDialog> {
       if (playSong == null) return;
       await playSong();
     }
-    await playback.seek(document.effectiveStart(line, extraOffset: _offset));
+    // [document] is the previewed lyric, already shifted by [_offset].
+    await playback.seek(document.effectiveStart(line));
   }
 
   Future<void> _playThisSong() async {
@@ -436,8 +437,7 @@ class _SongLyricsPreviewDialogState extends State<SongLyricsPreviewDialog> {
             onResetOffset: _offset == Duration.zero
                 ? null
                 : () => _nudge(-_offset),
-            onFollowChanged: (value) =>
-                setState(() => _followPlayback = value),
+            onFollowChanged: (value) => setState(() => _followPlayback = value),
           ),
       ] else
         Text(
@@ -474,7 +474,10 @@ class _SongLyricsPreviewDialogState extends State<SongLyricsPreviewDialog> {
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [...header, Expanded(child: lines)],
+          children: [
+            ...header,
+            Expanded(child: lines),
+          ],
         );
       },
     );

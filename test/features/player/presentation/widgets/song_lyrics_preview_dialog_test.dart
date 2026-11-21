@@ -93,8 +93,10 @@ void main() {
     final choice = await future;
     expect(choice, isNotNull);
     expect(choice!.timed, isTrue);
-    expect(choice.result.document.lines.first.startTime,
-        const Duration(seconds: 10));
+    expect(
+      choice.result.document.lines.first.startTime,
+      const Duration(seconds: 10),
+    );
   });
 
   testWidgets('the timestamps can be dropped to keep only the words', (
@@ -155,7 +157,11 @@ void main() {
   ) async {
     final playback = _Playback();
     addTearDown(playback.positions.close);
-    final open = _open(tester, _lookup([candidate()]), playback: playback.build());
+    final open = _open(
+      tester,
+      _lookup([candidate()]),
+      playback: playback.build(),
+    );
     await _pumpHost(tester);
     final future = open();
     await tester.pumpAndSettle();
@@ -177,8 +183,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('song-lyrics-use-timed')));
     await tester.pumpAndSettle();
     final choice = await future;
-    expect(choice!.result.document.globalOffset,
-        const Duration(milliseconds: 500));
+    expect(
+      choice!.result.document.globalOffset,
+      const Duration(milliseconds: 500),
+    );
   });
 
   testWidgets('another song playing is started before checking', (

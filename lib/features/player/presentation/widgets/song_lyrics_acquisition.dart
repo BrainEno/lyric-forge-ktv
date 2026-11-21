@@ -89,9 +89,7 @@ String savedSongLyricsMessage(AcquiredSongLyrics lyrics) {
     return '已保存参考歌词（无时间轴）：播放时静态显示、手动滚动；需要同步或 KTV 时再打轴';
   }
   final words = lyrics.result.wordTimedRows;
-  return words > 0
-      ? '已保存带时间轴的歌词（$words 行带逐字时间）'
-      : '已保存带时间轴的歌词，可以直接播放或进入 KTV';
+  return words > 0 ? '已保存带时间轴的歌词（$words 行带逐字时间）' : '已保存带时间轴的歌词，可以直接播放或进入 KTV';
 }
 
 /// Asks where the lyrics should come from, gets them and saves them on

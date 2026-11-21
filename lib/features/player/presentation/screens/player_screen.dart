@@ -567,7 +567,9 @@ class _PlayerWorkspace extends StatelessWidget {
     final pane = _LyricsPane(
       lyrics: lyrics,
       untimed: document?.isUntimed ?? false,
-      sourceLabel: document == null ? null : lyricSourceLabel(document!.metadata),
+      sourceLabel: document == null
+          ? null
+          : lyricSourceLabel(document!.metadata),
       ktvMode: ktvMode,
       currentIndex: currentLyricIndex,
       onLyricTap: onLyricTap,

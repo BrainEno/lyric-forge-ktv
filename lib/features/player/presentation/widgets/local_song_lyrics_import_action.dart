@@ -248,7 +248,10 @@ SongLyricsPreviewPlayback? _previewPlayback(
     final current = session.currentState.currentItem;
     if (current == null) return false;
     return current.id == item.id ||
-        _samePath(current.audioAsset.originalPath, item.audioAsset.originalPath);
+        _samePath(
+          current.audioAsset.originalPath,
+          item.audioAsset.originalPath,
+        );
   }
 
   return SongLyricsPreviewPlayback(
