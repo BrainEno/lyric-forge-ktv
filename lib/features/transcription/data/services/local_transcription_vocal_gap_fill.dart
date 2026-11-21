@@ -232,6 +232,9 @@ class LocalTranscriptionVocalGapFill implements TranscriptionVocalGapFill {
 }
 
 /// The progress line for one stretch, as the run's progress stream shows it.
+///
+/// [TranscriptionProgress.progress] is the step's own share done; the
+/// project workflow places it on the bar of the whole run (D-049).
 TranscriptionProgress vocalGapFillProgress(VocalGapFillProgress progress) {
   final engine = switch (progress.engine) {
     LyricSpanEngine.qwen => 'Qwen3-ASR',
@@ -241,7 +244,7 @@ TranscriptionProgress vocalGapFillProgress(VocalGapFillProgress progress) {
   final done = (progress.current - 1) / progress.total;
   return TranscriptionProgress(
     stage: TranscriptionStage.parsing,
-    progress: 0.95 + 0.05 * done,
+    progress: done,
     message:
         '正在补全漏句 ${progress.current}/${progress.total}：'
         '${vocalGapFillClock(progress.start)}–${vocalGapFillClock(progress.end)}'

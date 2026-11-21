@@ -73,10 +73,10 @@ abstract class AppColors {
   static Color get accentContainer => _palette.accentContainer;
   static Color get onAccentContainer => _palette.onAccentContainer;
 
-  // Brand: Forge Red and paper white, sampled from the app icon. They draw
-  // the brand mark (AppBrandMark) and nothing else, so red text and red
-  // states keep meaning "error". Forge Red on bgBase is 4.3:1, above the 3:1
-  // that graphics need (audit B-01).
+  // Brand: Forge Red and paper white, sampled from the app icon. They are
+  // kept for icon artwork only (the in-app mark was removed, D-049), so red
+  // text and red states keep meaning "error". Forge Red on bgBase is 4.3:1,
+  // above the 3:1 that graphics need (audit B-01).
   static const Color brand = Color(0xFFF11413);
   static const Color brandPaper = Color(0xFFF6F2E8);
 

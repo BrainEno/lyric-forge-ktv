@@ -367,7 +367,8 @@ void main() {
       );
       expect(progress.message, '正在补全漏句 2/5：1:02.3–1:05.8（Qwen3-ASR）');
       expect(progress.stage, TranscriptionStage.parsing);
-      expect(progress.progress, closeTo(0.96, 0.0001));
+      // The step's own share: one of five stretches is done (D-049).
+      expect(progress.progress, closeTo(0.2, 0.0001));
     });
 
     test('says when it tries the other engine', () {
@@ -382,7 +383,7 @@ void main() {
         ),
       );
       expect(progress.message, '正在补全漏句 1/1：0:07.7–0:11.3（换用 Whisper 再试）');
-      expect(progress.progress, closeTo(0.95, 0.0001));
+      expect(progress.progress, 0);
     });
 
     test('is sent for every attempt', () async {

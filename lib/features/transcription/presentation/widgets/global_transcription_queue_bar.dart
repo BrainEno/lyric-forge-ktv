@@ -37,6 +37,17 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
     ]);
   }
 
+  /// What the song in focus is doing right now, after its name: the step
+  /// line the queue writes ("第 3/6 步 · 识别歌词：…") and its own percent,
+  /// so a long recognition reads as progress rather than a frozen bar
+  /// (D-049). Null for a song that is not running.
+  static String? focusDetail(TranscriptionQueueItem item) {
+    if (item.status != TranscriptionQueueItemStatus.running) return null;
+    final percent = progressValue(item.progress);
+    final message = item.message.trim();
+    return message.isEmpty ? percent : '$percent · $message';
+  }
+
   /// The overall progress bar as a percentage.
   static String progressValue(double overall) =>
       '${(overall.clamp(0.0, 1.0) * 100).round()}%';
@@ -67,6 +78,7 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
           TranscriptionQueueItemStatus.running,
         );
         final focus = running ?? visibleItems.first;
+        final detail = focusDetail(focus);
         final total = state.items.length;
         final done = state.completedCount;
         final overall = total == 0
@@ -110,7 +122,7 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
                 children: [
                   LinearProgressIndicator(
                     value: overall,
-                    minHeight: 2,
+                    minHeight: 3,
                     backgroundColor: AppColors.bgHighlight,
                     valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                   ),
@@ -175,6 +187,27 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
                                       ),
                                 ),
                               ),
+                              if (detail != null) ...[
+                                const SizedBox(width: AppSpacing.sm),
+                                Flexible(
+                                  flex: 3,
+                                  child: Text(
+                                    detail,
+                                    key: const ValueKey('queue_bar_detail'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: AppColors.textTertiary,
+                                          fontFeatures: const [
+                                            FontFeature.tabularFigures(),
+                                          ],
+                                        ),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

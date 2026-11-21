@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/diagnostics/app_build_info.dart';
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_navigation_shell.dart';
 import '../../../../core/navigation/playback_destination.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/navigation/transfer_entry.dart';
 import '../dashboard_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../../../core/widgets/app_brand_mark.dart';
 import '../../../player/domain/models/play_history.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/repositories/play_history_repository.dart';
@@ -411,23 +409,9 @@ class _Header extends StatelessWidget {
             ),
           ],
         );
-        // The icon's brand mark ties the header to the app icon (audit
-        // B-01). With a navigation rail the mark already sits at the rail's
-        // top, so the header shows only the name instead of a second mark a
-        // few centimetres away; on narrow windows the header is the only
-        // place for it.
-        final identity = AppNavigationRailBrand.visibleIn(context)
-            ? name
-            : Row(
-                children: [
-                  AppBrandMark(
-                    size: layout.isCompact ? 30 : 38,
-                    semanticLabel: '',
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Flexible(child: name),
-                ],
-              );
+        // The header is the product's name alone: the embedded brand mark
+        // was removed everywhere at the user's request (D-049).
+        final identity = name;
         final actions = Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,

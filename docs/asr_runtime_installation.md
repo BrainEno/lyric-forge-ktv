@@ -37,6 +37,11 @@ LyricForge/ASRRuntime/
       Qwen--Qwen3-ASR-0.6B/
       Qwen--Qwen3-ForcedAligner-0.6B/
   state/
+  VocalSeparator/          (D-049)
+    current/
+      bin/
+      models/
+    downloads/
 ```
 
 The exact operating-system application-support prefix is resolved by
@@ -81,6 +86,22 @@ Since D-048:
   if nothing is lost; a copy elsewhere is removed only when it has nothing the
   active root lacks. Folders that cannot be removed are kept and listed.
 - A move never copies into a folder below another `ASRRuntime`.
+
+### Vocal separator in the same folder (D-049)
+
+Every model the program downloads lives in the managed root: the vocal
+separator (`VocalSeparator/`, Demucs ONNX, about 700 MB) sits beside the
+recognition runtime and its models, so changing the storage location moves it
+too (a storage move copies the whole root).
+
+Earlier builds installed the separator in
+`<application support>/LyricForge/VocalSeparator`. `VocalSeparatorLocation`
+moves such an install into the managed root the first time the separator is
+needed: a same-disk rename, otherwise a copy into `VocalSeparator/moving`
+renamed to `current` when complete. If neither works (for example a file is
+still open) the old copy keeps being used and nothing is downloaded; the move
+is tried again on the next start. An old folder without an installed bundle
+(an unfinished download or an empty layout) is simply removed.
 
 ## Components
 

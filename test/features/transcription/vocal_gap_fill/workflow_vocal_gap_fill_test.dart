@@ -15,6 +15,7 @@ import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/local_project_transcription_workflow.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_run_progress.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/vocal_activity.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/vocal_gap_fill_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_resource_coordinator.dart';
@@ -89,7 +90,27 @@ void main() {
     expect(report['filledSpans'], 1);
     expect(report['insertedLines'], 1);
     expect(progress.map((p) => p.message), contains('正在补全漏句 1/1'));
-    expect(progress.last.message, '已自动补上 1 处漏句（1 行）');
+    expect(progress.map((p) => p.message), contains('已自动补上 1 处漏句（1 行）'));
+    // D-049: every event names its step, the steps come in order and the
+    // bar of the whole run only moves forward, ending full after saving.
+    expect(progress.last.message, '歌词草稿已保存');
+    expect(progress.last.step, TranscriptionRunStep.saving);
+    expect(progress.last.overall, closeTo(1, 1e-9));
+    final steps = progress.map((p) => p.step!.index).toList();
+    expect(steps, orderedEquals([...steps]..sort()));
+    final overall = progress.map((p) => p.overall!).toList();
+    for (var i = 1; i < overall.length; i++) {
+      expect(overall[i], greaterThanOrEqualTo(overall[i - 1]));
+    }
+    final fill = progress.firstWhere((p) => p.message == '正在补全漏句 1/1');
+    expect(fill.step, TranscriptionRunStep.fillingGaps);
+    expect(
+      fill.overall,
+      closeTo(
+        TranscriptionRunPlan.overallAt(TranscriptionRunStep.fillingGaps, 0.95),
+        1e-9,
+      ),
+    );
   });
 
   test('switched off in the settings, the draft keeps its gaps', () async {
@@ -244,13 +265,21 @@ void main() {
       );
     });
 
-    test('the progress stream is the recognition stream itself', () async {
+    test('without the step, recognition events are still tagged', () async {
       final fixture = await _Fixture.create();
       final workflow = fixture.workflow(withGapFill: false);
+      final progress = <TranscriptionProgress>[];
+      final subscription = workflow.progressStream.listen(progress.add);
+      addTearDown(subscription.cancel);
+
+      await workflow.transcribeProject('p');
+
       expect(
-        identical(workflow.progressStream, fixture.service.progressStream),
-        isTrue,
+        progress.map((p) => p.step),
+        isNot(contains(TranscriptionRunStep.fillingGaps)),
       );
+      expect(progress.first.step, TranscriptionRunStep.preparing);
+      expect(progress.last.step, TranscriptionRunStep.saving);
     });
 
     test('with the step, recognition progress still comes through', () async {

@@ -70,6 +70,7 @@ import '../features/transcription/data/services/resumable_chunked_transcription_
 import '../features/transcription/data/services/retrying_asr_runtime_manager.dart';
 import '../features/transcription/data/services/storage_preflight_asr_runtime_manager.dart';
 import '../features/transcription/data/services/timed_transcription_service.dart';
+import '../features/transcription/data/services/vocal_separator_location.dart';
 import '../features/transcription/data/services/vocal_separator_runtime.dart';
 import '../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
@@ -388,7 +389,13 @@ class AppServices {
     );
     ktvTakeHistoryStore = const FileKtvTakeHistoryStore();
     asrResourceCoordinator = AsrResourceCoordinator();
+    // The separator lives in the shared model folder too, so every model the
+    // program downloads is in the one folder the settings show (D-049).
+    final vocalSeparatorLocation = VocalSeparatorLocation(
+      modelRoot: asrManagedStorageService.resolveRoot,
+    );
     vocalSeparatorRuntime = ManagedVocalSeparatorRuntime(
+      rootResolver: vocalSeparatorLocation.resolve,
       httpClientFactory: downloadHttpClientFactory,
     );
     asrEndToEndSmokeTestService = LocalAsrEndToEndSmokeTestService(

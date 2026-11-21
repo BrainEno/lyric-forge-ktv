@@ -164,7 +164,8 @@ class LocalAsrEndToEndSmokeTestService
       );
       _transcriptionProgressSubscription = workflow.progressStream.listen(
         (progress) {
-          final phaseProgress = progress.progress.clamp(0.0, 1.0).toDouble();
+          // The run's forward-only progress, not the step's own (D-049).
+          final phaseProgress = progress.displayFraction;
           _emit(
             AsrEndToEndSmokeStage.transcribing,
             0.56 + phaseProgress * 0.36,
