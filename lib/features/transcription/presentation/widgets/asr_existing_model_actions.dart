@@ -8,6 +8,9 @@ import '../asr_folder_text.dart';
 // Settings reaches the copy through this file, its one way into the
 // transcription presentation layer (see the feature dependency baseline).
 export '../asr_folder_text.dart' show AsrFolderText;
+export '../asr_leftover_text.dart' show AsrLeftoverText;
+export 'asr_leftover_notice.dart'
+    show AsrLeftoverNotice, confirmAsrLeftoverCleanup;
 
 /// A single low-friction entry point for reusing models that an older
 /// Elysium Player install already downloaded somewhere else on this computer.

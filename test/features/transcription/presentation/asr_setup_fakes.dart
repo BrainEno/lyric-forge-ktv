@@ -243,6 +243,10 @@ class FakeSetupStorage implements AsrManagedStorageService {
   Future<AsrManagedStorageMoveResult> moveToDefault({
     void Function(int copiedBytes, int totalBytes)? onProgress,
   }) async => moveResult;
+
+  @override
+  Future<AsrRuntimeCleanupResult> cleanUpLeftovers() async =>
+      const AsrRuntimeCleanupResult(activeRoot: '/runtime');
 }
 
 class _Profiles implements TranscriptionProfileResolver {

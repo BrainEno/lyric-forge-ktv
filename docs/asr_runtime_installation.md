@@ -47,6 +47,41 @@ downloads the supported Qwen model files into its own application-support
 directory, validates that the required files are present, and passes those
 local directories directly to the native runtime.
 
+### Existing environments, nested copies and clean-up (D-048)
+
+The user may keep the environment elsewhere (for example
+`D:\Models\LyricForge\ASRRuntime`); `asr-managed-storage.json` beside the
+default root points at it. A build of 2026-10-31 (PR #269) turned a picked
+`ASRRuntime` folder into the parent of a new one, so some pointers ended at
+`…\ASRRuntime\LyricForge\ASRRuntime` and FFmpeg, the bundle and Whisper were
+downloaded a second time there. Later builds stopped creating it but left the
+nested folder for manual cleanup, and “一键识别已有模型” could switch from a
+complete nested copy to an incomplete outer root, after which 校验并补齐
+downloaded the missing units again.
+
+Since D-048:
+
+- Units (`AsrRuntimeTree`): runtime bundle (+ `state/runtime-build-revision.txt`,
+  `state/qwen_*.ready.json`, `.runtime-health-v1.json`), the standalone
+  Windows Whisper in `whisper/<release>`, `ffmpeg/`,
+  `models/whisper/ggml-large-v3.bin`, and each `models/qwen/<model>` folder.
+- Adopting an existing root (scan, paste, browse, or a move onto an existing
+  root) first moves units the root lacks from nested copies below it into it,
+  by renaming on the same disk (`AsrRuntimeTreeMerger`). Nothing is copied or
+  deleted; a newer runtime bundle replaces an older one; partial downloads move
+  only where the root has nothing.
+- A scan ranks candidates by complete units (counting nested copies), then
+  prefers the root in use, then the default, so it never leaves a working root
+  for an equally complete one; other roots found are listed in the message.
+- `inspect()` reports leftovers: nested copies, a pointer still on a nested
+  copy, the default root while another is used, and `.ASRRuntime.migrating-*`
+  staging folders. 设置 → 本地识别 → 模型与存储 lists them with the space they
+  take and offers “合并并清理”: nested copies are merged, then removed; a nested
+  active root is merged back into the outer root and the pointer switched only
+  if nothing is lost; a copy elsewhere is removed only when it has nothing the
+  active root lacks. Folders that cannot be removed are kept and listed.
+- A move never copies into a folder below another `ASRRuntime`.
+
 ## Components
 
 ### FFmpeg

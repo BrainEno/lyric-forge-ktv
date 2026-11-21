@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_managed_storage_service.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_runtime_manager.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_storage_preflight_service.dart';
 import 'package:lyric_forge_ktv/features/transcription/presentation/asr_folder_text.dart';
@@ -381,6 +382,29 @@ void main() {
       expect(controller.ready, isTrue);
       expect(controller.showsExistingModels, isTrue);
       expect(runtime.installCalls, 0);
+    });
+
+    test('components lifted from a nested copy are named (D-048)', () async {
+      await started();
+      storage.discovered = const AsrManagedStorageMoveResult(
+        sourceRoot: '/old/ASRRuntime/LyricForge/ASRRuntime',
+        targetRoot: '/old/ASRRuntime',
+        copiedBytes: 0,
+        copiedFiles: 0,
+        moved: true,
+        adoptedExisting: true,
+        movedUnits: [AsrRuntimeUnit.whisperModel],
+        otherRoots: ['/elsewhere/ASRRuntime'],
+      );
+      runtime.status = setupStatus(ready: true);
+
+      await controller.scanExisting();
+
+      final message = controller.existingModelMessage!;
+      expect(message, startsWith('已启用已有环境：/old/ASRRuntime。'));
+      expect(message, contains('Whisper large-v3 模型'));
+      expect(message, contains('没有复制或重新下载'));
+      expect(message, contains('/elsewhere/ASRRuntime'));
     });
 
     test('a partial environment says how much is ready', () async {

@@ -8,6 +8,7 @@ import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/asr_storage_preflight_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
 import '../asr_folder_text.dart';
+import '../asr_leftover_text.dart';
 import 'asr_runtime_setup_text.dart';
 
 // The flows behind the first-run speech recognition setup (audit I-03).
@@ -384,7 +385,10 @@ class AsrRuntimeSetupController extends ChangeNotifier {
     await _refresh();
     if (_disposed) return;
     _set(() {
-      _existingModelMessage = AsrSetupText.adopted(result.targetRoot, _status);
+      _existingModelMessage = AsrLeftoverText.withAdoptionNote(
+        AsrSetupText.adopted(result.targetRoot, _status),
+        result,
+      );
     });
   }
 
@@ -404,8 +408,9 @@ class AsrRuntimeSetupController extends ChangeNotifier {
       _set(() {
         _config = repaired;
         if (result.adoptedExisting) {
-          _existingModelMessage = AsrSetupText.movedOntoExisting(
-            result.targetRoot,
+          _existingModelMessage = AsrLeftoverText.withAdoptionNote(
+            AsrSetupText.movedOntoExisting(result.targetRoot),
+            result,
           );
         }
       });

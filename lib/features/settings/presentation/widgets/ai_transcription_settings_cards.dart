@@ -250,6 +250,9 @@ class AsrStorageSettingsCard extends StatelessWidget {
     required this.movingCopiedBytes,
     required this.movingTotalBytes,
     required this.onScan,
+    this.cleaningLeftovers = false,
+    this.leftoverMessage,
+    this.onCleanUpLeftovers,
     required this.onPastePath,
     required this.onBrowse,
     required this.onChangeLocation,
@@ -266,7 +269,14 @@ class AsrStorageSettingsCard extends StatelessWidget {
   final int movingCopiedBytes;
   final int movingTotalBytes;
 
+  /// A clean-up of leftover copies is running (D-048).
+  final bool cleaningLeftovers;
+
+  /// What the last clean-up did.
+  final String? leftoverMessage;
+
   /// Each action is null while the section is busy.
+  final VoidCallback? onCleanUpLeftovers;
   final VoidCallback? onScan;
   final VoidCallback? onPastePath;
   final VoidCallback? onBrowse;
@@ -294,6 +304,15 @@ class AsrStorageSettingsCard extends StatelessWidget {
               onScan: onScan,
               onPastePath: onPastePath,
               onBrowse: onBrowse,
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          if (AsrLeftoverNotice.showsFor(location, leftoverMessage)) ...[
+            AsrLeftoverNotice(
+              location: location,
+              cleaning: cleaningLeftovers,
+              message: leftoverMessage,
+              onCleanUp: onCleanUpLeftovers,
             ),
             const SizedBox(height: AppSpacing.md),
           ],

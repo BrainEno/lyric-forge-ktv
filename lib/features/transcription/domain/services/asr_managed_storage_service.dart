@@ -1,3 +1,7 @@
+import '../models/asr_runtime_leftovers.dart';
+
+export '../models/asr_runtime_leftovers.dart';
+
 /// 本地 ASR 托管存储位置的一次快照（[AsrManagedStorageService.inspect] 返回）。
 ///
 /// [isDefault] 由实现按平台路径规范化规则计算后注入；本类型保持为纯数据，
@@ -9,13 +13,23 @@ class AsrManagedStorageLocation {
   final bool oldRootRetained;
   final bool isDefault;
 
+  /// 当前环境之外的重复副本：内层重复的 `LyricForge/ASRRuntime`、默认位置
+  /// 的旧环境、迁移失败留下的暂存目录（D-048）。
+  final List<AsrRuntimeLeftover> leftovers;
+
   const AsrManagedStorageLocation({
     required this.activeRoot,
     required this.defaultRoot,
     required this.managedBytes,
     required this.isDefault,
     this.oldRootRetained = false,
+    this.leftovers = const [],
   });
+
+  /// 清理后可以释放的字节数（只计入会被删除的副本）。
+  int get reclaimableBytes => leftovers
+      .where((leftover) => leftover.removable)
+      .fold<int>(0, (total, leftover) => total + leftover.bytes);
 }
 
 /// 一次托管存储迁移或已有环境接管的结果（复制优先语义见
@@ -32,6 +46,12 @@ class AsrManagedStorageMoveResult {
   /// 没有复制当前环境，也没有删除旧目录。
   final bool adoptedExisting;
 
+  /// 接管时从目标下内层重复目录移入目标的组件（同盘移动，不复制、不下载）。
+  final List<AsrRuntimeUnit> movedUnits;
+
+  /// 查找时还在别处识别到、但没有选用的环境。
+  final List<String> otherRoots;
+
   const AsrManagedStorageMoveResult({
     required this.sourceRoot,
     required this.targetRoot,
@@ -40,6 +60,8 @@ class AsrManagedStorageMoveResult {
     required this.moved,
     this.oldRootRetained = false,
     this.adoptedExisting = false,
+    this.movedUnits = const [],
+    this.otherRoots = const [],
   });
 }
 
@@ -47,8 +69,10 @@ class AsrManagedStorageMoveResult {
 /// 父目录、迁回默认位置，或查找并原地接管以前下载的 ASR 环境。
 ///
 /// 迁移是 copy-first：旧环境在暂存副本文件数/字节数核对一致且新位置指针
-/// 持久化成功之前保持不动。“识别已有模型”是 pointer-only 操作：只把
-/// 托管根指针切换到可识别的已有 `ASRRuntime`，不复制、不删除、不下载。
+/// 持久化成功之前保持不动。“识别已有模型”只把托管根指针切换到可识别的
+/// 已有 `ASRRuntime`，不复制、不删除、不下载；若它下面还有旧版本误建的
+/// 内层 `LyricForge/ASRRuntime`，其中已下载而外层缺少的组件会在同一磁盘内
+/// 移到外层直接复用（D-048）。
 /// 平台相关的文件系统与 macOS security-scoped bookmark 细节由 data 层实现
 /// 承担。
 abstract class AsrManagedStorageService {
@@ -84,4 +108,12 @@ abstract class AsrManagedStorageService {
   Future<AsrManagedStorageMoveResult> moveToDefault({
     void Function(int copiedBytes, int totalBytes)? onProgress,
   });
+
+  /// 清理 [inspect] 报告的重复副本（D-048）。
+  ///
+  /// 内层重复目录中当前环境缺少的组件先移入当前环境，然后删除该目录；
+  /// 当前环境本身位于内层时，先把它合并回外层并切换指针。别处的副本只有
+  /// 在不含当前环境缺少的组件时才删除。任何无法移动或删除的目录保留并在
+  /// 结果中列出，不会让清理整体失败。
+  Future<AsrRuntimeCleanupResult> cleanUpLeftovers();
 }

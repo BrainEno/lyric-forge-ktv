@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/diagnostics/app_logger.dart';
 import '../../../../core/diagnostics/best_effort.dart';
 import '../../domain/services/asr_managed_storage_service.dart';
+import 'asr_runtime_tree.dart';
 
 class AsrSecurityScopedBookmarkAccess {
   final String path;
@@ -83,13 +85,16 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
   final Future<Directory> Function()? supportDirectoryResolver;
   final AsrSecurityScopedBookmarkBridge? securityScopedBookmarkBridge;
   final bool Function()? isMacOSResolver;
+  final AsrRuntimeTreeMerger _merger;
   bool _moving = false;
 
   LocalAsrManagedStorageService({
     this.supportDirectoryResolver,
     AsrSecurityScopedBookmarkBridge? securityScopedBookmarkBridge,
     this.isMacOSResolver,
-  }) : securityScopedBookmarkBridge =
+    AsrRuntimeTreeMerger merger = const AsrRuntimeTreeMerger(),
+  }) : _merger = merger,
+       securityScopedBookmarkBridge =
            securityScopedBookmarkBridge ??
            (Platform.isMacOS
                ? const MethodChannelAsrSecurityScopedBookmarkBridge()
@@ -155,6 +160,9 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
     final recovered = await _unwrapRepeatedManagedRoot(root);
     if (recovered != null && !_samePath(recovered.path, root.path)) {
       root = recovered;
+      // What was downloaded into the nested copy meanwhile moves up with
+      // the pointer; left behind, it would be downloaded again (D-048).
+      await _mergeNestedQuietly(root);
       await _writeConfiguredRoot(
         root.path,
         securityScopedParent: securityScopedParent,
@@ -183,6 +191,9 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       defaultRoot: fallback.path,
       managedBytes: bytes,
       isDefault: _samePath(active.path, fallback.path),
+      // A move in progress has its own staging folder and source; reporting
+      // them as leftovers would invite deleting them.
+      leftovers: _moving ? const [] : await _leftovers(active, fallback),
     );
   }
 
@@ -194,6 +205,7 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
     if (candidates.isEmpty) return null;
 
     final best = candidates.first.root;
+    final otherRoots = _otherRoots(candidates);
     final configured = await _readConfiguredRoot();
     final fallback = await defaultRoot();
     var securityScopedParent = configured?.securityScopedParent;
@@ -223,6 +235,7 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       best,
       securityScopedParent: securityScopedParent,
       securityScopedBookmark: securityScopedBookmark,
+      otherRoots: otherRoots,
     );
   }
 
@@ -249,6 +262,7 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       candidates.first.root,
       securityScopedParent: authorized.securityScopedParent,
       securityScopedBookmark: authorized.securityScopedBookmark,
+      otherRoots: _otherRoots(candidates),
     );
   }
 
@@ -343,6 +357,7 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
     String? securityScopedParent,
     String? securityScopedBookmark,
     void Function(int copiedBytes, int totalBytes)? onProgress,
+    List<String> otherRoots = const [],
   }) async {
     if (_moving) {
       throw const FileSystemException('ASR 模型目录正在迁移');
@@ -361,6 +376,9 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       final targetIsExistingRoot = await _looksLikeManagedAsrRoot(target);
 
       if (_samePath(source.path, target.path)) {
+        final merged = targetIsExistingRoot
+            ? await _mergeNestedInto(target)
+            : AsrRuntimeMergeOutcome.none;
         await _writeConfiguredRoot(
           target.path,
           securityScopedParent: securityScopedParent,
@@ -373,6 +391,8 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
           copiedFiles: sourceStats.files,
           moved: false,
           adoptedExisting: targetIsExistingRoot,
+          movedUnits: merged.movedUnits,
+          otherRoots: otherRoots,
         );
       }
 
@@ -388,6 +408,11 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       // switch to that recognisable ancestor is exactly the recovery path.
       if (targetIsExistingRoot) {
         await _assertWritable(target);
+        // What an older build downloaded into a nested copy below the target
+        // (often the active root itself) moves up first. Switching to the
+        // outer root without it made 校验并补齐 download those gigabytes
+        // again (D-048).
+        final merged = await _mergeNestedInto(target);
         await _writeConfiguredRoot(
           target.path,
           securityScopedParent: securityScopedParent,
@@ -401,12 +426,26 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
           moved: true,
           oldRootRetained: sourceStats.files > 0 || sourceStats.bytes > 0,
           adoptedExisting: true,
+          movedUnits: merged.movedUnits,
+          otherRoots: otherRoots,
         );
       }
 
       if (_pathsOverlap(source.path, target.path)) {
         throw FileSystemException(
           '目标位置不能位于当前 ASRRuntime 目录内部，也不能包含当前目录，请选择其他文件夹',
+          target.path,
+        );
+      }
+
+      // Copying into a folder below another ASRRuntime is how the nested
+      // ASRRuntime\LyricForge\ASRRuntime layout began; refuse it whatever
+      // the outer folder holds.
+      final enclosing = _enclosingRuntimeFolder(target);
+      if (enclosing != null) {
+        throw FileSystemException(
+          '目标位置位于另一个 ASRRuntime 文件夹（${enclosing.path}）内部，'
+          '请直接选择该 ASRRuntime 文件夹或它的上级文件夹',
           target.path,
         );
       }
@@ -499,6 +538,298 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
     }
   }
 
+  @override
+  Future<AsrRuntimeCleanupResult> cleanUpLeftovers() async {
+    if (_moving) {
+      throw const FileSystemException('ASR 模型目录正在迁移');
+    }
+    _moving = true;
+    try {
+      final active = await resolveRoot();
+      final fallback = await defaultRoot();
+      final canonical = await _canonicalRoot(active);
+      final removed = <String>[];
+      final retained = <String>[];
+      var freed = 0;
+
+      Future<void> remove(Directory directory) async {
+        final stats = await _treeStats(directory);
+        try {
+          await directory.delete(recursive: true);
+          removed.add(directory.path);
+          freed += stats.bytes;
+        } on FileSystemException catch (error) {
+          appLog.warning(_logTag, '无法删除重复的识别环境副本', error: error);
+          retained.add(directory.path);
+        }
+      }
+
+      // 1. Everything below the outer root moves up into it; that includes
+      //    the active root when an older build left the pointer nested.
+      final activeUnits = await AsrRuntimeTree(active).completeUnits();
+      final merged = await _mergeNestedInto(canonical);
+      var inUse = active;
+      if (!_samePath(canonical.path, active.path)) {
+        final canonicalUnits = await AsrRuntimeTree(canonical).completeUnits();
+        // Switch only when nothing the active root could do is lost, for
+        // example because a running program kept its bundle from moving.
+        if (canonicalUnits.containsAll(activeUnits)) {
+          final configured = await _readConfiguredRoot();
+          await _writeConfiguredRoot(
+            canonical.path,
+            securityScopedParent: configured?.securityScopedParent,
+            securityScopedBookmark: configured?.securityScopedBookmark,
+          );
+          inUse = canonical;
+        }
+      }
+
+      // 2. The nested copies go once they hold nothing the root lacks.
+      final nested = await _nestedCopies(canonical);
+      if (nested.isNotEmpty) {
+        final outermost = nested.first;
+        final needed =
+            !_samePath(inUse.path, canonical.path) ||
+            (await _unitsOf(nested)).difference(
+              await AsrRuntimeTree(canonical).completeUnits(),
+            ).isNotEmpty;
+        if (needed) {
+          retained.add(outermost.path);
+        } else {
+          await remove(outermost);
+        }
+      }
+
+      // 3. A copy at the default location goes only when it is a pure
+      //    duplicate of the one in use.
+      final defaultCopy = await _defaultCopy(inUse, fallback);
+      if (defaultCopy != null) {
+        if (defaultCopy.removable) {
+          await remove(Directory(defaultCopy.path));
+        } else {
+          retained.add(defaultCopy.path);
+        }
+      }
+
+      // 4. Half-finished copies of failed moves are never needed.
+      for (final staging in await _migrationStagings(inUse, fallback)) {
+        await remove(staging);
+      }
+
+      return AsrRuntimeCleanupResult(
+        activeRoot: inUse.path,
+        movedUnits: merged.movedUnits,
+        removedPaths: removed,
+        freedBytes: freed,
+        retainedPaths: retained,
+      );
+    } finally {
+      _moving = false;
+    }
+  }
+
+  /// The leftover copies around [active] (D-048).
+  Future<List<AsrRuntimeLeftover>> _leftovers(
+    Directory active,
+    Directory fallback,
+  ) async {
+    final leftovers = <AsrRuntimeLeftover>[];
+    try {
+      final canonical = await _canonicalRoot(active);
+      final nested = await _nestedCopies(canonical);
+      if (nested.isNotEmpty) {
+        final outermost = nested.first;
+        final stats = await _treeStats(outermost);
+        final missing = (await _unitsOf(nested)).difference(
+          await AsrRuntimeTree(canonical).completeUnits(),
+        );
+        leftovers.add(
+          AsrRuntimeLeftover(
+            path: outermost.path,
+            kind: _samePath(canonical.path, active.path)
+                ? AsrRuntimeLeftoverKind.nestedCopy
+                : AsrRuntimeLeftoverKind.activeIsNested,
+            bytes: stats.bytes,
+            files: stats.files,
+            missingInActive: _ordered(missing),
+          ),
+        );
+      }
+      final defaultCopy = await _defaultCopy(canonical, fallback);
+      if (defaultCopy != null) leftovers.add(defaultCopy);
+      for (final staging in await _migrationStagings(canonical, fallback)) {
+        final stats = await _treeStats(staging);
+        leftovers.add(
+          AsrRuntimeLeftover(
+            path: staging.path,
+            kind: AsrRuntimeLeftoverKind.migrationStaging,
+            bytes: stats.bytes,
+            files: stats.files,
+          ),
+        );
+      }
+    } on FileSystemException catch (error) {
+      // The location itself is still worth showing; only the extra report
+      // about copies is lost.
+      appLog.warning(_logTag, '无法检查重复的识别环境副本', error: error);
+    }
+    return leftovers;
+  }
+
+  /// The environment at the default location when [inUse] is elsewhere and
+  /// does not contain it; null when there is none or it holds no files.
+  Future<AsrRuntimeLeftover?> _defaultCopy(
+    Directory inUse,
+    Directory fallback,
+  ) async {
+    if (_samePath(inUse.path, fallback.path) ||
+        _pathsOverlap(inUse.path, fallback.path) ||
+        !await fallback.exists()) {
+      return null;
+    }
+    final stats = await _treeStats(fallback);
+    if (stats.files == 0) return null;
+    final missing = (await AsrRuntimeTree(
+      fallback,
+    ).completeUnits()).difference(await _effectiveUnits(inUse));
+    return AsrRuntimeLeftover(
+      path: fallback.path,
+      kind: AsrRuntimeLeftoverKind.defaultCopy,
+      bytes: stats.bytes,
+      files: stats.files,
+      missingInActive: _ordered(missing),
+    );
+  }
+
+  /// `.ASRRuntime.migrating-*` folders beside [inUse] and [fallback].
+  Future<List<Directory>> _migrationStagings(
+    Directory inUse,
+    Directory fallback,
+  ) async {
+    final found = <String, Directory>{};
+    for (final parent in [inUse.parent, fallback.parent]) {
+      for (final child in await _immediateChildDirectories(parent)) {
+        if (_pathBasename(child.path).startsWith('.ASRRuntime.migrating-')) {
+          found.putIfAbsent(_normalizedPath(child.path), () => child);
+        }
+      }
+    }
+    return found.values.toList();
+  }
+
+  /// The outer `ASRRuntime` an older build nested [active] in, or [active].
+  ///
+  /// On macOS the outer folder must lie inside the authorised folder,
+  /// otherwise the app could not open it after a restart.
+  Future<Directory> _canonicalRoot(Directory active) async {
+    var canonical = active.absolute;
+    while (true) {
+      final outer = _repeatedManagedRootAncestor(canonical);
+      if (outer == null) break;
+      canonical = outer;
+    }
+    if (_samePath(canonical.path, active.path) || !_isMacOS) return canonical;
+    final scope = (await _readConfiguredRoot())?.securityScopedParent;
+    if (scope == null) return canonical;
+    final scopePath = _normalizedPath(scope);
+    final canonicalPath = _normalizedPath(canonical.path);
+    final separator = Platform.pathSeparator;
+    final prefix = scopePath.endsWith(separator)
+        ? scopePath
+        : '$scopePath$separator';
+    final inside =
+        canonicalPath == scopePath || canonicalPath.startsWith(prefix);
+    return inside ? canonical : active.absolute;
+  }
+
+  /// The nested `LyricForge/ASRRuntime` folders below [root], outermost
+  /// first, as far down as an older build repeated them.
+  Future<List<Directory>> _nestedCopies(Directory root) async {
+    final chain = <Directory>[];
+    var current = root.absolute;
+    while (chain.length < 8) {
+      final nested = Directory(
+        _join(current.path, ['LyricForge', 'ASRRuntime']),
+      ).absolute;
+      if (!await nested.exists()) break;
+      chain.add(nested);
+      current = nested;
+    }
+    return chain;
+  }
+
+  /// The complete units in any of [roots].
+  Future<Set<AsrRuntimeUnit>> _unitsOf(Iterable<Directory> roots) async {
+    final units = <AsrRuntimeUnit>{};
+    for (final root in roots) {
+      units.addAll(await AsrRuntimeTree(root).completeUnits());
+    }
+    return units;
+  }
+
+  /// What [root] offers once the nested copies below it are merged in.
+  Future<Set<AsrRuntimeUnit>> _effectiveUnits(Directory root) async =>
+      _unitsOf([root, ...await _nestedCopies(root)]);
+
+  /// Moves what the nested copies below [root] have and it lacks into it,
+  /// deepest copy first. Nothing is deleted here.
+  Future<AsrRuntimeMergeOutcome> _mergeNestedInto(Directory root) async {
+    final moved = <AsrRuntimeUnit>{};
+    final failures = <String>[];
+    for (final nested in (await _nestedCopies(root)).reversed) {
+      final outcome = await _merger.merge(from: nested, into: root);
+      moved.addAll(outcome.movedUnits);
+      failures.addAll(outcome.failures);
+    }
+    if (failures.isNotEmpty) {
+      appLog.warning(
+        _logTag,
+        '内层重复目录中有 ${failures.length} 项未能移入当前识别环境',
+      );
+    }
+    return AsrRuntimeMergeOutcome(
+      movedUnits: _ordered(moved),
+      failures: failures,
+    );
+  }
+
+  /// [_mergeNestedInto] where a failure must not stop the caller; the
+  /// nested copy stays and is reported as a leftover.
+  Future<void> _mergeNestedQuietly(Directory root) async {
+    try {
+      await _mergeNestedInto(root);
+    } on FileSystemException catch (error) {
+      appLog.warning(_logTag, '无法把内层重复目录移入识别环境', error: error);
+    }
+  }
+
+  List<AsrRuntimeUnit> _ordered(Set<AsrRuntimeUnit> units) => [
+    for (final unit in AsrRuntimeUnit.values)
+      if (units.contains(unit)) unit,
+  ];
+
+  /// Other recognised roots a scan found, for the message after adoption:
+  /// neither the chosen root nor a copy inside or around it.
+  List<String> _otherRoots(List<_ExistingRootCandidate> candidates) {
+    if (candidates.length < 2) return const [];
+    final chosen = candidates.first.root.path;
+    return [
+      for (final candidate in candidates.skip(1))
+        if (candidate.units.isNotEmpty &&
+            !_samePath(chosen, candidate.root.path) &&
+            !_pathsOverlap(chosen, candidate.root.path))
+          candidate.root.path,
+    ].take(3).toList();
+  }
+
+  /// The nearest ancestor of [target] named `ASRRuntime`, if any.
+  Directory? _enclosingRuntimeFolder(Directory target) {
+    for (final ancestor in _ancestorDirectories(target)) {
+      if (_isAsrRuntimeName(_pathBasename(ancestor.path))) return ancestor;
+    }
+    return null;
+  }
+
   Future<Directory> _resolveSelectionTarget(Directory selected) async {
     final existing = await _findExistingRoots([
       selected,
@@ -569,10 +900,16 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
 
     final configured = await _readConfiguredRoot();
     final fallback = await defaultRoot();
-    final preferredPaths = <String>{
-      if (configured != null) _normalizedPath(configured.managedRoot),
-      _normalizedPath(fallback.path),
-    };
+    final configuredPath = configured == null
+        ? null
+        : _normalizedPath(configured.managedRoot);
+    final fallbackPath = _normalizedPath(fallback.path);
+    int preferenceOf(Directory root) {
+      final path = _normalizedPath(root.path);
+      if (path == configuredPath) return 2;
+      if (path == fallbackPath) return 1;
+      return 0;
+    }
 
     final candidates = <_ExistingRootCandidate>[];
     for (final path in candidatePaths.values) {
@@ -583,21 +920,27 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
         _ExistingRootCandidate(
           root: root,
           score: score,
-          preferred: preferredPaths.contains(_normalizedPath(root.path)),
+          units: await _effectiveUnits(root),
+          preference: preferenceOf(root),
           isRepeatedNestedRoot: _repeatedManagedRootAncestor(root) != null,
         ),
       );
     }
 
+    // Completeness decides, counting what a nested copy below a root will
+    // hand over when it is adopted. Among equally complete roots the one in
+    // use (or the default) wins, so a scan never moves a working setup to
+    // another disk only because that one has more stray files (D-048).
     candidates.sort((left, right) {
       if (left.isRepeatedNestedRoot != right.isRepeatedNestedRoot) {
         return left.isRepeatedNestedRoot ? 1 : -1;
       }
+      final byUnits = right.units.length.compareTo(left.units.length);
+      if (byUnits != 0) return byUnits;
+      final byPreference = right.preference.compareTo(left.preference);
+      if (byPreference != 0) return byPreference;
       final byScore = right.score.compareTo(left.score);
       if (byScore != 0) return byScore;
-      if (left.preferred != right.preferred) {
-        return left.preferred ? -1 : 1;
-      }
       final byLength = left.root.path.length.compareTo(right.root.path.length);
       if (byLength != 0) return byLength;
       return left.root.path.compareTo(right.root.path);
@@ -1139,13 +1482,17 @@ class _TreeStats {
 class _ExistingRootCandidate {
   final Directory root;
   final int score;
-  final bool preferred;
+  final Set<AsrRuntimeUnit> units;
+
+  /// 2 for the root in use, 1 for the default location, 0 otherwise.
+  final int preference;
   final bool isRepeatedNestedRoot;
 
   const _ExistingRootCandidate({
     required this.root,
     required this.score,
-    required this.preferred,
+    required this.units,
+    required this.preference,
     required this.isRepeatedNestedRoot,
   });
 }

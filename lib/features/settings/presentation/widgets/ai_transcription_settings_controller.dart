@@ -33,12 +33,25 @@ class AsrExistingModelTexts {
     required this.notFound,
     required this.pathNotRecognised,
     required this.checkingPath,
+    this.adoptionNote,
+    this.cleanedUp,
+    this.cleanupFailed,
   });
 
   final String scanning;
   final String notFound;
   final String pathNotRecognised;
   final String Function(String path) checkingPath;
+
+  /// What to add after the "adopted" message, for example the components
+  /// moved up from a nested copy (D-048).
+  final String Function(AsrManagedStorageMoveResult result)? adoptionNote;
+
+  /// What a clean-up of leftover copies did.
+  final String Function(AsrRuntimeCleanupResult result)? cleanedUp;
+
+  /// Why a clean-up failed.
+  final String Function(Object error)? cleanupFailed;
 }
 
 /// Measures the bytes below a folder; null when it cannot be read.
@@ -97,7 +110,9 @@ class AiTranscriptionSettingsController extends ChangeNotifier {
   bool _deleting = false;
   bool _movingStorage = false;
   bool _scanningExisting = false;
+  bool _cleaningLeftovers = false;
   String? _existingModelMessage;
+  String? _leftoverMessage;
   int _movingCopiedBytes = 0;
   int _movingTotalBytes = 0;
   AsrRuntimeComponent? _failedComponent;
@@ -117,7 +132,11 @@ class AiTranscriptionSettingsController extends ChangeNotifier {
   bool get deleting => _deleting;
   bool get movingStorage => _movingStorage;
   bool get scanningExisting => _scanningExisting;
+  bool get cleaningLeftovers => _cleaningLeftovers;
   String? get existingModelMessage => _existingModelMessage;
+
+  /// What the last clean-up of leftover copies did, or why it failed.
+  String? get leftoverMessage => _leftoverMessage;
   int get movingCopiedBytes => _movingCopiedBytes;
   int get movingTotalBytes => _movingTotalBytes;
   AsrRuntimeComponent? get failedComponent => _failedComponent;
@@ -137,7 +156,8 @@ class AiTranscriptionSettingsController extends ChangeNotifier {
       _paused ||
       _deleting ||
       _movingStorage ||
-      _scanningExisting;
+      _scanningExisting ||
+      _cleaningLeftovers;
 
   /// Nothing here or in the shared runtime manager is running, so a flow
   /// that changes the environment may start.
@@ -371,8 +391,46 @@ class AiTranscriptionSettingsController extends ChangeNotifier {
     await refresh();
     if (_disposed) return;
     _set(() {
-      _existingModelMessage = adoptedMessage(result.targetRoot, _status);
+      _existingModelMessage =
+          '${adoptedMessage(result.targetRoot, _status)}'
+          '${_texts.adoptionNote?.call(result) ?? ''}';
     });
+  }
+
+  /// Merges the leftover copies the last inspection reported into the
+  /// environment in use and removes them (D-048). The section asks first.
+  ///
+  /// Paths in the saved plan may have pointed into a removed copy, so the
+  /// plan is repaired and saved again before the inspection that follows.
+  Future<AsrRuntimeCleanupResult?> cleanUpLeftovers() async {
+    if (!canStartExclusive) return null;
+    _set(() {
+      _cleaningLeftovers = true;
+      _error = null;
+      _leftoverMessage = null;
+    });
+    try {
+      final result = await _managedStorageService.cleanUpLeftovers();
+      final repaired = await _runtimeManager.repair(config);
+      if (repaired.isConfigured) await _settingsStore.save(repaired);
+      if (_disposed) return result;
+      _set(() {
+        _config = repaired;
+        _leftoverMessage =
+            _texts.cleanedUp?.call(result) ??
+            '清理完成，释放 ${AsrSettingsText.formatBytes(result.freedBytes)}。';
+      });
+      await refresh();
+      return result;
+    } catch (error) {
+      _set(
+        () => _leftoverMessage =
+            _texts.cleanupFailed?.call(error) ?? '清理重复的识别环境失败：$error',
+      );
+      return null;
+    } finally {
+      _set(() => _cleaningLeftovers = false);
+    }
   }
 
   /// What the existing-model card says after an environment at [root] was
