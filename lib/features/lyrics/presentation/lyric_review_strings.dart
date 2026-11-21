@@ -262,6 +262,8 @@ abstract final class LyricReviewStrings {
         '双引擎存在不同候选',
       LyricReviewPriorityReasonCode.secondaryOnlySuggestion =>
         '仅备用引擎识别到这一行，建议试听后决定是否补入',
+      LyricReviewPriorityReasonCode.vocalGapFillInserted =>
+        '识别时按人声自动补上的漏句，建议试听确认',
       LyricReviewPriorityReasonCode.repeatedWords => '出现连续重复词，建议确认是否为识别重复',
       LyricReviewPriorityReasonCode.unusuallyLongText => '单行文本异常偏长，可能包含多句歌词',
       LyricReviewPriorityReasonCode.longTextWithShortInterval =>

@@ -521,6 +521,36 @@ still have nothing can be marked as having no lyrics in the same edit.
 original document, so row-indexed review evidence moves exactly once and
 rows of two stretches between the same rows are made consecutive.
 
+### Filling missed lines during recognition (D-047)
+
+The same work can run as the last step of whole-song recognition, so the
+draft arrives with the missed lines already in. `TranscriptionConfig.
+vocalGapFill` ("识别后自动补全漏句", on by default) switches it; it only runs
+after a vocal check that actually looked at a vocal stem and found open
+stretches. `VocalGapFiller` plans the windows exactly like the batch dialog
+(`LyricVocalGapBatch.plan`), recognises them one after another, tries the
+other engine when the first hears nothing or fails, stops on a busy runtime
+or a cancel, and inserts everything with `LyricVocalGapBatch.apply`.
+
+- Engines: Whisper always; Qwen3-ASR too when the run asked for two engines,
+  its runtime, model and aligner are ready and the run was not degraded to
+  Whisper. The run's engine order decides which goes first.
+- `LocalTranscriptionVocalGapFill` cuts each window from the vocal stem with
+  FFmpeg and runs the adapters directly. It takes no resource lease: the
+  whole-song run already holds the transcription lease until the draft is
+  saved. Qwen3-ASR reuses the app's shared adapter (the model the song was
+  just recognised with).
+- Budget: at most 24 stretches and 4 minutes of windows per run; the rest
+  stay open for "全部识别" in the editor.
+- Cancelling during the step cancels the run like any other phase; any
+  other failure keeps the checked draft and is recorded, never failing the
+  run.
+- `metadata.transcription.vocalGapFill` holds the per-stretch report
+  (outcome, engine, fallback, rows, error, elapsed). The document keeps a
+  `vocalGapFill` record with the ids of the inserted rows; the review queue
+  lists them ("识别时按人声自动补上的漏句") until someone confirms them, and
+  the summary card counts them ("自动补句：n/m 行待听").
+
 ## Arbitrary-text ForcedAligner boundary
 
 The official Qwen3-ASR Python API exposes `Qwen3ForcedAligner.align(audio, text, language)`, returning item-level text and start/end seconds. That is a real arbitrary-text alignment API, but it is a Python library call, not evidence that every server wrapping the model exposes the same request contract.

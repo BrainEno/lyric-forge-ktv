@@ -1,9 +1,11 @@
 import '../../../lyrics/domain/models/chinese_script_preference.dart';
 import '../../../lyrics/domain/text/chinese_script_converter.dart';
 import '../../../project/domain/models/lyric_document.dart';
+import 'vocal_gap_fill_models.dart';
 import 'vocal_separation_models.dart';
 import 'whisper_decoding_policy.dart';
 
+export 'vocal_gap_fill_models.dart' show VocalGapFillPreference;
 export 'vocal_separation_models.dart' show VocalSeparationPreference;
 export 'whisper_decoding_policy.dart'
     show RecognitionHints, WhisperDecodingProfile, WhisperDecodingProfileId;
@@ -117,6 +119,11 @@ class TranscriptionConfig {
   /// x64) and the project has no vocal stem the user imported.
   final VocalSeparationPreference vocalSeparation;
 
+  /// Whether recognition ends by recognising the stretches the vocal check
+  /// found singing but no row in, and inserting what it hears (D-047). Only
+  /// takes effect when the vocal check ran on a vocal stem.
+  final VocalGapFillPreference vocalGapFill;
+
   const TranscriptionConfig({
     this.mode = TranscriptionMode.highestQuality,
     this.profilePreference = TranscriptionProfilePreference.automatic,
@@ -136,6 +143,7 @@ class TranscriptionConfig {
     this.maxFallbackSegments = 20,
     this.chineseScriptPreference = ChineseScriptPreference.auto,
     this.vocalSeparation = VocalSeparationPreference.automatic,
+    this.vocalGapFill = VocalGapFillPreference.automatic,
   });
 
   /// The script Chinese output should end up in, when one is known: the
@@ -197,6 +205,7 @@ class TranscriptionConfig {
     int? maxFallbackSegments,
     ChineseScriptPreference? chineseScriptPreference,
     VocalSeparationPreference? vocalSeparation,
+    VocalGapFillPreference? vocalGapFill,
   }) {
     return TranscriptionConfig(
       mode: mode ?? this.mode,
@@ -220,6 +229,7 @@ class TranscriptionConfig {
       chineseScriptPreference:
           chineseScriptPreference ?? this.chineseScriptPreference,
       vocalSeparation: vocalSeparation ?? this.vocalSeparation,
+      vocalGapFill: vocalGapFill ?? this.vocalGapFill,
     );
   }
 
@@ -243,6 +253,7 @@ class TranscriptionConfig {
       'maxFallbackSegments': maxFallbackSegments,
       'chineseScriptPreference': chineseScriptPreference.name,
       'vocalSeparation': vocalSeparation.name,
+      'vocalGapFill': vocalGapFill.name,
     };
   }
 
@@ -298,6 +309,7 @@ class TranscriptionConfig {
       vocalSeparation: VocalSeparationPreference.fromName(
         json['vocalSeparation'],
       ),
+      vocalGapFill: VocalGapFillPreference.fromName(json['vocalGapFill']),
     );
   }
 }

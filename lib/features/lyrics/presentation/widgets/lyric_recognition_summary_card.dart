@@ -172,6 +172,26 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
     ];
   }
 
+  /// What recognition's own gap filling (D-047) did, for the expanded card;
+  /// empty when it inserted nothing.
+  static List<String> vocalGapFillLines(RecognitionReviewSummary summary) {
+    final record = summary.vocalGapFill;
+    if (record == null) return const [];
+    final fallback = record.fallbackSpans > 0
+        ? '（其中 ${record.fallbackSpans} 处由第二个引擎补上）'
+        : '';
+    final rest = [
+      if (record.emptySpans > 0) '${record.emptySpans} 处没有识别出文字',
+      if (record.failedSpans > 0) '${record.failedSpans} 处识别失败',
+      if (record.unattemptedSpans > 0) '${record.unattemptedSpans} 处未自动识别',
+    ];
+    return [
+      '识别时已按人声自动补上 ${record.filledSpans.length} 处漏句$fallback，'
+          '补上的行列入待复核，试听确认后即可移出',
+      if (rest.isNotEmpty) '自动补句：${rest.join('、')}',
+    ];
+  }
+
   @override
   State<LyricRecognitionSummaryCard> createState() =>
       _LyricRecognitionSummaryCardState();
@@ -351,6 +371,14 @@ class _LyricRecognitionSummaryCardState
         attention: (summary.pendingSecondaryOnlySuggestions ?? 0) > 0,
       ),
       (label: '待复核', value: '$pending', attention: pending > 0),
+      if (summary.vocalGapFill != null)
+        (
+          label: '自动补句',
+          value: summary.pendingAutoFilledLines > 0
+              ? '${summary.pendingAutoFilledLines}/${summary.autoFilledLines} 行待听'
+              : '${summary.autoFilledLines} 行',
+          attention: summary.pendingAutoFilledLines > 0,
+        ),
       if (summary.vocalCheck != null)
         (
           label: '有人声没歌词',
@@ -492,6 +520,7 @@ class _LyricRecognitionSummaryCardState
                 ...LyricRecognitionSummaryCard.vocalCheckLines(
                   summary.vocalCheck,
                 ),
+                ...LyricRecognitionSummaryCard.vocalGapFillLines(summary),
               ].join(' · '),
               style: theme.textTheme.labelSmall?.copyWith(
                 color: AppColors.textSecondary,
