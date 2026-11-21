@@ -264,6 +264,7 @@ void main() {
       LyricReviewPriorityReasonCode.intervalOverTwentySeconds: '单行持续时间超过 20 秒',
       LyricReviewPriorityReasonCode.secondaryOnlySuggestion:
           '仅备用引擎识别到这一行，建议试听后决定是否补入',
+      LyricReviewPriorityReasonCode.vocalGapFillInserted: '识别时按人声自动补上的漏句，建议试听确认',
       LyricReviewPriorityReasonCode.negativeStart: '开始时间为负',
       LyricReviewPriorityReasonCode.negativeEffectiveStart: '叠加全局偏移后开始时间为负',
       LyricReviewPriorityReasonCode.invalidTimeInterval: '歌词时间区间无效',

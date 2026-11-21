@@ -84,6 +84,7 @@ Future<Map<String, Object?>> collectAsrDiagnostics({
     'engineOrder': config.engineOrder.name,
     'decodingProfile': config.whisperDecodingProfile.id,
     'vocalSeparation': config.vocalSeparation.name,
+    'vocalGapFill': config.vocalGapFill.name,
     'qwenDevice': config.qwenDevice,
     'qwenDtype': config.qwenDtype,
     'ready': status.isReady,

@@ -3,6 +3,7 @@ import '../services/lyric_review_decision_service.dart';
 import 'lyric_review_queue.dart';
 import 'secondary_only_suggestion.dart';
 import 'vocal_check_record.dart';
+import 'vocal_gap_fill_record.dart';
 
 /// What the editor can honestly say about a recognised draft right after
 /// recognition: who produced it, how many rows the engines disagreed on, how
@@ -63,6 +64,16 @@ class RecognitionReviewSummary {
   /// document still has no row for.
   final List<LyricVocalCheckSpan> openVocalSpans;
 
+  /// Rows recognition filled into missed stretches on its own (D-047); null
+  /// when the step inserted nothing or did not run.
+  final LyricVocalGapFillRecord? vocalGapFill;
+
+  /// Of those rows, how many the document still has.
+  final int autoFilledLines;
+
+  /// Of [autoFilledLines], how many nobody has confirmed yet.
+  final int pendingAutoFilledLines;
+
   const RecognitionReviewSummary({
     required this.primaryEngine,
     required this.secondaryEngine,
@@ -80,6 +91,9 @@ class RecognitionReviewSummary {
     required this.reviewedLines,
     this.vocalCheck,
     this.openVocalSpans = const [],
+    this.vocalGapFill,
+    this.autoFilledLines = 0,
+    this.pendingAutoFilledLines = 0,
   });
 
   /// Whether this document carries any recognition metadata at all. Imported
@@ -143,6 +157,8 @@ class RecognitionReviewSummary {
 
     final segmentation = metadata['segmentationOnlySecondaryCount'];
     final vocalCheck = LyricVocalCheckRecord.fromMetadata(metadata);
+    final gapFill = LyricVocalGapFillRecord.fromMetadata(metadata);
+    final autoFilled = gapFill?.insertedIndices(document) ?? const <int>[];
 
     return RecognitionReviewSummary(
       primaryEngine:
@@ -166,6 +182,11 @@ class RecognitionReviewSummary {
       reviewedLines: reviewed.length,
       vocalCheck: vocalCheck,
       openVocalSpans: vocalCheck?.openSpans(document) ?? const [],
+      vocalGapFill: gapFill == null || gapFill.isEmpty ? null : gapFill,
+      autoFilledLines: autoFilled.length,
+      pendingAutoFilledLines: autoFilled
+          .where((index) => !reviewed.contains(index))
+          .length,
     );
   }
 }

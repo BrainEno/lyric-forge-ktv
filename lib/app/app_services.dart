@@ -60,6 +60,7 @@ import '../features/transcription/data/services/local_asr_storage_preflight_serv
 import '../features/transcription/data/services/local_project_transcription_workflow.dart';
 import '../features/transcription/data/services/local_project_vocal_separator.dart';
 import '../features/transcription/data/services/local_transcription_vocal_check.dart';
+import '../features/transcription/data/services/local_transcription_vocal_gap_fill.dart';
 import '../features/transcription/data/services/managed_asr_runtime_manager.dart';
 import '../features/transcription/data/services/managed_model_asr_runtime_manager.dart';
 import '../features/transcription/data/services/native_transcription_profile_resolver.dart';
@@ -431,6 +432,12 @@ class AppServices {
         : null,
     // The end-to-end smoke test keeps the draft exactly as recognised.
     vocalCheck: separateVocals ? const LocalTranscriptionVocalCheck() : null,
+    // Reuses the Qwen3-ASR model the song was just recognised with.
+    vocalGapFill: separateVocals
+        ? LocalTranscriptionVocalGapFill(
+            sharedQwen: qwenNativeTranscriptionService,
+          )
+        : null,
   );
 }
 

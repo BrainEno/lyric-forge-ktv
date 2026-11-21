@@ -1,5 +1,6 @@
 import '../../../project/domain/models/lyric_document.dart';
 import '../models/secondary_only_suggestion.dart';
+import '../models/vocal_gap_fill_record.dart';
 import '../text/chinese_script_converter.dart';
 import 'lyric_review_decision_service.dart';
 import 'lyric_timeline_validator.dart';
@@ -19,6 +20,10 @@ enum LyricReviewPriorityReasonCode {
   /// Only the secondary recogniser produced this row; it was inserted as a
   /// suggestion and has not been confirmed by a person.
   secondaryOnlySuggestion,
+
+  /// Recognition inserted this row on its own where the vocal check heard
+  /// singing but the draft had none (D-047); nobody has listened to it.
+  vocalGapFillInserted,
   repeatedWords,
   unusuallyLongText,
   longTextWithShortInterval,
@@ -97,6 +102,11 @@ class LyricReviewPriorityService {
     final reviewedIndices = reviewDecisionService.reviewedIndices(document);
     final candidates = _fallbackCandidatesByIndex(document.metadata);
     final suggestions = SecondaryOnlySuggestion.resolve(document);
+    final autoFilled =
+        LyricVocalGapFillRecord.fromMetadata(
+          document.metadata,
+        )?.insertedIndices(document).toSet() ??
+        const <int>{};
     final timeline = timelineValidator.validate(
       lines: document.lines,
       audioDuration: audioDuration,
@@ -168,6 +178,12 @@ class LyricReviewPriorityService {
       // reaches the queue even if the engine itself was confident.
       if (suggestions.containsKey(index) && text.isNotEmpty) {
         score.add(25, LyricReviewPriorityReasonCode.secondaryOnlySuggestion);
+      }
+
+      // Same weight for a row recognition filled into a missed stretch: one
+      // recogniser heard it in a short clip and nobody has checked it.
+      if (autoFilled.contains(index)) {
+        score.add(25, LyricReviewPriorityReasonCode.vocalGapFillInserted);
       }
 
       if (line.confidence < 95 &&

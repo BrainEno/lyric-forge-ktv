@@ -50,6 +50,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
   late WhisperDecodingProfile _whisperDecodingProfile;
   late ChineseScriptPreference _chineseScriptPreference;
   late VocalSeparationPreference _vocalSeparation;
+  late VocalGapFillPreference _vocalGapFill;
   bool _testingDownloadConnection = false;
   String? _downloadConnectionMessage;
   bool _downloadConnectionSucceeded = false;
@@ -110,6 +111,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
         config?.chineseScriptPreference ?? ChineseScriptPreference.auto;
     _vocalSeparation =
         config?.vocalSeparation ?? VocalSeparationPreference.automatic;
+    _vocalGapFill = config?.vocalGapFill ?? VocalGapFillPreference.automatic;
 
     for (final controller in [
       _qwenExecutableController,
@@ -168,6 +170,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
       maxFallbackSegments: _maxFallbackSegments,
       chineseScriptPreference: _chineseScriptPreference,
       vocalSeparation: _vocalSeparation,
+      vocalGapFill: _vocalGapFill,
     );
   }
 
@@ -603,6 +606,22 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                   () => _vocalSeparation = value
                       ? VocalSeparationPreference.automatic
                       : VocalSeparationPreference.off,
+                ),
+              ),
+              SwitchListTile.adaptive(
+                key: const ValueKey('vocal_gap_fill_switch'),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('识别后自动补全漏句'),
+                subtitle: const Text(
+                  '人声检查发现有人声却没有歌词的地方，识别结束前逐段再识别一次并插入，'
+                  '草稿出来时漏句已补上；补上的行会列入待复核。'
+                  '只在按人声识别时生效，每处多用几秒到十几秒。',
+                ),
+                value: _vocalGapFill == VocalGapFillPreference.automatic,
+                onChanged: (value) => setState(
+                  () => _vocalGapFill = value
+                      ? VocalGapFillPreference.automatic
+                      : VocalGapFillPreference.off,
                 ),
               ),
               if (highQuality) ...[

@@ -1,0 +1,22 @@
+# [2026-12-13 09:30] Fill missed lines during recognition
+
+- Scope: round 26. The user asked to make "全部识别" an optional last step of whole-song recognition, so the draft arrives with missed lines already filled in. Changes (D-047):
+  - `TranscriptionConfig.vocalGapFill` (`automatic` by default, `off`), persisted with the settings, shown in the diagnostics and switched in the settings dialog ("识别后自动补全漏句").
+  - `VocalGapFiller` (transcription domain): reads the vocal check record, plans windows with `LyricVocalGapBatch.plan`, sends at most 24 stretches / 4 minutes of windows, recognises them in timeline order with the engines in order (fallback on an empty result or an ordinary error; a busy runtime or a cancel stops the step and keeps what was found), inserts everything with `LyricVocalGapBatch.apply`, and writes a per-stretch `VocalGapFillReport` plus the document's `vocalGapFill` record of inserted row ids.
+  - `TranscriptionVocalGapFill` interface, `VocalGapFillRequest` and `vocalGapFillEngines` (Whisper always; Qwen3-ASR for a ready, non-degraded two-engine run, in the run's engine order).
+  - `LocalTranscriptionVocalGapFill`: cuts each window from the vocal stem with FFmpeg (`cutSpanClipWithFfmpeg`) and runs the adapters without a lease of its own, reusing the shared Qwen3-ASR adapter; other adapters are created once per step and disposed; cancel kills FFmpeg and cancels the running adapter; never throws.
+  - `LocalProjectTranscriptionWorkflow`: new `fillingGaps` phase after the vocal check; runs only after a check that looked at a vocal stem and found open stretches; progress ("正在补全漏句 i/n：m:ss.s–m:ss.s（引擎）" and a summary) goes through the workflow's own progress stream; cancel in the phase cancels the run; failures keep the checked draft; `metadata.transcription.vocalGapFill` records the report. App assembly gives the separating workflows the step.
+  - Review queue: `vocalGapFillInserted` reason (weight 25) for rows in the record until confirmed. Recognition summary: "自动补句：n/m 行待听" metric and an expanded explanation.
+- Files:
+  - New: `lib/features/transcription/domain/models/vocal_gap_fill_models.dart`, `lib/features/transcription/domain/services/vocal_gap_filler.dart`, `lib/features/transcription/domain/services/transcription_vocal_gap_fill.dart`, `lib/features/transcription/data/services/local_transcription_vocal_gap_fill.dart`, `lib/features/lyrics/domain/models/vocal_gap_fill_record.dart`.
+  - `lib/features/transcription/data/services/local_project_transcription_workflow.dart`, `lib/features/transcription/domain/models/transcription_models.dart`, `lib/features/transcription/presentation/widgets/transcription_config_dialog.dart`, `lib/app/app_services.dart`, `lib/app/diagnostics_assembly.dart`.
+  - `lib/features/lyrics/domain/services/lyric_review_priority_service.dart`, `lib/features/lyrics/presentation/lyric_review_strings.dart`, `lib/features/lyrics/domain/models/recognition_review_summary.dart`, `lib/features/lyrics/presentation/widgets/lyric_recognition_summary_card.dart`.
+  - New tests: `test/features/transcription/vocal_gap_fill/` (filler, models and engines, local implementation, workflow), `test/features/transcription/presentation/vocal_gap_fill_setting_test.dart`, `test/features/lyrics/presentation/widgets/lyric_recognition_gap_fill_test.dart`; label case in `lyric_review_strings_test.dart`.
+  - `docs/decisions.md` (D-047), `docs/high_quality_asr.md`, `docs/handoff.md`.
+- Validation:
+  - No Dart SDK in the sandbox: format, analyze and tests => PR's Flutter Quality Gate and the temporary probe workflow.
+- Notes:
+  - Each stretch adds a few seconds to the run, twice that when the first engine hears nothing.
+  - Inserted rows were heard by one engine in a short clip; they stay in the review queue until confirmed.
+  - Not measured on real songs yet (no GPU in the sandbox).
+- Commit: `Fill missed lines during recognition`

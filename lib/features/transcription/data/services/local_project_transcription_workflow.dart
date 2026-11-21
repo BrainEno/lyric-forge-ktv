@@ -16,6 +16,7 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_degradation.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/models/vocal_gap_fill_models.dart';
 import '../../domain/models/vocal_separation_models.dart';
 import '../../domain/services/asr_resource_coordinator.dart';
 import '../../domain/services/asr_runtime_manager.dart';
@@ -25,11 +26,19 @@ import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
 import '../../domain/services/transcription_vocal_check.dart';
+import '../../domain/services/transcription_vocal_gap_fill.dart';
 import '../../domain/services/vocal_activity_lyric_gate.dart';
 import 'project_recognition_hints.dart';
 import 'project_transcription_input.dart';
 
-enum _WorkflowPhase { idle, preparing, separating, recognizing, committing }
+enum _WorkflowPhase {
+  idle,
+  preparing,
+  separating,
+  recognizing,
+  fillingGaps,
+  committing,
+}
 
 /// Persists ASR output as the editable timeline consumed by lyric editing and
 /// synchronized playback surfaces. Playback consumers reload the persisted
@@ -61,7 +70,15 @@ class LocalProjectTranscriptionWorkflow
   /// Optional check of a draft recognised from a vocal stem against the
   /// stem (D-044). Null keeps the draft exactly as recognised.
   final TranscriptionVocalCheck? _vocalCheck;
-  final StreamController<TranscriptionProgress> _separationProgress =
+
+  /// Optional last step: recognise the stretches the vocal check found
+  /// singing but no row in, and insert what is heard (D-047). Null, or the
+  /// setting switched off, leaves those stretches for the editor.
+  final TranscriptionVocalGapFill? _vocalGapFill;
+
+  /// Progress of the workflow's own steps (separation, gap filling), merged
+  /// into [progressStream] around recognition's.
+  final StreamController<TranscriptionProgress> _stepProgress =
       StreamController<TranscriptionProgress>.broadcast(sync: true);
 
   LocalProjectTranscriptionWorkflow({
@@ -78,6 +95,7 @@ class LocalProjectTranscriptionWorkflow
         const ChineseScriptUnificationService(),
     ProjectVocalSeparator? vocalSeparator,
     TranscriptionVocalCheck? vocalCheck,
+    TranscriptionVocalGapFill? vocalGapFill,
   }) : _projectRepository = projectRepository,
        _transcriptionService = transcriptionService,
        _settingsStore = settingsStore,
@@ -89,16 +107,19 @@ class LocalProjectTranscriptionWorkflow
        _pathCanonicalizer = pathCanonicalizer,
        _scriptUnification = scriptUnification,
        _vocalSeparator = vocalSeparator,
-       _vocalCheck = vocalCheck;
+       _vocalCheck = vocalCheck,
+       _vocalGapFill = vocalGapFill;
 
   /// Recognition progress, preceded by separation progress when a separator
-  /// is configured.
+  /// is configured and followed by gap-filling progress when that step is.
   @override
   Stream<TranscriptionProgress> get progressStream {
-    if (_vocalSeparator == null) return _transcriptionService.progressStream;
+    if (_vocalSeparator == null && _vocalGapFill == null) {
+      return _transcriptionService.progressStream;
+    }
     return Stream<TranscriptionProgress>.multi((controller) {
       final subscriptions = [
-        _separationProgress.stream.listen(controller.addSync),
+        _stepProgress.stream.listen(controller.addSync),
         _transcriptionService.progressStream.listen(
           controller.addSync,
           onError: controller.addErrorSync,
@@ -155,6 +176,7 @@ class LocalProjectTranscriptionWorkflow
 
     late final ResolvedTranscriptionProfile resolvedProfile;
     late final TranscriptionConfig runtimeConfig;
+    late final AsrRuntimeStatus runtimeStatus;
     try {
       resolvedProfile = await _profileResolver.resolve(config);
       _checkCancelled();
@@ -166,7 +188,7 @@ class LocalProjectTranscriptionWorkflow
         );
       }
 
-      final runtimeStatus = await _runtimeManager.inspect(runtimeConfig);
+      runtimeStatus = await _runtimeManager.inspect(runtimeConfig);
       _checkCancelled();
       // Only the Whisper baseline may block recognition. A missing second
       // engine is not a reason to refuse the song: the transcription service
@@ -235,7 +257,7 @@ class LocalProjectTranscriptionWorkflow
           config: runtimeConfig,
           workDirectory:
               '${outputDirectory.parent.path}${Platform.pathSeparator}stems',
-          onProgress: _separationProgress.add,
+          onProgress: _stepProgress.add,
         );
         _checkCancelled();
         separation = prepared.outcome;
@@ -251,7 +273,7 @@ class LocalProjectTranscriptionWorkflow
         if (separation.usesSeparatedVocal && vocalPath != null) {
           inputPath = vocalPath;
         }
-        _separationProgress.add(
+        _stepProgress.add(
           TranscriptionProgress(
             stage: TranscriptionStage.preprocessing,
             progress: 1,
@@ -277,9 +299,19 @@ class LocalProjectTranscriptionWorkflow
         audio: runProject.audioAsset,
       );
       _checkCancelled();
+      final gapFill = await _fillVocalGaps(
+        checked,
+        result: result,
+        inputPath: inputPath,
+        config: runtimeConfig,
+        status: runtimeStatus,
+        hints: recognitionHintsForProject(project),
+        audioDuration: runProject.audioAsset?.duration,
+      );
+      _checkCancelled();
       // From here a project write may commit; do not report cancellation.
       _phase = _WorkflowPhase.committing;
-      final draft = checked?.document ?? result.lyrics;
+      final draft = gapFill?.document ?? checked?.document ?? result.lyrics;
       final recognizedLyrics = draft.copyWith(
         metadata: {
           ...draft.metadata,
@@ -337,6 +369,7 @@ class LocalProjectTranscriptionWorkflow
               'inputPath': inputPath,
               'vocalSeparation': separation?.toJson(),
               'vocalCheck': checked?.report.toJson(),
+              'vocalGapFill': gapFill?.report.toJson(),
               'normalizedAudioPath': result.normalizedAudioPath,
               'rawJsonPath': result.rawJsonPath,
               'primaryModel':
@@ -433,6 +466,76 @@ class LocalProjectTranscriptionWorkflow
     }
   }
 
+  /// The checked draft with the stretches of singing it has no row for
+  /// recognised and filled in, or null when the step is not configured.
+  /// Runs only after a vocal check that actually looked at a vocal stem;
+  /// never fails the run.
+  Future<VocalGapFillResult?> _fillVocalGaps(
+    VocalCheckResult? checked, {
+    required TranscriptionResult result,
+    required String inputPath,
+    required TranscriptionConfig config,
+    required AsrRuntimeStatus status,
+    required RecognitionHints hints,
+    required Duration? audioDuration,
+  }) async {
+    final fill = _vocalGapFill;
+    if (fill == null || checked == null) return null;
+    final draft = checked.document;
+    VocalGapFillResult skipped(VocalGapFillSkipReason reason) =>
+        VocalGapFillResult(draft, VocalGapFillReport.skipped(reason));
+    if (config.vocalGapFill == VocalGapFillPreference.off) {
+      return skipped(VocalGapFillSkipReason.disabled);
+    }
+    if (!checked.report.applied) {
+      return skipped(VocalGapFillSkipReason.noVocalCheck);
+    }
+    if (checked.report.record.uncoveredSpans.isEmpty) {
+      return skipped(VocalGapFillSkipReason.noGaps);
+    }
+    final engines = vocalGapFillEngines(
+      config: config,
+      status: status,
+      degraded: TranscriptionQualityMetadata.isDegraded(result.lyrics.metadata),
+    );
+    if (engines.isEmpty) return skipped(VocalGapFillSkipReason.noEngine);
+
+    _phase = _WorkflowPhase.fillingGaps;
+    VocalGapFillResult filled;
+    try {
+      filled = await fill.fill(
+        draft,
+        VocalGapFillRequest(
+          audioPath: inputPath,
+          config: config,
+          engines: engines,
+          hints: hints,
+          audioDuration: audioDuration != null && audioDuration > Duration.zero
+              ? audioDuration
+              : null,
+          onProgress: _stepProgress.add,
+        ),
+      );
+    } on Object catch (error) {
+      filled = VocalGapFillResult(
+        draft,
+        VocalGapFillReport.skipped(
+          VocalGapFillSkipReason.failed,
+          engines: engines,
+          error: error.toString(),
+        ),
+      );
+    }
+    _stepProgress.add(
+      TranscriptionProgress(
+        stage: TranscriptionStage.parsing,
+        progress: 1,
+        message: filled.report.summary,
+      ),
+    );
+    return filled;
+  }
+
   Future<void> _finishUncommittedRun(
     ProjectManifest original,
     String runId, {
@@ -526,6 +629,8 @@ class LocalProjectTranscriptionWorkflow
       await (_pendingCancel ??= _vocalSeparator!.cancel());
     } else if (_phase == _WorkflowPhase.recognizing) {
       await (_pendingCancel ??= _transcriptionService.cancel());
+    } else if (_phase == _WorkflowPhase.fillingGaps) {
+      await (_pendingCancel ??= _vocalGapFill!.cancel());
     }
   }
 
