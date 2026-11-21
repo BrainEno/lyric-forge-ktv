@@ -56,13 +56,12 @@ class LyricBatchTextToolsCoordinator {
 
   /// Runs a vocal check follow-up on [project] and the document being
   /// edited.
-  ValueChanged<LyricVocalCheckRequest> vocalCheckFor(
-    ProjectManifest project,
-  ) => (request) => openVocalCheck(
-    request,
-    project: project,
-    document: editingDocument?.call(),
-  );
+  ValueChanged<LyricVocalCheckRequest> vocalCheckFor(ProjectManifest project) =>
+      (request) => openVocalCheck(
+        request,
+        project: project,
+        document: editingDocument?.call(),
+      );
 
   Future<void> open(
     LyricBatchTextTool tool, {
