@@ -107,10 +107,9 @@ void main() {
     testWidgets('a single stretch has no batch button', (tester) async {
       await _pump(
         tester,
-        _document(
-          [_line('第一句', 10, 15)],
-          record: LyricVocalCheckRecord(uncoveredSpans: [_span(75, 79)]),
-        ),
+        _document([
+          _line('第一句', 10, 15),
+        ], record: LyricVocalCheckRecord(uncoveredSpans: [_span(75, 79)])),
       );
       expect(find.byKey(const ValueKey('lyric_vocal_gap_batch')), findsNothing);
       expect(find.byKey(const ValueKey('lyric_vocal_gap_0')), findsOneWidget);

@@ -20,11 +20,7 @@ LyricVocalCheckSpan _span(int startMs, int endMs) =>
     LyricVocalCheckSpan(_ms(startMs), _ms(endMs));
 
 /// Three stretches: windows start at 19.7 s, 39.7 s and 59.7 s.
-final _spans = [
-  _span(20000, 24000),
-  _span(40000, 43000),
-  _span(60000, 63000),
-];
+final _spans = [_span(20000, 24000), _span(40000, 43000), _span(60000, 63000)];
 
 LyricDocument _draft({
   Duration? offset,
@@ -189,12 +185,16 @@ void main() {
     tester,
   ) async {
     final recognizer = _Recognizer()
-      ..answer(19, LyricSpanEngine.qwen, [_line('found at twenty', 20000, 23000)])
+      ..answer(19, LyricSpanEngine.qwen, [
+        _line('found at twenty', 20000, 23000),
+      ])
       ..answer(39, LyricSpanEngine.qwen, [
         _line('found at forty', 40000, 41500),
         _line('and more', 41500, 43000),
       ])
-      ..answer(59, LyricSpanEngine.qwen, [_line('found at sixty', 60000, 62000)]);
+      ..answer(59, LyricSpanEngine.qwen, [
+        _line('found at sixty', 60000, 62000),
+      ]);
     final result = await _open(
       tester,
       document: _draft(),
@@ -202,11 +202,10 @@ void main() {
     );
 
     expect(find.text(LyricVocalGapBatchStrings.title), findsOneWidget);
-    expect([for (final call in recognizer.calls) call.start], [
-      _ms(19700),
-      _ms(39700),
-      _ms(59700),
-    ]);
+    expect(
+      [for (final call in recognizer.calls) call.start],
+      [_ms(19700), _ms(39700), _ms(59700)],
+    );
     expect(
       recognizer.calls.every((call) => call.engine == LyricSpanEngine.qwen),
       isTrue,
@@ -264,7 +263,9 @@ void main() {
     tester,
   ) async {
     final recognizer = _Recognizer()
-      ..answer(19, LyricSpanEngine.whisper, [_line('whisper heard', 20000, 23000)]);
+      ..answer(19, LyricSpanEngine.whisper, [
+        _line('whisper heard', 20000, 23000),
+      ]);
     await _open(
       tester,
       document: _draft(),
@@ -338,16 +339,16 @@ void main() {
       document: _draft(),
       recognizer: recognizer,
     );
-    expect(
-      _text(tester, 'vocal_gap_batch_summary'),
-      '1 处识别出歌词，2 处没有识别出',
-    );
+    expect(_text(tester, 'vocal_gap_batch_summary'), '1 处识别出歌词，2 处没有识别出');
     expect(_checked(tester, 1), isFalse);
     final check = tester.widget<Checkbox>(
       find.byKey(const ValueKey('vocal_gap_batch_check_1')),
     );
     expect(check.onChanged, isNull);
-    expect(find.text(LyricVocalGapBatchStrings.dismissEmptyLabel(2)), findsOneWidget);
+    expect(
+      find.text(LyricVocalGapBatchStrings.dismissEmptyLabel(2)),
+      findsOneWidget,
+    );
 
     await _tap(
       tester,
@@ -396,7 +397,10 @@ void main() {
     await _open(tester, document: _draft(), recognizer: recognizer);
     // No fallback for a busy runtime and no third request.
     expect(recognizer.calls, hasLength(2));
-    expect(find.byKey(const ValueKey('vocal_gap_batch_notice')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('vocal_gap_batch_notice')),
+      findsOneWidget,
+    );
     expect(_text(tester, 'vocal_gap_batch_status_1'), '运行时正忙');
     expect(_text(tester, 'vocal_gap_batch_status_2'), '等待识别');
     expect(
@@ -411,11 +415,10 @@ void main() {
     recognizer.answer(39, LyricSpanEngine.qwen, [_line('later', 40000, 42000)]);
     recognizer.calls.clear();
     await _tap(tester, find.byKey(const ValueKey('vocal_gap_batch_rerun')));
-    expect([for (final call in recognizer.calls) call.start.inSeconds], [
-      39,
-      59,
-      59,
-    ]);
+    expect(
+      [for (final call in recognizer.calls) call.start.inSeconds],
+      [39, 59, 59],
+    );
     expect(_checked(tester, 0), isTrue, reason: 'found results are kept');
     expect(_checked(tester, 1), isTrue);
     expect(find.byKey(const ValueKey('vocal_gap_batch_notice')), findsNothing);
@@ -426,7 +429,10 @@ void main() {
   ) async {
     final recognizer = _Recognizer()..gate = Completer<void>();
     await _open(tester, document: _draft(), recognizer: recognizer);
-    expect(find.byKey(const ValueKey('vocal_gap_batch_progress')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('vocal_gap_batch_progress')),
+      findsOneWidget,
+    );
     expect(find.text(LyricVocalGapBatchStrings.progress(1, 3)), findsOneWidget);
     expect(_text(tester, 'vocal_gap_batch_status_0'), '正在识别…');
     expect(_confirm(tester).onPressed, isNull);
@@ -491,10 +497,7 @@ void main() {
     );
     expect(recognizer.calls, hasLength(1));
     expect(_text(tester, 'vocal_gap_batch_status_0'), contains('不到 0.5 秒'));
-    expect(
-      _text(tester, 'vocal_gap_batch_summary'),
-      '1 处识别出歌词，1 处无法单独识别',
-    );
+    expect(_text(tester, 'vocal_gap_batch_summary'), '1 处识别出歌词，1 处无法单独识别');
     expect(find.byKey(const ValueKey('vocal_gap_batch_rerun')), findsNothing);
   });
 

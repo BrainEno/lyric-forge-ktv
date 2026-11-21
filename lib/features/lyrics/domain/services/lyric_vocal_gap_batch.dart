@@ -119,15 +119,16 @@ class LyricVocalGapBatch {
     final original = document.lines;
     int at(LyricVocalGapInsertion insertion) =>
         insertion.window.insertAt.clamp(0, original.length);
-    final pending = [
-      for (final insertion in insertions)
-        if (!insertion.isEmpty) insertion,
-    ]..sort((a, b) {
-        final byIndex = at(a).compareTo(at(b));
-        return byIndex != 0
-            ? byIndex
-            : a.window.start.compareTo(b.window.start);
-      });
+    final pending =
+        [
+          for (final insertion in insertions)
+            if (!insertion.isEmpty) insertion,
+        ]..sort((a, b) {
+          final byIndex = at(a).compareTo(at(b));
+          return byIndex != 0
+              ? byIndex
+              : a.window.start.compareTo(b.window.start);
+        });
 
     final lines = <LyricLine>[];
     final inserted = <int>[];

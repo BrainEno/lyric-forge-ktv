@@ -30,7 +30,8 @@ class LyricVocalGapBatchStrings {
 
   static String dismissEmptyLabel(int count) => '把没有识别出歌词的 $count 处标记为“这里没有歌词”';
 
-  static String progress(int current, int total) => '正在识别第 $current / $total 处…';
+  static String progress(int current, int total) =>
+      '正在识别第 $current / $total 处…';
 
   static String summary({
     required int found,
@@ -46,7 +47,11 @@ class LyricVocalGapBatchStrings {
     if (waiting > 0) '$waiting 处还没有识别',
   ].join('，');
 
-  static String confirmLabel({required int rows, required int gaps, required int dismissed}) {
+  static String confirmLabel({
+    required int rows,
+    required int gaps,
+    required int dismissed,
+  }) {
     if (rows == 0 && dismissed == 0) return '没有可插入的歌词';
     return [
       if (rows > 0) '插入 $rows 行（$gaps 处）',
@@ -63,7 +68,8 @@ class LyricVocalGapBatchStrings {
     return '${parts.join('，')}（未写入磁盘）';
   }
 
-  static String fallbackNote(String engineLabel) => '第一个引擎没有识别出，由 $engineLabel 识别';
+  static String fallbackNote(String engineLabel) =>
+      '第一个引擎没有识别出，由 $engineLabel 识别';
 
   static String rerunLabel(int count) => '再识别没有结果的 $count 处';
 }
@@ -349,7 +355,10 @@ class _LyricVocalGapBatchDialogState extends State<LyricVocalGapBatchDialog> {
       widget.document,
       insertions: [for (final gap in _chosen) gap.insertion!],
       dismiss: _dismissEmpty
-          ? [for (final gap in _with(LyricVocalGapBatchStatus.empty)) gap.item.span]
+          ? [
+              for (final gap in _with(LyricVocalGapBatchStatus.empty))
+                gap.item.span,
+            ]
           : const [],
     );
     if (result == null) return;
@@ -457,10 +466,7 @@ class _LyricVocalGapBatchDialogState extends State<LyricVocalGapBatchDialog> {
         if (_running && _current != null)
           AppInlineLoading(
             key: const ValueKey('vocal_gap_batch_progress'),
-            message: LyricVocalGapBatchStrings.progress(
-              _current!,
-              _queueTotal,
-            ),
+            message: LyricVocalGapBatchStrings.progress(_current!, _queueTotal),
           )
         else
           Text(
@@ -496,7 +502,9 @@ class _LyricVocalGapBatchDialogState extends State<LyricVocalGapBatchDialog> {
             onChanged: _running
                 ? null
                 : (value) => setState(() => _dismissEmpty = value ?? false),
-            title: Text(LyricVocalGapBatchStrings.dismissEmptyLabel(emptyCount)),
+            title: Text(
+              LyricVocalGapBatchStrings.dismissEmptyLabel(emptyCount),
+            ),
           ),
       ],
     );

@@ -78,18 +78,19 @@ void main() {
   group('plan', () {
     test('one window per stretch, in timeline order', () {
       final plan = _batch.plan(_draft(), _spans);
-      expect([for (final item in plan.items) item.span], [
-        _span(16000, 18000),
-        _span(20000, 24000),
-        _span(40000, 43000),
-        _span(60000, 63000),
-      ]);
-      expect([for (final item in plan.items) item.window!.insertAt], [
-        1,
-        1,
-        2,
-        3,
-      ]);
+      expect(
+        [for (final item in plan.items) item.span],
+        [
+          _span(16000, 18000),
+          _span(20000, 24000),
+          _span(40000, 43000),
+          _span(60000, 63000),
+        ],
+      );
+      expect(
+        [for (final item in plan.items) item.window!.insertAt],
+        [1, 1, 2, 3],
+      );
       expect(plan.items[0].window!.start, _ms(15700));
       expect(plan.items[0].window!.end, _ms(18300));
       expect(plan.sendableCount, 4);
@@ -100,9 +101,7 @@ void main() {
     test('stretches that cannot be sent are kept with the reason', () {
       final squeezed = _span(14050, 14250);
       final plan = _batch.plan(
-        _draft(
-          lines: [_line('one', 10000, 14000), _line('two', 14300, 18000)],
-        ),
+        _draft(lines: [_line('one', 10000, 14000), _line('two', 14300, 18000)]),
         [squeezed, _span(30000, 33000)],
       );
       expect(plan.items.first.isSendable, isFalse);
@@ -291,14 +290,11 @@ void main() {
       final metadata = result.document.metadata;
       final candidates =
           metadata[LyricIndexedReviewMetadata.candidatesKey] as List;
-      expect([for (final entry in candidates) (entry as Map)['lineIndex']], [
-        0,
-        2,
-        4,
-      ]);
-      expect(metadata[LyricIndexedReviewMetadata.secondaryOnlyIndicesKey], [
-        4,
-      ]);
+      expect(
+        [for (final entry in candidates) (entry as Map)['lineIndex']],
+        [0, 2, 4],
+      );
+      expect(metadata[LyricIndexedReviewMetadata.secondaryOnlyIndicesKey], [4]);
       for (final entry in candidates) {
         final map = entry as Map;
         final line = result.document.lines[map['lineIndex'] as int];
@@ -324,9 +320,10 @@ void main() {
       final candidates =
           result.document.metadata[LyricIndexedReviewMetadata.candidatesKey]
               as List;
-      expect([for (final entry in candidates) (entry as Map)['lineIndex']], [
-        2,
-      ]);
+      expect(
+        [for (final entry in candidates) (entry as Map)['lineIndex']],
+        [2],
+      );
     });
   });
 
@@ -397,8 +394,14 @@ void main() {
 
   group('helpers', () {
     test('the other engine', () {
-      expect(lyricOtherSpanEngine(LyricSpanEngine.qwen), LyricSpanEngine.whisper);
-      expect(lyricOtherSpanEngine(LyricSpanEngine.whisper), LyricSpanEngine.qwen);
+      expect(
+        lyricOtherSpanEngine(LyricSpanEngine.qwen),
+        LyricSpanEngine.whisper,
+      );
+      expect(
+        lyricOtherSpanEngine(LyricSpanEngine.whisper),
+        LyricSpanEngine.qwen,
+      );
     });
 
     test('recognised rows move onto the document timeline', () {

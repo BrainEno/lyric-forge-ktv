@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-04 09:30] Share one catalog card and cover ([entry](log/entries/2026-12-04-0930-share-one-catalog-card-and-cover.md))
 - [2026-12-03 09:30] Read tappable cards and rows as one button ([entry](log/entries/2026-12-03-0930-read-tappable-cards-as-one-button.md))
 - [2026-12-02 11:00] Give editor rows one spoken label, name the remaining tap targets ([entry](log/entries/2026-12-02-1100-give-editor-rows-one-spoken-label.md))
 - [2026-12-02 09:30] Move the recognition settings flows out, pass the editor groups to the panes ([entry](log/entries/2026-12-02-0930-move-the-recognition-settings-flows-out.md))
