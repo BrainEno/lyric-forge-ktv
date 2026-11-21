@@ -79,7 +79,9 @@ class _Adapter implements TranscriptionService {
       await gate.future;
     }
     final index = requests.length - 1;
-    final answer = index < answers.length ? answers[index] : const <LyricLine>[];
+    final answer = index < answers.length
+        ? answers[index]
+        : const <LyricLine>[];
     if (answer is Exception) throw answer;
     return TranscriptionResult(
       lyrics: LyricDocument(language: 'zh', lines: answer as List<LyricLine>),
@@ -212,10 +214,12 @@ void main() {
 
   test('other adapters are created once and disposed at the end', () async {
     final harness = _Harness();
-    await harness.build(shareQwen: false).fill(
-      _draft(const [_gap, _later]),
-      _request(const [LyricSpanEngine.qwen, LyricSpanEngine.whisper]),
-    );
+    await harness
+        .build(shareQwen: false)
+        .fill(
+          _draft(const [_gap, _later]),
+          _request(const [LyricSpanEngine.qwen, LyricSpanEngine.whisper]),
+        );
     expect(harness.qwenCreated, 1);
     expect(harness.whisperCreated, 1);
     // Both engines heard nothing in both stretches.
@@ -385,10 +389,10 @@ void main() {
       final progress = <TranscriptionProgress>[];
       await _Harness().build().fill(
         _draft(const [_gap]),
-        _request(
-          const [LyricSpanEngine.qwen, LyricSpanEngine.whisper],
-          onProgress: progress.add,
-        ),
+        _request(const [
+          LyricSpanEngine.qwen,
+          LyricSpanEngine.whisper,
+        ], onProgress: progress.add),
       );
       expect(progress.map((p) => p.message), [
         '正在补全漏句 1/1：0:07.7–0:11.3（Qwen3-ASR）',

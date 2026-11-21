@@ -130,7 +130,10 @@ void main() {
     final transcription =
         fixture.repository.project.metadata['transcription'] as Map;
     expect((transcription['vocalCheck'] as Map)['skipReason'], 'notVocalInput');
-    expect((transcription['vocalGapFill'] as Map)['skipReason'], 'noVocalCheck');
+    expect(
+      (transcription['vocalGapFill'] as Map)['skipReason'],
+      'noVocalCheck',
+    );
     expect(
       fixture.repository.project.lyricDocument?.lines.single.text,
       'ASR draft',

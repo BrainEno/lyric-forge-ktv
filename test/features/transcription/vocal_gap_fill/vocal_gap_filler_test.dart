@@ -103,7 +103,12 @@ void main() {
 
     test('a stretch cut short by the end of the song', () async {
       final draft = _draft(
-        const [LyricVocalCheckSpan(Duration(seconds: 30), Duration(milliseconds: 30100))],
+        const [
+          LyricVocalCheckSpan(
+            Duration(seconds: 30),
+            Duration(milliseconds: 30100),
+          ),
+        ],
         lines: [_row('前', 0, 4000)],
       );
       final recognizer = _Recognizer({});
@@ -124,7 +129,9 @@ void main() {
 
     test('a stretch longer than a window allows', () async {
       final draft = _draft(
-        const [LyricVocalCheckSpan(Duration(seconds: 30), Duration(minutes: 3))],
+        const [
+          LyricVocalCheckSpan(Duration(seconds: 30), Duration(minutes: 3)),
+        ],
         lines: [_row('前', 0, 4000)],
       );
       final recognizer = _Recognizer({});
@@ -199,33 +206,36 @@ void main() {
       expect(check.openSpans(result.document), isEmpty);
     });
 
-    test('falls back to the other engine when the first hears nothing', () async {
-      final recognizer = _Recognizer({
-        LyricSpanEngine.qwen: [const <LyricLine>[]],
-        LyricSpanEngine.whisper: [
-          [_row('换引擎听到的', 8200, 10500)],
-        ],
-      });
-      final result = await filler.fill(
-        _draft(const [gap]),
-        engines: const [LyricSpanEngine.qwen, LyricSpanEngine.whisper],
-        recognize: recognizer.call,
-      );
-      expect(recognizer.calls.map((call) => call.engine), [
-        LyricSpanEngine.qwen,
-        LyricSpanEngine.whisper,
-      ]);
-      expect(result.document.lines[1].text, '换引擎听到的');
-      expect(result.report.fallbackSpans, 1);
-      expect(result.report.spans.single.fellBack, isTrue);
-      expect(result.report.spans.single.engine, LyricSpanEngine.whisper);
-      expect(
-        LyricVocalGapFillRecord.fromMetadata(
-          result.document.metadata,
-        )!.fallbackSpans,
-        1,
-      );
-    });
+    test(
+      'falls back to the other engine when the first hears nothing',
+      () async {
+        final recognizer = _Recognizer({
+          LyricSpanEngine.qwen: [const <LyricLine>[]],
+          LyricSpanEngine.whisper: [
+            [_row('换引擎听到的', 8200, 10500)],
+          ],
+        });
+        final result = await filler.fill(
+          _draft(const [gap]),
+          engines: const [LyricSpanEngine.qwen, LyricSpanEngine.whisper],
+          recognize: recognizer.call,
+        );
+        expect(recognizer.calls.map((call) => call.engine), [
+          LyricSpanEngine.qwen,
+          LyricSpanEngine.whisper,
+        ]);
+        expect(result.document.lines[1].text, '换引擎听到的');
+        expect(result.report.fallbackSpans, 1);
+        expect(result.report.spans.single.fellBack, isTrue);
+        expect(result.report.spans.single.engine, LyricSpanEngine.whisper);
+        expect(
+          LyricVocalGapFillRecord.fromMetadata(
+            result.document.metadata,
+          )!.fallbackSpans,
+          1,
+        );
+      },
+    );
 
     test('falls back when the first engine fails', () async {
       final recognizer = _Recognizer({
@@ -243,29 +253,32 @@ void main() {
       expect(result.report.spans.single.fellBack, isTrue);
     });
 
-    test('a result that only falls outside the window counts as empty', () async {
-      final recognizer = _Recognizer({
-        LyricSpanEngine.qwen: [
-          [_row('窗外', 12000, 13000)],
-        ],
-        LyricSpanEngine.whisper: [const <LyricLine>[]],
-      });
-      final result = await filler.fill(
-        _draft(const [gap]),
-        engines: const [LyricSpanEngine.qwen, LyricSpanEngine.whisper],
-        recognize: recognizer.call,
-      );
-      expect(recognizer.calls, hasLength(2));
-      expect(result.report.spans.single.outcome, VocalGapFillOutcome.empty);
-      expect(result.document.lines, hasLength(2));
-      expect(
-        result.document.metadata.containsKey(
-          LyricVocalGapFillRecord.metadataKey,
-        ),
-        isFalse,
-      );
-      expect(result.report.summary, '自动补全漏句没有识别出新歌词，1 处没有识别出文字');
-    });
+    test(
+      'a result that only falls outside the window counts as empty',
+      () async {
+        final recognizer = _Recognizer({
+          LyricSpanEngine.qwen: [
+            [_row('窗外', 12000, 13000)],
+          ],
+          LyricSpanEngine.whisper: [const <LyricLine>[]],
+        });
+        final result = await filler.fill(
+          _draft(const [gap]),
+          engines: const [LyricSpanEngine.qwen, LyricSpanEngine.whisper],
+          recognize: recognizer.call,
+        );
+        expect(recognizer.calls, hasLength(2));
+        expect(result.report.spans.single.outcome, VocalGapFillOutcome.empty);
+        expect(result.document.lines, hasLength(2));
+        expect(
+          result.document.metadata.containsKey(
+            LyricVocalGapFillRecord.metadataKey,
+          ),
+          isFalse,
+        );
+        expect(result.report.summary, '自动补全漏句没有识别出新歌词，1 处没有识别出文字');
+      },
+    );
 
     test('every engine failing reports the last error', () async {
       final recognizer = _Recognizer({
@@ -323,22 +336,25 @@ void main() {
       expect(result.report.insertedLines, 2);
     });
 
-    test('moves rows onto the document timeline by the global offset', () async {
-      final recognizer = _Recognizer({
-        LyricSpanEngine.qwen: [
-          [_row('偏移', 8600, 11000)],
-        ],
-      });
-      final result = await filler.fill(
-        _draft(const [gap], globalOffset: _ms(500)),
-        engines: const [LyricSpanEngine.qwen],
-        recognize: recognizer.call,
-      );
-      // The window is asked for on the audio's timeline...
-      expect(recognizer.calls.single.start, _ms(8200));
-      // ...and the row comes back on the document's.
-      expect(result.document.lines[1].startTime, _ms(8100));
-    });
+    test(
+      'moves rows onto the document timeline by the global offset',
+      () async {
+        final recognizer = _Recognizer({
+          LyricSpanEngine.qwen: [
+            [_row('偏移', 8600, 11000)],
+          ],
+        });
+        final result = await filler.fill(
+          _draft(const [gap], globalOffset: _ms(500)),
+          engines: const [LyricSpanEngine.qwen],
+          recognize: recognizer.call,
+        );
+        // The window is asked for on the audio's timeline...
+        expect(recognizer.calls.single.start, _ms(8200));
+        // ...and the row comes back on the document's.
+        expect(result.document.lines[1].startTime, _ms(8100));
+      },
+    );
 
     test('the same engine is listed once', () async {
       final recognizer = _Recognizer({

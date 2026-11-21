@@ -171,9 +171,7 @@ class LocalTranscriptionVocalGapFill implements TranscriptionVocalGapFill {
           ),
         );
         _checkCancelled();
-        return [
-          for (final line in result.lyrics.lines) shiftLine(line, start),
-        ];
+        return [for (final line in result.lyrics.lines) shiftLine(line, start)];
       } finally {
         _active = null;
       }

@@ -94,7 +94,10 @@ void main() {
 
     test('copyWith keeps the choice unless asked', () {
       final off = base.copyWith(vocalGapFill: VocalGapFillPreference.off);
-      expect(off.copyWith(language: 'ja').vocalGapFill, VocalGapFillPreference.off);
+      expect(
+        off.copyWith(language: 'ja').vocalGapFill,
+        VocalGapFillPreference.off,
+      );
     });
   });
 
@@ -103,7 +106,11 @@ void main() {
       final report = VocalGapFillReport.applied(
         engines: const [LyricSpanEngine.qwen, LyricSpanEngine.whisper],
         spans: [
-          _span(VocalGapFillOutcome.filled, inserted: 2, engine: LyricSpanEngine.qwen),
+          _span(
+            VocalGapFillOutcome.filled,
+            inserted: 2,
+            engine: LyricSpanEngine.qwen,
+          ),
           _span(
             VocalGapFillOutcome.filled,
             inserted: 1,
@@ -124,10 +131,7 @@ void main() {
       expect(report.unattemptedSpans, 3);
       expect(report.fallbackSpans, 1);
       expect(report.insertedLines, 3);
-      expect(
-        report.summary,
-        '已自动补上 2 处漏句（3 行），1 处没有识别出文字，1 处识别失败，3 处未识别',
-      );
+      expect(report.summary, '已自动补上 2 处漏句（3 行），1 处没有识别出文字，1 处识别失败，3 处未识别');
 
       final json = report.toJson();
       expect(json['applied'], isTrue);

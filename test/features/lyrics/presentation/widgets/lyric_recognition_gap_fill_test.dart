@@ -212,7 +212,10 @@ void main() {
             record: const LyricVocalGapFillRecord(
               insertedLineIds: ['auto-1'],
               filledSpans: [
-                LyricVocalCheckSpan(Duration(seconds: 20), Duration(seconds: 24)),
+                LyricVocalCheckSpan(
+                  Duration(seconds: 20),
+                  Duration(seconds: 24),
+                ),
               ],
             ),
           ),
@@ -256,7 +259,10 @@ void main() {
     ) async {
       await pump(tester, _document());
       expect(find.textContaining('自动补句', findRichText: true), findsOneWidget);
-      expect(find.textContaining('2/2 行待听', findRichText: true), findsOneWidget);
+      expect(
+        find.textContaining('2/2 行待听', findRichText: true),
+        findsOneWidget,
+      );
       expect(find.textContaining('列入待复核'), findsNothing);
 
       await tester.tap(

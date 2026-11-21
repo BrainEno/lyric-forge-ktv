@@ -319,7 +319,9 @@ class VocalGapFiller {
     );
     final ids = [for (final line in inserted) ?line.id];
     return VocalGapFillResult(
-      document.copyWith(metadata: report.record(ids).writeTo(document.metadata)),
+      document.copyWith(
+        metadata: report.record(ids).writeTo(document.metadata),
+      ),
       report,
     );
   }
@@ -331,7 +333,8 @@ class VocalGapFiller {
   ) {
     final count = inserted
         .where(
-          (line) => line.startTime >= window.start && line.startTime < window.end,
+          (line) =>
+              line.startTime >= window.start && line.startTime < window.end,
         )
         .length;
     return VocalGapFillSpanReport(
