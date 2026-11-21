@@ -13,7 +13,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
-import '../../../../core/widgets/app_brand_mark.dart';
 import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../../core/widgets/app_song_row.dart';
 import '../../../../core/widgets/app_tap_target.dart';
@@ -432,8 +431,6 @@ class _HomeHeader extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Row(
       children: [
-        const AppBrandMark(size: 22, semanticLabel: ''),
-        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

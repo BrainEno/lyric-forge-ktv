@@ -17,12 +17,14 @@ TranscriptionQueueItem _item(
   String id,
   TranscriptionQueueItemStatus status, {
   double progress = 0,
+  String message = '',
 }) => TranscriptionQueueItem(
   id: id,
   sourcePath: '/music/$id.mp3',
   projectName: '歌曲 $id',
   status: status,
   progress: progress,
+  message: message,
   createdAt: DateTime(2026),
   updatedAt: DateTime(2026),
 );
@@ -83,6 +85,32 @@ void main() {
       );
     });
 
+    test('the running song says its step and percent (D-049)', () {
+      expect(
+        GlobalTranscriptionQueueBar.focusDetail(
+          _item(
+            'a',
+            TranscriptionQueueItemStatus.running,
+            progress: 0.47,
+            message: '第 3/6 步 · 识别歌词：Qwen3-ASR 识别中',
+          ),
+        ),
+        '47% · 第 3/6 步 · 识别歌词：Qwen3-ASR 识别中',
+      );
+      expect(
+        GlobalTranscriptionQueueBar.focusDetail(
+          _item('a', TranscriptionQueueItemStatus.running, progress: 0.1),
+        ),
+        '10%',
+      );
+      expect(
+        GlobalTranscriptionQueueBar.focusDetail(
+          _item('a', TranscriptionQueueItemStatus.queued, message: '排队中'),
+        ),
+        isNull,
+      );
+    });
+
     test('progress is a clamped percentage', () {
       expect(GlobalTranscriptionQueueBar.progressValue(0.333), '33%');
       expect(GlobalTranscriptionQueueBar.progressValue(1.2), '100%');
@@ -113,6 +141,7 @@ void main() {
       final routes = <String>[];
       await _pump(tester, queue, routes);
 
+      expect(find.byKey(const ValueKey('queue_bar_detail')), findsOneWidget);
       const label = '正在后台解析，歌曲 b，已完成 1 / 4 首';
       expect(find.bySemanticsLabel(label), findsOneWidget);
       // The pieces are not separate stops.

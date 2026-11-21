@@ -15,6 +15,7 @@ import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../transcription/domain/models/transcription_degradation.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
+import '../../../transcription/domain/models/transcription_run_progress.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/project_transcription_workflow.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
@@ -23,6 +24,7 @@ import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../widgets/project_detail_columns.dart';
 import '../widgets/production_steps.dart';
+import '../widgets/recognition_progress_card.dart';
 import '../widgets/project_audio_sources_section.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
@@ -47,7 +49,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   late Future<ProjectManifest?> _projectFuture;
 
   StreamSubscription<TranscriptionProgress>? _progressSubscription;
-  TranscriptionProgress? _liveProgress;
+
+  /// The recognition in progress on this page (D-049), null otherwise.
+  TranscriptionRunTracker? _runTracker;
   bool _isTranscribing = false;
   bool _isImportingStem = false;
   bool _importingVocal = false;
@@ -75,8 +79,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     _progressSubscription = _transcriptionWorkflow.progressStream.listen((
       progress,
     ) {
-      if (!mounted) return;
-      setState(() => _liveProgress = progress);
+      final tracker = _runTracker;
+      if (!mounted || tracker == null) return;
+      setState(() => tracker.record(progress, DateTime.now()));
     });
   }
 
@@ -170,51 +175,78 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       }
     }
 
+    final tracker = TranscriptionRunTracker(startedAt: DateTime.now());
     setState(() {
       _isTranscribing = true;
-      _liveProgress = const TranscriptionProgress(
-        stage: TranscriptionStage.validating,
-        progress: 0.0,
-        message: '准备本地歌词识别',
-      );
+      _runTracker = tracker;
     });
 
     try {
       await _transcriptionWorkflow.transcribeProject(project.id);
       await _refreshProject();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('歌词草稿已生成，请进入编辑器校对')));
+        // The way to the next step is on the message itself (D-049).
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              TranscriptionRunText.finished(tracker.elapsed(DateTime.now())),
+            ),
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              label: '去校对',
+              // The message can outlive this page; it then does nothing.
+              onPressed: () {
+                if (mounted) _openLyricEditor(project);
+              },
+            ),
+          ),
+        );
       }
     } on TranscriptionException catch (error) {
       if (mounted) {
+        final cancelled = error.kind == TranscriptionFailureKind.cancelled;
+        // Stopping is the user's choice, not an error: no red, no retry.
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error.toString()),
-            backgroundColor: AppColors.error,
-          ),
+          cancelled
+              ? const SnackBar(content: Text(TranscriptionRunText.cancelled))
+              : _failureSnackBar(error.toString(), project.id),
         );
       }
       await _refreshProject();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('歌词识别失败：$error'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(_failureSnackBar('歌词识别失败：$error', project.id));
       }
       await _refreshProject();
     } finally {
       if (mounted) {
         setState(() {
           _isTranscribing = false;
-          _liveProgress = null;
+          _runTracker = null;
         });
       }
     }
+  }
+
+  SnackBar _failureSnackBar(String message, String projectId) {
+    return SnackBar(
+      content: Text(message),
+      backgroundColor: AppColors.error,
+      duration: const Duration(seconds: 10),
+      action: SnackBarAction(
+        label: '重试',
+        onPressed: () => _retryTranscription(projectId),
+      ),
+    );
+  }
+
+  /// Starts again from the latest copy of the project.
+  Future<void> _retryTranscription(String projectId) async {
+    final latest = await _repository.getProjectById(projectId);
+    if (!mounted || latest == null) return;
+    await _startTranscription(latest);
   }
 
   Future<void> _importStem(
@@ -304,7 +336,32 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     }
   }
 
+  /// Asks before minutes of recognition are thrown away (D-049).
   Future<void> _cancelTranscription() async {
+    final tracker = _runTracker;
+    if (tracker != null) {
+      final spent = tracker.elapsed(DateTime.now());
+      final stop = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('停止识别？'),
+          content: Text(TranscriptionRunText.cancelConfirmation(spent)),
+          actions: [
+            TextButton(
+              key: const ValueKey('recognition_keep_running'),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('继续识别'),
+            ),
+            FilledButton(
+              key: const ValueKey('recognition_confirm_stop'),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('停止识别'),
+            ),
+          ],
+        ),
+      );
+      if (stop != true || !mounted || !_isTranscribing) return;
+    }
     await _transcriptionWorkflow.cancel();
   }
 
@@ -333,7 +390,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             isTranscribing: _isTranscribing,
             isImportingStem: _isImportingStem,
             isImportingVocal: _importingVocal,
-            liveProgress: _liveProgress,
+            runTracker: _runTracker,
             audioSourcesExpanded: _audioSourcesExpanded,
             onAudioSourcesExpandedChanged: (value) =>
                 setState(() => _audioSourcesExpanded = value),
@@ -382,7 +439,7 @@ class _ProjectDetailContent extends StatelessWidget {
   final bool isTranscribing;
   final bool isImportingStem;
   final bool isImportingVocal;
-  final TranscriptionProgress? liveProgress;
+  final TranscriptionRunTracker? runTracker;
   final bool audioSourcesExpanded;
   final ValueChanged<bool> onAudioSourcesExpandedChanged;
   final VoidCallback onImportAccompaniment;
@@ -399,7 +456,7 @@ class _ProjectDetailContent extends StatelessWidget {
     required this.isTranscribing,
     required this.isImportingStem,
     required this.isImportingVocal,
-    required this.liveProgress,
+    required this.runTracker,
     required this.audioSourcesExpanded,
     required this.onAudioSourcesExpandedChanged,
     required this.onImportAccompaniment,
@@ -470,13 +527,16 @@ class _ProjectDetailContent extends StatelessWidget {
                         main: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _ProcessingProgress(
-                              stage: project.currentStage,
-                              progress: project.progressPercent,
-                              liveProgress: isTranscribing
-                                  ? liveProgress
-                                  : null,
-                            ),
+                            if (isTranscribing && runTracker != null)
+                              RecognitionProgressCard(
+                                tracker: runTracker!,
+                                onCancel: onCancelTranscription,
+                              )
+                            else
+                              _ProcessingProgress(
+                                stage: project.currentStage,
+                                progress: project.progressPercent,
+                              ),
                             const SizedBox(height: AppSpacing.md),
                             _LyricStatusCard(project: project),
                           ],
@@ -694,20 +754,13 @@ class _MiniPill extends StatelessWidget {
 class _ProcessingProgress extends StatelessWidget {
   final ProcessingStage stage;
   final double progress;
-  final TranscriptionProgress? liveProgress;
 
-  const _ProcessingProgress({
-    required this.stage,
-    required this.progress,
-    this.liveProgress,
-  });
+  const _ProcessingProgress({required this.stage, required this.progress});
 
   @override
   Widget build(BuildContext context) {
-    final displayProgress = (liveProgress?.progress ?? progress)
-        .clamp(0.0, 1.0)
-        .toDouble();
-    final displayLabel = liveProgress?.message ?? _stageLabel(stage);
+    final displayProgress = progress.clamp(0.0, 1.0).toDouble();
+    final displayLabel = _stageLabel(stage);
     return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -755,10 +808,7 @@ class _ProcessingProgress extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           ProductionSteps(
-            steps: productionStepsFor(
-              stage,
-              transcribing: liveProgress != null,
-            ),
+            steps: productionStepsFor(stage, transcribing: false),
           ),
         ],
       ),

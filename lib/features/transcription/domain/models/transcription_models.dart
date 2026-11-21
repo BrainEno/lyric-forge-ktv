@@ -345,14 +345,70 @@ class TranscriptionRequest {
 
 class TranscriptionProgress {
   final TranscriptionStage stage;
+
+  /// Progress of the step that reported it, from 0 to 1. Each step of a
+  /// project run (separation, recognition, gap filling) starts again at 0.
   final double progress;
   final String message;
+
+  /// The step of a whole project run this event belongs to; set by the
+  /// project workflow, null for a bare engine (D-049).
+  final TranscriptionRunStep? step;
+
+  /// Progress of the whole project run, from 0 to 1, never going back;
+  /// set by the project workflow together with [step].
+  final double? overall;
 
   const TranscriptionProgress({
     required this.stage,
     required this.progress,
     required this.message,
+    this.step,
+    this.overall,
   });
+
+  /// This event as part of [step] of a project run at [overall].
+  TranscriptionProgress inRun(TranscriptionRunStep step, double overall) {
+    return TranscriptionProgress(
+      stage: stage,
+      progress: progress,
+      message: message,
+      step: step,
+      overall: overall,
+    );
+  }
+
+  /// [overall] when a project workflow set it, otherwise [progress].
+  double get displayFraction =>
+      (overall ?? progress).clamp(0.0, 1.0).toDouble();
+}
+
+/// The steps of recognising a project, in order (D-049).
+///
+/// The engines report their own progress, each from 0 to 100%; shown one
+/// after another, the bar ran backwards between separation, recognition and
+/// gap filling and sat still for minutes while a model ran. The project
+/// workflow names the step each event belongs to and turns it into the
+/// progress of the whole run.
+enum TranscriptionRunStep {
+  /// Checking the environment, reading the project, backing up lyrics.
+  preparing,
+
+  /// Separating the lead vocal (D-043), including a first-time download of
+  /// the separator.
+  separating,
+
+  /// Recognising the song with one or both engines and aligning the words.
+  recognizing,
+
+  /// Checking the draft against the vocal stem (D-044).
+  checking,
+
+  /// Recognising the stretches of singing without a row (D-047).
+  fillingGaps,
+
+  /// Writing the draft into the project.
+  saving,
 }
 
 class TranscriptionResult {

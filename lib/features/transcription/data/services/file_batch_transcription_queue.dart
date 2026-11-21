@@ -10,6 +10,7 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/models/transcription_run_progress.dart';
 import '../../domain/models/transcription_queue_models.dart';
 import '../../domain/services/batch_transcription_queue.dart';
 import '../../domain/services/project_transcription_workflow.dart';
@@ -369,8 +370,8 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
         final currentItem = _items[currentIndex];
         if (currentItem.status != TranscriptionQueueItemStatus.running) return;
         _items[currentIndex] = currentItem.copyWith(
-          progress: progress.progress,
-          message: progress.message,
+          progress: progress.displayFraction,
+          message: queueProgressMessage(progress),
           updatedAt: DateTime.now(),
         );
         _emit();
@@ -535,4 +536,13 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
     await _persist();
     await _controller.close();
   }
+}
+
+/// What a running queue item says for [progress]: the step of the run in
+/// front of the engine's message, so a long step still reads as progress
+/// (D-049). An event without a step is shown as it is.
+String queueProgressMessage(TranscriptionProgress progress) {
+  final step = progress.step;
+  if (step == null) return progress.message;
+  return TranscriptionRunText.stepLine(step, progress.message);
 }

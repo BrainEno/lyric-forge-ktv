@@ -8,7 +8,6 @@ import 'package:lyric_forge_ktv/core/navigation/mobile_destinations.dart';
 import 'package:lyric_forge_ktv/core/navigation/routes.dart';
 import 'package:lyric_forge_ktv/core/theme/app_theme.dart';
 import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
-import 'package:lyric_forge_ktv/core/widgets/app_brand_mark.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_tap_pulse.dart';
 
 double scaleOf(WidgetTester tester, IconData icon) {
@@ -61,65 +60,27 @@ void main() {
     expect(find.text('内容'), findsOneWidget);
   });
 
-  testWidgets('侧边栏顶部是应用图标的品牌标记', (tester) async {
-    await pumpAt(tester, buildShell(), const Size(1400, 900));
-
-    expect(
-      find.descendant(
-        of: find.byType(NavigationRail),
-        matching: find.byType(AppBrandMark),
-      ),
-      findsOneWidget,
-    );
-    expect(find.byIcon(Icons.graphic_eq_rounded), findsNothing);
-    expect(find.byTooltip('Elysium Player'), findsOneWidget);
-  });
-
+  // D-049: the embedded brand mark was removed at the user's request; the
+  // rail starts with its destinations, a little below the window's top.
   for (final width in [1400.0, 1000.0]) {
     final mode = width >= 1200 ? '展开' : '收起';
-    testWidgets('$mode的侧边栏里品牌标记和导航图标在同一列', (tester) async {
+    testWidgets('$mode的侧边栏顶部不再有品牌标记', (tester) async {
       await pumpAt(tester, buildShell(), Size(width, 900));
 
-      final mark = tester.getCenter(find.byType(AppBrandMark));
-      // Routes.home selects 工程; 设置 shows its unselected icon.
-      final icon = tester.getCenter(find.byIcon(AppDestination.settings.icon));
-      expect(mark.dx, moreOrLessEquals(icon.dx, epsilon: 0.5));
-      expect(
-        mark.dx,
-        moreOrLessEquals(AppNavigationRail.collapsedWidth / 2, epsilon: 0.5),
+      expect(find.byTooltip('Elysium Player'), findsNothing);
+      expect(find.byIcon(Icons.graphic_eq_rounded), findsNothing);
+      final first = tester.getTopLeft(
+        find.byIcon(AppDestination.projects.selectedIcon),
       );
-      // Above the destinations, not beside them.
-      expect(
-        tester.getBottomLeft(find.byType(AppBrandMark)).dy,
-        lessThan(
-          tester
-              .getTopLeft(find.byIcon(AppDestination.projects.selectedIcon))
-              .dy,
-        ),
-      );
+      expect(first.dy, greaterThanOrEqualTo(AppNavigationRail.topInset));
+      expect(first.dy, lessThan(200));
     });
   }
 
-  testWidgets('侧边栏品牌标记只在有侧边栏的窗口里算可见', (tester) async {
-    final answers = <bool>[];
-    Widget probe() => MaterialApp(
-      home: Builder(
-        builder: (context) {
-          answers.add(AppNavigationRailBrand.visibleIn(context));
-          return const SizedBox();
-        },
-      ),
-    );
-    await pumpAt(tester, probe(), const Size(1400, 900));
-    await pumpAt(tester, probe(), const Size(390, 844));
-    expect(answers.first, isTrue);
-    expect(answers.last, isFalse);
-  });
-
-  testWidgets('窄屏底部导航不带品牌标记', (tester) async {
+  testWidgets('窄屏底部导航也没有品牌标记', (tester) async {
     await pumpAt(tester, buildShell(), const Size(390, 844));
 
-    expect(find.byType(AppBrandMark), findsNothing);
+    expect(find.byTooltip('Elysium Player'), findsNothing);
   });
 
   testWidgets('窄屏用底部导航，四个去向都在', (tester) async {

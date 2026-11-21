@@ -12,6 +12,7 @@ import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/local_project_transcription_workflow.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_run_progress.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/vocal_separation_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_resource_coordinator.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_runtime_manager.dart';
@@ -87,7 +88,18 @@ void main() {
     expect(fixture.separator.lastWorkDirectory, endsWith('stems'));
     expect(fixture.separator.sawTranscribingStatus, isTrue);
     expect(progress.map((p) => p.message), contains('正在分离人声 50%'));
-    expect(progress.last.message, '已自动分离人声（GPU，40 秒）');
+    expect(progress.map((p) => p.message), contains('已自动分离人声（GPU，40 秒）'));
+    // D-049: separation is its own step of the run, before recognition.
+    final half = progress.firstWhere((p) => p.message == '正在分离人声 50%');
+    expect(half.step, TranscriptionRunStep.separating);
+    expect(
+      half.overall,
+      closeTo(
+        TranscriptionRunPlan.overallAt(TranscriptionRunStep.separating, 0.5),
+        1e-9,
+      ),
+    );
+    expect(progress.last.step, TranscriptionRunStep.saving);
   });
 
   test('a failed separation recognises the mix and says why', () async {
@@ -186,13 +198,20 @@ void main() {
       );
     });
 
-    test('the progress stream is the recognition stream itself', () async {
+    test('without a separator the run never reports separating', () async {
       final fixture = await _Fixture.create();
       final workflow = fixture.workflow(withSeparator: false);
+      final progress = <TranscriptionProgress>[];
+      final subscription = workflow.progressStream.listen(progress.add);
+      addTearDown(subscription.cancel);
+
+      await workflow.transcribeProject('p');
+
       expect(
-        identical(workflow.progressStream, fixture.service.progressStream),
-        isTrue,
+        progress.map((p) => p.step),
+        isNot(contains(TranscriptionRunStep.separating)),
       );
+      expect(progress.map((p) => p.message), contains('正在启动识别引擎'));
     });
   });
 

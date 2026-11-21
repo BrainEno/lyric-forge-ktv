@@ -291,7 +291,8 @@ class AsrStorageSettingsCard extends StatelessWidget {
     return SettingsSectionCard(
       icon: Icons.folder_rounded,
       title: '模型与存储',
-      subtitle: '识别本机已有的模型，或把托管环境迁移到空间更大的磁盘。',
+      // The separator moved into the same folder (D-049).
+      subtitle: '识别、对齐和人声分离的模型都放在下面这一个文件夹里；可识别本机已有的模型，或整体迁移到空间更大的磁盘。',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

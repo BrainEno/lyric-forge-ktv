@@ -16,6 +16,7 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_degradation.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/models/transcription_run_progress.dart';
 import '../../domain/models/vocal_gap_fill_models.dart';
 import '../../domain/models/vocal_separation_models.dart';
 import '../../domain/services/asr_resource_coordinator.dart';
@@ -36,6 +37,7 @@ enum _WorkflowPhase {
   preparing,
   separating,
   recognizing,
+  checking,
   fillingGaps,
   committing,
 }
@@ -81,6 +83,10 @@ class LocalProjectTranscriptionWorkflow
   final StreamController<TranscriptionProgress> _stepProgress =
       StreamController<TranscriptionProgress>.broadcast(sync: true);
 
+  /// Turns the steps' own 0–100% into one forward-only progress of the run
+  /// (D-049).
+  final TranscriptionRunMeter _meter = TranscriptionRunMeter();
+
   LocalProjectTranscriptionWorkflow({
     required ProjectRepository projectRepository,
     required TranscriptionService transcriptionService,
@@ -110,18 +116,19 @@ class LocalProjectTranscriptionWorkflow
        _vocalCheck = vocalCheck,
        _vocalGapFill = vocalGapFill;
 
-  /// Recognition progress, preceded by separation progress when a separator
-  /// is configured and followed by gap-filling progress when that step is.
+  /// The run's progress: its own steps (preparing, separation, the vocal
+  /// check, gap filling, saving) around recognition's events, each tagged
+  /// with its [TranscriptionRunStep] and the forward-only progress of the
+  /// whole run (D-049).
   @override
   Stream<TranscriptionProgress> get progressStream {
-    if (_vocalSeparator == null && _vocalGapFill == null) {
-      return _transcriptionService.progressStream;
-    }
     return Stream<TranscriptionProgress>.multi((controller) {
+      void forward(TranscriptionProgress event) =>
+          controller.addSync(_meter.tag(event, _runStep));
       final subscriptions = [
-        _stepProgress.stream.listen(controller.addSync),
+        _stepProgress.stream.listen(forward),
         _transcriptionService.progressStream.listen(
-          controller.addSync,
+          forward,
           onError: controller.addErrorSync,
         ),
       ];
@@ -133,6 +140,29 @@ class LocalProjectTranscriptionWorkflow
   @override
   bool get isRunning => _phase != _WorkflowPhase.idle;
 
+  /// The step of the run the current phase belongs to.
+  TranscriptionRunStep get _runStep => switch (_phase) {
+    _WorkflowPhase.idle ||
+    _WorkflowPhase.preparing => TranscriptionRunStep.preparing,
+    _WorkflowPhase.separating => TranscriptionRunStep.separating,
+    _WorkflowPhase.recognizing => TranscriptionRunStep.recognizing,
+    _WorkflowPhase.checking => TranscriptionRunStep.checking,
+    _WorkflowPhase.fillingGaps => TranscriptionRunStep.fillingGaps,
+    _WorkflowPhase.committing => TranscriptionRunStep.saving,
+  };
+
+  /// Says what the run is doing at the start of a step that reports nothing
+  /// of its own for a while.
+  void _announce(
+    String message, {
+    double progress = 0,
+    TranscriptionStage stage = TranscriptionStage.validating,
+  }) {
+    _stepProgress.add(
+      TranscriptionProgress(stage: stage, progress: progress, message: message),
+    );
+  }
+
   @override
   Future<void> transcribeProject(String projectId) async {
     if (isRunning) throw const TranscriptionException.busy('已有歌词识别任务正在运行');
@@ -142,9 +172,11 @@ class LocalProjectTranscriptionWorkflow
     }
     _phase = _WorkflowPhase.preparing;
     _cancelRequested = false;
+    _meter.start();
     try {
       await _transcribeProject(projectId);
     } finally {
+      _meter.finish();
       try {
         final pendingCancel = _pendingCancel;
         if (pendingCancel != null) await pendingCancel;
@@ -158,6 +190,7 @@ class LocalProjectTranscriptionWorkflow
   }
 
   Future<void> _transcribeProject(String projectId) async {
+    _announce('正在检查本机识别环境');
     final project = await _projectRepository.getProjectById(projectId);
     _checkCancelled();
     if (project == null) {
@@ -223,6 +256,7 @@ class LocalProjectTranscriptionWorkflow
               runtimeConfig.vocalSeparation != VocalSeparationPreference.off),
     );
     _checkCancelled();
+    _announce('正在读取工程并备份现有歌词', progress: 0.6);
     final outputDirectory = await _outputDirectory(project);
     _checkCancelled();
     await _backupExistingLyrics(project, outputDirectory);
@@ -283,6 +317,7 @@ class LocalProjectTranscriptionWorkflow
         );
       }
       _phase = _WorkflowPhase.recognizing;
+      _announce('正在启动识别引擎', stage: TranscriptionStage.loadingModel);
       final result = await _transcriptionService.transcribe(
         TranscriptionRequest(
           inputAudioPath: inputPath,
@@ -293,6 +328,10 @@ class LocalProjectTranscriptionWorkflow
       );
 
       _checkCancelled();
+      if (_vocalCheck != null) {
+        _phase = _WorkflowPhase.checking;
+        _announce('正在对照人声音轨检查歌词草稿', stage: TranscriptionStage.parsing);
+      }
       final checked = await _checkAgainstVocal(
         result,
         inputPath: inputPath,
@@ -312,6 +351,7 @@ class LocalProjectTranscriptionWorkflow
       _checkCancelled();
       // From here a project write may commit; do not report cancellation.
       _phase = _WorkflowPhase.committing;
+      _announce('正在保存歌词草稿', stage: TranscriptionStage.parsing);
       final draft = gapFill?.document ?? checked?.document ?? result.lyrics;
       final recognizedLyrics = draft.copyWith(
         metadata: {
@@ -415,6 +455,7 @@ class LocalProjectTranscriptionWorkflow
         playbackSession: _playbackSession,
         pathCanonicalizer: _pathCanonicalizer,
       );
+      _announce('歌词草稿已保存', progress: 1, stage: TranscriptionStage.completed);
     } on ProjectUpdateConflictException {
       await _finishUncommittedRun(project, runId);
       throw const TranscriptionException.input('识别期间工程发生变化，未覆盖最新歌词；请刷新后重试。');
