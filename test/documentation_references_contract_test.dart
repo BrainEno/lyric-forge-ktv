@@ -43,10 +43,7 @@ void main() {
           contains('On Windows x64, lyric recognition first separates'),
         );
         expect(readme, contains('Other platforms cannot separate yet'));
-        expect(
-          readme,
-          contains("becomes the project's KTV accompaniment"),
-        );
+        expect(readme, contains("becomes the project's KTV accompaniment"));
         expect(readme, isNot(contains('does not yet offer a separated')));
         expect(readme, contains('import an existing accompaniment file'));
         expect(readme, contains('an existing vocal stem'));
