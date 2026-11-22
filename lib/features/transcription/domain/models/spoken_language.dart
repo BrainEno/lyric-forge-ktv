@@ -301,9 +301,8 @@ class SpokenLanguagePolicy {
       offset < scored.length && probes.length < maxProbes;
       offset += windowsPerProbe
     ) {
-      final picked =
-          scored.skip(offset).take(windowsPerProbe).toList()
-            ..sort((a, b) => a.index.compareTo(b.index));
+      final picked = scored.skip(offset).take(windowsPerProbe).toList()
+        ..sort((a, b) => a.index.compareTo(b.index));
       probes.add([
         for (final entry in picked)
           SpokenLanguageWindow(

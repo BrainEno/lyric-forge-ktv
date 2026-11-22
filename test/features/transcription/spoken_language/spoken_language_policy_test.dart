@@ -38,7 +38,10 @@ VocalActivityProfile _profile(
   thresholdDb: -40,
   regions: [
     for (final span in sung)
-      LyricVocalCheckSpan(Duration(seconds: span.$1), Duration(seconds: span.$2)),
+      LyricVocalCheckSpan(
+        Duration(seconds: span.$1),
+        Duration(seconds: span.$2),
+      ),
   ],
   unreliability: reliable ? null : VocalActivityUnreliability.silent,
 );
@@ -176,7 +179,9 @@ void main() {
       final resolution = _policy.decide(
         probes: const [],
         songInfoLanguage: 'ja',
-        windows: const [SpokenLanguageWindow(Duration.zero, Duration(seconds: 10))],
+        windows: const [
+          SpokenLanguageWindow(Duration.zero, Duration(seconds: 10)),
+        ],
         error: 'whisper missing',
       );
       expect(resolution.language, 'ja');

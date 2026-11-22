@@ -21,13 +21,14 @@ jobs:
         if: always()
         run: |
           flutter analyze --no-pub --no-fatal-infos lib test tool > analyze.txt 2>&1 || true
-          grep -E 'error •|warning •|info •' analyze.txt > problems.txt || true
+          grep -E 'error •|warning •' analyze.txt > problems.txt || true
           wc -l problems.txt
       - name: tests
         if: always()
         run: |
-          flutter test --no-pub test/features/transcription/spoken_language test/features/transcription/vocal_gap_fill/workflow_vocal_gap_fill_test.dart test/architecture > tests.txt 2>&1 || true
-          grep -E '\[E\]|Expected|Actual|Error|error:|Some tests failed|All tests passed' tests.txt | head -60 > testfail.txt || true
+          flutter test --no-pub --reporter expanded test/features/transcription test/architecture > tests.txt 2>&1 || true
+          grep -E '\[E\]|Expected:|Actual:|Which:|error:|Some tests failed|All tests passed|^\S+\.dart:[0-9]+' tests.txt | head -60 > testfail.txt || true
+          tail -1 tests.txt >> testfail.txt
           tail -3 tests.txt
       - name: emit
         if: always()
