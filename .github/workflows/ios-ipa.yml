@@ -1,0 +1,134 @@
+name: iOS IPA (unsigned)
+
+# Builds an unsigned release IPA for sideloading (Sideloadly / AltStore /
+# re-signing with your own certificate). The build itself needs no secrets.
+#
+# Optional hand-off to cloud storage without putting a credential in this
+# public repository: the `deliver` job generates a throwaway RSA key on its
+# runner, prints only the public key, and waits for an encrypted upload URL
+# committed as `.github/ios-upload/<run_id>.enc`. The private key never
+# leaves the runner, so the URL is readable only by this job.
+
+on:
+  workflow_dispatch:
+    inputs:
+      deliver:
+        description: Wait for an encrypted upload URL after the build
+        type: boolean
+        default: false
+  push:
+    branches: ['arena/**']
+    paths:
+      - '.github/workflows/ios-ipa.yml'
+      - '.github/ios-build-request'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    outputs:
+      ipa_name: ${{ steps.package.outputs.ipa_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          flutter --version
+      - run: flutter pub get --enforce-lockfile
+      - name: Build iOS release (no code signing)
+        run: flutter build ios --release --no-codesign
+      - name: Package IPA
+        id: package
+        run: |
+          set -euo pipefail
+          short_sha="$(git rev-parse --short HEAD)"
+          version="$(sed -nE 's/^version:[[:space:]]*([^[:space:]]+).*/\1/p' pubspec.yaml)"
+          name="LyricForge-${version%%+*}-${short_sha}-unsigned.ipa"
+          rm -rf Payload && mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload "$name"
+          size="$(stat -f %z "$name")"
+          md5="$(md5 -q "$name")"
+          echo "ipa_name=$name" >> "$GITHUB_OUTPUT"
+          echo "::notice title=ipa::$name size=$size md5=$md5"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: ${{ steps.package.outputs.ipa_name }}
+          retention-days: 7
+          if-no-files-found: error
+
+  deliver:
+    needs: build
+    if: github.event_name == 'push' || inputs.deliver
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Generate a throwaway key
+        run: |
+          set -euo pipefail
+          umask 077
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out "$RUNNER_TEMP/key.pem" 2>/dev/null
+          pub="$(openssl pkey -in "$RUNNER_TEMP/key.pem" -pubout | base64 -w0)"
+          echo "::notice title=pubkey::$pub"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios-ipa
+      - name: Wait for the encrypted upload URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          path=".github/ios-upload/${GITHUB_RUN_ID}.enc"
+          for _ in $(seq 1 135); do
+            if gh api "repos/${GITHUB_REPOSITORY}/contents/${path}?ref=${GITHUB_REF_NAME}" \
+                 --jq .content 2>/dev/null | base64 -d > "$RUNNER_TEMP/request.json" \
+               && [ -s "$RUNNER_TEMP/request.json" ]; then
+              echo "found ${path}"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::no upload URL arrived; the IPA is still available as the ios-ipa artifact"
+          exit 1
+      - name: Decrypt and upload
+        env:
+          IPA: ${{ needs.build.outputs.ipa_name }}
+        run: |
+          set -euo pipefail
+          umask 077
+          jq -r .k "$RUNNER_TEMP/request.json" | base64 -d > "$RUNNER_TEMP/k.bin"
+          jq -r .d "$RUNNER_TEMP/request.json" | base64 -d > "$RUNNER_TEMP/d.bin"
+          openssl pkeyutl -decrypt -inkey "$RUNNER_TEMP/key.pem" \
+            -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 \
+            -in "$RUNNER_TEMP/k.bin" -out "$RUNNER_TEMP/pass.txt"
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+            -pass "file:$RUNNER_TEMP/pass.txt" \
+            -in "$RUNNER_TEMP/d.bin" -out "$RUNNER_TEMP/url.txt"
+          url="$(tr -d '\r\n' < "$RUNNER_TEMP/url.txt")"
+          echo "::add-mask::$url"
+          size="$(stat -c %s "$IPA")"
+          status="$(curl -sS -o "$RUNNER_TEMP/response.json" -D "$RUNNER_TEMP/headers.txt" \
+            -w '%{http_code}' -X PUT \
+            -H "X-Goog-Upload-Command: upload, finalize" \
+            -H "X-Goog-Upload-Offset: 0" \
+            -H "Content-Type: application/octet-stream" \
+            -H "Content-Length: ${size}" \
+            --data-binary "@${IPA}" "$url")"
+          upload_status="$(grep -i '^x-goog-upload-status:' "$RUNNER_TEMP/headers.txt" | tr -d '\r' | awk '{print $2}' || true)"
+          echo "http=${status} upload-status=${upload_status}"
+          if [ "$upload_status" != "final" ] && [ "${status}" != "200" ] && [ "${status}" != "201" ]; then
+            head -c 2000 "$RUNNER_TEMP/response.json" || true
+            echo "::error::upload failed (http ${status})"
+            exit 1
+          fi
+          file_id="$(jq -r '.id // empty' "$RUNNER_TEMP/response.json" 2>/dev/null || true)"
+          echo "::notice title=uploaded::http=${status} size=${size} id=${file_id}"
