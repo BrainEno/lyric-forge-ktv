@@ -71,14 +71,25 @@ jobs:
     if: github.event_name == 'push' || inputs.deliver
     runs-on: ubuntu-latest
     timeout-minutes: 50
+    permissions:
+      contents: read
+      # Only to publish the public key while the job waits: logs and
+      # annotations are not readable until a job finishes.
+      checks: write
     steps:
       - name: Generate a throwaway key
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           umask 077
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out "$RUNNER_TEMP/key.pem" 2>/dev/null
           pub="$(openssl pkey -in "$RUNNER_TEMP/key.pem" -pubout | base64 -w0)"
-          echo "::notice title=pubkey::$pub"
+          jq -n --arg sha "$GITHUB_SHA" --arg pub "$pub" --arg run "$GITHUB_RUN_ID" '{
+            name: "ios-ipa-pubkey", head_sha: $sha, status: "completed",
+            conclusion: "neutral",
+            output: {title: ("run " + $run), summary: $pub}
+          }' | gh api "repos/${GITHUB_REPOSITORY}/check-runs" --input - --jq .id
       - uses: actions/download-artifact@v4
         with:
           name: ios-ipa
