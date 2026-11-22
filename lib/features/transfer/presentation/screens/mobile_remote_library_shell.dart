@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/navigation/app_navigation_shell.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../transfer_screen_dependencies.dart';
 import 'mobile_download_manager_screen.dart';
@@ -45,6 +46,8 @@ class _MobileRemoteLibraryShellState extends State<MobileRemoteLibraryShell> {
       backgroundColor: AppColors.bgBase,
       body: _pageForIndex(),
       bottomNavigationBar: NavigationBar(
+        // As low as the app's own tab bar (D-058).
+        height: AppMobileBottomNavigation.barHeight,
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() => _index = value),
         destinations: const <NavigationDestination>[

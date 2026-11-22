@@ -61,6 +61,7 @@ void main() {
     pick: (_) async => files,
     importDirectory: () async => library,
     cleanUpPickerFiles: () async => cleanUps++,
+    clock: () => DateTime(2026, 11, 18, 14, 6),
     supportsVideo: supportsVideo,
   );
 
@@ -103,6 +104,28 @@ void main() {
     final result = await service([song]).importMedia(MediaImportSource.files);
 
     expect(result.importedPaths, ['${library.path}/晴天 (2).mp3']);
+  });
+
+  test('a photo-library video with a made-up name gets a dated name', () async {
+    final video = await pickedFile(
+      'image_20312602-F017-4D87-A99C-F527F145A697_1795329754.mov',
+    );
+    final result = await service([
+      video,
+    ]).importMedia(MediaImportSource.photoLibrary);
+
+    expect(result.importedPaths, [
+      '${library.path}/导入的视频 2026-11-18 14.06.m4a',
+    ]);
+  });
+
+  test('an audio file with a made-up name gets a dated name', () async {
+    final song = await pickedFile('20312602-F017-4D87-A99C-F527F145A697.m4a');
+    final result = await service([song]).importMedia(MediaImportSource.files);
+
+    expect(result.importedPaths, [
+      '${library.path}/导入的音频 2026-11-18 14.06.m4a',
+    ]);
   });
 
   test('a video is turned into an m4a next to the songs', () async {

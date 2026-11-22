@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/layout/app_capabilities.dart';
 import 'package:lyric_forge_ktv/features/lyrics/data/services/local_lyric_file_import_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
@@ -95,6 +96,11 @@ Future<_Projects> _showPlayer(
 }
 
 void main() {
+  // Flutter tests report Android; this is the desktop's project player, with
+  // its lyric editor (D-058).
+  setUp(() => AppCapabilities.debugLyricWorkbenchOverride = true);
+  tearDown(() => AppCapabilities.debugLyricWorkbenchOverride = null);
+
   testWidgets('untimed lyrics are static reference text without KTV', (
     tester,
   ) async {

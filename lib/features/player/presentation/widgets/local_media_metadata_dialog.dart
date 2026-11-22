@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -11,13 +10,17 @@ import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_button_spinner.dart';
 import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
+import '../../../project/domain/repositories/project_repository.dart';
+import '../../domain/services/media_file_names.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../../domain/services/song_info_update.dart';
 
 Future<void> showLocalMediaMetadataDialog(
   BuildContext context,
   PlaybackItem item, {
   required LocalMediaMetadataRepository repository,
   required PlaybackSessionService session,
+  ProjectRepository? projectRepository,
 }) {
   return showDialog<void>(
     context: context,
@@ -26,6 +29,7 @@ Future<void> showLocalMediaMetadataDialog(
       item: item,
       repository: repository,
       session: session,
+      projectRepository: projectRepository,
     ),
   );
 }
@@ -38,11 +42,16 @@ class LocalMediaMetadataDialog extends StatefulWidget {
   final LocalMediaMetadataRepository repository;
   final PlaybackSessionService session;
 
+  /// Renames the song's lyric project with it, so the lyrics player shows
+  /// the new name (D-059); null leaves projects alone.
+  final ProjectRepository? projectRepository;
+
   const LocalMediaMetadataDialog({
     super.key,
     required this.item,
     required this.repository,
     required this.session,
+    this.projectRepository,
   });
 
   @override
@@ -158,6 +167,9 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
         }
       }
 
+      // Lyrics may have been linked while the dialog was open (or the copy
+      // read when it opened was partial): the newest record's link wins.
+      final latest = await _latestStored();
       final metadata = LocalMediaMetadata(
         sourcePath: widget.item.audioAsset.originalPath,
         title: title,
@@ -167,24 +179,18 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
         updatedAt: DateTime.now(),
         metadata: {
           ...?_stored?.metadata,
+          ...?latest?.metadata,
           'titleStorage': 'utf-8-user-override',
         },
       );
       final saved = await _repository.save(metadata);
 
-      final fallbackTitle = _fileTitle(widget.item.audioAsset.originalPath);
-      await _session.updateItem(
-        widget.item.copyWith(
-          title: saved.resolvedTitle(fallbackTitle),
-          artist: saved.artist,
-          artworkPath: saved.resolvedArtwork(
-            widget.item.audioAsset.thumbnailPath,
-          ),
-          clearArtist: saved.artist == null,
-          clearArtwork:
-              saved.artworkPath == null &&
-              widget.item.audioAsset.thumbnailPath == null,
-        ),
+      await applySongInfoUpdate(
+        saved: saved,
+        fallbackTitle: songTitleFromPath(widget.item.audioAsset.originalPath),
+        session: _session,
+        projectRepository: widget.projectRepository,
+        now: saved.updatedAt,
       );
 
       if (!mounted) return;
@@ -203,10 +209,12 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
     return trimmed.isEmpty ? null : trimmed;
   }
 
-  String _fileTitle(String path) {
-    final name = path.split(Platform.pathSeparator).last;
-    final dot = name.lastIndexOf('.');
-    return dot <= 0 ? name : name.substring(0, dot);
+  Future<LocalMediaMetadata?> _latestStored() async {
+    try {
+      return await _repository.getForAudio(widget.item.audioAsset.originalPath);
+    } on Object {
+      return _stored;
+    }
   }
 
   @override

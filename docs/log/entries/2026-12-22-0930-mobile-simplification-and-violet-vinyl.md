@@ -1,0 +1,18 @@
+# [2026-12-22 09:30] Mobile simplification and violet vinyl
+
+- Scope: round 37, the phone UI after the user's IPA screenshot (D-058):
+  - Bottom bar: the phone chrome strips the top inset from the tab bar and the mini player (NavigationBar padded for the 47pt status bar), and the tab bar is 64 high instead of 80; the remote library's bar matches.
+  - Colour: the vinyl brass and warm browns become an orchid violet (#D4A5FF dark, #6A1FB0 light) on violet-tinted surfaces; tokens renamed `vinylBrass*` -> `vinylAccent*`; palette tests now require the violet near, but not equal to, the lavender accent and far from warning.
+  - `AppCapabilities.lyricWorkbench`: phones hide recognition, projects and the lyric editor. New `MobileLyricsScreen` (songs without lyrics first, add via online / LRC-TXT file / pasted text, transfer entry); the router sends `/dashboard`, `/import`, `/review` there and project/editor routes to the project player; settings drop AI 识别 and the trial run; quick play drops its recognition footer; the player drops 校对歌词 and 工程详情; reference lyrics stop offering 打轴; re-importing lyrics on a phone replaces them; timed files open in the player.
+  - Lyric file picking is unfiltered on phones and checked by extension afterwards.
+  - Picker-made file names (UUIDs, long numbers) become dated names on import and show as 未命名歌曲 in the library; the home hero only blurs a real cover.
+- Files:
+  - New: `lib/core/layout/app_capabilities.dart`, `lib/features/player/domain/services/media_file_names.dart`, `lib/features/player/presentation/screens/mobile_lyrics_screen.dart`, `lib/features/player/presentation/widgets/lyric_file_picker.dart`.
+  - Changed: `lib/app/{app_chrome,app_router}.dart`, `lib/core/navigation/{app_navigation_shell,mobile_destinations}.dart`, `lib/core/theme/{app_palette,app_theme,color_tokens}.dart`, `lib/core/widgets/{app_song_row,app_vinyl_disc}.dart`, `lib/features/lyrics/presentation/screens/review_inbox_screen.dart`, `lib/features/player/data/services/local_media_import_service.dart`, `lib/features/player/presentation/screens/{listen_home_screen,local_library_explorer_screen,player_screen,quick_play_screen}.dart`, `lib/features/player/presentation/widgets/{local_song_lyrics_import_action,mobile_global_player_bar,now_playing_lyrics_project_action,paste_lyrics_dialog,reference_lyrics_view,song_lyrics_acquisition}.dart`, `lib/features/settings/presentation/{screens/settings_screen,widgets/appearance_settings_card}.dart`, `lib/features/transfer/presentation/screens/{mobile_download_manager_screen,mobile_remote_library_shell,mobile_remote_music_library_screen}.dart`.
+  - Tests: `test/core/layout/app_capabilities_test.dart`, `test/architecture/mobile_workbench_contract_test.dart`, `test/features/player/domain/services/media_file_names_test.dart`, `test/features/player/presentation/screens/mobile_lyrics_screen_test.dart`, `test/features/player/presentation/widgets/mobile_lyrics_helpers_test.dart`, `test/app/app_chrome_test.dart`, `test/features/player/data/services/local_media_import_service_test.dart`, `test/architecture/app_assembly_contract_test.dart`, `test/core/theme/*`, `test/core/widgets/{app_song_row,app_vinyl_disc}_test.dart`, `test/features/settings/presentation/widgets/appearance_settings_card_test.dart`.
+  - `docs/decisions.md` (D-058), `docs/handoff.md`.
+- Validation:
+  - No Dart SDK in the sandbox: format, analyze and tests => PR's Flutter Quality Gate.
+- Notes:
+  - Flutter tests report Android, so `AppCapabilities.lyricWorkbench` is false under test by default; desktop-only widget tests (the project player's editor entries) set `AppCapabilities.debugLyricWorkbenchOverride = true`.
+- Commit: `Simplify the phone UI and turn the vinyl colour violet`

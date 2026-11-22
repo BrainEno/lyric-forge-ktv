@@ -692,7 +692,7 @@ class _RemoteTrackTile extends StatelessWidget {
         if (localEntry != null)
           AppSongRowBadge(
             icon: Icons.offline_pin_rounded,
-            color: AppColors.vinylBrass,
+            color: AppColors.vinylAccent,
           ),
         if (track.hasLyrics) const AppSongRowBadge(icon: Icons.lyrics_rounded),
       ],

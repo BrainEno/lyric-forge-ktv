@@ -85,6 +85,8 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
       item,
       repository: widget.dependencies.metadataRepository,
       session: widget.dependencies.playbackSession,
+      projectRepository:
+          widget.dependencies.lyricsImport.lyricsResolver.projectRepository,
     );
   }
 

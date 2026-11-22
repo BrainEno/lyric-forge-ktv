@@ -126,38 +126,39 @@ abstract class AppColors {
   // used white for them, which outshone the filled buttons beside them.
   static Color get borderStrong => _palette.borderStrong;
 
-  // Vinyl: the warm, record-sleeve palette of the phone's listening surfaces
-  // (decision D-041). Brass marks what is playing — the spinning record's
-  // label ring, the rhythm bars, the playing row's title — and the warm
-  // browns tint the surfaces around it. They are decoration and "now
-  // playing" only: lavender stays the colour of selection and primary
-  // actions, and amber `warning` keeps meaning "needs attention".
+  // Vinyl: the record-sleeve palette of the phone's listening surfaces
+  // (decision D-041). An orchid violet marks what is playing — the spinning
+  // record's label ring, the rhythm bars, the progress line, the play
+  // button, the playing row's title — and faint violet tints the surfaces
+  // around it. It was brass on warm browns until D-058, which the user found
+  // drab; the violet sits in the family of the lavender accent instead of
+  // against it, and amber `warning` keeps meaning "needs attention".
   // test/core/theme/vinyl_palette_test.dart pins the contrast numbers.
-  static Color get vinylBrass => _palette.vinylBrass;
+  static Color get vinylAccent => _palette.vinylAccent;
 
-  // Brass at 16 %: the wash behind the playing row and the glow behind the
+  // The violet at 16 %: the wash behind the playing row and the glow behind the
   // record.
-  static Color get vinylBrassMuted => _palette.vinylBrassMuted;
+  static Color get vinylAccentMuted => _palette.vinylAccentMuted;
 
-  // The play icon and label on a brass fill: the record black on the light
-  // brass of the dark theme, white on the bronze of the light theme.
-  static Color get onVinylBrass => _palette.onVinylBrass;
+  // The play icon and label on a violet fill: the record black on the light
+  // violet of the dark theme, white on the deep violet of the light theme.
+  static Color get onVinylAccent => _palette.onVinylAccent;
 
-  // The record itself: near-black with a warm cast, and the faint light
+  // The record itself: near-black with a cool cast, and the faint light
   // grooves and sheen drawn on it.
-  static const Color vinylDisc = Color(0xFF0E0C0B);
+  static const Color vinylDisc = Color(0xFF0E0C12);
   static const Color vinylGroove = Color(0x14FFFFFF);
-  static const Color vinylSheen = Color(0x2EFFE8C7);
+  static const Color vinylSheen = Color(0x2EF0E6FF);
 
-  // Brass for marks drawn on something dark in every theme — the ring round
-  // the record's label, the rhythm bars over a dimmed cover — so it keeps
-  // the light brass even where text brass turns bronze.
-  static const Color vinylBrassOnDark = Color(0xFFE6B87A);
+  // The violet for marks drawn on something dark in every theme — the ring
+  // round the record's label, the rhythm bars over a dimmed cover — so it
+  // keeps the light violet even where the text violet deepens.
+  static const Color vinylAccentOnDark = Color(0xFFD4A5FF);
 
   // Where the record's radial gradient starts.
   static Color get vinylDiscCenter => _palette.vinylDiscCenter;
 
-  // Warm surfaces: the hero card and the mini player sit on these instead of
+  // Tinted surfaces: the hero card and the mini player sit on these instead of
   // the neutral greys. Secondary text (#B3B3B3) stays above 7:1 on both and
   // tertiary text (#8F8F8F) above 4.5:1.
   static Color get vinylSurface => _palette.vinylSurface;
@@ -187,7 +188,7 @@ abstract class AppColors {
     colors: [bgSurface, bgElevated],
   );
 
-  // The listening home's backdrop: a warm brown (a warm tan in the light
+  // The listening home's backdrop: a deep violet (a pale lilac in the light
   // theme) that fades into the page.
   static LinearGradient get vinylHeroGradient => LinearGradient(
     begin: Alignment.topCenter,
@@ -196,7 +197,7 @@ abstract class AppColors {
     stops: const [0, 0.45, 1],
   );
 
-  // The mobile mini player: warm on the artwork side, neutral at the
+  // The mobile mini player: tinted on the artwork side, neutral at the
   // controls.
   static LinearGradient get vinylBarGradient => LinearGradient(
     begin: Alignment.centerLeft,

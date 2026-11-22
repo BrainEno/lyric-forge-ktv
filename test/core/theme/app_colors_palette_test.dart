@@ -36,9 +36,9 @@ Map<String, Color Function()> get _getters => {
   'borderMuted': () => AppColors.borderMuted,
   'borderStrong': () => AppColors.borderStrong,
   'brandBars': () => AppColors.brandBars,
-  'vinylBrass': () => AppColors.vinylBrass,
-  'vinylBrassMuted': () => AppColors.vinylBrassMuted,
-  'onVinylBrass': () => AppColors.onVinylBrass,
+  'vinylAccent': () => AppColors.vinylAccent,
+  'vinylAccentMuted': () => AppColors.vinylAccentMuted,
+  'onVinylAccent': () => AppColors.onVinylAccent,
   'vinylDiscCenter': () => AppColors.vinylDiscCenter,
   'vinylSurface': () => AppColors.vinylSurface,
   'vinylSurfaceHigh': () => AppColors.vinylSurfaceHigh,
@@ -88,7 +88,7 @@ void main() {
         ]);
       });
 
-      test('the hero backdrop fades from warm into the page', () {
+      test('the hero backdrop fades from violet into the page', () {
         final gradient = AppColors.vinylHeroGradient;
         expect(gradient.colors, [
           variant.palette.vinylHeroTop,
@@ -99,7 +99,7 @@ void main() {
         expect(gradient.begin, Alignment.topCenter);
       });
 
-      test('the mini player runs from warm to the bar colour', () {
+      test('the mini player runs from tinted to the bar colour', () {
         expect(AppColors.vinylBarGradient.colors, [
           variant.palette.vinylSurfaceHigh,
           variant.palette.bgElevated,
@@ -116,15 +116,15 @@ void main() {
         expect(AppColors.pureWhite, const Color(0xFFFFFFFF));
         expect(AppColors.brand, const Color(0xFFF11413));
         expect(AppColors.brandPaper, const Color(0xFFF6F2E8));
-        expect(AppColors.vinylDisc, const Color(0xFF0E0C0B));
+        expect(AppColors.vinylDisc, const Color(0xFF0E0C12));
         expect(AppColors.vinylGroove, const Color(0x14FFFFFF));
-        expect(AppColors.vinylSheen, const Color(0x2EFFE8C7));
-        expect(AppColors.vinylBrassOnDark, const Color(0xFFE6B87A));
+        expect(AppColors.vinylSheen, const Color(0x2EF0E6FF));
+        expect(AppColors.vinylAccentOnDark, const Color(0xFFD4A5FF));
       });
     }
 
-    test('the light brass for dark grounds reads on the record', () {
-      final ring = AppColors.vinylBrassOnDark.computeLuminance();
+    test('the light violet for dark grounds reads on the record', () {
+      final ring = AppColors.vinylAccentOnDark.computeLuminance();
       final record = AppColors.vinylDisc.computeLuminance();
       expect((ring + 0.05) / (record + 0.05), greaterThan(7));
     });

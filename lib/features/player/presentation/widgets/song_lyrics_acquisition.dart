@@ -1,6 +1,6 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_capabilities.dart';
 import '../../../lyrics/domain/online/online_lyric_query.dart';
 import '../../../lyrics/domain/online/song_lyrics_lookup.dart';
 import '../../../lyrics/domain/online/song_tags.dart';
@@ -9,6 +9,7 @@ import '../../../project/domain/models/lyric_timing.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/services/imported_lyrics_project.dart';
+import 'lyric_file_picker.dart';
 import 'lyrics_source_sheet.dart';
 import 'paste_lyrics_dialog.dart';
 import 'song_lyrics_preview_dialog.dart';
@@ -61,15 +62,9 @@ Future<AcquiredSongLyrics?> acquireSongLyrics(
       if (pasted == null) return null;
       return AcquiredSongLyrics(result: pasted, source: pastedLyricsSource);
     case LyricsSourceChoice.file:
-      final picked = await FilePicker.platform.pickFiles(
-        dialogTitle: '导入歌词文件',
-        type: FileType.custom,
-        allowedExtensions: importer.supportedExtensions.toList()..sort(),
-        allowMultiple: false,
-      );
-      final path = picked?.files.single.path;
-      if (path == null || path.isEmpty) return null;
       try {
+        final path = await pickLyricFilePath(importer);
+        if (path == null) return null;
         final result = await importer.importFile(path);
         if (result.document.lines.isEmpty) {
           throw const LyricImportException('文件里没有可用的歌词行');
@@ -116,7 +111,9 @@ Future<List<OnlineLyricQuery>> songLyricsQueries({
 /// The message shown after lyrics were saved for a song.
 String savedSongLyricsMessage(AcquiredSongLyrics lyrics) {
   if (!lyrics.timed) {
-    return '已保存参考歌词（无时间轴）：播放时静态显示、手动滚动；需要同步或 KTV 时再打轴';
+    return AppCapabilities.lyricWorkbench
+        ? '已保存参考歌词（无时间轴）：播放时静态显示、手动滚动；需要同步或 KTV 时再打轴'
+        : '已保存参考歌词（无时间轴）：播放时静态显示、手动滚动';
   }
   final words = lyrics.result.wordTimedRows;
   return words > 0 ? '已保存带时间轴的歌词（$words 行带逐字时间）' : '已保存带时间轴的歌词，可以直接播放或进入 KTV';

@@ -187,7 +187,7 @@ class AppSongRow extends StatelessWidget {
     final titleColor = unavailable
         ? AppColors.textTertiary
         : current
-        ? AppColors.vinylBrass
+        ? AppColors.vinylAccent
         : AppColors.textPrimary;
     // Tertiary text drops under 4.5:1 on the brass wash of the playing row;
     // secondary stays above 6:1 there.
@@ -238,7 +238,7 @@ class AppSongRow extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 3,
-              color: AppColors.vinylBrass,
+              color: AppColors.vinylAccent,
               backgroundColor: AppColors.bgHighlight,
             ),
           ),
@@ -281,7 +281,7 @@ class AppSongRow extends StatelessWidget {
 
     return Material(
       color: current
-          ? AppColors.vinylBrassMuted
+          ? AppColors.vinylAccentMuted
           : card
           ? AppColors.bgElevated
           : Colors.transparent,
@@ -349,7 +349,7 @@ class _SongRowLeading extends StatelessWidget {
       overflow: TextOverflow.visible,
       softWrap: false,
       style: textTheme.labelLarge?.copyWith(
-        color: current ? AppColors.vinylBrass : AppColors.textTertiary,
+        color: current ? AppColors.vinylAccent : AppColors.textTertiary,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
@@ -384,7 +384,7 @@ class _SongRowLeading extends StatelessWidget {
                 child: Center(
                   child: AppRhythmBars(
                     playing: playing,
-                    color: AppColors.vinylBrassOnDark,
+                    color: AppColors.vinylAccentOnDark,
                   ),
                 ),
               ),

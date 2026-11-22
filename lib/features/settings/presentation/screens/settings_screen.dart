@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_capabilities.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -18,6 +19,9 @@ import '../widgets/settings_columns.dart';
 /// not exist (audit SE-01).
 const String settingsIntro = '外观、曲库目录、本地 AI 识别环境，以及出问题时的诊断与试识别。';
 
+/// The same line on a phone, which has no recognition (D-058).
+const String mobileSettingsIntro = '外观、曲库目录，以及出问题时的诊断。';
+
 class SettingsScreen extends StatelessWidget {
   final SettingsScreenDependencies dependencies;
 
@@ -28,6 +32,9 @@ class SettingsScreen extends StatelessWidget {
     final layout = AppResponsive.of(context);
     final libraryFolder = dependencies.libraryFolder;
     final appearance = dependencies.appearance;
+    // A phone cannot run the recognition models (D-058): no AI 识别 group
+    // and no trial recognition.
+    final recognition = AppCapabilities.lyricWorkbench;
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
@@ -53,7 +60,7 @@ class SettingsScreen extends StatelessWidget {
                   // The app bar already says 设置; the page opens with what
                   // it manages instead of repeating the title (audit SE-02).
                   Text(
-                    settingsIntro,
+                    recognition ? settingsIntro : mobileSettingsIntro,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -102,14 +109,16 @@ class SettingsScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: AppSpacing.xl),
                         ],
-                        const SettingsGroupLabel(
-                          key: ValueKey('settings-group:recognition'),
-                          label: 'AI 识别',
-                        ),
-                        AiTranscriptionSettingsSection(
-                          dependencies:
-                              dependencies.asrRuntimeSetupDependencies,
-                        ),
+                        if (recognition) ...[
+                          const SettingsGroupLabel(
+                            key: ValueKey('settings-group:recognition'),
+                            label: 'AI 识别',
+                          ),
+                          AiTranscriptionSettingsSection(
+                            dependencies:
+                                dependencies.asrRuntimeSetupDependencies,
+                          ),
+                        ],
                       ],
                     ),
                     // Diagnostics first: exporting a report is what support
@@ -127,10 +136,12 @@ class SettingsScreen extends StatelessWidget {
                         DiagnosticsSettingsCard(
                           diagnostics: dependencies.diagnostics,
                         ),
-                        const SizedBox(height: AppSpacing.lg),
-                        AsrEndToEndSmokeTestCard(
-                          smokeTestService: dependencies.smokeTestService,
-                        ),
+                        if (recognition) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          AsrEndToEndSmokeTestCard(
+                            smokeTestService: dependencies.smokeTestService,
+                          ),
+                        ],
                       ],
                     ),
                   ),

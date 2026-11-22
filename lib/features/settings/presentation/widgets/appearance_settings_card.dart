@@ -244,7 +244,7 @@ class AppThemePreview extends StatelessWidget {
                         children: [
                           bar(palette.accent, 28, 8),
                           const Spacer(),
-                          bar(palette.vinylBrass, 8, 8),
+                          bar(palette.vinylAccent, 8, 8),
                         ],
                       ),
                     ],

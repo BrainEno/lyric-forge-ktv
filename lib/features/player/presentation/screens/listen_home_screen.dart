@@ -21,6 +21,7 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_state.dart';
+import '../../domain/services/media_file_names.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
@@ -95,13 +96,19 @@ class ListenHomeScreen extends StatefulWidget {
     return [for (final entry in songs) itemFor(entry)];
   }
 
-  /// The title of [entry]: its tag, else its file name without extension.
+  /// Whether [item] has a cover of its own to blur behind the hero.
+  static bool hasCover(PlaybackItem item) {
+    final path = PlaybackArtwork.localPathOf(item);
+    return (path != null && path.trim().isNotEmpty) ||
+        PlaybackArtwork.remoteUriOf(item) != null;
+  }
+
+  /// The title of [entry]: its tag, else its file name without extension,
+  /// and 未命名歌曲 for a name a picker made up (D-058).
   static String titleOf(LocalMediaLibraryEntry entry) {
     final tagged = entry.embeddedTitle?.trim();
     if (tagged != null && tagged.isNotEmpty) return tagged;
-    final name = entry.sourcePath.split(RegExp(r'[\\/]')).last;
-    final dot = name.lastIndexOf('.');
-    return dot > 0 ? name.substring(0, dot) : name;
+    return songTitleFromPath(entry.sourcePath);
   }
 
   /// The queue entry for [entry], keyed the way the library keys its songs
@@ -273,7 +280,10 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
               padding: EdgeInsets.zero,
               children: [
                 AppCoverGlow(
-                  cover: current == null
+                  // Only a real cover is blurred: the grey placeholder of a
+                  // song without one turned the wash into a grey band
+                  // (D-058).
+                  cover: current == null || !ListenHomeScreen.hasCover(current)
                       ? null
                       : PlaybackArtwork(item: current, borderRadius: 0),
                   child: SafeArea(
@@ -517,7 +527,7 @@ class _PlayingHero extends StatelessWidget {
     final audio = dependencies.audioPlayer;
     final subtitle = PlayerBarSemantics.subtitleFor(
       item,
-      projectLabel: '歌词工程',
+      projectLabel: '有歌词',
       remoteLabel: '桌面音乐库',
       localLabel: '本地音乐',
     );
@@ -570,8 +580,8 @@ class _PlayingHero extends StatelessWidget {
                   state: playback,
                   onSeek: session.seek,
                   compact: true,
-                  activeColor: AppColors.vinylBrass,
-                  thumbColor: AppColors.vinylBrass,
+                  activeColor: AppColors.vinylAccent,
+                  thumbColor: AppColors.vinylAccent,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Row(
@@ -808,7 +818,7 @@ class _LyricsNudge extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.lyrics_rounded, color: AppColors.vinylBrass),
+            Icon(Icons.lyrics_rounded, color: AppColors.vinylAccent),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
@@ -823,7 +833,7 @@ class _LyricsNudge extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '导入 LRC 或文本歌词，播放时跟着滚动。',
+                    '联网获取、导入 LRC / TXT 文件或粘贴纯文本歌词。',
                     style: textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -933,7 +943,7 @@ class _LibraryShortcuts extends StatelessWidget {
                         ),
                         child: Icon(
                           shortcut.icon,
-                          color: AppColors.vinylBrass,
+                          color: AppColors.vinylAccent,
                           size: AppSpacing.iconSizeMedium,
                         ),
                       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_capabilities.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -145,8 +146,11 @@ class _PasteLyricsDialogState extends State<PasteLyricsDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '一行一句。纯文本会保存为参考歌词：播放时静态显示、手动滚动，'
-                '之后可以在歌词编辑器里打轴。也可以粘贴 LRC / SRT 等带时间的歌词。',
+                AppCapabilities.lyricWorkbench
+                    ? '一行一句。纯文本会保存为参考歌词：播放时静态显示、手动滚动，'
+                          '之后可以在歌词编辑器里打轴。也可以粘贴 LRC / SRT 等带时间的歌词。'
+                    : '一行一句。纯文本会保存为参考歌词：播放时静态显示、手动滚动。'
+                          '也可以粘贴 LRC / SRT 等带时间的歌词，播放时会跟着滚动。',
                 style: style,
               ),
               const SizedBox(height: AppSpacing.sm),

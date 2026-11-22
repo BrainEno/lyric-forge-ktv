@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_capabilities.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -16,6 +16,7 @@ import '../../domain/services/imported_lyrics_project.dart';
 import '../../domain/services/playback_lyrics_project_linker.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
+import 'lyric_file_picker.dart';
 import 'lyrics_source_sheet.dart';
 import 'song_lyrics_acquisition.dart';
 import 'song_lyrics_preview_dialog.dart';
@@ -65,11 +66,25 @@ Future<void> importLyricsForLocalPlaybackItem(
   }
   if (!context.mounted) return;
   if (resolvedProjectId != null) {
-    await Navigator.pushNamed(
-      context,
-      Routes.lyricEditorPath(resolvedProjectId),
-    );
-    return;
+    if (AppCapabilities.lyricWorkbench) {
+      await Navigator.pushNamed(
+        context,
+        Routes.lyricEditorPath(resolvedProjectId),
+      );
+      return;
+    }
+    // A phone has no lyric editor (D-058): its 导入歌词 on a song with
+    // lyrics replaces them, from the same three sources.
+    try {
+      project = await projectRepository.getProjectById(resolvedProjectId);
+    } on Object {
+      project = null;
+    }
+    if (!context.mounted) return;
+    if (project == null) {
+      await Navigator.pushNamed(context, Routes.playerPath(resolvedProjectId));
+      return;
+    }
   }
 
   final lookup = dependencies.songLyricsLookup;
@@ -142,14 +157,18 @@ Future<void> _importLyricFileForItem(
   ProjectManifest? project,
 ) async {
   final importer = dependencies.importer;
-  final picked = await FilePicker.platform.pickFiles(
-    dialogTitle: '导入歌词文件',
-    type: FileType.custom,
-    allowedExtensions: importer.supportedExtensions.toList()..sort(),
-    allowMultiple: false,
-  );
-  final path = picked?.files.single.path;
-  if (path == null || path.isEmpty || !context.mounted) return;
+  String? path;
+  try {
+    path = await pickLyricFilePath(importer);
+  } on LyricImportException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+    return;
+  }
+  if (path == null || !context.mounted) return;
 
   final importChoice = await _showLyricImportOptionsDialog(
     context,
@@ -183,23 +202,45 @@ Future<void> _importLyricFileForItem(
 
   if (!context.mounted) return;
   final timed = result.document.isTimed;
+  // A phone has no editor (D-058), so timed files open in the player too.
+  final workbench = AppCapabilities.lyricWorkbench;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(
-        !timed
-            ? '文本歌词已作为参考歌词导入：播放时静态显示，需要同步时再去打轴'
-            : result.wordTimedRows > 0
-            ? '歌词已导入（${result.wordTimedRows} 行带逐字时间），可直接校对或播放'
-            : '歌词已导入，可直接校对或播放',
+        importedLyricFileMessage(
+          timed: timed,
+          wordTimedRows: result.wordTimedRows,
+          workbench: workbench,
+        ),
       ),
     ),
   );
   await Navigator.pushNamed(
     context,
-    timed
+    timed && workbench
         ? Routes.lyricEditorPath(savedProject.id)
         : Routes.playerPath(savedProject.id),
   );
+}
+
+/// The note after a lyric file was imported. Untimed text is shown as static
+/// reference lyrics; [workbench] says whether the editor is there to time or
+/// proofread it (not on a phone, D-058).
+@visibleForTesting
+String importedLyricFileMessage({
+  required bool timed,
+  required int wordTimedRows,
+  required bool workbench,
+}) {
+  if (!timed) {
+    return workbench
+        ? '文本歌词已作为参考歌词导入：播放时静态显示，需要同步时再去打轴'
+        : '文本歌词已导入：播放时静态显示，可手动滚动';
+  }
+  final next = workbench ? '可直接校对或播放' : '可直接播放';
+  return wordTimedRows > 0
+      ? '歌词已导入（$wordTimedRows 行带逐字时间），$next'
+      : '歌词已导入，$next';
 }
 
 /// Creates the song's project when needed, stores [result] on it and links

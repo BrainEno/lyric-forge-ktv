@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_capabilities.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../project/domain/models/lyric_document.dart';
@@ -55,9 +56,13 @@ class _NowPlayingLyricsProjectActionState
     super.didUpdateWidget(oldWidget);
     final oldItem = oldWidget.item;
     final nextItem = widget.item;
+    // A renamed song (歌曲信息) is read again too: its lyrics may have been
+    // linked or renamed with it (D-059).
     if (oldItem.id != nextItem.id ||
         oldItem.projectId != nextItem.projectId ||
         oldItem.hasLyrics != nextItem.hasLyrics ||
+        oldItem.title != nextItem.title ||
+        oldItem.artist != nextItem.artist ||
         oldItem.audioAsset.originalPath != nextItem.audioAsset.originalPath ||
         oldWidget.lyricsResolver != widget.lyricsResolver) {
       _lyricsFuture = _resolve();
@@ -100,10 +105,16 @@ class _NowPlayingLyricsProjectActionState
         child: ReferenceLyricsView(
           lines: document.lines,
           sourceLabel: lyricSourceLabel(document.metadata),
-          onOpenEditor: () {
-            Navigator.of(sheetContext).pop();
-            Navigator.pushNamed(context, Routes.lyricEditorPath(projectId));
-          },
+          // A phone has no lyric editor (D-058).
+          onOpenEditor: AppCapabilities.lyricWorkbench
+              ? () {
+                  Navigator.of(sheetContext).pop();
+                  Navigator.pushNamed(
+                    context,
+                    Routes.lyricEditorPath(projectId),
+                  );
+                }
+              : null,
         ),
       ),
     );
@@ -153,7 +164,13 @@ class _NowPlayingLyricsProjectActionState
           icon: Icon(
             localLinkedLyrics ? Icons.fullscreen_rounded : Icons.lyrics_rounded,
           ),
-          label: Text(localLinkedLyrics ? '全屏 KTV' : '打开工程播放器'),
+          label: Text(
+            localLinkedLyrics
+                ? '全屏 KTV'
+                : AppCapabilities.lyricWorkbench
+                ? '打开工程播放器'
+                : '打开歌词播放器',
+          ),
         );
       },
     );

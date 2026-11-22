@@ -24,10 +24,12 @@ import '../../domain/services/audio_library_import_service.dart';
 import '../../domain/services/library_lyrics_auto_linker.dart';
 import '../../domain/services/library_lyrics_pairing.dart';
 import '../../domain/services/local_media_relink_service.dart';
+import '../../domain/services/media_file_names.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_library_semantics.dart';
 import '../widgets/local_media_metadata_dialog.dart';
+import '../widgets/library_explorer_header.dart';
 import '../widgets/library_lyrics_link_text.dart';
 import '../widgets/library_lyrics_unpair_action.dart';
 import '../widgets/local_store_integrity_banner.dart';
@@ -321,9 +323,10 @@ class _LocalLibraryExplorerScreenState
     await _reload(showLoading: false);
   }
 
-  Future<void> _playAll() async {
+  Future<void> _playAll({bool shuffle = false}) async {
     final queue = _visibleSongs.where((item) => item.playable).toList();
     if (queue.isEmpty) return;
+    if (shuffle) queue.shuffle();
     await _session.setQueue(
       queue.map((item) => item.playbackItem).toList(growable: false),
     );
@@ -341,6 +344,8 @@ class _LocalLibraryExplorerScreenState
       song.playbackItem,
       repository: widget.dependencies.metadataRepository,
       session: widget.dependencies.playbackSession,
+      projectRepository:
+          widget.dependencies.lyricsImport.lyricsResolver.projectRepository,
     );
     await _reload(showLoading: false);
   }
@@ -418,74 +423,77 @@ class _LocalLibraryExplorerScreenState
         : _unpair;
 
     final grid = _gridChoice ?? !layout.isCompact;
+    final compactMenu = layout.isCompact
+        ? PopupMenuButton<String>(
+            tooltip: '音乐库操作',
+            onSelected: _working ? null : _handleCompactAppAction,
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'refresh', child: Text('刷新音乐文件夹')),
+              const PopupMenuItem(value: 'tags', child: Text('重新读取音频标签')),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'files',
+                child: Text(
+                  widget.dependencies.mediaImport == null
+                      ? '添加音乐文件'
+                      : '导入音频或视频',
+                ),
+              ),
+              if (_offersFolder)
+                const PopupMenuItem(value: 'folder', child: Text('添加音乐文件夹')),
+            ],
+            icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
+          )
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgBase,
-        title: const Text('音乐库'),
-        actions: [
-          if (layout.isCompact)
-            PopupMenuButton<String>(
-              tooltip: '音乐库操作',
-              onSelected: _working ? null : _handleCompactAppAction,
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'refresh', child: Text('刷新音乐文件夹')),
-                const PopupMenuItem(value: 'tags', child: Text('重新读取音频标签')),
-                const PopupMenuDivider(),
-                PopupMenuItem(
-                  value: 'files',
-                  child: Text(
-                    widget.dependencies.mediaImport == null
-                        ? '添加音乐文件'
-                        : '导入音频或视频',
-                  ),
+      // The phone has the section strip above; its menu sits in the
+      // header's toolbar instead of an app bar of its own (D-059).
+      appBar: layout.isCompact
+          ? null
+          : AppBar(
+              backgroundColor: AppColors.bgBase,
+              title: const Text('音乐库'),
+              actions: [
+                IconButton(
+                  tooltip: '刷新音乐文件夹',
+                  onPressed: _working
+                      ? null
+                      : () => _withWork(
+                          () => _reload(rescan: true, showLoading: false),
+                        ),
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+                IconButton(
+                  tooltip: '重新读取音频标签',
+                  onPressed: _working
+                      ? null
+                      : () => _withWork(
+                          () => _reload(forceTags: true, showLoading: false),
+                        ),
+                  icon: const Icon(Icons.manage_search_rounded),
+                ),
+                IconButton(
+                  tooltip: widget.dependencies.mediaImport == null
+                      ? '添加音乐文件'
+                      : '导入音频或视频',
+                  onPressed: _working ? null : _importMedia,
+                  icon: const Icon(Icons.library_add_rounded),
                 ),
                 if (_offersFolder)
-                  const PopupMenuItem(value: 'folder', child: Text('添加音乐文件夹')),
+                  IconButton(
+                    tooltip: '添加音乐文件夹',
+                    onPressed: _working ? null : _addFolder,
+                    icon: const Icon(Icons.create_new_folder_rounded),
+                  ),
+                const SizedBox(width: AppSpacing.sm),
               ],
-              icon: const Icon(Icons.more_vert_rounded),
-            )
-          else ...[
-            IconButton(
-              tooltip: '刷新音乐文件夹',
-              onPressed: _working
-                  ? null
-                  : () => _withWork(
-                      () => _reload(rescan: true, showLoading: false),
-                    ),
-              icon: const Icon(Icons.refresh_rounded),
             ),
-            IconButton(
-              tooltip: '重新读取音频标签',
-              onPressed: _working
-                  ? null
-                  : () => _withWork(
-                      () => _reload(forceTags: true, showLoading: false),
-                    ),
-              icon: const Icon(Icons.manage_search_rounded),
-            ),
-            IconButton(
-              tooltip: widget.dependencies.mediaImport == null
-                  ? '添加音乐文件'
-                  : '导入音频或视频',
-              onPressed: _working ? null : _importMedia,
-              icon: const Icon(Icons.library_add_rounded),
-            ),
-            if (_offersFolder)
-              IconButton(
-                tooltip: '添加音乐文件夹',
-                onPressed: _working ? null : _addFolder,
-                icon: const Icon(Icons.create_new_folder_rounded),
-              ),
-          ],
-          const SizedBox(width: AppSpacing.sm),
-        ],
-      ),
       body: SafeArea(
         child: Column(
           children: [
-            _ExplorerHeader(
+            LibraryExplorerHeader(
               controller: _searchController,
               query: _query,
               total: _songs.length,
@@ -504,6 +512,10 @@ class _LocalLibraryExplorerScreenState
               onSortMode: (value) => setState(() => _sortMode = value),
               onGrid: (value) => setState(() => _gridChoice = value),
               onPlayAll: playableCount == 0 ? null : _playAll,
+              onShuffle: playableCount < 2
+                  ? null
+                  : () => _playAll(shuffle: true),
+              menu: compactMenu,
               onCleanMissing: missingCount == 0
                   ? null
                   : () => _withWork(() async {
@@ -588,10 +600,14 @@ class _ExplorerSong {
   });
 
   String get fileName => entry.sourcePath.split(Platform.pathSeparator).last;
-  String get fallbackTitle => fileName.replaceAll(
-    RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
-    '',
-  );
+  String get fallbackTitle =>
+      readableMediaName(
+        fileName.replaceAll(
+          RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
+          '',
+        ),
+      ) ??
+      untitledSongTitle;
   String get title =>
       override?.resolvedTitle(
         entry.embeddedTitle?.trim().isNotEmpty == true
@@ -654,220 +670,6 @@ class _ExplorerSong {
     ),
     preferredSource: AudioSourceType.original,
   );
-}
-
-class _ExplorerHeader extends StatelessWidget {
-  final TextEditingController controller;
-  final String query;
-  final int total;
-  final int visible;
-  final int playable;
-  final LocalLibrarySmartView smartView;
-  final LocalLibrarySortMode sortMode;
-  final bool grid;
-  final int Function(LocalLibrarySmartView view) countFor;
-  final ValueChanged<String> onQuery;
-  final VoidCallback onClearQuery;
-  final ValueChanged<LocalLibrarySmartView> onSmartView;
-  final ValueChanged<LocalLibrarySortMode> onSortMode;
-  final ValueChanged<bool> onGrid;
-  final VoidCallback? onPlayAll;
-  final VoidCallback? onCleanMissing;
-
-  const _ExplorerHeader({
-    required this.controller,
-    required this.query,
-    required this.total,
-    required this.visible,
-    required this.playable,
-    required this.smartView,
-    required this.sortMode,
-    required this.grid,
-    required this.countFor,
-    required this.onQuery,
-    required this.onClearQuery,
-    required this.onSmartView,
-    required this.onSortMode,
-    required this.onGrid,
-    required this.onPlayAll,
-    required this.onCleanMissing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final layout = AppResponsive.fromConstraints(constraints);
-        final search = TextField(
-          controller: controller,
-          onChanged: onQuery,
-          decoration: InputDecoration(
-            hintText: layout.isCompact ? '搜索音乐库' : '搜索歌曲、艺人、专辑、流派、文件名或歌单',
-            prefixIcon: const Icon(Icons.search_rounded),
-            suffixIcon: query.isEmpty
-                ? null
-                : IconButton(
-                    tooltip: '清除搜索',
-                    onPressed: onClearQuery,
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-          ),
-        );
-        final controls = Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            DropdownButton<LocalLibrarySortMode>(
-              value: sortMode,
-              onChanged: (value) {
-                if (value != null) onSortMode(value);
-              },
-              items: LocalLibrarySortMode.values
-                  .map(
-                    (value) => DropdownMenuItem(
-                      value: value,
-                      child: Text(_sortLabel(value)),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: true, icon: Icon(Icons.grid_view_rounded)),
-                ButtonSegment(
-                  value: false,
-                  icon: Icon(Icons.view_list_rounded),
-                ),
-              ],
-              selected: {grid},
-              showSelectedIcon: false,
-              onSelectionChanged: (value) => onGrid(value.first),
-            ),
-            FilledButton.tonalIcon(
-              style: FilledButton.styleFrom(
-                minimumSize: Size(
-                  layout.minimumInteractiveExtent,
-                  layout.minimumInteractiveExtent,
-                ),
-              ),
-              onPressed: onPlayAll,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: Text(layout.isCompact ? '播放结果' : '播放当前结果'),
-            ),
-          ],
-        );
-
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            layout.pageGutter,
-            AppSpacing.md,
-            layout.pageGutter,
-            AppSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (layout.isLarge || layout.isExtraLarge)
-                Row(
-                  children: [
-                    Expanded(child: search),
-                    const SizedBox(width: AppSpacing.md),
-                    controls,
-                  ],
-                )
-              else ...[
-                search,
-                const SizedBox(height: AppSpacing.sm),
-                controls,
-              ],
-              const SizedBox(height: AppSpacing.sm),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: LocalLibrarySmartView.values
-                      .where(_showsChip)
-                      .map((view) {
-                        final selected = view == smartView;
-                        final count = countFor(view);
-                        return Padding(
-                          padding: const EdgeInsets.only(right: AppSpacing.xs),
-                          child: FilterChip(
-                            selected: selected,
-                            onSelected: (_) => onSmartView(view),
-                            avatar: Icon(_smartIcon(view), size: 18),
-                            label: Text('${_smartLabel(view)}  $count'),
-                          ),
-                        );
-                      })
-                      .toList(growable: false),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Wrap(
-                spacing: AppSpacing.md,
-                runSpacing: AppSpacing.xs,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(visible == total ? '$total 首歌曲' : '$visible / $total 首'),
-                  Text(
-                    '$playable 首当前可播放',
-                    style: TextStyle(color: AppColors.textTertiary),
-                  ),
-                  if (smartView == LocalLibrarySmartView.recentlyAdded)
-                    Text(
-                      '最近添加 = 过去 30 天',
-                      style: TextStyle(color: AppColors.textTertiary),
-                    ),
-                  if (onCleanMissing != null)
-                    TextButton(
-                      onPressed: onCleanMissing,
-                      child: const Text('清理缺失项'),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// 自动配对 appears once some song got its lyrics that way.
-  bool _showsChip(LocalLibrarySmartView view) =>
-      view != LocalLibrarySmartView.autoPairedLyrics ||
-      view == smartView ||
-      countFor(view) > 0;
-
-  static String _smartLabel(LocalLibrarySmartView view) => switch (view) {
-    LocalLibrarySmartView.all => '全部',
-    LocalLibrarySmartView.recentlyAdded => '最近添加',
-    LocalLibrarySmartView.recentlyPlayed => '最近播放',
-    LocalLibrarySmartView.withLyrics => '有歌词',
-    LocalLibrarySmartView.withoutLyrics => '无歌词',
-    LocalLibrarySmartView.autoPairedLyrics => '自动配对',
-    LocalLibrarySmartView.editedMetadata => '已编辑资料',
-    LocalLibrarySmartView.missingFiles => '文件不可用',
-  };
-
-  static IconData _smartIcon(LocalLibrarySmartView view) => switch (view) {
-    LocalLibrarySmartView.all => Icons.library_music_rounded,
-    LocalLibrarySmartView.recentlyAdded => Icons.fiber_new_rounded,
-    LocalLibrarySmartView.recentlyPlayed => Icons.history_rounded,
-    LocalLibrarySmartView.withLyrics => Icons.lyrics_rounded,
-    LocalLibrarySmartView.withoutLyrics => Icons.lyrics_outlined,
-    LocalLibrarySmartView.autoPairedLyrics => Icons.auto_awesome_rounded,
-    LocalLibrarySmartView.editedMetadata => Icons.edit_note_rounded,
-    LocalLibrarySmartView.missingFiles => Icons.link_off_rounded,
-  };
-
-  static String _sortLabel(LocalLibrarySortMode mode) => switch (mode) {
-    LocalLibrarySortMode.title => '标题 A-Z',
-    LocalLibrarySortMode.artist => '按艺人',
-    LocalLibrarySortMode.album => '按专辑',
-    LocalLibrarySortMode.recentlyAdded => '最近添加',
-    LocalLibrarySortMode.recentlyPlayed => '最近播放',
-  };
 }
 
 class _ExplorerGrid extends StatelessWidget {
@@ -953,7 +755,7 @@ class _ExplorerList extends StatelessWidget {
         vertical: AppSpacing.sm,
       ),
       itemCount: songs.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 2),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
       itemBuilder: (context, index) {
         final song = songs[index];
         final unpair = onUnpair;
