@@ -66,6 +66,45 @@ void main() {
     expect(find.text('专辑内容'), findsOneWidget);
   });
 
+  testWidgets('iPhone 上分区条避开状态栏，分区页不再重复让出状态栏', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+    addTearDown(tester.view.reset);
+    EdgeInsets? sectionPadding;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LocalMusicLibraryShell(
+          sections: [
+            Builder(
+              builder: (context) {
+                sectionPadding = MediaQuery.paddingOf(context);
+                return const Center(child: Text('歌曲内容'));
+              },
+            ),
+            const SizedBox(),
+            const SizedBox(),
+            const SizedBox(),
+            const SizedBox(),
+          ],
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // The chips and the transfer button sit below the status bar.
+    expect(tester.getTopLeft(find.text('歌曲')).dy, greaterThan(47));
+    expect(
+      tester
+          .getTopLeft(find.byKey(LocalMusicLibraryShell.transferButtonKey))
+          .dy,
+      greaterThanOrEqualTo(47),
+    );
+    // The section's own app bar must not pad for it a second time.
+    expect(sectionPadding?.top, 0);
+    expect(sectionPadding?.bottom, 34);
+  });
+
   testWidgets('initialIndex 打开对应分区', (tester) async {
     await pumpAt(tester, const Size(1400, 900), initialIndex: 4);
 

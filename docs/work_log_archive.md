@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-14 09:30] Merge nested ASR runtime copies and clean up leftovers ([entry](log/entries/2026-12-14-0930-merge-nested-asr-runtime-copies.md))
 - [2026-12-13 09:30] Fill missed lines during recognition ([entry](log/entries/2026-12-13-0930-fill-missed-lines-during-recognition.md))
 - [2026-12-12 09:30] Recognise all unsung gaps at once ([entry](log/entries/2026-12-12-0930-recognise-all-unsung-gaps.md))
 - [2026-12-11 09:30] One-click follow-ups of the vocal check ([entry](log/entries/2026-12-11-0930-vocal-check-one-click-follow-ups.md))

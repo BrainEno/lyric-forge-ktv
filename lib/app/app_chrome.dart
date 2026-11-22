@@ -139,11 +139,28 @@ class _ChromeLayout extends StatelessWidget {
     final playerBar = destination == MobileDestination.listen
         ? null
         : _playerBarFor(routeName);
+    final showPlayerBar = showChrome && playerBar != null;
+    final showNavigation = showChrome && destination != null;
+    // Only the lowest piece keeps the home-indicator inset. The pages and the
+    // mini player each pad for it on their own (Scaffold, SafeArea), so with
+    // the tab bar underneath they used to leave an empty band above it and
+    // cut off the bottom of the page on iPhones.
     return Column(
       children: [
-        Expanded(child: chrome.child),
-        if (showChrome && playerBar != null) playerBar,
-        if (showChrome && destination != null)
+        Expanded(
+          child: _withoutBottomInset(
+            context,
+            remove: showPlayerBar || showNavigation,
+            child: chrome.child,
+          ),
+        ),
+        if (showPlayerBar)
+          _withoutBottomInset(
+            context,
+            remove: showNavigation,
+            child: playerBar,
+          ),
+        if (showNavigation)
           AppMobileBottomNavigation(
             key: const ValueKey('app-bottom-navigation'),
             selected: destination,
@@ -152,6 +169,18 @@ class _ChromeLayout extends StatelessWidget {
       ],
     );
   }
+
+  static Widget _withoutBottomInset(
+    BuildContext context, {
+    required bool remove,
+    required Widget child,
+  }) => remove
+      ? MediaQuery.removePadding(
+          context: context,
+          removeBottom: true,
+          child: child,
+        )
+      : child;
 
   Widget _desktop(BuildContext context, String? routeName, bool immersive) {
     final destination = destinationForRoute(routeName);

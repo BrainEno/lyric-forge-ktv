@@ -32,6 +32,7 @@ import '../widgets/library_lyrics_link_text.dart';
 import '../widgets/library_lyrics_unpair_action.dart';
 import '../widgets/local_store_integrity_banner.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
+import '../widgets/media_import_action.dart';
 import '../widgets/now_playing_listener.dart';
 
 class LocalLibraryExplorerScreen extends StatefulWidget {
@@ -283,6 +284,23 @@ class _LocalLibraryExplorerScreenState
     if (paths.isNotEmpty) await _reload(showLoading: false);
   });
 
+  /// 导入音频或视频 on a phone (D-056); desktop adds files in place.
+  Future<void> _importMedia() async {
+    final mediaImport = widget.dependencies.mediaImport;
+    if (mediaImport == null) return _addFiles();
+    await _withWork(() async {
+      final result = await runMediaImport(context, mediaImport);
+      if (result != null && result.importedPaths.isNotEmpty) {
+        await _reload(showLoading: false);
+      }
+    });
+  }
+
+  /// iOS hands out folders only for the moment they are picked, so a phone
+  /// library folder is offered on Android only.
+  bool get _offersFolder =>
+      widget.dependencies.mediaImport == null || Platform.isAndroid;
+
   Future<void> _addFolder() => _withWork(() async {
     final paths = await _importer.pickAudioDirectory();
     if (paths.isNotEmpty) await _reload(showLoading: false);
@@ -381,7 +399,7 @@ class _LocalLibraryExplorerScreenState
         );
         return;
       case 'files':
-        unawaited(_addFiles());
+        unawaited(_importMedia());
         return;
       case 'folder':
         unawaited(_addFolder());
@@ -411,12 +429,20 @@ class _LocalLibraryExplorerScreenState
             PopupMenuButton<String>(
               tooltip: '音乐库操作',
               onSelected: _working ? null : _handleCompactAppAction,
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'refresh', child: Text('刷新音乐文件夹')),
-                PopupMenuItem(value: 'tags', child: Text('重新读取音频标签')),
-                PopupMenuDivider(),
-                PopupMenuItem(value: 'files', child: Text('添加音乐文件')),
-                PopupMenuItem(value: 'folder', child: Text('添加音乐文件夹')),
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'refresh', child: Text('刷新音乐文件夹')),
+                const PopupMenuItem(value: 'tags', child: Text('重新读取音频标签')),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'files',
+                  child: Text(
+                    widget.dependencies.mediaImport == null
+                        ? '添加音乐文件'
+                        : '导入音频或视频',
+                  ),
+                ),
+                if (_offersFolder)
+                  const PopupMenuItem(value: 'folder', child: Text('添加音乐文件夹')),
               ],
               icon: const Icon(Icons.more_vert_rounded),
             )
@@ -440,15 +466,18 @@ class _LocalLibraryExplorerScreenState
               icon: const Icon(Icons.manage_search_rounded),
             ),
             IconButton(
-              tooltip: '添加音乐文件',
-              onPressed: _working ? null : _addFiles,
+              tooltip: widget.dependencies.mediaImport == null
+                  ? '添加音乐文件'
+                  : '导入音频或视频',
+              onPressed: _working ? null : _importMedia,
               icon: const Icon(Icons.library_add_rounded),
             ),
-            IconButton(
-              tooltip: '添加音乐文件夹',
-              onPressed: _working ? null : _addFolder,
-              icon: const Icon(Icons.create_new_folder_rounded),
-            ),
+            if (_offersFolder)
+              IconButton(
+                tooltip: '添加音乐文件夹',
+                onPressed: _working ? null : _addFolder,
+                icon: const Icon(Icons.create_new_folder_rounded),
+              ),
           ],
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -504,7 +533,11 @@ class _LocalLibraryExplorerScreenState
               child: _loading
                   ? const AppLoadingState()
                   : _songs.isEmpty
-                  ? _EmptyLibrary(onFiles: _addFiles, onFolder: _addFolder)
+                  ? _EmptyLibrary(
+                      onFiles: _importMedia,
+                      onFolder: _offersFolder ? _addFolder : null,
+                      importsMedia: widget.dependencies.mediaImport != null,
+                    )
                   : songs.isEmpty
                   ? const _NoResults()
                   : grid
@@ -1184,9 +1217,16 @@ class _NoResults extends StatelessWidget {
 
 class _EmptyLibrary extends StatelessWidget {
   final VoidCallback onFiles;
-  final VoidCallback onFolder;
+  final VoidCallback? onFolder;
 
-  const _EmptyLibrary({required this.onFiles, required this.onFolder});
+  /// The phone's 导入音频或视频 (D-056) leads instead of the folder.
+  final bool importsMedia;
+
+  const _EmptyLibrary({
+    required this.onFiles,
+    required this.onFolder,
+    this.importsMedia = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1195,6 +1235,31 @@ class _EmptyLibrary extends StatelessWidget {
       layout.minimumInteractiveExtent,
       layout.minimumInteractiveExtent,
     );
+    final folder = onFolder;
+    if (importsMedia) {
+      return AppEmptyState(
+        density: AppEmptyStateDensity.hero,
+        icon: Icons.library_music_rounded,
+        title: '建立你的本地音乐库',
+        message: '从“文件”或相册导入歌曲；视频会自动提取声音，保存成较小的音频文件。',
+        actions: [
+          FilledButton.icon(
+            key: const ValueKey('library-import-media'),
+            style: FilledButton.styleFrom(minimumSize: minimumSize),
+            onPressed: onFiles,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('导入音频或视频'),
+          ),
+          if (folder != null)
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(minimumSize: minimumSize),
+              onPressed: folder,
+              icon: const Icon(Icons.folder_rounded),
+              label: const Text('添加音乐文件夹'),
+            ),
+        ],
+      );
+    }
     return AppEmptyState(
       density: AppEmptyStateDensity.hero,
       icon: Icons.library_music_rounded,
@@ -1203,7 +1268,7 @@ class _EmptyLibrary extends StatelessWidget {
       actions: [
         FilledButton.icon(
           style: FilledButton.styleFrom(minimumSize: minimumSize),
-          onPressed: onFolder,
+          onPressed: folder,
           icon: const Icon(Icons.folder_rounded),
           label: const Text('添加音乐文件夹'),
         ),

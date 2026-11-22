@@ -18,6 +18,7 @@ import 'package:lyric_forge_ktv/features/player/domain/repositories/play_history
 import 'package:lyric_forge_ktv/features/player/domain/services/audio_library_import_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/audio_player_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/local_media_relink_service.dart';
+import 'package:lyric_forge_ktv/features/player/domain/services/media_import_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_availability.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/local_library_dependencies.dart';
@@ -228,8 +229,10 @@ void main() {
     late _Library library;
     late _History history;
     late List<String> pushed;
+    MediaImportService? mediaImport;
 
     setUp(() {
+      mediaImport = null;
       session = _Session(const PlaybackSessionState());
       audio = _Audio(_audio());
       library = _Library([
@@ -269,6 +272,7 @@ void main() {
         lyricsResolver: _Resolver(),
         importer: _LyricImporter(),
       ),
+      mediaImport: mediaImport,
     );
 
     Future<void> pumpHome(
@@ -331,6 +335,30 @@ void main() {
         find.byKey(ListenHomeScreen.playAllKey),
       );
       expect(playAll.onPressed, isNull);
+    });
+
+    testWidgets('on a phone, an empty library leads with 导入音频或视频 (D-056)', (
+      tester,
+    ) async {
+      library = _Library([]);
+      history = _History(const []);
+      final importer = _MediaImport(library, '${music.path}/新歌.m4a');
+      mediaImport = importer;
+      await pumpHome(tester);
+
+      expect(heroText('先把歌曲放进音乐库：从“文件”或相册导入音频、视频，或从电脑传过来。'), findsOneWidget);
+      expect(find.byKey(ListenHomeScreen.importKey), findsOneWidget);
+      await tester.tap(find.byKey(ListenHomeScreen.idleImportKey));
+      await tester.pumpAndSettle();
+      expect(find.text('从相册选择视频'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('media-import-source-photos')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(importer.sources, [MediaImportSource.photoLibrary]);
+      expect(find.text('已导入 1 首歌曲（其中 1 个视频已提取为音频）'), findsOneWidget);
+      expect(find.text('离线播放 · 1 首本地歌曲'), findsOneWidget);
     });
 
     testWidgets('播放全部 queues every song there, by title', (tester) async {
@@ -731,4 +759,37 @@ class _Resolver implements PlaybackLyricsResolver {
 class _LyricImporter implements LyricFileImportService {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _MediaImport implements MediaImportService {
+  _MediaImport(this.library, this.path);
+
+  final _Library library;
+  final String path;
+  final sources = <MediaImportSource>[];
+
+  @override
+  bool get supportsPhotoLibrary => true;
+
+  @override
+  bool get supportsVideo => true;
+
+  @override
+  Future<MediaImportResult> importMedia(
+    MediaImportSource source, {
+    void Function(MediaImportProgress progress)? onProgress,
+  }) async {
+    sources.add(source);
+    onProgress?.call(
+      const MediaImportProgress(
+        index: 0,
+        total: 1,
+        name: 'clip.mov',
+        phase: MediaImportPhase.extracting,
+      ),
+    );
+    File(path).writeAsBytesSync(const [0]);
+    library.entries.add(_entry(path, title: '新歌'));
+    return MediaImportResult(importedPaths: [path], extractedFromVideo: 1);
+  }
 }

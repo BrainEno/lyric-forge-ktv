@@ -25,6 +25,7 @@ import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
 import '../widgets/local_store_integrity_banner.dart';
+import '../widgets/media_import_action.dart';
 import '../widgets/now_playing_listener.dart';
 import '../widgets/playback_action_feedback.dart';
 import '../widgets/playback_artwork.dart';
@@ -72,6 +73,8 @@ class ListenHomeScreen extends StatefulWidget {
   static const Key playAllKey = ValueKey('listen-home:play-all');
   static const Key shuffleKey = ValueKey('listen-home:shuffle');
   static const Key lyricsNudgeKey = ValueKey('listen-home:lyrics-nudge');
+  static const Key importKey = ValueKey('listen-home:import');
+  static const Key idleImportKey = ValueKey('listen-home:idle-import');
 
   /// Recent plays shown.
   static const int recentLimit = 6;
@@ -231,6 +234,16 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
     if (mounted) await _load();
   }
 
+  /// 导入音频或视频 (D-056), straight from the home page on a phone.
+  Future<void> _importMedia() async {
+    final mediaImport = widget.dependencies.mediaImport;
+    if (mediaImport == null) return;
+    final result = await runMediaImport(context, mediaImport);
+    if (mounted && result != null && result.importedPaths.isNotEmpty) {
+      await _load();
+    }
+  }
+
   void _openNowPlaying() {
     unawaited(Navigator.pushNamed(context, Routes.nowPlaying));
   }
@@ -278,6 +291,9 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
                             songCount: _availableCount,
                             loading: _loading,
                             onSearch: () => _open(Routes.library),
+                            onImport: widget.dependencies.mediaImport == null
+                                ? null
+                                : _importMedia,
                           ),
                           const SizedBox(height: AppSpacing.lg),
                           KeyedSubtree(
@@ -289,6 +305,10 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
                                     onShuffle: () =>
                                         _playLibrary(shuffle: true),
                                     onOpenLibrary: () => _open(Routes.library),
+                                    onImport:
+                                        widget.dependencies.mediaImport == null
+                                        ? null
+                                        : _importMedia,
                                   )
                                 : _PlayingHero(
                                     item: current,
@@ -420,11 +440,13 @@ class _HomeHeader extends StatelessWidget {
     required this.songCount,
     required this.loading,
     required this.onSearch,
+    this.onImport,
   });
 
   final int songCount;
   final bool loading;
   final VoidCallback onSearch;
+  final VoidCallback? onImport;
 
   @override
   Widget build(BuildContext context) {
@@ -453,6 +475,13 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
         ),
+        if (onImport != null)
+          IconButton(
+            key: ListenHomeScreen.importKey,
+            tooltip: '导入音频或视频',
+            onPressed: onImport,
+            icon: const Icon(Icons.add_circle_outline_rounded),
+          ),
         IconButton(
           tooltip: '搜索音乐库',
           onPressed: onSearch,
@@ -611,12 +640,16 @@ class _IdleHero extends StatelessWidget {
     required this.songCount,
     required this.onShuffle,
     required this.onOpenLibrary,
+    this.onImport,
   });
 
   final bool hasSongs;
   final int songCount;
   final VoidCallback onShuffle;
   final VoidCallback onOpenLibrary;
+
+  /// 导入音频或视频 on a phone (D-056); leads when the library is empty.
+  final VoidCallback? onImport;
 
   @override
   Widget build(BuildContext context) {
@@ -638,6 +671,8 @@ class _IdleHero extends StatelessWidget {
         Text(
           hasSongs
               ? '从 $songCount 首本地歌曲里挑一首，或者随便听听。'
+              : onImport != null
+              ? '先把歌曲放进音乐库：从“文件”或相册导入音频、视频，或从电脑传过来。'
               : '先把歌曲放进音乐库：添加手机里的音乐文件夹，或从电脑传过来。',
           textAlign: TextAlign.center,
           style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
@@ -665,14 +700,25 @@ class _IdleHero extends StatelessWidget {
                   ),
                 ]
               : [
-                  FilledButton.icon(
-                    style: AppTheme.vinylFilled.copyWith(
-                      minimumSize: WidgetStatePropertyAll(minimum),
+                  if (onImport != null)
+                    FilledButton.icon(
+                      key: ListenHomeScreen.idleImportKey,
+                      style: AppTheme.vinylFilled.copyWith(
+                        minimumSize: WidgetStatePropertyAll(minimum),
+                      ),
+                      onPressed: onImport,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('导入音频或视频'),
+                    )
+                  else
+                    FilledButton.icon(
+                      style: AppTheme.vinylFilled.copyWith(
+                        minimumSize: WidgetStatePropertyAll(minimum),
+                      ),
+                      onPressed: onOpenLibrary,
+                      icon: const Icon(Icons.library_music_rounded),
+                      label: const Text(ListenHomeScreen.openLibraryLabel),
                     ),
-                    onPressed: onOpenLibrary,
-                    icon: const Icon(Icons.library_music_rounded),
-                    label: const Text(ListenHomeScreen.openLibraryLabel),
-                  ),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(minimumSize: minimum),
                     onPressed: () =>

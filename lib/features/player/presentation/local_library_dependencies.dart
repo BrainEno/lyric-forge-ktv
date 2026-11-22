@@ -9,6 +9,7 @@ import '../domain/services/audio_library_import_service.dart';
 import '../domain/services/audio_player_service.dart';
 import '../domain/services/library_lyrics_auto_linker.dart';
 import '../domain/services/local_media_relink_service.dart';
+import '../domain/services/media_import_service.dart';
 import '../domain/services/playback_lyrics_availability.dart';
 import '../domain/services/playback_session_service.dart';
 
@@ -74,6 +75,11 @@ class LocalLibraryDependencies {
   /// opens or rescans (decision D-033). Null in tests that do not need it.
   final LibraryLyricsAutoLinker? lyricsAutoLinker;
 
+  /// The phone's 导入音频或视频 (D-056): picks audio or video, keeps a copy
+  /// in the app's folder and extracts the sound of videos. Null on desktop,
+  /// where songs stay where they are.
+  final MediaImportService? mediaImport;
+
   const LocalLibraryDependencies({
     required this.libraryRepository,
     required this.collectionRepository,
@@ -85,5 +91,6 @@ class LocalLibraryDependencies {
     required this.audioPlayer,
     required this.lyricsImport,
     this.lyricsAutoLinker,
+    this.mediaImport,
   });
 }

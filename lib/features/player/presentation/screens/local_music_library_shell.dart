@@ -205,8 +205,15 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
               onSelected: _select,
               onOpenTransfer: _openTransfer,
             ),
+            // The strip above already takes the status bar; without this each
+            // section's own app bar padded for it again (an empty band under
+            // the strip on iPhones).
             Expanded(
-              child: _SectionSwitcher(index: _index, children: _pages),
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: _SectionSwitcher(index: _index, children: _pages),
+              ),
             ),
           ],
         );
@@ -293,15 +300,20 @@ class _SectionStripState extends State<_SectionStrip> {
     final gutter = layout.pageGutter.clamp(12, 24).toDouble();
     // Material, not Container: the section chips need a Material ancestor, and
     // the wide layout of this screen no longer sits inside a Scaffold.
+    // The strip is the top of the page on phones, so it keeps clear of the
+    // status bar and notch itself; its colour still runs under them.
+    final insets = MediaQuery.paddingOf(context);
     return Material(
       color: AppColors.bgElevated,
       child: Container(
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
         ),
-        padding: EdgeInsets.symmetric(
-          horizontal: gutter,
-          vertical: AppSpacing.sm,
+        padding: EdgeInsets.fromLTRB(
+          gutter + insets.left,
+          AppSpacing.sm + insets.top,
+          gutter + insets.right,
+          AppSpacing.sm,
         ),
         child: Row(
           children: [

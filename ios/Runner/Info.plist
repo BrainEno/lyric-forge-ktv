@@ -34,6 +34,8 @@
 	<string>用于连接你自己的 Elysium Player 桌面端音乐库并播放或下载音频。</string>
 	<key>NSCameraUsageDescription</key>
 	<string>用于扫描 Elysium Player 桌面端生成的配对二维码。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于从相册选择视频，提取其中的声音导入音乐库。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>用于 KTV 演唱时实时监听你的麦克风输入。</string>
 	<key>NSAppTransportSecurity</key>
