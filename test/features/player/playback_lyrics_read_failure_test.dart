@@ -426,6 +426,59 @@ void main() {
     expect(find.text('全屏 KTV'), findsOneWidget);
     expect(find.text('歌词读取失败，重试'), findsNothing);
   });
+
+  testWidgets('Now Playing shows untimed lyrics as reference text (D-054)', (
+    tester,
+  ) async {
+    final untimed = ProjectManifest(
+      id: 'linked',
+      name: 'linked',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+      audioAsset: const AudioAsset(originalPath: _path, format: 'mp3'),
+      lyricDocument: const LyricDocument(
+        language: 'zh',
+        metadata: {'source': 'pasted-text'},
+        lines: [
+          LyricLine(
+            text: '第一行参考歌词',
+            startTime: Duration.zero,
+            endTime: Duration.zero,
+          ),
+          LyricLine(
+            text: '第二行参考歌词',
+            startTime: Duration.zero,
+            endTime: Duration.zero,
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: NowPlayingLyricsProjectAction(
+            item: _item,
+            lyricsResolver: _resolver(
+              _Projects([untimed]),
+              _Metadata(_linked()),
+              _Session(),
+            ),
+            immersiveKtv: _UnusedImmersive(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('全屏 KTV'), findsNothing);
+    await tester.tap(
+      find.byKey(const ValueKey('now-playing-show-reference-lyrics')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('now-playing-reference-lyrics')), findsOne);
+    expect(find.text('第一行参考歌词'), findsOneWidget);
+    expect(find.text('第二行参考歌词'), findsOneWidget);
+  });
 }
 
 class _Projects extends Fake implements ProjectRepository {

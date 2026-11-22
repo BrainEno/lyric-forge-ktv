@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../features/lyrics/data/services/audio_file_song_tag_reader.dart';
 import '../features/lyrics/data/services/online_lyrics/online_lyric_http.dart';
 import '../features/lyrics/data/services/online_lyrics/online_lyric_sources.dart';
 import '../features/lyrics/domain/online/online_lyric_candidate.dart';
@@ -54,6 +55,7 @@ LyricEditorDependencies assembleLyricEditorDependencies(AppServices services) {
       alignClip: _alignWithReadyRuntime(services),
     ),
     onlineLyricSearch: buildOnlineLyricSearch(),
+    songTagReader: readAudioFileSongTags,
   );
 }
 

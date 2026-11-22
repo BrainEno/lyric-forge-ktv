@@ -101,6 +101,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       lookup: widget.dependencies.songLyricsLookup,
       playback: _previewPlayback(project),
       choice: choice,
+      tagReader: widget.dependencies.songTagReader,
     );
     if (!mounted || saved == null || _activeProjectId != project.id) return;
     setState(() => _loadProject(project.id));

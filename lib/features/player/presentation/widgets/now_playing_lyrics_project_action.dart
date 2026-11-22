@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/routes.dart';
+import '../../../../core/theme/color_tokens.dart';
+import '../../../project/domain/models/lyric_document.dart';
+import '../../../project/domain/models/lyric_timing.dart';
 import '../../domain/services/playback_lyrics_availability.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../playback_screen_dependencies.dart';
 import '../screens/immersive_ktv_screen.dart';
+import 'reference_lyrics_view.dart';
+
+/// The lyric project behind a Now Playing item, and its words when they have
+/// no timing (D-054): those are shown as reference text, not as KTV.
+class _ResolvedLyrics {
+  final String projectId;
+  final LyricDocument? reference;
+
+  const _ResolvedLyrics(this.projectId, this.reference);
+}
 
 class NowPlayingLyricsProjectAction extends StatefulWidget {
   final PlaybackItem item;
@@ -29,12 +42,12 @@ class NowPlayingLyricsProjectAction extends StatefulWidget {
 
 class _NowPlayingLyricsProjectActionState
     extends State<NowPlayingLyricsProjectAction> {
-  late Future<String?> _projectIdFuture;
+  late Future<_ResolvedLyrics?> _lyricsFuture;
 
   @override
   void initState() {
     super.initState();
-    _projectIdFuture = _resolve();
+    _lyricsFuture = _resolve();
   }
 
   @override
@@ -47,34 +60,81 @@ class _NowPlayingLyricsProjectActionState
         oldItem.hasLyrics != nextItem.hasLyrics ||
         oldItem.audioAsset.originalPath != nextItem.audioAsset.originalPath ||
         oldWidget.lyricsResolver != widget.lyricsResolver) {
-      _projectIdFuture = _resolve();
+      _lyricsFuture = _resolve();
     }
   }
 
-  Future<String?> _resolve() async {
+  Future<_ResolvedLyrics?> _resolve() async {
     // Resolution also retracts a stale `hasLyrics` flag on the queue item, so
     // opening Now Playing fixes the player bar and quick-play labels too.
     final resolution = await widget.lyricsResolver.resolveAndSync(widget.item);
-    return resolution.projectId;
+    final projectId = resolution.projectId;
+    if (projectId == null || projectId.isEmpty) return null;
+    return _ResolvedLyrics(projectId, await _untimedLyrics(projectId));
+  }
+
+  /// The project's lyrics when no line is timed; null when they are timed or
+  /// cannot be read (the KTV action then behaves as before).
+  Future<LyricDocument?> _untimedLyrics(String projectId) async {
+    try {
+      final project = await widget.lyricsResolver.projectRepository
+          .getProjectById(projectId);
+      final document = project?.lyricDocument;
+      return document != null && document.isUntimed ? document : null;
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<void> _showReference(String projectId, LyricDocument document) {
+    final height = MediaQuery.sizeOf(context).height * 0.72;
+    return showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgSurface,
+      builder: (sheetContext) => SizedBox(
+        key: const ValueKey('now-playing-reference-lyrics'),
+        height: height,
+        child: ReferenceLyricsView(
+          lines: document.lines,
+          sourceLabel: lyricSourceLabel(document.metadata),
+          onOpenEditor: () {
+            Navigator.of(sheetContext).pop();
+            Navigator.pushNamed(context, Routes.lyricEditorPath(projectId));
+          },
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String?>(
-      future: _projectIdFuture,
+    return FutureBuilder<_ResolvedLyrics?>(
+      future: _lyricsFuture,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return TextButton.icon(
             onPressed: () => setState(() {
-              _projectIdFuture = _resolve();
+              _lyricsFuture = _resolve();
             }),
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('歌词读取失败，重试'),
           );
         }
-        final projectId = snapshot.data;
-        if (projectId == null || projectId.isEmpty) {
-          return const SizedBox.shrink();
+        final resolved = snapshot.data;
+        if (resolved == null) return const SizedBox.shrink();
+        final projectId = resolved.projectId;
+        final reference = resolved.reference;
+        if (reference != null) {
+          // Untimed words cannot drive KTV; show them to read along instead.
+          return TextButton.icon(
+            key: const ValueKey('now-playing-show-reference-lyrics'),
+            onPressed: () => _showReference(projectId, reference),
+            icon: const Icon(Icons.article_outlined),
+            label: const Text('参考歌词'),
+          );
         }
 
         final localLinkedLyrics = widget.item.projectId == null;

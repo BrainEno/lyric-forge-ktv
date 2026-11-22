@@ -1,3 +1,4 @@
+import '../features/lyrics/data/services/audio_file_song_tag_reader.dart';
 import '../features/player/domain/services/playback_lyrics_availability.dart';
 import '../features/player/presentation/playback_screen_dependencies.dart';
 import 'app_services.dart';
@@ -30,6 +31,7 @@ PlayerScreenDependencies assemblePlayerScreenDependencies(
     immersiveKtv: assembleImmersiveKtvDependencies(services),
     lyricFileImport: services.lyricFileImportService,
     songLyricsLookup: buildSongLyricsLookup(services),
+    songTagReader: readAudioFileSongTags,
   );
 }
 

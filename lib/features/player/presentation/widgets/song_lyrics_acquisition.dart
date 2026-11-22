@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../lyrics/domain/online/online_lyric_query.dart';
 import '../../../lyrics/domain/online/song_lyrics_lookup.dart';
+import '../../../lyrics/domain/online/song_tags.dart';
 import '../../../lyrics/domain/services/lyric_file_import_service.dart';
 import '../../../project/domain/models/lyric_timing.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -32,6 +33,7 @@ Future<AcquiredSongLyrics?> acquireSongLyrics(
   required LyricsSourceChoice choice,
   required LyricFileImportService importer,
   required OnlineLyricQuery query,
+  List<OnlineLyricQuery> fallbackQueries = const [],
   SongLyricsLookup? lookup,
   SongLyricsPreviewPlayback? playback,
 }) async {
@@ -42,6 +44,7 @@ Future<AcquiredSongLyrics?> acquireSongLyrics(
         context,
         lookup: lookup,
         query: query,
+        fallbackQueries: fallbackQueries,
         playback: playback,
       );
       if (picked == null) return null;
@@ -83,6 +86,33 @@ Future<AcquiredSongLyrics?> acquireSongLyrics(
   }
 }
 
+/// The searches for a song, best first: its name, then the title in the
+/// audio file's tags when the name is a placeholder or finds nothing (D-055).
+/// Never empty.
+Future<List<OnlineLyricQuery>> songLyricsQueries({
+  required String name,
+  String? artist,
+  Duration? duration,
+  String? audioPath,
+  SongTagReader? tagReader,
+}) async {
+  final tags = await readSongTagsSafely(tagReader, audioPath);
+  final candidates = OnlineLyricQuery.candidatesFor(
+    name: name,
+    artist: artist,
+    duration: duration,
+    tags: tags,
+  );
+  if (candidates.isNotEmpty) return candidates;
+  return [
+    OnlineLyricQuery.fromProject(
+      name: name,
+      artist: artist,
+      duration: duration,
+    ),
+  ];
+}
+
 /// The message shown after lyrics were saved for a song.
 String savedSongLyricsMessage(AcquiredSongLyrics lyrics) {
   if (!lyrics.timed) {
@@ -105,6 +135,7 @@ Future<ProjectManifest?> addLyricsToProject(
   SongLyricsLookup? lookup,
   SongLyricsPreviewPlayback? playback,
   LyricsSourceChoice? choice,
+  SongTagReader? tagReader,
 }) async {
   final audioAsset = project.audioAsset;
   if (audioAsset == null) return null;
@@ -116,17 +147,30 @@ Future<ProjectManifest?> addLyricsToProject(
         songTitle: project.name,
       );
   if (selected == null || !context.mounted) return null;
+  final queries = selected == LyricsSourceChoice.online
+      ? await songLyricsQueries(
+          name: project.name,
+          artist: project.artist,
+          duration: audioAsset.duration,
+          audioPath: audioAsset.originalPath,
+          tagReader: tagReader,
+        )
+      : [
+          OnlineLyricQuery.fromProject(
+            name: project.name,
+            artist: project.artist,
+            duration: audioAsset.duration,
+          ),
+        ];
+  if (!context.mounted) return null;
   final lyrics = await acquireSongLyrics(
     context,
     choice: selected,
     importer: importer,
     lookup: lookup,
     playback: playback,
-    query: OnlineLyricQuery.fromProject(
-      name: project.name,
-      artist: project.artist,
-      duration: audioAsset.duration,
-    ),
+    query: queries.first,
+    fallbackQueries: queries.skip(1).toList(),
   );
   if (lyrics == null) return null;
 

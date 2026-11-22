@@ -4,6 +4,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/online/online_lyric_query.dart';
+import '../../domain/online/song_tags.dart';
 import '../../domain/proofreading/auto_proofread_service.dart';
 import '../widgets/auto_proofread_dialogs.dart';
 import 'lyric_editor_proofreading_coordinator.dart';
@@ -32,11 +33,16 @@ class LyricAutoProofreadFlow {
   pasteReference;
   final DateTime Function() clock;
 
+  /// Reads the audio file's tags for a second search when the project name
+  /// finds nothing (D-055); null searches by the project name only.
+  final SongTagReader? tagReader;
+
   LyricAutoProofreadFlow({
     required this.host,
     required this.service,
     required this.reviewReference,
     required this.pasteReference,
+    this.tagReader,
     DateTime Function()? clock,
   }) : clock = clock ?? DateTime.now;
 
@@ -52,14 +58,20 @@ class LyricAutoProofreadFlow {
   }) async {
     final context = host.proofreadContext;
     final messenger = ScaffoldMessenger.of(context);
-    var query = AutoProofreadService.queryFor(
-      projectName: project.name,
-      artist: project.artist,
-      audioDuration: project.audioAsset?.duration,
-    );
+    final queries = await _queries(project);
+    if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
+    var query = queries.first;
+    final untried = queries.skip(1).toList();
     while (true) {
       final outcome = await _search(messenger, document, query);
       if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
+      // The audio tags name the song differently: try them before asking.
+      if (_asksForFallback(outcome.lyricStatus) &&
+          service.canSearch &&
+          untried.isNotEmpty) {
+        query = untried.removeAt(0);
+        continue;
+      }
       if (_asksForFallback(outcome.lyricStatus)) {
         final choice = await showAutoProofreadFallbackDialog(
           context,
@@ -71,6 +83,7 @@ class LyricAutoProofreadFlow {
             return;
           case AutoProofreadRetry(query: final retry):
             query = retry;
+            untried.clear();
             continue;
           case AutoProofreadPaste():
             await pasteReference(document: document, revision: revision);
@@ -83,6 +96,28 @@ class LyricAutoProofreadFlow {
       await _apply(context, messenger, outcome);
       return;
     }
+  }
+
+  /// The project name first, then the audio tags when they differ; never
+  /// empty, so an unsearchable project still reaches the fallback dialog.
+  Future<List<OnlineLyricQuery>> _queries(ProjectManifest project) async {
+    final primary = AutoProofreadService.queryFor(
+      projectName: project.name,
+      artist: project.artist,
+      audioDuration: project.audioAsset?.duration,
+    );
+    if (!service.canSearch) return [primary];
+    final tags = await readSongTagsSafely(
+      tagReader,
+      project.audioAsset?.originalPath,
+    );
+    final candidates = OnlineLyricQuery.candidatesFor(
+      name: project.name,
+      artist: project.artist,
+      duration: project.audioAsset?.duration,
+      tags: tags,
+    );
+    return candidates.isEmpty ? [primary] : candidates;
   }
 
   Future<AutoProofreadOutcome> _search(
