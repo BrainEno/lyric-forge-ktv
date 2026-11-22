@@ -1,4 +1,5 @@
 import '../../../project/domain/models/audio_asset.dart';
+import '../../../project/domain/models/automatic_accompaniment.dart';
 
 /// User-facing KTV backing choices.
 ///
@@ -22,6 +23,13 @@ extension KtvBackingModeX on KtvBackingMode {
     KtvBackingMode.guideVocal => '保留原唱人声，适合刚开始跟唱或不熟悉旋律时使用',
     KtvBackingMode.instrumental => '播放工程中的伴奏轨',
   };
+
+  /// [description] for [asset]: a separated accompaniment says so, since it
+  /// can keep traces of the vocal (D-060).
+  String descriptionFor(AudioAsset asset) =>
+      this == KtvBackingMode.instrumental && asset.hasAutomaticAccompaniment
+      ? '播放从原曲自动分离的伴奏，可能残留少量人声'
+      : description;
 }
 
 List<KtvBackingMode> availableKtvBackingModes(AudioAsset? asset) {

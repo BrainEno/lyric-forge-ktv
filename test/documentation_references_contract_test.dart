@@ -43,10 +43,8 @@ void main() {
           contains('On Windows x64, lyric recognition first separates'),
         );
         expect(readme, contains('Other platforms cannot separate yet'));
-        expect(
-          readme,
-          contains('does not yet offer a separated accompaniment'),
-        );
+        expect(readme, contains("becomes the project's KTV accompaniment"));
+        expect(readme, isNot(contains('does not yet offer a separated')));
         expect(readme, contains('import an existing accompaniment file'));
         expect(readme, contains('an existing vocal stem'));
         expect(
@@ -59,7 +57,8 @@ void main() {
         expect(prd, contains('可导入已有伴奏和人声轨'));
         expect(prd, contains('人声轨优先用于识别与强制对齐'));
         expect(prd, isNot(contains('尚不支持导入人声轨')));
-        expect(prd, contains('其他平台的分离和自动生成伴奏轨仍是桌面端待完成的产品目标'));
+        expect(prd, contains('在工程没有自己的伴奏时自动作为 KTV 伴奏'));
+        expect(prd, contains('其他平台的分离仍是桌面端待完成的产品目标'));
         expect(prd, contains('7.1 桌面端必须有'));
       },
     );

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/automatic_accompaniment.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
@@ -14,10 +15,12 @@ import 'package:lyric_forge_ktv/features/project/presentation/project_detail_dep
 import 'package:lyric_forge_ktv/features/project/presentation/screens/project_detail_screen.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/widgets/project_audio_sources_section.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/models/vocal_separation_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_download_connection_checker.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_managed_storage_service.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_runtime_manager.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_storage_preflight_service.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/project_accompaniment_generator.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/project_transcription_workflow.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_profile_resolver.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_settings_store.dart';
@@ -51,6 +54,8 @@ Future<void> _showProject(
   ProjectAccompanimentImporter? importer,
   ProjectVocalImporter? vocalImporter,
   ActiveProjectPlaybackSourceUpdater? updater,
+  ProjectTranscriptionWorkflow? workflow,
+  TranscriptionSettingsStore? settings,
   double textScale = 1,
   bool openAudioSources = true,
 }) async {
@@ -65,12 +70,12 @@ Future<void> _showProject(
     accompanimentImporter: importer ?? _Importer(),
     vocalImporter: vocalImporter ?? _VocalImporter(),
     playbackSourceUpdater: updater,
-    transcriptionWorkflow: _Workflow(),
+    transcriptionWorkflow: workflow ?? _Workflow(),
     asrRuntimeSetupDependencies: AsrRuntimeSetupDependencies(
       asrRuntimeManager: _Runtime(),
       asrStoragePreflightService: _Preflight(),
       asrManagedStorageService: _Storage(),
-      transcriptionSettingsStore: _Settings(),
+      transcriptionSettingsStore: settings ?? _Settings(),
       configDialogDependencies: TranscriptionConfigDialogDependencies(
         profileResolver: _Profiles(),
         downloadConnectionChecker: _Connection(),
@@ -666,6 +671,75 @@ void main() {
     }
   });
 
+  testWidgets('自动生成伴奏 runs in the section and links the result (D-060)', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final project = _project(
+        stage: ProcessingStage.lyricsEdited,
+        audio: const AudioAsset(originalPath: '/song.mp3', format: 'mp3'),
+      );
+      final projects = _Projects(project);
+      final workflow = _GeneratingWorkflow(projects);
+      final updater = _Updater('updated');
+      await _showProject(
+        tester,
+        project,
+        const Size(1366, 768),
+        projects: projects,
+        workflow: workflow,
+        settings: _LoadedSettings(),
+        updater: updater,
+      );
+
+      final generate = find.byKey(ProjectAudioSourcesSection.generateKey);
+      await _reveal(tester, generate);
+      await tester.tap(generate);
+      await tester.pump();
+      await tester.pump();
+
+      expect(workflow.generations, 1);
+      expect(find.text('正在分离人声 30%'), findsOneWidget);
+      expect(find.text('50%'), findsOneWidget);
+      expect(generate, findsNothing);
+      final transcribe = find.widgetWithText(TextButton, '重新识别歌词');
+      expect(tester.widget<TextButton>(transcribe).onPressed, isNull);
+
+      workflow.release.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('伴奏已生成'), findsOneWidget);
+      expect(find.text('打开播放器'), findsWidgets);
+      expect(find.text('已有伴奏轨（自动分离） · 没有人声轨'), findsOneWidget);
+      expect(find.text('换成已有伴奏'), findsOneWidget);
+      expect(generate, findsNothing);
+      expect(updater.calls, 1);
+      expect(updater.replacement?.instrumentalPath, '/stems/accompaniment.wav');
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('自动生成伴奏 is not offered without a separator', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      await _showProject(
+        tester,
+        _project(
+          stage: ProcessingStage.lyricsEdited,
+          audio: const AudioAsset(originalPath: '/song.mp3', format: 'mp3'),
+        ),
+        const Size(1366, 768),
+      );
+      expect(find.text('导入已有伴奏'), findsOneWidget);
+      expect(find.text('自动生成伴奏'), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('the section stays open across the refresh after an import', (
     tester,
   ) async {
@@ -803,6 +877,62 @@ class _VocalImporter extends Fake implements ProjectVocalImporter {
 class _Workflow extends Fake implements ProjectTranscriptionWorkflow {
   @override
   Stream<TranscriptionProgress> get progressStream => const Stream.empty();
+}
+
+class _GeneratingWorkflow extends Fake
+    implements ProjectTranscriptionWorkflow, ProjectAccompanimentGenerator {
+  _GeneratingWorkflow(this.projects);
+
+  final _Projects projects;
+  final _progress = StreamController<TranscriptionProgress>.broadcast(
+    sync: true,
+  );
+  final release = Completer<void>();
+  int generations = 0;
+
+  @override
+  Stream<TranscriptionProgress> get progressStream => _progress.stream;
+
+  @override
+  bool get canGenerateAccompaniment => true;
+
+  @override
+  Future<AccompanimentGeneration> generateAccompaniment(
+    String projectId,
+  ) async {
+    generations++;
+    _progress.add(
+      const TranscriptionProgress(
+        stage: TranscriptionStage.preprocessing,
+        progress: 0.5,
+        message: '正在分离人声 30%',
+      ),
+    );
+    await release.future;
+    projects.project = projects.project.copyWith(
+      audioAsset: linkAutomaticAccompaniment(
+        projects.project.audioAsset!,
+        path: '/stems/accompaniment.wav',
+        generatedAt: DateTime.utc(2026, 11, 22),
+      ),
+    );
+    return AccompanimentGeneration(
+      const VocalSeparationOutcome.separated(
+        vocalPath: '/stems/vocals.wav',
+        accompanimentPath: '/stems/accompaniment.wav',
+        provider: 'dml',
+        elapsed: Duration(seconds: 70),
+        separatorRevision: 'htdemucs-ft-vocals-onnx-v1',
+      ),
+      project: projects.project,
+    );
+  }
+}
+
+class _LoadedSettings extends Fake implements TranscriptionSettingsStore {
+  @override
+  Future<TranscriptionConfig?> load() async =>
+      const TranscriptionConfig(whisperExecutable: 'whisper', modelPath: 'm');
 }
 
 class _Runtime extends Fake implements AsrRuntimeManager {}

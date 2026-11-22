@@ -69,6 +69,7 @@ class KtvEntrySheet extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           _KtvModeTile(
             mode: KtvBackingMode.guideVocal,
+            description: KtvBackingMode.guideVocal.descriptionFor(audioAsset),
             selected: currentSource == KtvBackingMode.guideVocal.source,
             enabled: sessionMatches,
             onSelected: select,
@@ -76,6 +77,7 @@ class KtvEntrySheet extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           _KtvModeTile(
             mode: KtvBackingMode.instrumental,
+            description: KtvBackingMode.instrumental.descriptionFor(audioAsset),
             selected: currentSource == KtvBackingMode.instrumental.source,
             enabled: sessionMatches && instrumentalAvailable,
             onSelected: select,
@@ -91,7 +93,7 @@ class KtvEntrySheet extends StatelessWidget {
           ] else if (!instrumentalAvailable) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
-              '纯伴奏暂不可用：可在桌面端工程详情导入已有伴奏，或继续使用原唱伴唱。',
+              ktvInstrumentalUnavailableHint,
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
@@ -103,14 +105,21 @@ class KtvEntrySheet extends StatelessWidget {
   }
 }
 
+/// Why 纯伴奏 is greyed out and how to get one (D-060).
+const String ktvInstrumentalUnavailableHint =
+    '纯伴奏暂不可用：可在电脑端工程详情的“伴奏与人声”里导入已有伴奏；'
+    'Windows 版还可以自动生成伴奏，识别歌词时也会顺带生成。';
+
 class _KtvModeTile extends StatelessWidget {
   final KtvBackingMode mode;
+  final String description;
   final bool selected;
   final bool enabled;
   final ValueChanged<KtvBackingMode> onSelected;
 
   const _KtvModeTile({
     required this.mode,
+    required this.description,
     required this.selected,
     required this.enabled,
     required this.onSelected,
@@ -136,7 +145,7 @@ class _KtvModeTile extends StatelessWidget {
           mode.label,
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        subtitle: Text(mode.description),
+        subtitle: Text(description),
         trailing: selected ? const Icon(Icons.check_circle_rounded) : null,
         onTap: enabled ? () => onSelected(mode) : null,
       ),

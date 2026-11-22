@@ -13,6 +13,7 @@ import 'package:lyric_forge_ktv/features/player/domain/services/playback_session
 import 'package:lyric_forge_ktv/features/player/domain/services/project_audio_source_update.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/remote_playback_item_resolver.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/automatic_accompaniment.dart';
 
 const oldAsset = AudioAsset(
   originalPath: '/song.wav',
@@ -115,6 +116,50 @@ void main() {
       },
     );
   }
+
+  test(
+    'a separated accompaniment keeps its marker in the queue (D-060)',
+    () async {
+      final audio = _Audio();
+      final session = DefaultPlaybackSessionService(audio);
+      addTearDown(session.dispose);
+      await session.setQueue([projectItem()]);
+      final separated = linkAutomaticAccompaniment(
+        oldAsset,
+        path: '/stems/accompaniment.wav',
+        generatedAt: DateTime.utc(2026, 11, 22),
+      )!;
+
+      expect(
+        await session.updateActiveProjectSources(
+          projectId: 'project',
+          expected: oldAsset,
+          replacement: separated,
+        ),
+        isTrue,
+      );
+      final asset = session.currentState.currentItem!.audioAsset;
+      expect(asset.instrumentalPath, '/stems/accompaniment.wav');
+      expect(asset.hasAutomaticAccompaniment, isTrue);
+      expect(asset.metadata['source'], 'queue');
+
+      // Importing a real accompaniment afterwards drops the marker.
+      expect(
+        await session.updateActiveProjectSources(
+          projectId: 'project',
+          expected: asset,
+          replacement: oldAsset.copyWith(instrumentalPath: '/imported.mp3'),
+        ),
+        isTrue,
+      );
+      final imported = session.currentState.currentItem!.audioAsset;
+      expect(imported.hasUserAccompaniment, isTrue);
+      expect(
+        imported.metadata.containsKey(AutomaticAccompaniment.metadataKey),
+        isFalse,
+      );
+    },
+  );
 
   test(
     'rejects mismatched project, stale snapshot, and backend refusal',

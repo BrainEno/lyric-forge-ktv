@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../player/domain/services/audio_library_import_service.dart';
 import '../../../transcription/domain/models/vocal_separation_models.dart';
+import '../../domain/models/automatic_accompaniment.dart';
 import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../../domain/services/project_accompaniment_importer.dart';
@@ -94,6 +95,8 @@ class FileProjectAccompanimentImporter
     // deleted file; unused copies can be cleaned up by a future safe GC.
     // An imported vocal replaces any automatically separated one, so its
     // marker goes too: the stem is the user's and must never be re-separated.
+    // Likewise an imported accompaniment drops the separated one's marker
+    // (D-060), so it is never replaced by a later separation.
     return projectRepository.updateProjectIfUnchanged(
       project.copyWith(
         audioAsset: vocal
@@ -102,7 +105,10 @@ class FileProjectAccompanimentImporter
                 metadata: Map<String, dynamic>.of(audio.metadata)
                   ..remove(VocalStemMarker.metadataKey),
               )
-            : audio.copyWith(instrumentalPath: destination.path),
+            : audio.copyWith(
+                instrumentalPath: destination.path,
+                metadata: audio.metadataWithoutAutomaticAccompaniment,
+              ),
       ),
       expectedRevision: project.revision,
     );
