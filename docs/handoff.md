@@ -18,7 +18,7 @@
 
 ## 检查结果
 
-- 沙箱里没有 Dart/Flutter，格式、analyze 和测试靠 PR 的 Flutter Quality Gate。
+- PR #507 的 Flutter Quality Gate 全部通过（`be98eb5`，5132 个测试）。
 - Flutter 测试环境报告的平台是 Android，测桌面工程播放器的用例要设 `AppCapabilities.debugLyricWorkbenchOverride = true`。
 
 ## 下一步
