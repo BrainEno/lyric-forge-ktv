@@ -100,7 +100,10 @@ class JustAudioPlayerService
         playerState.processingState == ProcessingState.completed;
 
     _currentState = PlaybackState(
-      isPlaying: playerState.playing,
+      isPlaying: reportsPlaying(
+        playing: playerState.playing,
+        processingState: playerState.processingState,
+      ),
       isBuffering: isBuffering,
       isCompleted: isCompleted,
       isLoading: isLoading,
@@ -182,10 +185,47 @@ class JustAudioPlayerService
     });
   }
 
+  /// Whether the app should call the song playing (D-059).
+  ///
+  /// just_audio keeps `playing` true after the last song ends: the player
+  /// only stopped because there was nothing left. The rhythm bars, the
+  /// turning record and the pause icon all read this flag, so a finished
+  /// queue looked as if it was still playing.
+  static bool reportsPlaying({
+    required bool playing,
+    required ProcessingState processingState,
+  }) => playing && processingState != ProcessingState.completed;
+
+  /// Waits for playback to start, not to end (D-059).
+  ///
+  /// just_audio's `play()` completes only when playback is paused or the
+  /// song ends, so every `await play()` in the session — saving the play
+  /// history, the library reloading after a tap — waited for the next pause.
+  /// This completes once [states] report the player playing and ready, or
+  /// as soon as [playback] itself completes or fails; a start failure still
+  /// reaches the caller.
+  static Future<void> untilStarted(
+    Future<void> playback,
+    Stream<PlayerState> states,
+  ) {
+    final started = states
+        .firstWhere(
+          (state) =>
+              state.playing &&
+              state.processingState == ProcessingState.ready,
+        )
+        .then<void>((_) {});
+    return Future.any<void>([playback, started]);
+  }
+
   @override
   Future<void> play() async {
     try {
-      await _player.play();
+      // A finished song starts again from the top.
+      if (_player.processingState == ProcessingState.completed) {
+        await _player.seek(Duration.zero);
+      }
+      await untilStarted(_player.play(), _player.playerStateStream);
     } catch (error) {
       _lastError = _friendlyPlaybackError(error);
       _updateState();

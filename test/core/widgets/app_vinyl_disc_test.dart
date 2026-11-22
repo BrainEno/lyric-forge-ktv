@@ -231,14 +231,45 @@ void main() {
         .map((bar) => bar.constraints!.maxHeight)
         .toList();
 
-    testWidgets('rest at staggered heights while paused', (tester) async {
+    testWidgets('drop to a low, level, faded row while paused', (tester) async {
       await tester.pumpWidget(
         _host(const AppRhythmBars(playing: false, size: 20)),
       );
 
       expect(heights(tester), [
-        for (final fraction in AppRhythmBars.restingHeights) 20 * fraction,
+        for (final fraction in AppRhythmBars.pausedHeights) 20 * fraction,
       ]);
+      expect(AppRhythmBars.pausedHeights.toSet(), hasLength(1));
+      final fade = tester.widget<Opacity>(
+        find.descendant(
+          of: find.byType(AppRhythmBars),
+          matching: find.byType(Opacity),
+        ),
+      );
+      expect(fade.opacity, AppRhythmBars.pausedOpacity);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('a playing song without motion stands staggered, unfaded', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(const AppRhythmBars(playing: true, size: 20)),
+      );
+
+      expect(heights(tester), [
+        for (final fraction in AppRhythmBars.stillHeights) 20 * fraction,
+      ]);
+      expect(
+        find.descendant(
+          of: find.byType(AppRhythmBars),
+          matching: find.byType(Opacity),
+        ),
+        findsNothing,
+      );
+      // Paused and playing never look alike.
+      expect(AppRhythmBars.stillHeights, isNot(AppRhythmBars.pausedHeights));
+      expect(tester.hasRunningAnimations, isFalse);
     });
 
     testWidgets('bounce while playing and rest again on pause', (tester) async {
@@ -252,7 +283,7 @@ void main() {
       expect(
         moving,
         isNot([
-          for (final fraction in AppRhythmBars.restingHeights) 20 * fraction,
+          for (final fraction in AppRhythmBars.stillHeights) 20 * fraction,
         ]),
       );
 
@@ -261,7 +292,7 @@ void main() {
       );
       await tester.pump();
       expect(heights(tester), [
-        for (final fraction in AppRhythmBars.restingHeights) 20 * fraction,
+        for (final fraction in AppRhythmBars.pausedHeights) 20 * fraction,
       ]);
       expect(tester.hasRunningAnimations, isFalse);
     });

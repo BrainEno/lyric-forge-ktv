@@ -356,6 +356,11 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
                   localItem,
                   repository: widget.dependencies.metadataRepository,
                   session: widget.dependencies.playbackSession,
+                  projectRepository: widget
+                      .dependencies
+                      .lyricsImport
+                      .lyricsResolver
+                      .projectRepository,
                 ),
                 onLyrics: () => importLyricsForLocalPlaybackItem(
                   context,

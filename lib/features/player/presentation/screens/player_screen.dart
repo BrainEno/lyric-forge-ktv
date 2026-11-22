@@ -52,6 +52,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late String _activeProjectId;
   StreamSubscription<PlaybackSessionState>? _sessionSubscription;
 
+  /// What the queue said about this project's song when it was last read:
+  /// title, artist and lyric flag.
+  String? _itemLabel;
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +64,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _audioService = dependencies.audioPlayer;
     _playbackSession = dependencies.playbackSession;
     _activeProjectId = widget.projectId;
+    final current = _playbackSession.currentState.currentItem;
+    _itemLabel = current?.projectId == _activeProjectId
+        ? _labelFor(current)
+        : null;
     _loadProject(_activeProjectId);
     _sessionSubscription = _playbackSession.stateStream.listen(
       _handleSessionChange,
@@ -70,15 +78,35 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _projectFuture = _repository.getProjectById(projectId);
   }
 
+  /// Reloads when the queue moves to another project, and when the song of
+  /// this one was renamed or got or lost lyrics elsewhere — 歌曲信息 edited
+  /// in the library renames the project too (D-059), and this page used to
+  /// keep showing what it read when it opened.
   void _handleSessionChange(PlaybackSessionState state) {
-    final projectId = state.currentItem?.projectId;
-    if (!mounted || projectId == null || projectId == _activeProjectId) return;
+    final item = state.currentItem;
+    final projectId = item?.projectId;
+    if (!mounted || projectId == null) return;
+    final label = _labelFor(item);
+    if (projectId == _activeProjectId) {
+      final previous = _itemLabel;
+      _itemLabel = label;
+      // The first sight of the song (this page just started it) is what
+      // was loaded already.
+      if (previous == null || label == previous) return;
+      setState(() => _loadProject(projectId));
+      return;
+    }
 
     setState(() {
       _activeProjectId = projectId;
+      _itemLabel = label;
       _loadProject(projectId);
     });
   }
+
+  static String? _labelFor(PlaybackItem? item) => item == null
+      ? null
+      : [item.title, item.artist ?? '', item.hasLyrics ? '1' : '0'].join('\u0000');
 
   Future<void> _openLyricEditor(ProjectManifest project) async {
     await Navigator.pushNamed(context, Routes.lyricEditorPath(project.id));
@@ -177,7 +205,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return FutureBuilder<ProjectManifest?>(
       future: _projectFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        // A reload of the same project keeps the page up instead of
+        // flashing the loading screen.
+        final reloading =
+            snapshot.connectionState == ConnectionState.waiting &&
+            snapshot.data?.id == _activeProjectId;
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !reloading) {
           return const _LoadingState();
         }
 

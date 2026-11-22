@@ -299,10 +299,13 @@ class _SheenPainter extends CustomPainter {
 /// Three rhythm bars that bounce while a song plays: the "this one" mark of
 /// the playing row and of the listening home.
 ///
-/// They rest at staggered heights when the song is paused, when looping
-/// motion is off (see [AppMotion]) or under `flutter test`, so a paused song
-/// still shows which one it is. Excluded from semantics; the row says
-/// 正在播放 in words.
+/// A paused song keeps the mark, so it still shows which one it is, but the
+/// bars drop to a low, even, faded row ([pausedHeights]): paused bars used to
+/// stand at the same staggered heights as a frame of the bounce, which read
+/// as still playing (D-059). When looping motion is off (see [AppMotion]) or
+/// under `flutter test`, a playing song shows the staggered [stillHeights]
+/// instead of the bounce. Excluded from semantics; the row says 正在播放 or
+/// 已暂停 in words.
 class AppRhythmBars extends StatefulWidget {
   const AppRhythmBars({
     super.key,
@@ -331,8 +334,14 @@ class AppRhythmBars extends StatefulWidget {
     return 0.25 + 0.75 * (wave + 1) / 2;
   }
 
-  /// The resting heights shown while paused: low, high, middle.
-  static const List<double> restingHeights = [0.45, 0.85, 0.6];
+  /// A playing song without motion: low, high, middle.
+  static const List<double> stillHeights = [0.45, 0.85, 0.6];
+
+  /// A paused song: all three bars low and level.
+  static const List<double> pausedHeights = [0.3, 0.3, 0.3];
+
+  /// Opacity of the bars of a paused song.
+  static const double pausedOpacity = 0.6;
 
   @override
   State<AppRhythmBars> createState() => _AppRhythmBarsState();
@@ -386,7 +395,10 @@ class _AppRhythmBarsState extends State<AppRhythmBars>
           animation: _phase,
           builder: (context, _) {
             final moving = _phase.isAnimating;
-            return Row(
+            final still = widget.playing
+                ? AppRhythmBars.stillHeights
+                : AppRhythmBars.pausedHeights;
+            final bars = Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 for (var i = 0; i < AppRhythmBars.barCount; i++) ...[
@@ -397,7 +409,7 @@ class _AppRhythmBarsState extends State<AppRhythmBars>
                         size *
                         (moving
                             ? AppRhythmBars.heightAt(i, _phase.value)
-                            : AppRhythmBars.restingHeights[i]),
+                            : still[i]),
                     decoration: BoxDecoration(
                       color: widget.color ?? AppColors.vinylAccent,
                       borderRadius: BorderRadius.vertical(
@@ -408,6 +420,9 @@ class _AppRhythmBarsState extends State<AppRhythmBars>
                 ],
               ],
             );
+            return widget.playing
+                ? bars
+                : Opacity(opacity: AppRhythmBars.pausedOpacity, child: bars);
           },
         ),
       ),

@@ -56,9 +56,13 @@ class _NowPlayingLyricsProjectActionState
     super.didUpdateWidget(oldWidget);
     final oldItem = oldWidget.item;
     final nextItem = widget.item;
+    // A renamed song (歌曲信息) is read again too: its lyrics may have been
+    // linked or renamed with it (D-059).
     if (oldItem.id != nextItem.id ||
         oldItem.projectId != nextItem.projectId ||
         oldItem.hasLyrics != nextItem.hasLyrics ||
+        oldItem.title != nextItem.title ||
+        oldItem.artist != nextItem.artist ||
         oldItem.audioAsset.originalPath != nextItem.audioAsset.originalPath ||
         oldWidget.lyricsResolver != widget.lyricsResolver) {
       _lyricsFuture = _resolve();
