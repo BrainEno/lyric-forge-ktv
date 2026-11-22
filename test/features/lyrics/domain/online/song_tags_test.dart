@@ -73,10 +73,7 @@ void main() {
     });
 
     test('a real name stays first and the tags come second', () {
-      final queries = OnlineLyricQuery.candidatesFor(
-        name: '七里香',
-        tags: tags,
-      );
+      final queries = OnlineLyricQuery.candidatesFor(name: '七里香', tags: tags);
       expect(queries.map((query) => query.title), ['七里香', '晴天']);
       // The missing artist is filled from the tags.
       expect(queries.first.artist, '周杰伦');

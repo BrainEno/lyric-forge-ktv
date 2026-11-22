@@ -23,9 +23,7 @@ void main() {
     expect(opened, 1);
   });
 
-  testWidgets('without audio the button waits for a recording', (
-    tester,
-  ) async {
+  testWidgets('without audio the button waits for a recording', (tester) async {
     var opened = 0;
     await _pump(
       tester,

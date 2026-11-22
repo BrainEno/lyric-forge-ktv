@@ -195,9 +195,7 @@ class _SongLyricsPreviewDialogState extends State<SongLyricsPreviewDialog> {
     await _runSearch();
   }
 
-  Future<void> _runSearch({
-    List<OnlineLyricQuery> fallbacks = const [],
-  }) async {
+  Future<void> _runSearch({List<OnlineLyricQuery> fallbacks = const []}) async {
     final generation = ++_searchGeneration;
     final query = OnlineLyricQuery(
       title: _title.text.trim(),

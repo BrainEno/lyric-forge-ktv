@@ -33,7 +33,7 @@ class LyricTapSyncPromptCard extends StatelessWidget {
     final theme = Theme.of(context);
     final message = hasAudio
         ? '边听边点，每唱到一行点一下，就能给 $lineCount 行歌词打上时间。'
-            '打完后播放器和 KTV 才能跟着唱。'
+              '打完后播放器和 KTV 才能跟着唱。'
         : '这个工程还没有音频。先加上歌曲音频，再边听边点给歌词打时间。';
     final button = FilledButton.icon(
       key: startKey,

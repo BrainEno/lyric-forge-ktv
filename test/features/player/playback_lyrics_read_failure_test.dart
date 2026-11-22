@@ -475,7 +475,10 @@ void main() {
       find.byKey(const ValueKey('now-playing-show-reference-lyrics')),
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('now-playing-reference-lyrics')), findsOne);
+    expect(
+      find.byKey(const ValueKey('now-playing-reference-lyrics')),
+      findsOne,
+    );
     expect(find.text('第一行参考歌词'), findsOneWidget);
     expect(find.text('第二行参考歌词'), findsOneWidget);
   });
