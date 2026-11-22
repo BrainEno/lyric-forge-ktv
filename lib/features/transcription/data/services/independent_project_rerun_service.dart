@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/repositories/project_repository.dart';
+import '../../domain/models/spoken_language.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_evidence_audio_verifier.dart';
@@ -89,6 +90,12 @@ class IndependentProjectRerunService {
         throw const TranscriptionException.input('工程或原始歌词不存在');
       }
       // Snapshot before any more awaits; no automatic update to the project.
+      // The song's language from its recognition, so the rerun does not
+      // guess again from the intro (D-061).
+      final runConfig = SpokenLanguagePolicy.withKnownLanguage(
+        config,
+        SpokenLanguageResolution.languageOfProject(project.metadata),
+      );
       final original = LyricDocument.fromJson(
         jsonDecode(jsonEncode(project.lyricDocument!.toJson()))
             as Map<String, dynamic>,
@@ -113,7 +120,7 @@ class IndependentProjectRerunService {
         TranscriptionRequest(
           inputAudioPath: path,
           outputDirectory: work.path,
-          config: config,
+          config: runConfig,
           recognitionHints: recognitionHintsForProject(project),
         ),
       );
@@ -148,7 +155,7 @@ class IndependentProjectRerunService {
         alignerReference: engine == IndependentRerunEngine.qwen
             ? config.qwenAlignerModelPath
             : null,
-        requestedLanguage: config.language,
+        requestedLanguage: runConfig.language,
         detectedLanguage: result.detectedLanguage,
         original: original,
         candidate: result.lyrics.copyWith(metadata: metadata),

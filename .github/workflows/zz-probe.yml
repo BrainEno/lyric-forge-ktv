@@ -1,0 +1,38 @@
+name: zz probe
+on:
+  push:
+    branches: ['arena/6ea280fc-lyric-forge-ktv']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: format
+        run: |
+          files=$(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
+          dart format $files || true
+          git diff -U0 > fmt.diff || true
+          wc -l fmt.diff
+      - name: analyze
+        if: always()
+        run: |
+          flutter analyze --no-pub --no-fatal-infos lib test tool > analyze.txt 2>&1 || true
+          grep -E 'error •|warning •|info •' analyze.txt > problems.txt || true
+          wc -l problems.txt
+      - name: tests
+        if: always()
+        run: |
+          flutter test --no-pub test/features/transcription/spoken_language test/features/transcription/vocal_gap_fill/workflow_vocal_gap_fill_test.dart test/architecture > tests.txt 2>&1 || true
+          grep -E '\[E\]|Expected|Actual|Error|error:|Some tests failed|All tests passed' tests.txt | head -60 > testfail.txt || true
+          tail -3 tests.txt
+      - name: emit
+        if: always()
+        run: |
+          i=0; while IFS= read -r l && [ $i -lt 40 ]; do echo "::warning title=problem::$l"; i=$((i+1)); done < problems.txt
+          i=0; while IFS= read -r l && [ $i -lt 50 ]; do echo "::notice title=test::$l"; i=$((i+1)); done < testfail.txt
+          grep -E '^(diff --git|@@)' fmt.diff | head -40 | while IFS= read -r l; do echo "::error title=hunk::$l"; done
+          head -150 fmt.diff | grep -E '^[+-][^+-]' | head -45 | while IFS= read -r l; do echo "::error title=fmt::$l"; done

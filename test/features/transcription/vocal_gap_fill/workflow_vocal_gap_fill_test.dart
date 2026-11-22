@@ -14,12 +14,14 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/local_project_transcription_workflow.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/models/spoken_language.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_run_progress.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/vocal_activity.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/vocal_gap_fill_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_resource_coordinator.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_runtime_manager.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/spoken_language_detector.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_profile_resolver.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_service.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_settings_store.dart';
@@ -293,6 +295,145 @@ void main() {
       expect(progress.single.message, 'Whisper 识别中');
     });
   });
+
+  group('the sung language (D-061)', () {
+    test('auto: recognition and gap filling use the detected one', () async {
+      final fixture = await _Fixture.create();
+      final detector = _Detector();
+      final workflow = fixture.workflow(languageDetector: detector);
+      final progress = <TranscriptionProgress>[];
+      final subscription = workflow.progressStream.listen(progress.add);
+      addTearDown(subscription.cancel);
+
+      await workflow.transcribeProject('p');
+
+      expect(detector.requests.single.inputAudioPath, fixture.vocalPath);
+      expect(detector.requests.single.config.language, 'auto');
+      expect(detector.requests.single.recognitionHints.songTitle, 'Song');
+      expect(fixture.service.lastRequest?.config.language, 'en');
+      expect(fixture.gapFill.lastRequest?.config.language, 'en');
+      final messages = progress.map((p) => p.message).toList();
+      expect(messages, contains('正在判断演唱语言'));
+      expect(messages, contains('演唱语言：英文'));
+      expect(
+        messages.indexOf('演唱语言：英文'),
+        lessThan(messages.indexOf('正在启动识别引擎')),
+      );
+      final transcription =
+          fixture.repository.project.metadata['transcription'] as Map;
+      final stored = transcription['spokenLanguage'] as Map;
+      expect(stored['language'], 'en');
+      expect(stored['source'], 'detected');
+      expect((stored['probes'] as List).single, {
+        'language': 'en',
+        'probability': 0.97,
+      });
+      expect(
+        SpokenLanguageResolution.languageOfProject(
+          fixture.repository.project.metadata,
+        ),
+        'en',
+      );
+    });
+
+    test('a language chosen in the settings is never probed', () async {
+      final fixture = await _Fixture.create();
+      fixture.settings.config = _config.copyWith(language: 'zh');
+      final detector = _Detector();
+      await fixture.workflow(languageDetector: detector).transcribeProject('p');
+
+      expect(detector.requests, isEmpty);
+      expect(fixture.service.lastRequest?.config.language, 'zh');
+      final transcription =
+          fixture.repository.project.metadata['transcription'] as Map;
+      expect(transcription['spokenLanguage'], isNull);
+    });
+
+    test('an unresolved probe leaves the language to the engines', () async {
+      final fixture = await _Fixture.create();
+      final detector = _Detector()
+        ..result = const SpokenLanguageResolution.unresolved(
+          probes: [SpokenLanguageProbe('nn', 0.4)],
+        );
+      await fixture.workflow(languageDetector: detector).transcribeProject('p');
+
+      expect(fixture.service.lastRequest?.config.language, 'auto');
+      final stored =
+          (fixture.repository.project.metadata['transcription']
+                  as Map)['spokenLanguage']
+              as Map;
+      expect(stored['source'], 'unresolved');
+      expect(stored['language'], 'auto');
+    });
+
+    test('a failing probe does not fail the run', () async {
+      final fixture = await _Fixture.create();
+      final detector = _Detector()..error = StateError('probe broke');
+      await fixture.workflow(languageDetector: detector).transcribeProject('p');
+
+      final saved = fixture.repository.project;
+      expect(saved.status, ProjectStatus.editing);
+      expect(fixture.service.lastRequest?.config.language, 'auto');
+      final stored =
+          (saved.metadata['transcription'] as Map)['spokenLanguage'] as Map;
+      expect(stored['source'], 'unresolved');
+      expect(stored['error'], contains('probe broke'));
+    });
+
+    test('cancelling while probing stops the probe and the run', () async {
+      final fixture = await _Fixture.create();
+      final started = Completer<void>();
+      final gate = Completer<void>();
+      final detector = _Detector()
+        ..onDetect = () {
+          started.complete();
+          return gate.future;
+        };
+      final workflow = fixture.workflow(languageDetector: detector);
+      final outcome = expectLater(
+        workflow.transcribeProject('p'),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await started.future;
+
+      final cancelled = workflow.cancel();
+      gate.complete();
+      await cancelled;
+      await outcome;
+      expect(detector.cancels, 1);
+      expect(fixture.service.lastRequest, isNull);
+    });
+  });
+}
+
+class _Detector implements SpokenLanguageDetector {
+  final requests = <TranscriptionRequest>[];
+  int cancels = 0;
+  Object? error;
+  Future<void> Function()? onDetect;
+  SpokenLanguageResolution result = const SpokenLanguageResolution(
+    language: 'en',
+    source: SpokenLanguageSource.detected,
+    probes: [SpokenLanguageProbe('en', 0.97)],
+  );
+
+  @override
+  Future<SpokenLanguageResolution> detect(TranscriptionRequest request) async {
+    requests.add(request);
+    await onDetect?.call();
+    final failure = error;
+    if (failure != null) throw failure;
+    return result;
+  }
+
+  @override
+  Future<void> cancel() async => cancels++;
 }
 
 class _Fixture {
@@ -340,20 +481,23 @@ class _Fixture {
     );
   }
 
-  LocalProjectTranscriptionWorkflow workflow({bool withGapFill = true}) =>
-      LocalProjectTranscriptionWorkflow(
-        projectRepository: repository,
-        transcriptionService: service,
-        settingsStore: settings,
-        profileResolver: _Resolver(),
-        runtimeManager: runtime,
-        resources: AsrResourceCoordinator(),
-        mediaMetadataRepository: _UnusedMetadata(),
-        playbackSession: _UnusedPlayback(),
-        pathCanonicalizer: _UnusedCanonicalizer(),
-        vocalCheck: check,
-        vocalGapFill: withGapFill ? gapFill : null,
-      );
+  LocalProjectTranscriptionWorkflow workflow({
+    bool withGapFill = true,
+    SpokenLanguageDetector? languageDetector,
+  }) => LocalProjectTranscriptionWorkflow(
+    projectRepository: repository,
+    transcriptionService: service,
+    settingsStore: settings,
+    profileResolver: _Resolver(),
+    runtimeManager: runtime,
+    resources: AsrResourceCoordinator(),
+    mediaMetadataRepository: _UnusedMetadata(),
+    playbackSession: _UnusedPlayback(),
+    pathCanonicalizer: _UnusedCanonicalizer(),
+    vocalCheck: check,
+    vocalGapFill: withGapFill ? gapFill : null,
+    languageDetector: languageDetector,
+  );
 }
 
 class _VocalCheck implements TranscriptionVocalCheck {
@@ -500,6 +644,7 @@ class _Repository implements ProjectRepository {
 class _Service implements TranscriptionService {
   final _progress = StreamController<TranscriptionProgress>.broadcast();
   Map<String, dynamic> metadata = const {};
+  TranscriptionRequest? lastRequest;
 
   void emit(String message) => _progress.add(
     TranscriptionProgress(
@@ -511,6 +656,7 @@ class _Service implements TranscriptionService {
 
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
+    lastRequest = request;
     return TranscriptionResult(
       lyrics: LyricDocument(
         language: 'en',
