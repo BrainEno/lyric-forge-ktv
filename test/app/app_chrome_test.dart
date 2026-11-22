@@ -197,6 +197,29 @@ void main() {
       expect(find.byType(_FakeBar), findsNothing);
     });
 
+    testWidgets('only the tab bar pads for the iPhone home indicator', (
+      tester,
+    ) async {
+      tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+      addTearDown(tester.view.resetPadding);
+      await _pumpAt(tester, _app(desktop: false), phone);
+      await tester.tap(find.text('音乐库'));
+      await tester.pumpAndSettle();
+
+      EdgeInsets paddingOf(Finder finder) =>
+          MediaQuery.paddingOf(tester.element(finder));
+      // The page and the mini player sit above the tab bar: padding for the
+      // home indicator there left an empty band and cut the page off.
+      final page = paddingOf(find.text('页面 ${Routes.library}'));
+      expect(page.bottom, 0);
+      expect(page.top, 47);
+      expect(paddingOf(find.text('去收藏')).bottom, 0);
+      expect(
+        paddingOf(find.byKey(const ValueKey('app-bottom-navigation'))).bottom,
+        34,
+      );
+    });
+
     testWidgets('the mini player pushes routes too', (tester) async {
       await _pumpAt(tester, _app(desktop: false), phone);
       await tester.tap(find.text('音乐库'));
