@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-17 09:30] One-click proofreading with online lyrics ([entry](log/entries/2026-12-17-0930-one-click-proofread-with-online-lyrics.md))
 - [2026-12-16 10:30] Resume downloads from the break point and recover the runtime install ([entry](log/entries/2026-12-16-1030-resume-downloads-and-recover-runtime-install.md))
 - [2026-12-16 09:30] One Chinese typeface per label ([entry](log/entries/2026-12-16-0930-one-chinese-typeface-per-label.md))
 - [2026-12-15 09:30] Clear recognition progress, one model folder, no embedded brand mark ([entry](log/entries/2026-12-15-0930-clear-recognition-progress-and-one-model-folder.md))

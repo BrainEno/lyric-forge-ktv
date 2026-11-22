@@ -5,6 +5,7 @@ import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.d
 import '../../../lyrics/domain/services/lyric_span_rerecognition.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/repositories/project_repository.dart';
+import '../../domain/models/spoken_language.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_resource_coordinator.dart';
@@ -101,7 +102,12 @@ class ProjectSpanRecognitionService implements LyricSpanRecognizer {
     required LyricSpanEngine engine,
   }) async {
     return _run(projectId, start, end, (input, clip, length) async {
-      final config = await _readyConfig(engine);
+      // A few seconds tell Whisper little about the language; the song's
+      // own, found when it was recognised, is pinned instead (D-061).
+      final config = SpokenLanguagePolicy.withKnownLanguage(
+        await _readyConfig(engine),
+        input.language,
+      );
       _checkCancelled();
       final shared = engine == LyricSpanEngine.qwen ? _sharedQwen : null;
       final adapter =
@@ -269,7 +275,11 @@ class ProjectSpanRecognitionService implements LyricSpanRecognizer {
         '${work.path}${Platform.pathSeparator}span.wav',
       );
       return await body(
-        _SpanInput(audioPath, recognitionHintsForProject(project)),
+        _SpanInput(
+          audioPath,
+          recognitionHintsForProject(project),
+          SpokenLanguageResolution.languageOfProject(project.metadata),
+        ),
         clip,
         clipEnd - start,
       );
@@ -391,7 +401,10 @@ class _SpanInput {
   final String audioPath;
   final RecognitionHints hints;
 
-  const _SpanInput(this.audioPath, this.hints);
+  /// The song's language, when its recognition settled on one.
+  final String? language;
+
+  const _SpanInput(this.audioPath, this.hints, this.language);
 }
 
 class _SpanClip {

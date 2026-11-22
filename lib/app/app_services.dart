@@ -76,6 +76,7 @@ import '../features/transcription/data/services/timed_transcription_service.dart
 import '../features/transcription/data/services/vocal_separator_location.dart';
 import '../features/transcription/data/services/vocal_separator_runtime.dart';
 import '../features/transcription/data/services/whisper_cpp_transcription_service.dart';
+import '../features/transcription/data/services/whisper_spoken_language_detector.dart';
 import '../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
 import '../features/transcription/domain/services/asr_download_connection_checker.dart';
 import '../features/transcription/domain/services/asr_resource_coordinator.dart';
@@ -463,6 +464,8 @@ class AppServices {
             sharedQwen: qwenNativeTranscriptionService,
           )
         : null,
+    // Listens to the sung parts before recognising in 自动检测 (D-061).
+    languageDetector: separateVocals ? WhisperSpokenLanguageDetector() : null,
   );
 }
 

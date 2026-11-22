@@ -13,6 +13,7 @@ import '../../../player/domain/services/playback_session_service.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
+import '../../domain/models/spoken_language.dart';
 import '../../domain/models/transcription_degradation.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
@@ -24,6 +25,7 @@ import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/project_accompaniment_generator.dart';
 import '../../domain/services/project_transcription_workflow.dart';
 import '../../domain/services/project_vocal_separator.dart';
+import '../../domain/services/spoken_language_detector.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
@@ -79,6 +81,10 @@ class LocalProjectTranscriptionWorkflow
   /// setting switched off, leaves those stretches for the editor.
   final TranscriptionVocalGapFill? _vocalGapFill;
 
+  /// Finds the sung language before recognition when the settings say
+  /// 自动检测 (D-061). Null leaves the language to the engines.
+  final SpokenLanguageDetector? _languageDetector;
+
   /// Progress of the workflow's own steps (separation, gap filling), merged
   /// into [progressStream] around recognition's.
   final StreamController<TranscriptionProgress> _stepProgress =
@@ -103,6 +109,7 @@ class LocalProjectTranscriptionWorkflow
     ProjectVocalSeparator? vocalSeparator,
     TranscriptionVocalCheck? vocalCheck,
     TranscriptionVocalGapFill? vocalGapFill,
+    SpokenLanguageDetector? languageDetector,
   }) : _projectRepository = projectRepository,
        _transcriptionService = transcriptionService,
        _settingsStore = settingsStore,
@@ -115,7 +122,8 @@ class LocalProjectTranscriptionWorkflow
        _scriptUnification = scriptUnification,
        _vocalSeparator = vocalSeparator,
        _vocalCheck = vocalCheck,
-       _vocalGapFill = vocalGapFill;
+       _vocalGapFill = vocalGapFill,
+       _languageDetector = languageDetector;
 
   /// The run's progress: its own steps (preparing, separation, the vocal
   /// check, gap filling, saving) around recognition's events, each tagged
@@ -437,13 +445,27 @@ class LocalProjectTranscriptionWorkflow
         );
       }
       _phase = _WorkflowPhase.recognizing;
+      final hints = recognitionHintsForProject(project);
+      final spokenLanguage = await _resolveSpokenLanguage(
+        TranscriptionRequest(
+          inputAudioPath: inputPath,
+          outputDirectory: outputDirectory.path,
+          config: runtimeConfig,
+          recognitionHints: hints,
+        ),
+      );
+      _checkCancelled();
+      final recognitionConfig = SpokenLanguagePolicy.withKnownLanguage(
+        runtimeConfig,
+        spokenLanguage?.language,
+      );
       _announce('正在启动识别引擎', stage: TranscriptionStage.loadingModel);
       final result = await _transcriptionService.transcribe(
         TranscriptionRequest(
           inputAudioPath: inputPath,
           outputDirectory: outputDirectory.path,
-          config: runtimeConfig,
-          recognitionHints: recognitionHintsForProject(project),
+          config: recognitionConfig,
+          recognitionHints: hints,
         ),
       );
 
@@ -463,9 +485,9 @@ class LocalProjectTranscriptionWorkflow
         checked,
         result: result,
         inputPath: inputPath,
-        config: runtimeConfig,
+        config: recognitionConfig,
         status: runtimeStatus,
-        hints: recognitionHintsForProject(project),
+        hints: hints,
         audioDuration: runProject.audioAsset?.duration,
       );
       _checkCancelled();
@@ -520,6 +542,7 @@ class LocalProjectTranscriptionWorkflow
               )?.name,
               'generatedAt': DateTime.now().toIso8601String(),
               'detectedLanguage': result.detectedLanguage,
+              SpokenLanguageResolution.metadataKey: spokenLanguage?.toJson(),
               'chineseScript': {
                 'preference': scriptPlan.preference.name,
                 'target': scriptPlan.target?.name,
@@ -626,6 +649,34 @@ class LocalProjectTranscriptionWorkflow
         ),
       );
     }
+  }
+
+  /// The sung language when the settings say 自动检测 (D-061), or null when
+  /// the user chose one or there is no detector. A failed probe is an
+  /// unresolved result, never a failed run.
+  Future<SpokenLanguageResolution?> _resolveSpokenLanguage(
+    TranscriptionRequest request,
+  ) async {
+    final detector = _languageDetector;
+    if (detector == null ||
+        !SpokenLanguagePolicy.isAuto(request.config.language)) {
+      return null;
+    }
+    _announce('正在判断演唱语言', stage: TranscriptionStage.preprocessing);
+    final SpokenLanguageResolution resolution;
+    try {
+      resolution = await detector.detect(request);
+    } on TranscriptionException catch (error) {
+      if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
+      return SpokenLanguageResolution.unresolved(error: error.toString());
+    } on Object catch (error) {
+      _checkCancelled();
+      return SpokenLanguageResolution.unresolved(error: error.toString());
+    }
+    // Progress 0: this happens inside the recognition step, whose bar the
+    // engines fill.
+    _announce(resolution.summary, stage: TranscriptionStage.preprocessing);
+    return resolution;
   }
 
   /// The checked draft with the stretches of singing it has no row for
@@ -791,7 +842,11 @@ class LocalProjectTranscriptionWorkflow
     if (_phase == _WorkflowPhase.separating) {
       await (_pendingCancel ??= _vocalSeparator!.cancel());
     } else if (_phase == _WorkflowPhase.recognizing) {
-      await (_pendingCancel ??= _transcriptionService.cancel());
+      final detector = _languageDetector;
+      await (_pendingCancel ??= Future.wait([
+        _transcriptionService.cancel(),
+        if (detector != null) detector.cancel(),
+      ]));
     } else if (_phase == _WorkflowPhase.fillingGaps) {
       await (_pendingCancel ??= _vocalGapFill!.cancel());
     }
