@@ -12,6 +12,7 @@
 ## Git 现场
 
 - 分支：`arena/8d92e4ed-lyric-forge-ktv`，基于 main `1caa4d5`。
+- PR #507，CI 全绿（格式、analyze、全部测试、工作日志检查）；等待用户决定是否合并。
 
 ## 已改文件
 
@@ -19,7 +20,8 @@
 
 ## 检查结果
 
-- 沙箱里没有 Dart/Flutter，格式、analyze 和测试靠 PR 的 Flutter Quality Gate。
+- PR #507 的 Flutter Quality Gate 全部通过（`545baa7`）。
+- Flutter 测试环境报告的平台是 Android，测桌面工程播放器的用例要设 `AppCapabilities.debugLyricWorkbenchOverride = true`。
 - 新增测试：设备能力开关；文件名清理和导入命名；手机歌词页（排序、分组、互传入口、空状态）；导入提示文案；歌词文件扩展名检查；首页封面判断；无编辑器时的参考歌词；底部导航栏高度和顶部边距；手机端隐藏识别入口的源码约束；新配色的对比度和色相。
 
 ## 下一步
