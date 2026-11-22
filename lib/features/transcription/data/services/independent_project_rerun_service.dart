@@ -92,9 +92,9 @@ class IndependentProjectRerunService {
       // Snapshot before any more awaits; no automatic update to the project.
       // The song's language from its recognition, so the rerun does not
       // guess again from the intro (D-061).
-      final runConfig = SpokenLanguagePolicy.withKnownLanguage(
+      final runConfig = SpokenLanguagePolicy.forProject(
         config,
-        SpokenLanguageResolution.languageOfProject(project.metadata),
+        project.metadata,
       );
       final original = LyricDocument.fromJson(
         jsonDecode(jsonEncode(project.lyricDocument!.toJson()))

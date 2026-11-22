@@ -302,5 +302,128 @@ void main() {
       );
       expect(SpokenLanguageResolution.languageOfProject(const {}), isNull);
     });
+
+    test('a song\'s own language wins over everything (D-062)', () {
+      final metadata = <String, dynamic>{
+        'sungLanguage': 'ja',
+        'transcription': {
+          'spokenLanguage': const SpokenLanguageResolution(
+            language: 'en',
+            source: SpokenLanguageSource.detected,
+          ).toJson(),
+        },
+      };
+      expect(SpokenLanguageResolution.projectChoiceOf(metadata), 'ja');
+      expect(SpokenLanguageResolution.languageOfProject(metadata), 'ja');
+      // Over the settings too, unlike a detected language.
+      expect(
+        SpokenLanguagePolicy.forProject(
+          config.copyWith(language: 'zh'),
+          metadata,
+        ).language,
+        'ja',
+      );
+      expect(
+        SpokenLanguagePolicy.forProject(config.copyWith(language: 'zh'), {
+          'transcription': metadata['transcription'],
+        }).language,
+        'zh',
+      );
+      expect(
+        SpokenLanguagePolicy.forProject(config, {
+          'transcription': metadata['transcription'],
+        }).language,
+        'en',
+      );
+      expect(SpokenLanguageResolution.projectChoiceOf(const {}), isNull);
+      expect(
+        SpokenLanguageResolution.projectChoiceOf(const {'sungLanguage': 'x'}),
+        isNull,
+      );
+    });
+
+    test('applyResolution pins a song setting over the settings', () {
+      final zh = config.copyWith(language: 'zh');
+      expect(
+        SpokenLanguagePolicy.applyResolution(
+          zh,
+          const SpokenLanguageResolution(
+            language: 'en',
+            source: SpokenLanguageSource.project,
+          ),
+        ).language,
+        'en',
+      );
+      expect(
+        SpokenLanguagePolicy.applyResolution(
+          zh,
+          const SpokenLanguageResolution(
+            language: 'en',
+            source: SpokenLanguageSource.detected,
+          ),
+        ).language,
+        'zh',
+      );
+      expect(
+        SpokenLanguagePolicy.applyResolution(
+          config,
+          const SpokenLanguageResolution(
+            language: 'en',
+            source: SpokenLanguageSource.detected,
+          ),
+        ).language,
+        'en',
+      );
+      expect(SpokenLanguagePolicy.applyResolution(zh, null).language, 'zh');
+    });
+
+    test('the project page describes the last recognition\'s language', () {
+      String? describe(Map<String, Object?> transcription) =>
+          SpokenLanguageResolution.describeProject({
+            'transcription': transcription,
+          });
+      expect(
+        describe({
+          'spokenLanguage': const SpokenLanguageResolution(
+            language: 'en',
+            source: SpokenLanguageSource.detected,
+          ).toJson(),
+        }),
+        '英文（自动判断）',
+      );
+      expect(
+        describe({
+          'spokenLanguage': const SpokenLanguageResolution(
+            language: 'ko',
+            source: SpokenLanguageSource.project,
+          ).toJson(),
+        }),
+        '韩文（本首歌设置）',
+      );
+      expect(
+        describe({
+          'detectedLanguage': 'nn',
+          'spokenLanguage': const SpokenLanguageResolution.unresolved()
+              .toJson(),
+        }),
+        '挪威语（引擎检测）',
+      );
+      expect(describe({'detectedLanguage': 'zh'}), '中文（引擎检测）');
+      expect(describe(const {}), isNull);
+      expect(SpokenLanguageResolution.describeProject(const {}), isNull);
+    });
+
+    test('the offered languages all have names', () {
+      for (final code in SpokenLanguagePolicy.selectableLanguages) {
+        expect(SpokenLanguagePolicy.label(code), isNot(code));
+      }
+      expect(
+        const SpokenLanguageResolution(
+          language: 'fr',
+          source: SpokenLanguageSource.project,
+        ).summary,
+        '演唱语言：法语（本首歌设置）',
+      );
+    });
   });
 }

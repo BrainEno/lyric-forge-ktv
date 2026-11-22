@@ -6,6 +6,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/presentation/widgets/seekable_progress_bar.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_review_queue.dart';
+import '../../domain/models/recognition_review_summary.dart';
 import '../lyric_review_strings.dart';
 import 'auto_proofread_dialogs.dart';
 import 'lyric_editor_actions.dart';
@@ -324,8 +325,15 @@ class _StatusLine extends StatelessWidget {
       children: [
         item('$lineCount 行', AppColors.textTertiary),
         separator,
-        item(language.toUpperCase(), AppColors.textTertiary),
-        separator,
+        if (language.trim().isNotEmpty) ...[
+          item(
+            RecognitionReviewSummary.languageLabel(
+              language.trim().toLowerCase(),
+            ),
+            AppColors.textTertiary,
+          ),
+          separator,
+        ],
         item(
           '待复核 $needsReview',
           // Lines waiting for review are a caution, not a success state.

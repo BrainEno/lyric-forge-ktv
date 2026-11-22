@@ -453,11 +453,12 @@ class LocalProjectTranscriptionWorkflow
           config: runtimeConfig,
           recognitionHints: hints,
         ),
+        project,
       );
       _checkCancelled();
-      final recognitionConfig = SpokenLanguagePolicy.withKnownLanguage(
+      final recognitionConfig = SpokenLanguagePolicy.applyResolution(
         runtimeConfig,
-        spokenLanguage?.language,
+        spokenLanguage,
       );
       _announce('正在启动识别引擎', stage: TranscriptionStage.loadingModel);
       final result = await _transcriptionService.transcribe(
@@ -500,6 +501,8 @@ class LocalProjectTranscriptionWorkflow
           ...draft.metadata,
           'timelineFormat': 'lyricforge-timeline-v1',
           'editableDraft': true,
+          // The editor's recognition summary shows it (D-062).
+          SpokenLanguageResolution.metadataKey: ?spokenLanguage?.toJson(),
         },
       );
       // A fresh draft has no manual edits, so the script preference can be
@@ -651,12 +654,23 @@ class LocalProjectTranscriptionWorkflow
     }
   }
 
-  /// The sung language when the settings say 自动检测 (D-061), or null when
-  /// the user chose one or there is no detector. A failed probe is an
-  /// unresolved result, never a failed run.
+  /// The song's language: the one set on its project page (D-062), else
+  /// the sung language when the settings say 自动判断 (D-061). Null when the
+  /// settings name a language or there is no detector. A failed probe is
+  /// an unresolved result, never a failed run.
   Future<SpokenLanguageResolution?> _resolveSpokenLanguage(
     TranscriptionRequest request,
+    ProjectManifest project,
   ) async {
+    final chosen = SpokenLanguageResolution.projectChoiceOf(project.metadata);
+    if (chosen != null) {
+      final resolution = SpokenLanguageResolution(
+        language: chosen,
+        source: SpokenLanguageSource.project,
+      );
+      _announce(resolution.summary, stage: TranscriptionStage.preprocessing);
+      return resolution;
+    }
     final detector = _languageDetector;
     if (detector == null ||
         !SpokenLanguagePolicy.isAuto(request.config.language)) {

@@ -46,6 +46,10 @@ enum SpokenLanguageSource {
   /// The script or words of the song title and artist.
   songInfo,
 
+  /// The user set this song's language on its project page (D-062). It
+  /// wins over the recognition settings and is never probed.
+  project,
+
   /// Nothing usable: the engines detect on their own, as before D-061.
   unresolved,
 }
@@ -57,6 +61,10 @@ enum SpokenLanguageSource {
 /// Whisper guess again from a few seconds of audio.
 class SpokenLanguageResolution {
   static const String metadataKey = 'spokenLanguage';
+
+  /// Project metadata key of the language the user set for one song
+  /// (D-062); absent means 自动判断.
+  static const String projectChoiceKey = 'sungLanguage';
 
   /// A Whisper language code, or `auto` when [source] is
   /// [SpokenLanguageSource.unresolved].
@@ -98,8 +106,54 @@ class SpokenLanguageResolution {
       '演唱语言：${SpokenLanguagePolicy.label(language)}',
     SpokenLanguageSource.songInfo =>
       '演唱语言：${SpokenLanguagePolicy.label(language)}（按歌名判断）',
+    SpokenLanguageSource.project =>
+      '演唱语言：${SpokenLanguagePolicy.label(language)}（本首歌设置）',
     SpokenLanguageSource.unresolved => '没能判断演唱语言，交给识别引擎自动检测',
   };
+
+  /// How [source] found the language, for the project page.
+  static String sourceLabel(SpokenLanguageSource source) => switch (source) {
+    SpokenLanguageSource.configured => '识别设置',
+    SpokenLanguageSource.detected => '自动判断',
+    SpokenLanguageSource.songInfo => '按歌名判断',
+    SpokenLanguageSource.project => '本首歌设置',
+    SpokenLanguageSource.unresolved => '引擎检测',
+  };
+
+  /// The language the user set for this song, or null for 自动判断.
+  static String? projectChoiceOf(Map<String, dynamic> projectMetadata) =>
+      SpokenLanguagePolicy.languageCode(
+        projectMetadata[projectChoiceKey]?.toString(),
+      );
+
+  /// What the project page shows as the song's language: the last
+  /// recognition's language with how it was found, e.g. `英文（自动判断）`.
+  /// Null when the project was never recognised.
+  static String? describeProject(Map<String, dynamic> projectMetadata) {
+    final transcription = projectMetadata['transcription'];
+    if (transcription is! Map) return null;
+    final stored = transcription[metadataKey];
+    if (stored is Map) {
+      final source = SpokenLanguageSource.values
+          .where((value) => value.name == stored['source'])
+          .firstOrNull;
+      final language = SpokenLanguagePolicy.languageCode(
+        stored['language']?.toString(),
+      );
+      if (source != null &&
+          source != SpokenLanguageSource.unresolved &&
+          language != null) {
+        return '${SpokenLanguagePolicy.label(language)}'
+            '（${sourceLabel(source)}）';
+      }
+    }
+    final detected = SpokenLanguagePolicy.languageCode(
+      transcription['detectedLanguage']?.toString(),
+    );
+    if (detected == null) return null;
+    return '${SpokenLanguagePolicy.label(detected)}'
+        '（${sourceLabel(SpokenLanguageSource.unresolved)}）';
+  }
 
   Map<String, Object?> toJson() => {
     'language': language,
@@ -124,6 +178,8 @@ class SpokenLanguageResolution {
   /// language the engines reported for the whole song when it is
   /// [SpokenLanguagePolicy.usableLanguage]. Null when neither says.
   static String? languageOfProject(Map<String, dynamic> projectMetadata) {
+    final chosen = projectChoiceOf(projectMetadata);
+    if (chosen != null) return chosen;
     final transcription = projectMetadata['transcription'];
     if (transcription is! Map) return null;
     final stored = resolvedLanguageOf(Map<String, dynamic>.from(transcription));
@@ -219,6 +275,48 @@ class SpokenLanguagePolicy {
     if (!isAuto(config.language)) return config;
     final known = languageCode(language);
     return known == null ? config : config.copyWith(language: known);
+  }
+
+  /// The languages the recognition settings and the project page offer,
+  /// besides 自动判断. Whisper knows all of them; Qwen3-ASR is told the
+  /// ones it is documented for.
+  static const List<String> selectableLanguages = [
+    'zh',
+    'en',
+    'ja',
+    'ko',
+    'fr',
+    'de',
+    'es',
+    'ru',
+  ];
+
+  /// [config] with this song's language: the one the user set on its
+  /// project page (over any setting), else the last recognition's when the
+  /// settings say 自动判断 (D-061, D-062).
+  static TranscriptionConfig forProject(
+    TranscriptionConfig config,
+    Map<String, dynamic> projectMetadata,
+  ) {
+    final chosen = SpokenLanguageResolution.projectChoiceOf(projectMetadata);
+    if (chosen != null) return config.copyWith(language: chosen);
+    return withKnownLanguage(
+      config,
+      SpokenLanguageResolution.languageOfProject(projectMetadata),
+    );
+  }
+
+  /// [config] with the language of [resolution]: always for a song's own
+  /// setting, otherwise only when the settings say 自动判断.
+  static TranscriptionConfig applyResolution(
+    TranscriptionConfig config,
+    SpokenLanguageResolution? resolution,
+  ) {
+    if (resolution == null) return config;
+    if (resolution.source == SpokenLanguageSource.project) {
+      return config.copyWith(language: resolution.language);
+    }
+    return withKnownLanguage(config, resolution.language);
   }
 
   /// Chinese name of a language code, for messages.

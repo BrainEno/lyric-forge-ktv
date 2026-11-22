@@ -174,7 +174,7 @@ void main() {
     expect(find.byType(ChoiceChip), findsNothing);
     // Read-only counts are text, not controls.
     expect(find.text('2 行'), findsOneWidget);
-    expect(find.text('ZH'), findsOneWidget);
+    expect(find.text('中文'), findsOneWidget);
   });
 
   testWidgets('紧凑宽度不再横向滚动，也不重复显示校对菜单', (tester) async {

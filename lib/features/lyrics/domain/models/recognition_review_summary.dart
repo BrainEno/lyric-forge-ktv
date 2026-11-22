@@ -74,6 +74,17 @@ class RecognitionReviewSummary {
   /// Of [autoFilledLines], how many nobody has confirmed yet.
   final int pendingAutoFilledLines;
 
+  /// The language the run was told to recognise in (D-061, D-062), from the
+  /// draft's `spokenLanguage` record; null when the engines chose.
+  final String? sungLanguage;
+
+  /// How [sungLanguage] was found: `detected`, `songInfo`, `project` or
+  /// `configured`.
+  final String? sungLanguageSource;
+
+  /// The language the engines report the draft is in.
+  final String? recognizedLanguage;
+
   const RecognitionReviewSummary({
     required this.primaryEngine,
     required this.secondaryEngine,
@@ -94,7 +105,82 @@ class RecognitionReviewSummary {
     this.vocalGapFill,
     this.autoFilledLines = 0,
     this.pendingAutoFilledLines = 0,
+    this.sungLanguage,
+    this.sungLanguageSource,
+    this.recognizedLanguage,
   });
+
+  /// Metadata key of the recognition's language record, written by the
+  /// recognition workflow (`SpokenLanguageResolution.metadataKey`).
+  static const String spokenLanguageKey = 'spokenLanguage';
+
+  /// A draft with at most this many rows is almost certainly a failed
+  /// recognition of a song, not a song with three lines.
+  static const int failedDraftLines = 3;
+
+  /// Languages Whisper reports for silence and instruments far more often
+  /// than anybody sings in them; the same list as the recognition's
+  /// `SpokenLanguagePolicy.hallucinationProne` (a test keeps them equal).
+  static final Set<String> misdetectedLanguages = Set.unmodifiable(
+    ('nn no cy la haw mi jw su sn yo ln ha ba tt tk br oc bo sa fo ht lb '
+            'mt my lo sd am mg as tl ps yi sw')
+        .split(' '),
+  );
+
+  /// Whether the draft is in a language Whisper typically makes up, and
+  /// nobody chose it on purpose.
+  bool get languageLooksMisdetected {
+    final language = recognizedLanguage;
+    if (language == null || !misdetectedLanguages.contains(language)) {
+      return false;
+    }
+    return sungLanguageSource != 'project' &&
+        sungLanguageSource != 'configured';
+  }
+
+  /// Whether the draft looks like a failed recognition worth redoing with
+  /// the right language: almost no rows, or a typically misdetected
+  /// language. Never once the user has started reviewing.
+  bool get looksFailed =>
+      hasRecognitionData &&
+      reviewedLines == 0 &&
+      (totalLines <= failedDraftLines || languageLooksMisdetected);
+
+  /// Chinese name of a language code, as the recognition settings show it.
+  static String languageLabel(String code) => switch (code) {
+    'zh' => '中文',
+    'yue' => '粤语',
+    'en' => '英文',
+    'ja' => '日文',
+    'ko' => '韩文',
+    'fr' => '法语',
+    'de' => '德语',
+    'es' => '西班牙语',
+    'pt' => '葡萄牙语',
+    'it' => '意大利语',
+    'ru' => '俄语',
+    'th' => '泰语',
+    'vi' => '越南语',
+    'nn' || 'no' => '挪威语',
+    'cy' => '威尔士语',
+    'la' => '拉丁语',
+    _ => code,
+  };
+
+  /// `英文（自动判断）`, or null when the run did not settle on a language.
+  String? get sungLanguageLine {
+    final language = sungLanguage;
+    if (language == null) return null;
+    final source = switch (sungLanguageSource) {
+      'detected' => '自动判断',
+      'songInfo' => '按歌名判断',
+      'project' => '本首歌设置',
+      'configured' => '识别设置',
+      _ => null,
+    };
+    final label = languageLabel(language);
+    return source == null ? label : '$label（$source）';
+  }
 
   /// Whether this document carries any recognition metadata at all. Imported
   /// or hand-typed lyrics have none, and get no recognition summary.
@@ -155,6 +241,15 @@ class RecognitionReviewSummary {
           .length;
     }
 
+    final spoken = metadata[spokenLanguageKey];
+    final spokenMap = spoken is Map ? spoken : const {};
+    final spokenSource = text(spokenMap['source']);
+    String? code(Object? value) {
+      final raw = text(value)?.toLowerCase();
+      if (raw == null || !RegExp(r'^[a-z]{2,3}$').hasMatch(raw)) return null;
+      return raw;
+    }
+
     final segmentation = metadata['segmentationOnlySecondaryCount'];
     final vocalCheck = LyricVocalCheckRecord.fromMetadata(metadata);
     final gapFill = LyricVocalGapFillRecord.fromMetadata(metadata);
@@ -187,6 +282,11 @@ class RecognitionReviewSummary {
       pendingAutoFilledLines: autoFilled
           .where((index) => !reviewed.contains(index))
           .length,
+      sungLanguage: spokenSource == null || spokenSource == 'unresolved'
+          ? null
+          : code(spokenMap['language']),
+      sungLanguageSource: spokenSource,
+      recognizedLanguage: code(document.language),
     );
   }
 }

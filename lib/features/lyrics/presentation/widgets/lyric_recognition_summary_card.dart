@@ -39,6 +39,11 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
   /// singing without lyrics, restore removed rows. Null hides the buttons.
   final ValueChanged<LyricVocalCheckRequest>? onVocalCheckAction;
 
+  /// Leaves the editor for the project page, where the song's 演唱语言 is
+  /// set and recognition started again (D-062). Null hides the button of
+  /// the failed-recognition notice.
+  final VoidCallback? onBackToProject;
+
   const LyricRecognitionSummaryCard({
     super.key,
     required this.summary,
@@ -47,7 +52,22 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
     this.onOpenBatchTool,
     this.onAutoProofread,
     this.onVocalCheckAction,
+    this.onBackToProject,
   });
+
+  /// What to do about a draft that looks like a failed recognition
+  /// ([RecognitionReviewSummary.looksFailed]); null when it does not.
+  static String? failureHint(RecognitionReviewSummary summary) {
+    if (!summary.looksFailed) return null;
+    final rows = '整首只识别出 ${summary.totalLines} 行';
+    const fix = '在工程页把“演唱语言”设成这首歌实际的语言，再重新识别';
+    final language = summary.recognizedLanguage;
+    if (summary.languageLooksMisdetected && language != null) {
+      final label = RecognitionReviewSummary.languageLabel(language);
+      return '识别按$label处理了这首歌，很可能判断错了语言（$rows）。$fix';
+    }
+    return '$rows，识别多半没有成功（常见原因是演唱语言判断错）。$fix';
+  }
 
   /// The batch tools whose default fixes are steps of 一键校对.
   static const Set<LyricBatchTextTool> oneClickTools = {
@@ -242,6 +262,51 @@ class _LyricRecognitionSummaryCardState
     );
     if (!summary.whisperProfileDegraded) return 'Whisper 参数：$effective';
     return 'Whisper 参数：$effective（运行时不支持歌词增强，已安全回退）';
+  }
+
+  /// The notice of a draft that looks like a failed recognition, with the
+  /// way back to the project page when there is one.
+  List<Widget> _failureNotice(String message) {
+    final theme = Theme.of(context);
+    final back = widget.onBackToProject;
+    return [
+      const SizedBox(height: AppSpacing.xs),
+      Container(
+        key: const ValueKey('lyric_recognition_summary_failed'),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withAlpha(24),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.report_problem_outlined,
+              size: 18,
+              color: AppColors.warning,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                message,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            if (back != null)
+              TextButton(
+                key: const ValueKey('lyric_recognition_summary_back'),
+                onPressed: back,
+                child: const Text('回工程页'),
+              ),
+          ],
+        ),
+      ),
+    ];
   }
 
   /// One button per listed stretch: a click recognises it right away.
@@ -446,6 +511,8 @@ class _LyricRecognitionSummaryCardState
       actionable: vocalAction != null,
     );
     final removedLines = summary.vocalCheck?.removedLines ?? const [];
+    final failure = LyricRecognitionSummaryCard.failureHint(summary);
+    final sungLanguage = summary.sungLanguageLine;
 
     return Container(
       key: const ValueKey('lyric_recognition_summary_card'),
@@ -544,6 +611,7 @@ class _LyricRecognitionSummaryCardState
                 ),
             ],
           ),
+          if (failure != null) ..._failureNotice(failure),
           if (vocalSpans != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
@@ -566,6 +634,7 @@ class _LyricRecognitionSummaryCardState
             const SizedBox(height: AppSpacing.xs),
             Text(
               [
+                if (sungLanguage != null) '演唱语言：$sungLanguage',
                 ?whisperLine,
                 if ((summary.segmentationOnlySecondary ?? 0) > 0)
                   '另有 ${summary.segmentationOnlySecondary} 处仅分段不同，未重复插入',
