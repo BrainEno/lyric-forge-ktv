@@ -252,6 +252,11 @@ class AppMobileBottomNavigation extends StatefulWidget {
     required this.onSelect,
   });
 
+  /// The bar's height above the home indicator (D-058). Material's 80 left
+  /// the phone's tab bar towering over the page; 64 still fits the 32-high
+  /// pill and its label with room around them.
+  static const double barHeight = 64;
+
   @override
   State<AppMobileBottomNavigation> createState() =>
       _AppMobileBottomNavigationState();
@@ -263,6 +268,7 @@ class _AppMobileBottomNavigationState extends State<AppMobileBottomNavigation>
   Widget build(BuildContext context) {
     return NavigationBar(
       backgroundColor: AppColors.bgElevated,
+      height: AppMobileBottomNavigation.barHeight,
       selectedIndex: MobileDestination.values.indexOf(widget.selected),
       onDestinationSelected: (index) =>
           press(MobileDestination.values[index], widget.onSelect),

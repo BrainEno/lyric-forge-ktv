@@ -363,8 +363,9 @@ void main() {
         router,
         contains('projectRepository: services.projectRepository,'),
       );
-      // On the phone the inbox is also the 歌词 page (D-041).
-      expect(router, contains('lyricsHub: listeningHome'));
+      // On the phone 歌词 is a page of its own, without recognition (D-058).
+      expect(router, contains('case Routes.review when listeningHome:'));
+      expect(router, contains('MobileLyricsScreen('));
 
       final assembly = File(
         'lib/app/lyric_editor_assembly.dart',

@@ -87,7 +87,7 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                         state: playback,
                         onSeek: _session.seek,
                         hitHeight: 28,
-                        activeColor: AppColors.vinylBrass,
+                        activeColor: AppColors.vinylAccent,
                       ),
                       SizedBox(
                         height: 66,

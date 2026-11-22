@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../../core/layout/app_capabilities.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -199,7 +200,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
           playbackSession: _playbackSession,
           immersiveKtv: widget.dependencies.immersiveKtv,
           onInitialize: () => _initializeAudio(project),
-          onOpenLyricEditor: () => _openLyricEditor(project),
+          // A phone has no lyric editor (D-058).
+          onOpenLyricEditor: AppCapabilities.lyricWorkbench
+              ? () => _openLyricEditor(project)
+              : null,
           onAddLyrics: canAddLyrics
               ? (choice) => _addLyrics(project, choice)
               : null,
@@ -252,7 +256,7 @@ class _PlayerContent extends StatefulWidget {
   final PlaybackSessionService playbackSession;
   final ImmersiveKtvDependencies immersiveKtv;
   final VoidCallback onInitialize;
-  final Future<void> Function() onOpenLyricEditor;
+  final Future<void> Function()? onOpenLyricEditor;
 
   /// Opens 添加歌词; null when the project already has timed lyrics or the
   /// app has no importer. A null choice asks the user where from.
@@ -423,7 +427,9 @@ class _PlayerContentState extends State<_PlayerContent> {
               Text(
                 widget.project.artist?.trim().isNotEmpty == true
                     ? widget.project.artist!
-                    : '本地工程',
+                    : AppCapabilities.lyricWorkbench
+                    ? '本地工程'
+                    : '本地歌曲',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(
@@ -433,18 +439,20 @@ class _PlayerContentState extends State<_PlayerContent> {
           ],
         ),
         actions: [
-          SizedBox(
-            width: spec.minimumInteractiveExtent,
-            height: spec.minimumInteractiveExtent,
-            child: IconButton(
-              tooltip: '工程详情',
-              onPressed: () => Navigator.pushNamed(
-                context,
-                Routes.projectDetailPath(widget.project.id),
+          // The project page is part of the desktop workbench (D-058).
+          if (AppCapabilities.lyricWorkbench)
+            SizedBox(
+              width: spec.minimumInteractiveExtent,
+              height: spec.minimumInteractiveExtent,
+              child: IconButton(
+                tooltip: '工程详情',
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  Routes.projectDetailPath(widget.project.id),
+                ),
+                icon: const Icon(Icons.info_outline_rounded),
               ),
-              icon: const Icon(Icons.info_outline_rounded),
             ),
-          ),
           if (timedLyrics)
             SizedBox(
               width: spec.minimumInteractiveExtent,
@@ -455,15 +463,16 @@ class _PlayerContentState extends State<_PlayerContent> {
                 icon: const Icon(Icons.mic_rounded),
               ),
             ),
-          SizedBox(
-            width: spec.minimumInteractiveExtent,
-            height: spec.minimumInteractiveExtent,
-            child: IconButton(
-              tooltip: '校对歌词',
-              onPressed: widget.onOpenLyricEditor,
-              icon: const Icon(Icons.edit_rounded),
+          if (widget.onOpenLyricEditor != null)
+            SizedBox(
+              width: spec.minimumInteractiveExtent,
+              height: spec.minimumInteractiveExtent,
+              child: IconButton(
+                tooltip: '校对歌词',
+                onPressed: widget.onOpenLyricEditor,
+                icon: const Icon(Icons.edit_rounded),
+              ),
             ),
-          ),
           const SizedBox(width: AppSpacing.xs),
         ],
       ),
@@ -538,7 +547,7 @@ class _PlayerWorkspace extends StatelessWidget {
   final VoidCallback onSkipNext;
   final ValueChanged<bool> onModeChanged;
   final VoidCallback? onOpenFullScreenKtv;
-  final Future<void> Function() onOpenLyricEditor;
+  final Future<void> Function()? onOpenLyricEditor;
   final ValueChanged<LyricsSourceChoice?>? onAddLyrics;
   final bool onlineLyricsAvailable;
 
@@ -650,7 +659,7 @@ class _LyricsPane extends StatelessWidget {
   final int? currentIndex;
   final ValueChanged<LyricLine> onLyricTap;
   final VoidCallback? onOpenFullScreenKtv;
-  final Future<void> Function() onOpenLyricEditor;
+  final Future<void> Function()? onOpenLyricEditor;
   final ValueChanged<LyricsSourceChoice?>? onAddLyrics;
   final bool onlineLyricsAvailable;
 
@@ -1033,11 +1042,14 @@ class _NoLyricsState extends StatelessWidget {
               color: AppColors.textTertiary,
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('这个工程还没有歌词', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              AppCapabilities.lyricWorkbench ? '这个工程还没有歌词' : '这首歌还没有歌词',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               addLyrics == null
-                  ? '可以继续普通播放，生成或编辑歌词后再进入 KTV 模式。'
+                  ? '可以继续普通播放，有时间轴的歌词才能进入 KTV 模式。'
                   : '可以联网获取歌词，或粘贴纯文本歌词作为参考（静态显示、手动滚动）；'
                         '有时间轴的歌词才能进入 KTV 模式。',
               textAlign: TextAlign.center,

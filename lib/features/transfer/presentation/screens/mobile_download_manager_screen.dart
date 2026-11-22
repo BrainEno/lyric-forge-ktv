@@ -502,7 +502,7 @@ class _DownloadedTrackTile extends StatelessWidget {
       badges: [
         AppSongRowBadge(
           icon: Icons.offline_pin_rounded,
-          color: AppColors.vinylBrass,
+          color: AppColors.vinylAccent,
         ),
       ],
       onTap: onPlay,

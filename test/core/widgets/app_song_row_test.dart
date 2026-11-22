@@ -179,7 +179,7 @@ void main() {
         find.byType(LinearProgressIndicator),
       );
       expect(bar.value, 0.4);
-      expect(bar.color, AppColors.vinylBrass);
+      expect(bar.color, AppColors.vinylAccent);
       expect(_rowText('正在下载 40%'), findsOneWidget);
       expect(_colorOf(tester, '正在下载 40%'), AppColors.textTertiary);
     });
@@ -238,7 +238,7 @@ void main() {
         ),
       );
 
-      expect(_colorOf(tester, '晴天'), AppColors.vinylBrass);
+      expect(_colorOf(tester, '晴天'), AppColors.vinylAccent);
       expect(_colorOf(tester, '周杰伦'), AppColors.textSecondary);
       final bars = tester.widget<AppRhythmBars>(find.byType(AppRhythmBars));
       expect(bars.playing, isTrue);
@@ -250,7 +250,7 @@ void main() {
             )
             .first,
       );
-      expect(material.color, AppColors.vinylBrassMuted);
+      expect(material.color, AppColors.vinylAccentMuted);
     });
 
     testWidgets('a paused current song keeps its bars, at rest', (

@@ -144,7 +144,8 @@ class _ReferenceBanner extends StatelessWidget {
         children: [
           Text(
             '这份歌词没有时间轴，不会跟着播放滚动或高亮，请手动滚动查看。'
-            '打轴后可以同步显示并进入 KTV。'
+            // Timing needs the editor, which a phone does not have (D-058).
+            '${editor != null ? '打轴后可以同步显示并进入 KTV。' : ''}'
             '${sourceLabel == null ? '' : '（来源：$sourceLabel）'}',
             style: style,
           ),

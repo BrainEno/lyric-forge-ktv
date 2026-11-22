@@ -154,21 +154,31 @@ class _ChromeLayout extends StatelessWidget {
             child: chrome.child,
           ),
         ),
+        // Neither bar touches the top of the screen, so neither keeps the
+        // status-bar inset: NavigationBar pads for every inset it is given,
+        // and on iPhones it used to grow by the 47pt status bar (D-058).
         if (showPlayerBar)
-          _withoutBottomInset(
-            context,
-            remove: showNavigation,
+          MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            removeBottom: showNavigation,
             child: playerBar,
           ),
         if (showNavigation)
-          AppMobileBottomNavigation(
-            key: const ValueKey('app-bottom-navigation'),
-            selected: destination,
-            onSelect: chrome.onSelectMobileDestination,
+          _withoutTopInset(
+            context,
+            child: AppMobileBottomNavigation(
+              key: const ValueKey('app-bottom-navigation'),
+              selected: destination,
+              onSelect: chrome.onSelectMobileDestination,
+            ),
           ),
       ],
     );
   }
+
+  static Widget _withoutTopInset(BuildContext context, {required Widget child}) =>
+      MediaQuery.removePadding(context: context, removeTop: true, child: child);
 
   static Widget _withoutBottomInset(
     BuildContext context, {

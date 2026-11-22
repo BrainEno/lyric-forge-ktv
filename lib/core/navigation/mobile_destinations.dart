@@ -14,8 +14,9 @@ import 'routes.dart';
 ///  * 听歌 — what is playing, recent plays and play-all, and the app opens
 ///    here;
 ///  * 音乐库 — the songs, artists, albums, favourites and playlists;
-///  * 歌词 — the old 工程 and 校对 tabs together: lyrics waiting for review,
-///    with lyric import and the project list one press away;
+///  * 歌词 — giving the songs lyrics: online, from a lyric file or pasted
+///    text, and swapping songs and lyrics with the computer. A phone cannot
+///    run recognition, so there are no projects or review here (D-058);
 ///  * 设置.
 ///
 /// The desktop keeps [AppDestination], where projects are the work.
@@ -55,8 +56,8 @@ extension MobileDestinationX on MobileDestination {
   String get description => switch (this) {
     MobileDestination.listen => '正在播放、最近播放与随机播放',
     MobileDestination.library => '本机的歌曲、艺人、专辑与歌单',
-    MobileDestination.lyrics => '导入歌词、校对与歌词工程',
-    MobileDestination.settings => '外观主题、识别环境、诊断与试识别',
+    MobileDestination.lyrics => '给歌曲配歌词，与电脑互传歌曲和歌词',
+    MobileDestination.settings => '外观主题、曲库目录与诊断',
   };
 }
 

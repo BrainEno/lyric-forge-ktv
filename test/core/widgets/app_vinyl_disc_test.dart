@@ -122,7 +122,7 @@ void main() {
       await tester.pumpWidget(_host(const AppVinylDisc(size: 100)));
 
       final note = tester.widget<Icon>(find.byIcon(Icons.music_note_rounded));
-      expect(note.color, AppColors.vinylBrass);
+      expect(note.color, AppColors.vinylAccent);
       expect(note.size, closeTo(100 * 0.46 * 0.42, 0.01));
     });
 
@@ -200,7 +200,7 @@ void main() {
           .toList();
 
       expect(shadowsOf('plain'), isEmpty);
-      expect(shadowsOf('hero').single.color, AppColors.vinylBrassMuted);
+      expect(shadowsOf('hero').single.color, AppColors.vinylAccentMuted);
     });
   });
 
@@ -292,7 +292,7 @@ void main() {
             width: 300,
             height: 200,
             child: AppCoverGlow(
-              cover: ColoredBox(color: AppColors.vinylBrass),
+              cover: ColoredBox(color: AppColors.vinylAccent),
               child: Text('内容'),
             ),
           ),
@@ -346,7 +346,7 @@ void main() {
       await tester.pumpWidget(_host(const AppVinylDisc(size: 100)));
 
       final note = tester.widget<Icon>(find.byIcon(Icons.music_note_rounded));
-      expect(note.color, AppPalette.light.vinylBrass);
+      expect(note.color, AppPalette.light.vinylAccent);
       final label = tester.widget<ColoredBox>(
         find
             .ancestor(
@@ -373,8 +373,8 @@ void main() {
           .map((c) => c.decoration)
           .whereType<BoxDecoration>()
           .map((d) => d.color);
-      expect(rings, contains(AppColors.vinylBrassOnDark));
-      expect(rings, isNot(contains(AppPalette.light.vinylBrass)));
+      expect(rings, contains(AppColors.vinylAccentOnDark));
+      expect(rings, isNot(contains(AppPalette.light.vinylAccent)));
     });
 
     testWidgets('the spindle hole shows the light page through it', (
@@ -396,7 +396,7 @@ void main() {
     });
 
     test('the light brass of the ring reads on the record (7:1)', () {
-      final ring = AppColors.vinylBrassOnDark.computeLuminance();
+      final ring = AppColors.vinylAccentOnDark.computeLuminance();
       final record = AppColors.vinylDisc.computeLuminance();
       final center = AppPalette.light.vinylDiscCenter.computeLuminance();
       expect((ring + 0.05) / (record + 0.05), greaterThan(7));

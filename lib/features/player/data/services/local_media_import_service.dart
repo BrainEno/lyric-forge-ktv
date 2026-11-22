@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../domain/services/audio_library_import_service.dart';
 import '../../domain/services/media_audio_extractor.dart';
+import '../../domain/services/media_file_names.dart';
 import '../../domain/services/media_import_service.dart';
 
 /// A file the user picked: its display name and a readable local copy.
@@ -37,6 +38,9 @@ class LocalMediaImportService implements MediaImportService {
   final Future<Directory> Function() _importDirectory;
   final Future<void> Function() _cleanUpPickerFiles;
 
+  /// Dates the name of a file whose picked name was made up (D-058).
+  final DateTime Function() _clock;
+
   @override
   final bool supportsPhotoLibrary;
 
@@ -49,11 +53,13 @@ class LocalMediaImportService implements MediaImportService {
     MediaFilePicker? pick,
     Future<Directory> Function()? importDirectory,
     Future<void> Function()? cleanUpPickerFiles,
+    DateTime Function()? clock,
     this.supportsPhotoLibrary = true,
     this.supportsVideo = true,
   }) : _pick = pick ?? pickMediaWithFilePicker,
        _importDirectory = importDirectory ?? defaultImportDirectory,
-       _cleanUpPickerFiles = cleanUpPickerFiles ?? _clearFilePickerCache;
+       _cleanUpPickerFiles = cleanUpPickerFiles ?? _clearFilePickerCache,
+       _clock = clock ?? DateTime.now;
 
   /// Documents/Imported Audio, created on first use.
   static Future<Directory> defaultImportDirectory() async {
@@ -193,7 +199,7 @@ class LocalMediaImportService implements MediaImportService {
     final source = File(file.path);
     if (_isInside(source.path, directory.path)) return source.path;
     final length = await source.length();
-    final name = safeFileName(file.name, fallback: 'audio');
+    final name = _readableName(safeFileName(file.name, fallback: 'audio'));
     final existing = File(_join(directory.path, name));
     if (await existing.exists() && await existing.length() == length) {
       return existing.path;
@@ -207,7 +213,11 @@ class LocalMediaImportService implements MediaImportService {
     PickedMediaFile file,
     Directory directory,
   ) async {
-    final base = _withoutExtension(safeFileName(file.name, fallback: 'video'));
+    final base = importedMediaStem(
+      _withoutExtension(safeFileName(file.name, fallback: 'video')),
+      video: true,
+      now: _clock(),
+    );
     final target = await uniqueFile(directory, '$base.m4a');
     try {
       final result = await extractor.extractAudio(
@@ -226,6 +236,14 @@ class LocalMediaImportService implements MediaImportService {
       if (await target.exists()) await target.delete();
       rethrow;
     }
+  }
+
+  /// [name] with a readable stem when a picker made it up, so the song is
+  /// not listed as `image_<uuid>_<number>` (D-058).
+  String _readableName(String name) {
+    final stem = _withoutExtension(name);
+    final extension = name.substring(stem.length);
+    return '${importedMediaStem(stem, video: false, now: _clock())}$extension';
   }
 
   /// [name] without characters that file systems reject, never empty.

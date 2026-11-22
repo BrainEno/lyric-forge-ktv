@@ -50,9 +50,9 @@ class AppPalette {
     required this.borderMuted,
     required this.borderStrong,
     required this.brandBars,
-    required this.vinylBrass,
-    required this.vinylBrassMuted,
-    required this.onVinylBrass,
+    required this.vinylAccent,
+    required this.vinylAccentMuted,
+    required this.onVinylAccent,
     required this.vinylDiscCenter,
     required this.vinylSurface,
     required this.vinylSurfaceHigh,
@@ -126,20 +126,21 @@ class AppPalette {
   /// white on dark pages, ink on light ones.
   final Color brandBars;
 
-  /// Vinyl (D-041): brass marks what is playing, the warm surfaces carry
-  /// the listening home and the mini player.
-  final Color vinylBrass;
-  final Color vinylBrassMuted;
+  /// Vinyl (D-041, violet since D-058): the orchid violet marks what is
+  /// playing, the violet-tinted surfaces carry the listening home and the
+  /// mini player.
+  final Color vinylAccent;
+  final Color vinylAccentMuted;
 
-  /// The play icon and label on a brass fill.
-  final Color onVinylBrass;
+  /// The play icon and label on a [vinylAccent] fill.
+  final Color onVinylAccent;
 
   /// Where the record's radial gradient starts; it ends on the record black.
   final Color vinylDiscCenter;
   final Color vinylSurface;
   final Color vinylSurfaceHigh;
 
-  /// Top of the listening home's warm backdrop.
+  /// Top of the listening home's backdrop.
   final Color vinylHeroTop;
 
   /// The round play/pause button of the player bars and the transport, its
@@ -197,15 +198,17 @@ class AppPalette {
     // 4.1:1 on bgElevated.
     borderStrong: Color(0xFF7A7A7A),
     brandBars: Color(0xFFF6F2E8),
-    // Brass is 7:1 or more on every dark surface.
-    vinylBrass: Color(0xFFE6B87A),
-    vinylBrassMuted: Color(0x29E6B87A),
-    // The record black on brass: 10.7:1.
-    onVinylBrass: Color(0xFF0E0C0B),
-    vinylDiscCenter: Color(0xFF1E1915),
-    vinylSurface: Color(0xFF1E1915),
-    vinylSurfaceHigh: Color(0xFF2A221C),
-    vinylHeroTop: Color(0xFF3A2A1E),
+    // Orchid violet (D-058; it was brass, which read as brown): 7:1 or more
+    // on every dark surface, a little redder and lighter than the lavender
+    // accent beside it.
+    vinylAccent: Color(0xFFD4A5FF),
+    vinylAccentMuted: Color(0x29D4A5FF),
+    // The record black on the violet: 9.8:1.
+    onVinylAccent: Color(0xFF0E0C12),
+    vinylDiscCenter: Color(0xFF1C1828),
+    vinylSurface: Color(0xFF1C1828),
+    vinylSurfaceHigh: Color(0xFF262036),
+    vinylHeroTop: Color(0xFF2E2450),
     playDisc: Color(0xFFFFFFFF),
     onPlayDisc: Color(0xFF000000),
     // A black spinner on light grey: 10:1.
@@ -217,7 +220,7 @@ class AppPalette {
   /// lavender accent, so selection keeps its colour from the dark theme.
   ///
   /// Every pair was recomputed for light pages rather than inverted: the
-  /// accent, the error text, brass and the status colours are all darker
+  /// accent, the error text, the vinyl violet and the status colours are all darker
   /// shades of the same hues, because the dark palette's light pastels fall
   /// to 1.5–2:1 on paper.
   static const AppPalette light = AppPalette(
@@ -262,15 +265,15 @@ class AppPalette {
     // 3.7:1 on white cards.
     borderStrong: Color(0xFF8A847D),
     brandBars: Color(0xFF1A1817),
-    // Brass darkened to an old bronze: 5.6:1 on the page, white on it 6.1:1.
-    vinylBrass: Color(0xFF8A5716),
-    vinylBrassMuted: Color(0x248A5716),
-    onVinylBrass: Color(0xFFFFFFFF),
-    // The record stays black in daylight; only its centre warms.
-    vinylDiscCenter: Color(0xFF2A221C),
-    vinylSurface: Color(0xFFF3EADF),
-    vinylSurfaceHigh: Color(0xFFEFE3D4),
-    vinylHeroTop: Color(0xFFE8D3B8),
+    // The violet deepened for paper: 7.9:1 on the page, white on it 8.6:1.
+    vinylAccent: Color(0xFF6A1FB0),
+    vinylAccentMuted: Color(0x246A1FB0),
+    onVinylAccent: Color(0xFFFFFFFF),
+    // The record stays black in daylight; only its centre takes the tint.
+    vinylDiscCenter: Color(0xFF261F33),
+    vinylSurface: Color(0xFFF5F1FB),
+    vinylSurfaceHigh: Color(0xFFEFE9F9),
+    vinylHeroTop: Color(0xFFE4D9F7),
     // An ink disc with a white icon (17.7:1); white spinner on the busy disc
     // 7.0:1.
     playDisc: Color(0xFF1A1817),
@@ -312,9 +315,9 @@ class AppPalette {
     'borderMuted': borderMuted,
     'borderStrong': borderStrong,
     'brandBars': brandBars,
-    'vinylBrass': vinylBrass,
-    'vinylBrassMuted': vinylBrassMuted,
-    'onVinylBrass': onVinylBrass,
+    'vinylAccent': vinylAccent,
+    'vinylAccentMuted': vinylAccentMuted,
+    'onVinylAccent': onVinylAccent,
     'vinylDiscCenter': vinylDiscCenter,
     'vinylSurface': vinylSurface,
     'vinylSurfaceHigh': vinylSurfaceHigh,

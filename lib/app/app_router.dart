@@ -11,6 +11,7 @@ import '../features/lyrics/presentation/screens/review_inbox_screen.dart';
 import '../features/player/domain/models/play_history.dart';
 import '../features/player/presentation/screens/listen_home_screen.dart';
 import '../features/player/presentation/screens/local_music_library_shell.dart';
+import '../features/player/presentation/screens/mobile_lyrics_screen.dart';
 import '../features/player/presentation/screens/now_playing_screen.dart';
 import '../features/player/presentation/screens/player_screen.dart';
 import '../features/player/presentation/screens/quick_play_screen.dart';
@@ -41,10 +42,17 @@ class AppRouter {
 
   final AppServices services;
 
-  /// Whether the root route is the phone's listening home rather than the
-  /// project dashboard (decision D-041). The dashboard stays reachable at
-  /// `/dashboard` either way, from the phone's 歌词 page.
+  /// Whether this is the phone: the root route is the listening home rather
+  /// than the project dashboard (decision D-041), and since a phone cannot run
+  /// recognition (D-058), 歌词 is [MobileLyricsScreen] and the recognition
+  /// and project routes (`/dashboard`, `/import`, a project's page and its
+  /// lyric editor) land on that page or on the project's player instead.
   final bool listeningHome;
+
+  Route<dynamic> _mobileLyrics(RouteSettings settings) => _fadeRoute(
+    MobileLyricsScreen(dependencies: assembleLocalLibraryDependencies(services)),
+    settings,
+  );
 
   /// The music library is one screen with five sections; each route only
   /// differs in which section (and, for songs, which smart view) is selected.
@@ -68,6 +76,11 @@ class AppRouter {
           ),
           settings,
         );
+
+      case Routes.dashboard when listeningHome:
+      case Routes.import when listeningHome:
+      case Routes.review when listeningHome:
+        return _mobileLyrics(settings);
 
       case Routes.home:
       case Routes.dashboard:
@@ -126,10 +139,7 @@ class AppRouter {
 
       case Routes.review:
         return _fadeRoute(
-          ReviewInboxScreen(
-            projectRepository: services.projectRepository,
-            lyricsHub: listeningHome,
-          ),
+          ReviewInboxScreen(projectRepository: services.projectRepository),
           settings,
         );
 
@@ -171,6 +181,23 @@ class AppRouter {
       default:
         if (uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'project') {
           final projectId = uri.pathSegments[1];
+
+          // A phone has no project page and no lyric editor (D-058): both
+          // open the project's player, which shows its lyrics.
+          final playerOnly =
+              listeningHome &&
+              (uri.pathSegments.length == 2 ||
+                  (uri.pathSegments.length == 3 &&
+                      uri.pathSegments[2] == 'lyrics'));
+          if (playerOnly) {
+            return _fadeRoute(
+              PlayerScreen(
+                projectId: projectId,
+                dependencies: assemblePlayerScreenDependencies(services),
+              ),
+              settings,
+            );
+          }
 
           if (uri.pathSegments.length == 2) {
             return _fadeRoute(

@@ -29,24 +29,24 @@ void main() {
     'vinylSurfaceHigh': AppColors.vinylSurfaceHigh,
   };
 
-  group('brass, the colour of what is playing', () {
+  group('the vinyl violet, the colour of what is playing', () {
     for (final entry in pages.entries) {
       test('reads as text on ${entry.key} (AAA)', () {
         expect(
-          _contrast(AppColors.vinylBrass, entry.value),
+          _contrast(AppColors.vinylAccent, entry.value),
           greaterThanOrEqualTo(7),
         );
       });
     }
 
-    test('the playing row title stays AA on its own brass wash', () {
-      final wash = _over(AppColors.vinylBrassMuted, AppColors.bgBase);
-      expect(_contrast(AppColors.vinylBrass, wash), greaterThanOrEqualTo(4.5));
+    test('the playing row title stays AA on its own violet wash', () {
+      final wash = _over(AppColors.vinylAccentMuted, AppColors.bgBase);
+      expect(_contrast(AppColors.vinylAccent, wash), greaterThanOrEqualTo(4.5));
       expect(_contrast(AppColors.textPrimary, wash), greaterThanOrEqualTo(7));
     });
 
     test('the playing row subtitle uses secondary text, which stays AA', () {
-      final wash = _over(AppColors.vinylBrassMuted, AppColors.bgBase);
+      final wash = _over(AppColors.vinylAccentMuted, AppColors.bgBase);
       expect(
         _contrast(AppColors.textSecondary, wash),
         greaterThanOrEqualTo(4.5),
@@ -55,29 +55,37 @@ void main() {
       expect(_contrast(AppColors.textTertiary, wash), lessThan(4.5));
     });
 
-    test('the muted wash is brass at low opacity, not a new hue', () {
-      expect(AppColors.vinylBrassMuted.withAlpha(255), AppColors.vinylBrass);
-      expect(AppColors.vinylBrassMuted.a, lessThan(0.2));
+    test('the muted wash is the violet at low opacity, not a new hue', () {
+      expect(AppColors.vinylAccentMuted.withAlpha(255), AppColors.vinylAccent);
+      expect(AppColors.vinylAccentMuted.a, lessThan(0.2));
     });
 
-    test('it is not the warning amber, which keeps meaning attention', () {
-      expect(AppColors.vinylBrass, isNot(AppColors.warning));
-      // Same family, so a lightness gap keeps them apart.
+    test('it is far from the warning amber, which keeps meaning attention', () {
       expect(
-        HSLColor.fromColor(AppColors.vinylBrass).saturation,
-        lessThan(HSLColor.fromColor(AppColors.warning).saturation),
-      );
-    });
-
-    test('it stays far from the lavender accent of selection', () {
-      expect(
-        _hueDistance(AppColors.vinylBrass, AppColors.accent),
+        _hueDistance(AppColors.vinylAccent, AppColors.warning),
         greaterThanOrEqualTo(90),
       );
     });
+
+    // D-058: brass read as brown; the violet joins the lavender accent's
+    // family, a little redder and lighter, rather than standing against it.
+    test('it is a violet beside the lavender accent, not the accent', () {
+      expect(AppColors.vinylAccent, isNot(AppColors.accent));
+      expect(
+        _hueDistance(AppColors.vinylAccent, AppColors.accent),
+        inInclusiveRange(8, 40),
+      );
+      final hue = HSLColor.fromColor(AppColors.vinylAccent).hue;
+      expect(hue, inInclusiveRange(255, 300));
+    });
+
+    test('it is no longer the brown brass', () {
+      final hsl = HSLColor.fromColor(AppColors.vinylAccent);
+      expect(hsl.hue, isNot(inInclusiveRange(15, 60)));
+    });
   });
 
-  group('warm surfaces', () {
+  group('tinted surfaces', () {
     for (final surface in [
       AppColors.vinylSurface,
       AppColors.vinylSurfaceHigh,
@@ -121,24 +129,24 @@ void main() {
     });
   });
 
-  group('brass buttons', () {
-    test('the play disc icon on brass reaches AAA, busy or not', () {
+  group('violet buttons', () {
+    test('the play disc icon on the violet reaches AAA, busy or not', () {
       final style = AppTheme.vinylPlayDisc;
       final enabled = <WidgetState>{};
       final disabled = {WidgetState.disabled};
       for (final states in [enabled, disabled]) {
         final background = style.backgroundColor!.resolve(states)!;
         final foreground = style.foregroundColor!.resolve(states)!;
-        expect(background, AppColors.vinylBrass);
+        expect(background, AppColors.vinylAccent);
         expect(_contrast(foreground, background), greaterThanOrEqualTo(7));
       }
     });
 
-    test('the filled brass button reaches AAA', () {
+    test('the filled violet button reaches AAA', () {
       final style = AppTheme.vinylFilled;
       final background = style.backgroundColor!.resolve(<WidgetState>{})!;
       final foreground = style.foregroundColor!.resolve(<WidgetState>{})!;
-      expect(background, AppColors.vinylBrass);
+      expect(background, AppColors.vinylAccent);
       expect(_contrast(foreground, background), greaterThanOrEqualTo(7));
     });
   });

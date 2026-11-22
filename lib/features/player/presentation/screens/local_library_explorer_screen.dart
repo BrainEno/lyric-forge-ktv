@@ -24,6 +24,7 @@ import '../../domain/services/audio_library_import_service.dart';
 import '../../domain/services/library_lyrics_auto_linker.dart';
 import '../../domain/services/library_lyrics_pairing.dart';
 import '../../domain/services/local_media_relink_service.dart';
+import '../../domain/services/media_file_names.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_library_semantics.dart';
@@ -588,10 +589,13 @@ class _ExplorerSong {
   });
 
   String get fileName => entry.sourcePath.split(Platform.pathSeparator).last;
-  String get fallbackTitle => fileName.replaceAll(
-    RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
-    '',
-  );
+  String get fallbackTitle => readableMediaName(
+        fileName.replaceAll(
+          RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
+          '',
+        ),
+      ) ??
+      untitledSongTitle;
   String get title =>
       override?.resolvedTitle(
         entry.embeddedTitle?.trim().isNotEmpty == true

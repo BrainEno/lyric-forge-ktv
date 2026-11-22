@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/app/app_chrome.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_chrome_scope.dart';
+import 'package:lyric_forge_ktv/core/navigation/app_navigation_shell.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_destinations.dart';
 import 'package:lyric_forge_ktv/core/navigation/current_route_observer.dart';
 import 'package:lyric_forge_ktv/core/navigation/destination_navigation.dart';
@@ -217,6 +218,26 @@ void main() {
       expect(
         paddingOf(find.byKey(const ValueKey('app-bottom-navigation'))).bottom,
         34,
+      );
+    });
+
+    testWidgets('the tab bar is 64 high plus the home indicator, no more', (
+      tester,
+    ) async {
+      tester.view.padding = const FakeViewPadding(top: 47, bottom: 34);
+      addTearDown(tester.view.resetPadding);
+      await _pumpAt(tester, _app(desktop: false), phone);
+      await tester.tap(find.text('音乐库'));
+      await tester.pumpAndSettle();
+
+      final bar = find.byKey(const ValueKey('app-bottom-navigation'));
+      final padding = MediaQuery.paddingOf(tester.element(bar));
+      // The status bar used to reach the bar and grow it by 47 (D-058).
+      expect(padding.top, 0);
+      expect(MediaQuery.paddingOf(tester.element(find.text('去收藏'))).top, 0);
+      expect(
+        tester.getSize(bar).height,
+        AppMobileBottomNavigation.barHeight + padding.bottom,
       );
     });
 

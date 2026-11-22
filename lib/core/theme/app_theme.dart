@@ -133,21 +133,21 @@ class AppTheme {
     disabledForegroundColor: p.onAccent,
   );
 
-  /// The brass play button of the phone's listening surfaces (D-041): the
-  /// record-black icon on brass is 10:1, the white icon on the light theme's
-  /// bronze 6.1:1. It keeps its brass while it works
+  /// The violet play button of the phone's listening surfaces (D-041,
+  /// D-058): the record-black icon on the violet is 9.8:1, the white icon on
+  /// the light theme's deep violet 8.6:1. It keeps its colour while it works
   /// under a spinner, for the reason [busyAccentDisc] gives.
   static ButtonStyle vinylPlayDiscFor(AppPalette p) => IconButton.styleFrom(
-    backgroundColor: p.vinylBrass,
-    foregroundColor: p.onVinylBrass,
-    disabledBackgroundColor: p.vinylBrass,
-    disabledForegroundColor: p.onVinylBrass,
+    backgroundColor: p.vinylAccent,
+    foregroundColor: p.onVinylAccent,
+    disabledBackgroundColor: p.vinylAccent,
+    disabledForegroundColor: p.onVinylAccent,
   );
 
-  /// The brass filled button of the listening home (播放全部).
+  /// The violet filled button of the listening home (播放全部).
   static ButtonStyle vinylFilledFor(AppPalette p) => FilledButton.styleFrom(
-    backgroundColor: p.vinylBrass,
-    foregroundColor: p.onVinylBrass,
+    backgroundColor: p.vinylAccent,
+    foregroundColor: p.onVinylAccent,
   );
 
   /// Navigation labels: grey, and bold white for the chosen destination.

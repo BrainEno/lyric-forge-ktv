@@ -133,7 +133,7 @@ void main() {
           palette.accent,
           palette.accentContainer,
           palette.textPrimary,
-          palette.vinylBrass,
+          palette.vinylAccent,
         ]),
       );
     }

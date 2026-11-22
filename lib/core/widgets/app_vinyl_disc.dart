@@ -123,7 +123,7 @@ class _AppVinylDiscState extends State<AppVinylDisc>
           // the light brass (D-042).
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.vinylBrassOnDark,
+            color: AppColors.vinylAccentOnDark,
           ),
           child: ClipOval(
             child: Stack(
@@ -162,7 +162,7 @@ class _AppVinylDiscState extends State<AppVinylDisc>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.vinylBrassMuted,
+                        color: AppColors.vinylAccentMuted,
                         blurRadius: size * 0.22,
                         spreadRadius: size * 0.02,
                       ),
@@ -200,7 +200,7 @@ class _BlankLabel extends StatelessWidget {
       child: Icon(
         Icons.music_note_rounded,
         size: size * 0.42,
-        color: AppColors.vinylBrass,
+        color: AppColors.vinylAccent,
       ),
     );
   }
@@ -316,7 +316,7 @@ class AppRhythmBars extends StatefulWidget {
   /// Width and height of the square the bars stand in.
   final double size;
 
-  /// Defaults to [AppColors.vinylBrass] of the theme in use.
+  /// Defaults to [AppColors.vinylAccent] of the theme in use.
   final Color? color;
 
   /// Number of bars.
@@ -399,7 +399,7 @@ class _AppRhythmBarsState extends State<AppRhythmBars>
                             ? AppRhythmBars.heightAt(i, _phase.value)
                             : AppRhythmBars.restingHeights[i]),
                     decoration: BoxDecoration(
-                      color: widget.color ?? AppColors.vinylBrass,
+                      color: widget.color ?? AppColors.vinylAccent,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(barWidth / 2),
                       ),

@@ -228,12 +228,12 @@ void main() {
 
       test('the brass buttons keep brass under a spinner (${variant.id})', () {
         final disc = AppTheme.vinylPlayDiscFor(p);
-        expect(disc.backgroundColor!.resolve({}), p.vinylBrass);
-        expect(disc.backgroundColor!.resolve(_disabled), p.vinylBrass);
-        expect(disc.foregroundColor!.resolve(_disabled), p.onVinylBrass);
+        expect(disc.backgroundColor!.resolve({}), p.vinylAccent);
+        expect(disc.backgroundColor!.resolve(_disabled), p.vinylAccent);
+        expect(disc.foregroundColor!.resolve(_disabled), p.onVinylAccent);
         final filled = AppTheme.vinylFilledFor(p);
-        expect(filled.backgroundColor!.resolve({}), p.vinylBrass);
-        expect(filled.foregroundColor!.resolve({}), p.onVinylBrass);
+        expect(filled.backgroundColor!.resolve({}), p.vinylAccent);
+        expect(filled.foregroundColor!.resolve({}), p.onVinylAccent);
       });
 
       test('the busy accent disc stays the accent (${variant.id})', () {
@@ -252,7 +252,7 @@ void main() {
       );
       expect(
         AppTheme.vinylPlayDisc.foregroundColor!.resolve({}),
-        AppPalette.light.onVinylBrass,
+        AppPalette.light.onVinylAccent,
       );
       expect(
         AppTheme.chipSide.resolve(_selected)!.color,

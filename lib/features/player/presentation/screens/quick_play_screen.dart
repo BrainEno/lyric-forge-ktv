@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/diagnostics/app_logger.dart';
+import '../../../../core/layout/app_capabilities.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -335,8 +336,10 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
                 error: _error,
                 onPickFiles: _pickFiles,
                 onPickFolder: _pickFolder,
-                onCreateProject: () =>
-                    Navigator.pushNamed(context, Routes.import),
+                // A phone cannot run recognition (D-058).
+                onCreateProject: AppCapabilities.lyricWorkbench
+                    ? () => Navigator.pushNamed(context, Routes.import)
+                    : null,
               )
             : _PlayerWorkspace(
                 audio: _audio,
@@ -376,7 +379,7 @@ class _EmptyPlayer extends StatelessWidget {
   final String? error;
   final VoidCallback onPickFiles;
   final VoidCallback onPickFolder;
-  final VoidCallback onCreateProject;
+  final VoidCallback? onCreateProject;
 
   const _EmptyPlayer({
     required this.isLoading,
@@ -397,7 +400,9 @@ class _EmptyPlayer extends StatelessWidget {
       density: AppEmptyStateDensity.hero,
       icon: Icons.library_music_rounded,
       title: '你的本地音乐',
-      message: '先像普通播放器一样打开音乐。歌词、AI 识别、KTV 和工程制作都是需要时再使用的能力。',
+      message: onCreateProject == null
+          ? '先像普通播放器一样打开音乐，需要时再给歌曲配歌词、进入 KTV。'
+          : '先像普通播放器一样打开音乐。歌词、AI 识别、KTV 和工程制作都是需要时再使用的能力。',
       status: _status(),
       actions: [
         FilledButton.icon(
@@ -413,11 +418,13 @@ class _EmptyPlayer extends StatelessWidget {
           label: const Text('打开音乐文件夹'),
         ),
       ],
-      footer: TextButton.icon(
-        onPressed: onCreateProject,
-        icon: const Icon(Icons.auto_awesome_rounded),
-        label: const Text('需要 AI 识别？进入歌词制作'),
-      ),
+      footer: onCreateProject == null
+          ? null
+          : TextButton.icon(
+              onPressed: onCreateProject,
+              icon: const Icon(Icons.auto_awesome_rounded),
+              label: const Text('需要 AI 识别？进入歌词制作'),
+            ),
     );
   }
 

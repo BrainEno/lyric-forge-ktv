@@ -56,8 +56,8 @@ void main() {
           expect(_contrast(p.accent, page.value), greaterThan(4.5));
         });
 
-        test('brass as the playing title on ${page.key}', () {
-          expect(_contrast(p.vinylBrass, page.value), greaterThan(4.5));
+        test('the vinyl violet as the playing title on ${page.key}', () {
+          expect(_contrast(p.vinylAccent, page.value), greaterThan(4.5));
         });
 
         for (final status in {
@@ -122,8 +122,8 @@ void main() {
         expect(_contrast(p.onSuccess, p.success), greaterThan(4.5));
       });
 
-      test('the play icon on brass is 4.5:1 or more', () {
-        expect(_contrast(p.onVinylBrass, p.vinylBrass), greaterThan(4.5));
+      test('the play icon on the vinyl violet is 4.5:1 or more', () {
+        expect(_contrast(p.onVinylAccent, p.vinylAccent), greaterThan(4.5));
       });
 
       test('the play disc icon is 7:1 or more', () {
@@ -180,22 +180,22 @@ void main() {
       });
     });
 
-    group('$name palette: the warm vinyl surfaces', () {
-      final wash = _over(p.vinylBrassMuted, p.bgBase);
+    group('$name palette: the tinted vinyl surfaces', () {
+      final wash = _over(p.vinylAccentMuted, p.bgBase);
       final surfaces = {
         'vinylSurface': p.vinylSurface,
         'vinylSurfaceHigh': p.vinylSurfaceHigh,
-        'brass wash': wash,
+        'violet wash': wash,
       };
       for (final surface in surfaces.entries) {
-        test('text and brass read on ${surface.key}', () {
+        test('text and the violet read on ${surface.key}', () {
           expect(_contrast(p.textPrimary, surface.value), greaterThan(7));
           expect(_contrast(p.textSecondary, surface.value), greaterThan(4.5));
-          expect(_contrast(p.vinylBrass, surface.value), greaterThan(4.5));
+          expect(_contrast(p.vinylAccent, surface.value), greaterThan(4.5));
         });
       }
 
-      test('tertiary text reads on the warm surfaces', () {
+      test('tertiary text reads on the tinted surfaces', () {
         expect(_contrast(p.textTertiary, p.vinylSurface), greaterThan(4.5));
         expect(_contrast(p.textTertiary, p.vinylSurfaceHigh), greaterThan(4.5));
       });
@@ -234,12 +234,15 @@ void main() {
         });
       }
 
-      test('brass is a different hue family from the accent', () {
-        expect(_hueDistance(p.vinylBrass, p.accent), greaterThan(90));
+      // D-058: the vinyl colour joined the accent's violet family instead
+      // of standing against it as brass, but stays a colour of its own.
+      test('the vinyl violet is near the accent hue but not the accent', () {
+        expect(p.vinylAccent, isNot(p.accent));
+        expect(_hueDistance(p.vinylAccent, p.accent), inInclusiveRange(8, 40));
       });
 
-      test('brass is not the warning colour', () {
-        expect(p.vinylBrass, isNot(p.warning));
+      test('the vinyl violet is far from the warning colour', () {
+        expect(_hueDistance(p.vinylAccent, p.warning), greaterThan(90));
       });
 
       test('error text keeps the hue of the error fill', () {
@@ -289,7 +292,7 @@ void main() {
           'shadowFar',
           'borderSubtle',
           'borderMuted',
-          'vinylBrassMuted',
+          'vinylAccentMuted',
         };
         for (final token in p.tokens.entries) {
           if (translucent.contains(token.key)) {
@@ -325,7 +328,7 @@ void main() {
         'accentContainer',
         'onAccentContainer',
         'errorText',
-        'vinylBrass',
+        'vinylAccent',
         'vinylSurface',
         'playDisc',
         'onPlayDisc',
@@ -372,13 +375,14 @@ void main() {
         'borderMuted': 0x0DFFFFFF,
         'borderStrong': 0xFF7A7A7A,
         'brandBars': 0xFFF6F2E8,
-        'vinylBrass': 0xFFE6B87A,
-        'vinylBrassMuted': 0x29E6B87A,
-        'onVinylBrass': 0xFF0E0C0B,
-        'vinylDiscCenter': 0xFF1E1915,
-        'vinylSurface': 0xFF1E1915,
-        'vinylSurfaceHigh': 0xFF2A221C,
-        'vinylHeroTop': 0xFF3A2A1E,
+        // The vinyl tokens turned violet in D-058.
+        'vinylAccent': 0xFFD4A5FF,
+        'vinylAccentMuted': 0x29D4A5FF,
+        'onVinylAccent': 0xFF0E0C12,
+        'vinylDiscCenter': 0xFF1C1828,
+        'vinylSurface': 0xFF1C1828,
+        'vinylSurfaceHigh': 0xFF262036,
+        'vinylHeroTop': 0xFF2E2450,
         'playDisc': 0xFFFFFFFF,
         'onPlayDisc': 0xFF000000,
         'playDiscBusy': 0xFFB3B3B3,
@@ -400,9 +404,9 @@ void main() {
       );
     });
 
-    test('the light brass keeps the hue family of the dark one', () {
+    test('the light vinyl violet keeps the hue of the dark one', () {
       expect(
-        _hueDistance(AppPalette.light.vinylBrass, AppPalette.dark.vinylBrass),
+        _hueDistance(AppPalette.light.vinylAccent, AppPalette.dark.vinylAccent),
         lessThan(10),
       );
     });
