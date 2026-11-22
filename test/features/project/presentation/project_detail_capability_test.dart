@@ -715,10 +715,7 @@ void main() {
       expect(find.text('换成已有伴奏'), findsOneWidget);
       expect(generate, findsNothing);
       expect(updater.calls, 1);
-      expect(
-        updater.replacement?.instrumentalPath,
-        '/stems/accompaniment.wav',
-      );
+      expect(updater.replacement?.instrumentalPath, '/stems/accompaniment.wav');
       expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;

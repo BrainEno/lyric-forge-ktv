@@ -146,9 +146,7 @@ void main() {
   });
 
   group('自动生成伴奏 (D-060)', () {
-    testWidgets('offered first when the platform can separate', (
-      tester,
-    ) async {
+    testWidgets('offered first when the platform can separate', (tester) async {
       var generated = 0;
       await tester.pumpWidget(
         host(

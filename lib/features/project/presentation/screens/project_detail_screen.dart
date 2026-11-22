@@ -70,7 +70,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   ProjectAccompanimentGenerator? get _accompanimentGenerator {
     final workflow = _transcriptionWorkflow;
     if (workflow is! ProjectAccompanimentGenerator) return null;
-    return workflow.canGenerateAccompaniment ? workflow : null;
+    // An unrelated interface: the check does not promote the local.
+    final generator = workflow as ProjectAccompanimentGenerator;
+    return generator.canGenerateAccompaniment ? generator : null;
   }
 
   bool get _busy =>

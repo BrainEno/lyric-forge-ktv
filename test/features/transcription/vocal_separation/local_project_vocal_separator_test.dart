@@ -624,10 +624,11 @@ void main() {
           ).toJson(),
         },
       );
-      final result = await LocalProjectVocalSeparator(
+      final separator = LocalProjectVocalSeparator(
         runtime: fixture.runtime,
         startProcess: fixture.processes.start,
-      ).separate(
+      );
+      final result = await separator.separate(
         fixture.project,
         config: _config,
         workDirectory: '${root.path}/stems',
