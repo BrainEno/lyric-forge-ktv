@@ -14,5 +14,5 @@
 - Validation:
   - No Dart SDK in the sandbox: format, analyze and tests => PR's Flutter Quality Gate.
 - Notes:
-  - Widget tests run as a desktop, so desktop behaviour is unchanged; phone gates are covered by `AppCapabilities.debugLyricWorkbenchOverride`, pure helpers and source contracts.
+  - Flutter tests report Android, so `AppCapabilities.lyricWorkbench` is false under test by default; desktop-only widget tests (the project player's editor entries) set `AppCapabilities.debugLyricWorkbenchOverride = true`.
 - Commit: `Simplify the phone UI and turn the vinyl colour violet`

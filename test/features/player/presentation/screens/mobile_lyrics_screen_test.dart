@@ -195,7 +195,7 @@ void main() {
 
       await tester.tap(find.byKey(MobileLyricsScreen.transferKey));
       await tester.pumpAndSettle();
-      // Widget tests run as a desktop: the transfer entry picks its route.
+      // The transfer entry picks the route for the platform under test.
       expect(find.textContaining('page '), findsOneWidget);
     });
 
