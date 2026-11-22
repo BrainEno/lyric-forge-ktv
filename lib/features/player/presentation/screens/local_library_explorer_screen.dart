@@ -589,7 +589,8 @@ class _ExplorerSong {
   });
 
   String get fileName => entry.sourcePath.split(Platform.pathSeparator).last;
-  String get fallbackTitle => readableMediaName(
+  String get fallbackTitle =>
+      readableMediaName(
         fileName.replaceAll(
           RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
           '',

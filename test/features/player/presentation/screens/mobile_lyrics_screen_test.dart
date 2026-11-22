@@ -65,7 +65,8 @@ class _Metadata implements LocalMediaMetadataRepository {
 }
 
 /// Collaborators the page never calls.
-class _UnusedLocalMediaCollectionRepository implements LocalMediaCollectionRepository {
+class _UnusedLocalMediaCollectionRepository
+    implements LocalMediaCollectionRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -229,8 +230,14 @@ void main() {
         ),
       );
 
-      expect(find.text('${MobileLyricsScreen.missingTitle} · 1'), findsOneWidget);
-      expect(find.text('${MobileLyricsScreen.pairedTitle} · 1'), findsOneWidget);
+      expect(
+        find.text('${MobileLyricsScreen.missingTitle} · 1'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('${MobileLyricsScreen.pairedTitle} · 1'),
+        findsOneWidget,
+      );
       final missingY = tester.getCenter(find.text('晴天')).dy;
       final pairedY = tester.getCenter(find.text('稻香')).dy;
       expect(missingY, lessThan(pairedY));

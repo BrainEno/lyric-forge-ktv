@@ -27,18 +27,30 @@ void main() {
         '歌词已导入（3 行带逐字时间），可直接播放',
       );
       expect(
-        importedLyricFileMessage(timed: true, wordTimedRows: 0, workbench: false),
+        importedLyricFileMessage(
+          timed: true,
+          wordTimedRows: 0,
+          workbench: false,
+        ),
         isNot(contains('校对')),
       );
     });
 
     test('the desktop keeps its words', () {
       expect(
-        importedLyricFileMessage(timed: false, wordTimedRows: 0, workbench: true),
+        importedLyricFileMessage(
+          timed: false,
+          wordTimedRows: 0,
+          workbench: true,
+        ),
         '文本歌词已作为参考歌词导入：播放时静态显示，需要同步时再去打轴',
       );
       expect(
-        importedLyricFileMessage(timed: true, wordTimedRows: 0, workbench: true),
+        importedLyricFileMessage(
+          timed: true,
+          wordTimedRows: 0,
+          workbench: true,
+        ),
         '歌词已导入，可直接校对或播放',
       );
     });

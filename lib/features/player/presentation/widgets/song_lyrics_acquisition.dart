@@ -9,6 +9,7 @@ import '../../../project/domain/models/lyric_timing.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/services/imported_lyrics_project.dart';
+import 'lyric_file_picker.dart';
 import 'lyrics_source_sheet.dart';
 import 'paste_lyrics_dialog.dart';
 import 'song_lyrics_preview_dialog.dart';

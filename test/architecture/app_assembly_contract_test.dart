@@ -361,7 +361,7 @@ void main() {
       expect(router, contains('ReviewInboxScreen('));
       expect(
         router,
-        contains('projectRepository: services.projectRepository,'),
+        contains('projectRepository: services.projectRepository'),
       );
       // On the phone 歌词 is a page of its own, without recognition (D-058).
       expect(router, contains('case Routes.review when listeningHome:'));

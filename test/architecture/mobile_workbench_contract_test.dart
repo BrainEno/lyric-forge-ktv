@@ -74,9 +74,15 @@ void main() {
   test('the phone router sends workbench routes to 歌词 or the player', () {
     final router = read('lib/app/app_router.dart');
     for (final route in ['dashboard', 'import', 'review']) {
-      expect(router, containsSquashed('case Routes.$route when listeningHome:'));
+      expect(
+        router,
+        containsSquashed('case Routes.$route when listeningHome:'),
+      );
     }
-    expect(router, containsSquashed('final playerOnly =\n              listeningHome &&'));
+    expect(
+      router,
+      containsSquashed('final playerOnly =\n              listeningHome &&'),
+    );
     expect(router, isNot(containsSquashed('lyricsHub')));
   });
 

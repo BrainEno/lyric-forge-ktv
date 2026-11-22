@@ -36,7 +36,8 @@ class MobileLyricsScreen extends StatefulWidget {
   static const String title = '歌词';
   static const String intro = '给手机里的歌曲配歌词：联网获取、导入 LRC / TXT 歌词文件，或直接粘贴纯文本歌词。';
   static const String transferTitle = '和电脑互传歌曲与歌词';
-  static const String transferDetail = '连接电脑上的 Elysium Player，下载歌曲和配好的歌词，或把手机里的歌传过去。';
+  static const String transferDetail =
+      '连接电脑上的 Elysium Player，下载���曲和配好的歌词，或把手机里的歌传过去。';
   static const String missingTitle = '还没有歌词';
   static const String pairedTitle = '已有歌词';
   static const String allPairedMessage = '每首歌都有歌词了。';
@@ -107,7 +108,9 @@ class MobileLyricsSong {
         if (!entry.isMissing && fileExists(entry.sourcePath))
           MobileLyricsSong(entry: entry, override: byPath[entry.sourcePath]),
     ];
-    songs.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    songs.sort(
+      (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+    );
     return songs;
   }
 }

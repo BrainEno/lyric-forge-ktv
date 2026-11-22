@@ -177,7 +177,10 @@ class _ChromeLayout extends StatelessWidget {
     );
   }
 
-  static Widget _withoutTopInset(BuildContext context, {required Widget child}) =>
+  static Widget _withoutTopInset(
+    BuildContext context, {
+    required Widget child,
+  }) =>
       MediaQuery.removePadding(context: context, removeTop: true, child: child);
 
   static Widget _withoutBottomInset(

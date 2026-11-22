@@ -50,7 +50,9 @@ class AppRouter {
   final bool listeningHome;
 
   Route<dynamic> _mobileLyrics(RouteSettings settings) => _fadeRoute(
-    MobileLyricsScreen(dependencies: assembleLocalLibraryDependencies(services)),
+    MobileLyricsScreen(
+      dependencies: assembleLocalLibraryDependencies(services),
+    ),
     settings,
   );
 

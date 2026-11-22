@@ -25,8 +25,10 @@ void main() {
   group('readableMediaName', () {
     test('drops the made-up parts and keeps the rest', () {
       expect(readableMediaName(pickerName), isNull);
-      expect(readableMediaName('trim.20312602-F017-4D87-A99C-F527F145A697'),
-          isNull);
+      expect(
+        readableMediaName('trim.20312602-F017-4D87-A99C-F527F145A697'),
+        isNull,
+      );
       expect(
         readableMediaName('晴天_20312602-F017-4D87-A99C-F527F145A697'),
         '晴天',
