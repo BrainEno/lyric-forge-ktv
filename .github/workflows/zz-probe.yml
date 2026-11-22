@@ -1,0 +1,35 @@
+name: Probe (temporary)
+on:
+  push:
+    branches: [arena/16d41c59-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format and analyze
+        shell: bash
+        run: |
+          set +e
+          git fetch -q origin main
+          mapfile -t files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
+          dart format "${files[@]}" > /dev/null
+          git --no-pager diff -U0 -- '*.dart' > fmt.diff
+          n=0
+          while IFS= read -r line; do
+            n=$((n+1))
+            printf '::error title=fmt-%04d::%s\n' "$n" "$(printf '%s' "$line" | sed 's/%/%25/g')"
+          done < fmt.diff
+          git checkout -q -- .
+          flutter analyze --no-pub --no-fatal-infos lib test tool > analyze.txt 2>&1
+          grep -E "error •|warning •|info •" analyze.txt | head -60 | while IFS= read -r line; do
+            echo "::error title=analyze::${line:0:900}"
+          done
+          tail -3 analyze.txt | while IFS= read -r line; do echo "::warning title=analyze-tail::$line"; done
