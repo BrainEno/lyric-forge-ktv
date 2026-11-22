@@ -16,6 +16,8 @@ import '../features/player/data/repositories/file_local_media_metadata_repositor
 import '../features/player/data/repositories/file_play_history_repository.dart';
 import '../features/player/data/repositories/file_playback_session_store.dart';
 import '../features/player/data/services/default_playback_session_service.dart';
+import '../features/player/data/services/local_media_import_service.dart';
+import '../features/player/data/services/method_channel_media_audio_extractor.dart';
 import '../features/player/data/services/exclusive_audio_preview_service.dart';
 import '../features/player/data/services/just_audio_audio_preview_service.dart';
 import '../features/player/data/services/file_audio_path_canonicalizer.dart';
@@ -37,6 +39,7 @@ import '../features/player/domain/repositories/playback_session_store.dart';
 import '../features/player/domain/services/audio_library_import_service.dart';
 import '../features/player/domain/services/audio_path_canonicalizer.dart';
 import '../features/player/domain/services/audio_preview_service.dart';
+import '../features/player/domain/services/media_import_service.dart';
 import '../features/player/domain/services/audio_player_service.dart';
 import '../features/player/domain/services/ktv_microphone_service.dart';
 import '../features/player/domain/services/ktv_recording_service.dart';
@@ -157,6 +160,9 @@ class AppServices {
   late final LocalMediaMetadataRepository localMediaMetadataRepository;
   late final LocalMediaRelinkService localMediaRelinkService;
   late final LyricFileImportService lyricFileImportService;
+
+  /// 导入音频或视频 on iOS and Android (D-056); null on desktop.
+  MediaImportService? mediaImportService;
   late final LyricFileExportService lyricFileExportService;
 
   /// The 曲库目录 setting (decision D-033).
@@ -246,6 +252,18 @@ class AppServices {
         await localMediaLibraryRepository.addPaths(paths);
       },
     );
+    if (Platform.isIOS || Platform.isAndroid) {
+      mediaImportService = LocalMediaImportService(
+        extractor: const MethodChannelMediaAudioExtractor(),
+        onImported: (paths) async {
+          // The import folder is a library root, so songs copied into it
+          // with the 文件 App appear on the next 刷新音乐文件夹.
+          final folder = await LocalMediaImportService.defaultImportDirectory();
+          await localMediaLibraryRepository.addRoot(folder.path);
+          await localMediaLibraryRepository.addPaths(paths);
+        },
+      );
+    }
     localMediaMetadataRepository = FileLocalMediaMetadataRepository();
     lyricFileImportService = LocalLyricFileImportService();
     libraryFolderSettings = LibraryFolderSettings(
