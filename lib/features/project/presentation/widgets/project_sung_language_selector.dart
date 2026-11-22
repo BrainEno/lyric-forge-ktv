@@ -62,48 +62,62 @@ class ProjectSungLanguageSelector extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
             const SizedBox(width: AppSpacing.sm),
-            Text('演唱语言', style: theme.textTheme.bodyMedium),
-            const Spacer(),
-            PopupMenuButton<String>(
-              key: const ValueKey('project_sung_language_menu'),
-              enabled: onChanged != null,
-              tooltip: '设置这首歌的演唱语言',
-              initialValue: value ?? SpokenLanguagePolicy.auto,
-              onSelected: (selected) => onChanged?.call(
-                selected == SpokenLanguagePolicy.auto ? null : selected,
+            Expanded(
+              child: Text(
+                '演唱语言',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium,
               ),
-              itemBuilder: (context) => [
-                for (final code in options(value))
-                  PopupMenuItem<String>(
-                    key: ValueKey(
-                      'project_sung_language_${code ?? SpokenLanguagePolicy.auto}',
-                    ),
-                    value: code ?? SpokenLanguagePolicy.auto,
-                    child: Text(labelOf(code)),
-                  ),
-              ],
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
+            ),
+            // Flexible so large text shrinks the choice instead of
+            // overflowing the panel.
+            Flexible(
+              child: PopupMenuButton<String>(
+                key: const ValueKey('project_sung_language_menu'),
+                enabled: onChanged != null,
+                tooltip: '设置这首歌的演唱语言',
+                initialValue: value ?? SpokenLanguagePolicy.auto,
+                onSelected: (selected) => onChanged?.call(
+                  selected == SpokenLanguagePolicy.auto ? null : selected,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      labelOf(value),
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: onChanged == null
-                            ? AppColors.textTertiary
-                            : AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
+                itemBuilder: (context) => [
+                  for (final code in options(value))
+                    PopupMenuItem<String>(
+                      key: ValueKey(
+                        'project_sung_language_${code ?? SpokenLanguagePolicy.auto}',
                       ),
+                      value: code ?? SpokenLanguagePolicy.auto,
+                      child: Text(labelOf(code)),
                     ),
-                    Icon(
-                      Icons.arrow_drop_down_rounded,
-                      color: AppColors.textSecondary,
-                    ),
-                  ],
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          labelOf(value),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: onChanged == null
+                                ? AppColors.textTertiary
+                                : AppColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_drop_down_rounded,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

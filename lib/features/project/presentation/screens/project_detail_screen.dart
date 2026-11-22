@@ -185,9 +185,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       );
     } on ProjectUpdateConflictException {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('工程刚刚被修改，请再选一次演唱语言')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('工程刚刚被修改，请再选一次演唱语言')));
       }
       await _refreshProject();
       return;

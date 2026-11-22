@@ -133,9 +133,8 @@ void main() {
       const ValueKey('transcription_language_dropdown'),
     );
 
-    String? shown(WidgetTester tester) => tester
-        .widget<DropdownButtonFormField<String>>(dropdown)
-        .initialValue;
+    String? shown(WidgetTester tester) =>
+        tester.widget<DropdownButtonFormField<String>>(dropdown).initialValue;
 
     testWidgets('offers 自动判断 and the per-song languages', (tester) async {
       TranscriptionConfig? result;

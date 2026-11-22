@@ -55,9 +55,7 @@ void main() {
     expect(_hint(tester), '这首歌固定按英文识别，不受识别设置影响');
   });
 
-  testWidgets('choosing reports the code, and 自动判断 as null', (
-    tester,
-  ) async {
+  testWidgets('choosing reports the code, and 自动判断 as null', (tester) async {
     final chosen = <String?>[];
     await _pump(tester, onChanged: chosen.add);
 

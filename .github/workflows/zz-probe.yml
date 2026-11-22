@@ -35,5 +35,4 @@ jobs:
         run: |
           i=0; while IFS= read -r l && [ $i -lt 40 ]; do echo "::warning title=problem::$l"; i=$((i+1)); done < problems.txt
           i=0; while IFS= read -r l && [ $i -lt 50 ]; do echo "::notice title=test::$l"; i=$((i+1)); done < testfail.txt
-          grep -E '^(diff --git|@@)' fmt.diff | head -40 | while IFS= read -r l; do echo "::error title=hunk::$l"; done
-          head -150 fmt.diff | grep -E '^[+-][^+-]' | head -45 | while IFS= read -r l; do echo "::error title=fmt::$l"; done
+          if [ -s fmt.diff ]; then echo "::error title=fmt::$(head -c 60000 fmt.diff | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"; fi

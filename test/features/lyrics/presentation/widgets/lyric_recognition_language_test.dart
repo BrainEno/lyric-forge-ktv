@@ -90,9 +90,7 @@ void main() {
         '日文（本首歌设置）',
       );
       final unresolved = _summary(
-        _document(
-          spoken: const SpokenLanguageResolution.unresolved().toJson(),
-        ),
+        _document(spoken: const SpokenLanguageResolution.unresolved().toJson()),
       );
       expect(unresolved.sungLanguage, isNull);
       expect(unresolved.sungLanguageLine, isNull);
