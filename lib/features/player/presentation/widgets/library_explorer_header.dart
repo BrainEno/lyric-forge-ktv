@@ -188,22 +188,24 @@ class LibraryExplorerHeader extends StatelessWidget {
                 children: [
                   Flexible(
                     child: FilledButton.icon(
-              key: playAllKey,
-              style: AppTheme.vinylFilled.copyWith(
-                minimumSize: WidgetStatePropertyAll(Size(extent, extent)),
-                shape: const WidgetStatePropertyAll(StadiumBorder()),
-                padding: const WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                ),
-              ),
-              onPressed: onPlayAll,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: Text(
-                playLabel(visible: visible, total: total),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+                      key: playAllKey,
+                      style: AppTheme.vinylFilled.copyWith(
+                        minimumSize: WidgetStatePropertyAll(
+                          Size(extent, extent),
+                        ),
+                        shape: const WidgetStatePropertyAll(StadiumBorder()),
+                        padding: const WidgetStatePropertyAll(
+                          EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                        ),
+                      ),
+                      onPressed: onPlayAll,
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: Text(
+                        playLabel(visible: visible, total: total),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   IconButton.filledTonal(
@@ -224,9 +226,7 @@ class LibraryExplorerHeader extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              for (final view in LocalLibrarySmartView.values.where(
-                _showsChip,
-              ))
+              for (final view in LocalLibrarySmartView.values.where(_showsChip))
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.sm),
                   // Smaller and without icons: the filters come under the

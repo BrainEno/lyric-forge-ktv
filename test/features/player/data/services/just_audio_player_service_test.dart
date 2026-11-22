@@ -38,7 +38,10 @@ void main() {
     });
 
     test('a song still loading or buffering counts as playing', () {
-      for (final state in [ProcessingState.loading, ProcessingState.buffering]) {
+      for (final state in [
+        ProcessingState.loading,
+        ProcessingState.buffering,
+      ]) {
         expect(
           JustAudioPlayerService.reportsPlaying(
             playing: true,
@@ -52,26 +55,29 @@ void main() {
   });
 
   group('untilStarted', () {
-    test('returns once the player plays, without waiting for a pause', () async {
-      final states = StreamController<PlayerState>.broadcast();
-      // just_audio's play() future: done only when playback stops.
-      final playback = Completer<void>();
-      var returned = false;
-      final started = JustAudioPlayerService.untilStarted(
-        playback.future,
-        states.stream,
-      ).then((_) => returned = true);
+    test(
+      'returns once the player plays, without waiting for a pause',
+      () async {
+        final states = StreamController<PlayerState>.broadcast();
+        // just_audio's play() future: done only when playback stops.
+        final playback = Completer<void>();
+        var returned = false;
+        final started = JustAudioPlayerService.untilStarted(
+          playback.future,
+          states.stream,
+        ).then((_) => returned = true);
 
-      states.add(PlayerState(true, ProcessingState.loading));
-      await pumpEventQueue();
-      expect(returned, isFalse, reason: 'still loading');
+        states.add(PlayerState(true, ProcessingState.loading));
+        await pumpEventQueue();
+        expect(returned, isFalse, reason: 'still loading');
 
-      states.add(PlayerState(true, ProcessingState.ready));
-      await started;
-      expect(returned, isTrue);
-      expect(playback.isCompleted, isFalse);
-      await states.close();
-    });
+        states.add(PlayerState(true, ProcessingState.ready));
+        await started;
+        expect(returned, isTrue);
+        expect(playback.isCompleted, isFalse);
+        await states.close();
+      },
+    );
 
     test('a start failure reaches the caller', () async {
       final states = StreamController<PlayerState>.broadcast();

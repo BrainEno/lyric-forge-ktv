@@ -152,9 +152,7 @@ void main() {
 
   test('a cleared artist is cleared on the project and in the queue', () async {
     final projects = _Projects(_project(artist: '旧艺人'));
-    final session = _Session([
-      _local().copyWith(artist: '旧艺人'),
-    ]);
+    final session = _Session([_local().copyWith(artist: '旧艺人')]);
     await applySongInfoUpdate(
       saved: _saved(artist: null),
       fallbackTitle: '未命名歌曲',
@@ -167,9 +165,7 @@ void main() {
   });
 
   test('a project already named so is not written', () async {
-    final projects = _Projects(
-      _project(artist: '周杰伦').copyWith(name: '晴天'),
-    );
+    final projects = _Projects(_project(artist: '周杰伦').copyWith(name: '晴天'));
     final result = await applySongInfoUpdate(
       saved: _saved(),
       fallbackTitle: '未命名歌曲',

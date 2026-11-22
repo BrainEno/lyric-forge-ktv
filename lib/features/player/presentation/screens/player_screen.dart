@@ -106,7 +106,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   static String? _labelFor(PlaybackItem? item) => item == null
       ? null
-      : [item.title, item.artist ?? '', item.hasLyrics ? '1' : '0'].join('\u0000');
+      : [
+          item.title,
+          item.artist ?? '',
+          item.hasLyrics ? '1' : '0',
+        ].join('\u0000');
 
   Future<void> _openLyricEditor(ProjectManifest project) async {
     await Navigator.pushNamed(context, Routes.lyricEditorPath(project.id));
@@ -210,8 +214,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         final reloading =
             snapshot.connectionState == ConnectionState.waiting &&
             snapshot.data?.id == _activeProjectId;
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !reloading) {
+        if (snapshot.connectionState == ConnectionState.waiting && !reloading) {
           return const _LoadingState();
         }
 

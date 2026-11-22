@@ -442,10 +442,7 @@ class _LocalLibraryExplorerScreenState
               if (_offersFolder)
                 const PopupMenuItem(value: 'folder', child: Text('添加音乐文件夹')),
             ],
-            icon: Icon(
-              Icons.more_vert_rounded,
-              color: AppColors.textSecondary,
-            ),
+            icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
           )
         : null;
 
@@ -456,43 +453,43 @@ class _LocalLibraryExplorerScreenState
       appBar: layout.isCompact
           ? null
           : AppBar(
-        backgroundColor: AppColors.bgBase,
-        title: const Text('音乐库'),
-        actions: [
-            IconButton(
-              tooltip: '刷新音乐文件夹',
-              onPressed: _working
-                  ? null
-                  : () => _withWork(
-                      () => _reload(rescan: true, showLoading: false),
-                    ),
-              icon: const Icon(Icons.refresh_rounded),
+              backgroundColor: AppColors.bgBase,
+              title: const Text('音乐库'),
+              actions: [
+                IconButton(
+                  tooltip: '刷新音乐文件夹',
+                  onPressed: _working
+                      ? null
+                      : () => _withWork(
+                          () => _reload(rescan: true, showLoading: false),
+                        ),
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+                IconButton(
+                  tooltip: '重新读取音频标签',
+                  onPressed: _working
+                      ? null
+                      : () => _withWork(
+                          () => _reload(forceTags: true, showLoading: false),
+                        ),
+                  icon: const Icon(Icons.manage_search_rounded),
+                ),
+                IconButton(
+                  tooltip: widget.dependencies.mediaImport == null
+                      ? '添加音乐文件'
+                      : '导入音频或视频',
+                  onPressed: _working ? null : _importMedia,
+                  icon: const Icon(Icons.library_add_rounded),
+                ),
+                if (_offersFolder)
+                  IconButton(
+                    tooltip: '添加音乐文件夹',
+                    onPressed: _working ? null : _addFolder,
+                    icon: const Icon(Icons.create_new_folder_rounded),
+                  ),
+                const SizedBox(width: AppSpacing.sm),
+              ],
             ),
-            IconButton(
-              tooltip: '重新读取音频标签',
-              onPressed: _working
-                  ? null
-                  : () => _withWork(
-                      () => _reload(forceTags: true, showLoading: false),
-                    ),
-              icon: const Icon(Icons.manage_search_rounded),
-            ),
-            IconButton(
-              tooltip: widget.dependencies.mediaImport == null
-                  ? '添加音乐文件'
-                  : '导入音频或视频',
-              onPressed: _working ? null : _importMedia,
-              icon: const Icon(Icons.library_add_rounded),
-            ),
-            if (_offersFolder)
-              IconButton(
-                tooltip: '添加音乐文件夹',
-                onPressed: _working ? null : _addFolder,
-                icon: const Icon(Icons.create_new_folder_rounded),
-              ),
-          const SizedBox(width: AppSpacing.sm),
-        ],
-      ),
       body: SafeArea(
         child: Column(
           children: [

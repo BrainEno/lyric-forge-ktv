@@ -211,8 +211,7 @@ class JustAudioPlayerService
     final started = states
         .firstWhere(
           (state) =>
-              state.playing &&
-              state.processingState == ProcessingState.ready,
+              state.playing && state.processingState == ProcessingState.ready,
         )
         .then<void>((_) {});
     return Future.any<void>([playback, started]);

@@ -110,9 +110,10 @@ void main() {
     final taps = await pump(tester);
     await tester.tap(find.byKey(LibraryExplorerHeader.sortKey));
     await tester.pumpAndSettle();
-    expect(find.byType(CheckedPopupMenuItem<LocalLibrarySortMode>), findsNWidgets(
-      LocalLibrarySortMode.values.length,
-    ));
+    expect(
+      find.byType(CheckedPopupMenuItem<LocalLibrarySortMode>),
+      findsNWidgets(LocalLibrarySortMode.values.length),
+    );
     await tester.tap(find.text('按艺人'));
     await tester.pumpAndSettle();
     expect(taps.sort, LocalLibrarySortMode.artist);
@@ -122,9 +123,7 @@ void main() {
     );
   });
 
-  testWidgets('the view button switches between grid and list', (
-    tester,
-  ) async {
+  testWidgets('the view button switches between grid and list', (tester) async {
     final taps = await pump(tester);
     expect(find.byTooltip('网格显示'), findsOneWidget);
     await tester.tap(find.byKey(LibraryExplorerHeader.viewKey));
@@ -140,11 +139,19 @@ void main() {
 
   test('the counts line names what cannot be played only when some cannot', () {
     expect(
-      LibraryExplorerHeader.countsLabel(total: 128, visible: 128, playable: 128),
+      LibraryExplorerHeader.countsLabel(
+        total: 128,
+        visible: 128,
+        playable: 128,
+      ),
       '128 首歌曲',
     );
     expect(
-      LibraryExplorerHeader.countsLabel(total: 128, visible: 128, playable: 126),
+      LibraryExplorerHeader.countsLabel(
+        total: 128,
+        visible: 128,
+        playable: 126,
+      ),
       '128 首歌曲 · 2 首不可播放',
     );
     expect(
