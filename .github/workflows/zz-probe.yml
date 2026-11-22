@@ -26,45 +26,21 @@ jobs:
           flutter analyze --no-pub --no-fatal-infos lib test tool > analyze.txt 2>&1
           grep -E "error •|warning •" analyze.txt > problems.txt
           wc -l fmt.diff problems.txt
-      - name: Format 1
-        if: always()
-        shell: bash
-        run: |
-          emit() { sed -n "$2,$3p" fmt.diff | nl -v $2 -w4 -n rz -s'|' | while IFS= read -r l; do echo "::$1 title=fmt.diff::${l:0:900}"; done; }
-          emit error 1 10; emit warning 11 20; emit notice 21 30
-      - name: Format 2
-        if: always()
-        shell: bash
-        run: |
-          emit() { sed -n "$2,$3p" fmt.diff | nl -v $2 -w4 -n rz -s'|' | while IFS= read -r l; do echo "::$1 title=fmt.diff::${l:0:900}"; done; }
-          emit error 31 40; emit warning 41 50; emit notice 51 60
-      - name: Format 3
-        if: always()
-        shell: bash
-        run: |
-          emit() { sed -n "$2,$3p" fmt.diff | nl -v $2 -w4 -n rz -s'|' | while IFS= read -r l; do echo "::$1 title=fmt.diff::${l:0:900}"; done; }
-          emit error 61 70; emit warning 71 80; emit notice 81 90
-      - name: Format 4
-        if: always()
-        shell: bash
-        run: |
-          emit() { sed -n "$2,$3p" fmt.diff | nl -v $2 -w4 -n rz -s'|' | while IFS= read -r l; do echo "::$1 title=fmt.diff::${l:0:900}"; done; }
-          emit error 91 100; emit warning 101 110; emit notice 111 120
       - name: Analyze 1
         if: always()
         shell: bash
         run: |
           emit() { sed -n "$2,$3p" problems.txt | nl -v $2 -w4 -n rz -s'|' | while IFS= read -r l; do echo "::$1 title=problems.txt::${l:0:900}"; done; }
           emit error 1 10; emit warning 11 20; emit notice 21 30
-      - name: Analyze 2
+      - name: Format files
         if: always()
         shell: bash
         run: |
-          emit() { sed -n "$2,$3p" problems.txt | nl -v $2 -w4 -n rz -s'|' | while IFS= read -r l; do echo "::$1 title=problems.txt::${l:0:900}"; done; }
-          emit error 31 40; emit warning 41 50; emit notice 51 60
-      - name: Analyze 3
+          grep -E '^(diff --git|@@)' fmt.diff > hunks.txt
+          sed -n 1,10p hunks.txt | while IFS= read -r l; do echo "::error title=hunk::$l"; done
+      - name: Format 1
         if: always()
         shell: bash
         run: |
-          emit() { sed -n "$2,$3p" problems.txt | nl -v $2 -w4 -n rz -s'|' | while IFS= read -r l; do echo "::$1 title=problems.txt::${l:0:900}"; done; }
-          emit error 61 70; emit warning 71 80; emit notice 81 90
+          emit() { sed -n "$2,$3p" fmt.diff | nl -v $2 -w4 -n rz -s'|' | while IFS= read -r l; do echo "::$1 title=fmt.diff::${l:0:900}"; done; }
+          emit error 1 10; emit warning 11 20; emit notice 21 30
