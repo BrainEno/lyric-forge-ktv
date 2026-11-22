@@ -68,6 +68,7 @@ Future<SongLyricsChoice?> showSongLyricsPreviewDialog(
   BuildContext context, {
   required SongLyricsLookup lookup,
   required OnlineLyricQuery query,
+  List<OnlineLyricQuery> fallbackQueries = const [],
   SongLyricsPreviewPlayback? playback,
 }) {
   return showDialog<SongLyricsChoice>(
@@ -76,6 +77,7 @@ Future<SongLyricsChoice?> showSongLyricsPreviewDialog(
     builder: (_) => SongLyricsPreviewDialog(
       lookup: lookup,
       query: query,
+      fallbackQueries: fallbackQueries,
       playback: playback,
     ),
   );
@@ -96,12 +98,18 @@ enum _ScriptChoice {
 class SongLyricsPreviewDialog extends StatefulWidget {
   final SongLyricsLookup lookup;
   final OnlineLyricQuery query;
+
+  /// Searches tried in turn, only on opening, when [query] finds nothing —
+  /// e.g. the title in the audio file's tags (D-055). The fields then show
+  /// the search that worked.
+  final List<OnlineLyricQuery> fallbackQueries;
   final SongLyricsPreviewPlayback? playback;
 
   const SongLyricsPreviewDialog({
     super.key,
     required this.lookup,
     required this.query,
+    this.fallbackQueries = const [],
     this.playback,
   });
 
@@ -143,7 +151,7 @@ class _SongLyricsPreviewDialogState extends State<SongLyricsPreviewDialog> {
       _positionSubscription = playback.positionStream.listen(_onPosition);
     }
     _loading = true;
-    _runSearch();
+    _runSearch(fallbacks: widget.fallbackQueries);
   }
 
   @override
@@ -187,7 +195,7 @@ class _SongLyricsPreviewDialogState extends State<SongLyricsPreviewDialog> {
     await _runSearch();
   }
 
-  Future<void> _runSearch() async {
+  Future<void> _runSearch({List<OnlineLyricQuery> fallbacks = const []}) async {
     final generation = ++_searchGeneration;
     final query = OnlineLyricQuery(
       title: _title.text.trim(),
@@ -197,6 +205,13 @@ class _SongLyricsPreviewDialogState extends State<SongLyricsPreviewDialog> {
     try {
       final result = await widget.lookup.find(query);
       if (!mounted || generation != _searchGeneration) return;
+      if (result.options.isEmpty && fallbacks.isNotEmpty) {
+        final next = fallbacks.first;
+        _title.text = next.title;
+        _artist.text = next.artist;
+        await _runSearch(fallbacks: fallbacks.sublist(1));
+        return;
+      }
       setState(() {
         _result = result;
         _selected = 0;

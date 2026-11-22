@@ -218,6 +218,7 @@ class LyricEditorProofreadingCoordinator {
         search: dependencies.onlineLyricSearch,
         matcher: OnlineLyricMatcher(parser: referenceParser),
       ),
+      tagReader: dependencies.songTagReader,
       reviewReference:
           ({required document, required revision, required input}) =>
               reviewReferenceAlignment(

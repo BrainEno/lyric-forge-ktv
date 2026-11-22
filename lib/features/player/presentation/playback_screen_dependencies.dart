@@ -1,4 +1,5 @@
 import '../../lyrics/domain/online/song_lyrics_lookup.dart';
+import '../../lyrics/domain/online/song_tags.dart';
 import '../../lyrics/domain/services/lyric_file_import_service.dart';
 import '../../project/domain/repositories/project_repository.dart';
 import '../domain/repositories/local_media_collection_repository.dart';
@@ -38,6 +39,10 @@ class PlayerScreenDependencies {
   /// Searches the lyric sites for the same action; null hides 联网获取.
   final SongLyricsLookup? songLyricsLookup;
 
+  /// Reads the audio file's tags so 联网获取 still finds the song when the
+  /// project is named after a recording (D-055).
+  final SongTagReader? songTagReader;
+
   const PlayerScreenDependencies({
     required this.projectRepository,
     required this.audioPlayer,
@@ -45,6 +50,7 @@ class PlayerScreenDependencies {
     required this.immersiveKtv,
     this.lyricFileImport,
     this.songLyricsLookup,
+    this.songTagReader,
   });
 
   /// The importer for pasted text and files, from either field.

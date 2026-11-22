@@ -1,4 +1,5 @@
 import '../../lyrics/domain/online/song_lyrics_lookup.dart';
+import '../../lyrics/domain/online/song_tags.dart';
 import '../../lyrics/domain/services/lyric_file_import_service.dart';
 import '../domain/repositories/local_media_collection_repository.dart';
 import '../domain/repositories/local_media_library_repository.dart';
@@ -31,11 +32,16 @@ class LyricsImportDependencies {
   /// fetched lyrics without the listen-and-check controls.
   final AudioPlayerService? audioPlayer;
 
+  /// Reads the song file's tags for a second search when its name finds
+  /// nothing (D-055); null searches by the name only.
+  final SongTagReader? songTagReader;
+
   const LyricsImportDependencies({
     required this.lyricsResolver,
     required this.importer,
     this.songLyricsLookup,
     this.audioPlayer,
+    this.songTagReader,
   });
 }
 

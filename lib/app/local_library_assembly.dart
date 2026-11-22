@@ -1,3 +1,4 @@
+import '../features/lyrics/data/services/audio_file_song_tag_reader.dart';
 import '../features/player/presentation/local_library_dependencies.dart';
 import 'app_services.dart';
 import 'lyric_editor_assembly.dart';
@@ -39,5 +40,6 @@ LyricsImportDependencies assembleLyricsImportDependencies(
     importer: services.lyricFileImportService,
     songLyricsLookup: buildSongLyricsLookup(services),
     audioPlayer: services.audioPlayerService,
+    songTagReader: readAudioFileSongTags,
   );
 }

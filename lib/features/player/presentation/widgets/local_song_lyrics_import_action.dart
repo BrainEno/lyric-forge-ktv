@@ -7,7 +7,6 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../../lyrics/domain/online/online_lyric_query.dart';
 import '../../../lyrics/domain/services/lyric_file_import_service.dart';
 import '../../../project/domain/models/lyric_timing.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -85,17 +84,24 @@ Future<void> importLyricsForLocalPlaybackItem(
     return;
   }
 
+  final queries = await songLyricsQueries(
+    name: item.title,
+    artist: item.artist,
+    duration: item.audioAsset.duration,
+    audioPath: choice == LyricsSourceChoice.online
+        ? item.audioAsset.originalPath
+        : null,
+    tagReader: dependencies.songTagReader,
+  );
+  if (!context.mounted) return;
   final lyrics = await acquireSongLyrics(
     context,
     choice: choice,
     importer: importer,
     lookup: lookup,
     playback: _previewPlayback(item, dependencies),
-    query: OnlineLyricQuery.fromProject(
-      name: item.title,
-      artist: item.artist,
-      duration: item.audioAsset.duration,
-    ),
+    query: queries.first,
+    fallbackQueries: queries.skip(1).toList(),
   );
   if (lyrics == null || !context.mounted) return;
 

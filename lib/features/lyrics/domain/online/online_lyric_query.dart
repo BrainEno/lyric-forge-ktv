@@ -1,3 +1,5 @@
+import 'song_tags.dart';
+
 /// What is sent to the lyric sites: a cleaned song title, the artist when
 /// known, and the recording length to tell versions apart.
 class OnlineLyricQuery {
@@ -50,6 +52,86 @@ class OnlineLyricQuery {
       duration: duration == null || duration <= Duration.zero ? null : duration,
     );
   }
+
+  /// The searches to try for a project, best first (D-055).
+  ///
+  /// The project name comes first unless it is a placeholder such as a
+  /// recorder's file name ([isPlaceholderName]); then the title from the
+  /// audio file's [tags] is tried. A missing artist is filled from the tags.
+  /// Duplicates are dropped and unsearchable queries left out, so the list
+  /// can be empty only when neither the name nor the tags name a song.
+  static List<OnlineLyricQuery> candidatesFor({
+    required String name,
+    String? artist,
+    Duration? duration,
+    SongTags? tags,
+  }) {
+    final length = duration != null && duration > Duration.zero
+        ? duration
+        : tags?.duration;
+    final fromName = OnlineLyricQuery.fromProject(
+      name: name,
+      artist: artist,
+      duration: length,
+    );
+    final tagArtist = cleanArtist(tags?.artist ?? '');
+    final named = fromName.artist.isEmpty && tagArtist.isNotEmpty
+        ? fromName.copyWith(artist: tagArtist)
+        : fromName;
+    OnlineLyricQuery? fromTags;
+    // A tag title that is itself a placeholder ("Track 01") adds nothing.
+    if (tags != null && tags.hasTitle && !isPlaceholderName(tags.title!)) {
+      final explicitArtist = cleanArtist(artist ?? '');
+      fromTags = OnlineLyricQuery.fromProject(
+        name: tags.title!,
+        artist: explicitArtist.isNotEmpty
+            ? explicitArtist
+            : tagArtist.isNotEmpty
+            ? tagArtist
+            : named.artist,
+        duration: length,
+      );
+    }
+    final placeholder = isPlaceholderName(name);
+    final ordered = [
+      if (!placeholder) named,
+      ?fromTags,
+      if (placeholder) named,
+    ];
+    final seen = <String>{};
+    return [
+      for (final query in ordered)
+        if (query.isSearchable && seen.add(query._identity)) query,
+    ];
+  }
+
+  /// Whether [raw] names a recording rather than a song: only digits and
+  /// dates, a recorder's default name ("新录音 3", "Recording 12",
+  /// "Track 05", "未命名"), a camera or chat-app file name ("IMG_0034",
+  /// "VID_20240501", "PTT-20240501-WA0003") or a hash.
+  static bool isPlaceholderName(String raw) {
+    final cleaned = cleanTitle(raw).replaceAll('_', ' ').trim();
+    if (cleaned.isEmpty) return true;
+    final lower = cleaned.toLowerCase();
+    return _placeholderPatterns.any((pattern) => pattern.hasMatch(lower));
+  }
+
+  static final List<RegExp> _placeholderPatterns = [
+    RegExp(r'^(?=.*\d)[\d\s\-.:/年月日时分秒]+$'),
+    RegExp(
+      r'^(新?录音|新?錄音|录音文件|錄音檔|语音|語音|recording|new recording|'
+      r'voice memo|voice|audio|track|音轨|音軌|untitled|未命名|未知|unknown|'
+      r'record|rec|sound|song|歌曲|新建|default|sample|test)'
+      r'[\s\d\-.:()（）#]*$',
+    ),
+    RegExp(r'^(img|vid|aud|mov|dsc|rec|wa|ptt|audio|voice)[\s\-]*\d{3,}'),
+    RegExp(r'^[0-9a-f]{12,}$'),
+    RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-'),
+  ];
+
+  String get _identity =>
+      '${title.toLowerCase().replaceAll(_spaces, '')}|'
+      '${artist.toLowerCase().replaceAll(_spaces, '')}';
 
   /// Whether there is anything to search for.
   bool get isSearchable => title.trim().isNotEmpty;

@@ -76,7 +76,53 @@ Future<void> _pumpHost(WidgetTester tester) => tester.pumpWidget(
   const MaterialApp(home: Scaffold(body: SizedBox.expand())),
 );
 
+/// Finds the song only when searched by its real title.
+class _TitleOnlySource implements OnlineLyricSource {
+  final queries = <OnlineLyricQuery>[];
+
+  @override
+  OnlineLyricSourceKind get kind => OnlineLyricSourceKind.netease;
+
+  @override
+  Future<List<OnlineLyricCandidate>> search(OnlineLyricQuery query) async {
+    queries.add(query);
+    return query.title == '夜航' ? [candidate()] : const [];
+  }
+}
+
 void main() {
+  testWidgets('a placeholder name falls back to the tag title (D-055)', (
+    tester,
+  ) async {
+    final source = _TitleOnlySource();
+    final lookup = SongLyricsLookup(
+      search: OnlineLyricSearchService(sources: [source]),
+      importer: LocalLyricFileImportService(),
+    );
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1400, 1000);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await _pumpHost(tester);
+    final context = tester.element(find.byType(Scaffold));
+    unawaited(
+      showSongLyricsPreviewDialog(
+        context,
+        lookup: lookup,
+        query: const OnlineLyricQuery(title: '新录音 12'),
+        fallbackQueries: const [_query],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(source.queries.map((query) => query.title), ['新录音 12', '夜航']);
+    expect(find.text('窗外的雨停了又下'), findsOneWidget);
+    // The fields show the search that worked, so 重新搜索 starts from it.
+    expect(find.widgetWithText(TextField, '夜航'), findsOneWidget);
+  });
+
   testWidgets('timed lyrics can be taken with their timing', (tester) async {
     final open = _open(tester, _lookup([candidate()]));
     await _pumpHost(tester);

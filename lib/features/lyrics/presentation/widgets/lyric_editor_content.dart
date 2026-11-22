@@ -9,6 +9,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../project/domain/models/lyric_document.dart';
+import '../../../project/domain/models/lyric_timing.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/recognition_review_summary.dart';
 import '../../domain/models/secondary_only_suggestion.dart';
@@ -25,6 +26,7 @@ import 'lyric_inspector_pane.dart';
 import 'lyric_list_pane.dart';
 import 'lyric_proofread_menu_button.dart';
 import 'lyric_recognition_summary_card.dart';
+import 'lyric_tap_sync_prompt_card.dart';
 import 'unsaved_lyric_edits_dialog.dart';
 
 class LyricEditorLoadingState extends StatelessWidget {
@@ -377,8 +379,17 @@ class LyricEditorContent extends StatelessWidget {
                             // The summary lives inside the list column, after
                             // the pane decision, so it can never push a desktop
                             // window into the single-pane layout.
-                            final summaryCard =
-                                recognitionSummary.hasRecognitionData
+                            // Untimed words (D-054) need 打轴 before anything
+                            // else; the recognition summary has nothing to say.
+                            final Widget? summaryCard = document.isUntimed
+                                ? LyricTapSyncPromptCard(
+                                    lineCount: document.lines.length,
+                                    hasAudio: project.audioAsset != null,
+                                    onStartTapSync: _batchTool(
+                                      LyricBatchTextTool.tapSync,
+                                    ),
+                                  )
+                                : recognitionSummary.hasRecognitionData
                                 ? LyricRecognitionSummaryCard(
                                     summary: recognitionSummary,
                                     health: proofread.onBatchTextTool == null
