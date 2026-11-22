@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../../project/domain/models/audio_asset.dart';
+import '../../../project/domain/models/automatic_accompaniment.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/models/vocal_separation_models.dart';
@@ -47,6 +48,9 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
        _now = now ?? DateTime.now,
        _stopwatch = stopwatch ?? Stopwatch.new;
 
+  @override
+  bool get supportsCurrentPlatform => _runtime.supportsCurrentPlatform;
+
   static Future<Process> _startPlatformProcess(
     String executable,
     List<String> arguments,
@@ -58,6 +62,7 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
     required TranscriptionConfig config,
     required String workDirectory,
     required void Function(TranscriptionProgress progress) onProgress,
+    bool requireAccompaniment = false,
   }) async {
     _cancelled = false;
     final audio = project.audioAsset;
@@ -74,6 +79,7 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
       platformSupported: _runtime.supportsCurrentPlatform,
       separatorRevision: _runtime.separatorRevision,
       facts: facts,
+      requireAccompaniment: requireAccompaniment,
     );
     switch (plan.action) {
       case VocalSeparationAction.skip:
@@ -82,14 +88,22 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
         );
       case VocalSeparationAction.reuse:
         final marker = plan.reusable!;
+        final accompanimentPath = facts.accompanimentFileExists
+            ? marker.accompanimentPath
+            : null;
         return ProjectVocalSeparation(
           VocalSeparationOutcome.reused(
             vocalPath: marker.vocalPath,
-            accompanimentPath: facts.accompanimentFileExists
-                ? marker.accompanimentPath
-                : null,
+            accompanimentPath: accompanimentPath,
             provider: marker.provider,
             separatorRevision: marker.separatorRevision,
+          ),
+          // A stem separated before D-060 left its accompaniment unlinked.
+          updatedAudio: linkAutomaticAccompaniment(
+            audio,
+            path: accompanimentPath,
+            separatorRevision: marker.separatorRevision,
+            generatedAt: marker.generatedAt,
           ),
         );
       case VocalSeparationAction.run:
@@ -259,6 +273,15 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
         keep: {
           runDirectory.path,
           if (audio.vocalPath != null) File(audio.vocalPath!).parent.path,
+          if (audio.instrumentalPath != null)
+            File(audio.instrumentalPath!).parent.path,
+        },
+      );
+      final withStem = audio.copyWith(
+        vocalPath: vocalPath,
+        metadata: {
+          ...audio.metadata,
+          VocalStemMarker.metadataKey: marker.toJson(),
         },
       );
       return ProjectVocalSeparation(
@@ -271,13 +294,14 @@ class LocalProjectVocalSeparator implements ProjectVocalSeparator {
           elapsed: stopwatch.elapsed,
           separatorRevision: installation.manifest.separatorRevision,
         ),
-        updatedAudio: audio.copyWith(
-          vocalPath: vocalPath,
-          metadata: {
-            ...audio.metadata,
-            VocalStemMarker.metadataKey: marker.toJson(),
-          },
-        ),
+        updatedAudio:
+            linkAutomaticAccompaniment(
+              withStem,
+              path: accompanimentPath,
+              separatorRevision: installation.manifest.separatorRevision,
+              generatedAt: marker.generatedAt,
+            ) ??
+            withStem,
       );
     } on TranscriptionException {
       await _deleteQuietly(runDirectory);

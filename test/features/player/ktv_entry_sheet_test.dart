@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/ktv_backing_mode.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/widgets/ktv_entry_sheet.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/automatic_accompaniment.dart';
 
 void main() {
   for (final size in [const Size(390, 844), const Size(1366, 768)]) {
@@ -23,7 +24,8 @@ void main() {
       await tester.tap(find.text('打开'));
       await tester.pumpAndSettle();
 
-      expect(find.text('纯伴奏暂不可用：可在桌面端工程详情导入已有伴奏，或继续使用原唱伴唱。'), findsOneWidget);
+      expect(find.text(ktvInstrumentalUnavailableHint), findsOneWidget);
+      expect(ktvInstrumentalUnavailableHint, contains('自动生成伴奏'));
       final instrumental = tester.widget<ListTile>(
         find.ancestor(of: find.text('纯伴奏'), matching: find.byType(ListTile)),
       );
@@ -65,6 +67,35 @@ void main() {
     expect(selection?.mode, KtvBackingMode.instrumental);
     expect(selection?.sourcePath, 'backing.wav');
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a separated accompaniment says it was separated (D-060)', (
+    tester,
+  ) async {
+    KtvEntrySelection? selection;
+    await tester.pumpWidget(
+      _SheetHost(
+        asset: AudioAsset(
+          originalPath: 'song.wav',
+          instrumentalPath: 'stems/run-1/accompaniment.wav',
+          format: 'wav',
+          metadata: {
+            AutomaticAccompaniment.metadataKey: AutomaticAccompaniment(
+              path: 'stems/run-1/accompaniment.wav',
+              generatedAt: DateTime.utc(2026, 11, 22),
+            ).toJson(),
+          },
+        ),
+        onSelected: (mode) => selection = mode,
+      ),
+    );
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+    expect(find.text('播放从原曲自动分离的伴奏，可能残留少量人声'), findsOneWidget);
+    expect(find.text('播放工程中的伴奏轨'), findsNothing);
+    await tester.tap(find.text('纯伴奏'));
+    await tester.pumpAndSettle();
+    expect(selection?.sourcePath, 'stems/run-1/accompaniment.wav');
   });
 }
 

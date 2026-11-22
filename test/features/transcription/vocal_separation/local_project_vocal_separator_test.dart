@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/automatic_accompaniment.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/local_project_vocal_separator.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/separator_manifest.dart';
@@ -181,11 +182,13 @@ class _Fixture {
     LocalProjectVocalSeparator? using,
     ProjectManifest? project,
     TranscriptionConfig config = _config,
+    bool requireAccompaniment = false,
   }) => (using ?? separator()).separate(
     project ?? this.project,
     config: config,
     workDirectory: workDirectory,
     onProgress: progress.add,
+    requireAccompaniment: requireAccompaniment,
   );
 
   List<String> runDirectories() {
@@ -201,6 +204,7 @@ class _Fixture {
 
 Future<_Fixture> _fixture({
   String? vocalPath,
+  String? instrumentalPath,
   Map<String, dynamic>? metadata,
 }) async {
   final root = await Directory.systemTemp.createTemp('vocal-separation-');
@@ -219,6 +223,7 @@ Future<_Fixture> _fixture({
         originalPath: song.path,
         format: 'flac',
         vocalPath: vocalPath,
+        instrumentalPath: instrumentalPath,
         metadata: metadata ?? const {'title': 'Song'},
       ),
       projectDirectory: root.path,
@@ -532,6 +537,110 @@ void main() {
       ),
     );
     expect(result.outcome.skipReason, VocalSeparationSkipReason.sourceMissing);
+  });
+
+  group('the separated accompaniment (D-060)', () {
+    test('becomes the project accompaniment', () async {
+      final fixture = await _fixture();
+      final result = await fixture.run();
+      final audio = result.updatedAudio!;
+      expect(audio.instrumentalPath, result.outcome.accompanimentPath);
+      expect(audio.hasAutomaticAccompaniment, isTrue);
+      final marker = AutomaticAccompaniment.fromAudioMetadata(audio.metadata)!;
+      expect(marker.separatorRevision, _revision);
+      expect(marker.generatedAt, DateTime.utc(2026, 11, 18, 12));
+      expect(fixture.separator().supportsCurrentPlatform, isTrue);
+    });
+
+    test('never replaces an imported accompaniment', () async {
+      final fixture = await _fixture(instrumentalPath: '/imported/backing.mp3');
+      final result = await fixture.run();
+      final audio = result.updatedAudio!;
+      expect(audio.instrumentalPath, '/imported/backing.mp3');
+      expect(audio.hasUserAccompaniment, isTrue);
+      expect(audio.vocalPath, result.outcome.vocalPath);
+    });
+
+    test('a stem from before D-060 links its accompaniment on reuse', () async {
+      final first = await _fixture();
+      final separated = await first.run();
+      // A project saved before D-060: the stems and the vocal marker, but
+      // no accompaniment linked.
+      final old = separated.updatedAudio!;
+      final project = first.project.copyWith(
+        audioAsset: AudioAsset(
+          originalPath: old.originalPath,
+          format: old.format,
+          vocalPath: old.vocalPath,
+          metadata: old.metadataWithoutAutomaticAccompaniment,
+        ),
+      );
+      first.processes.calls.clear();
+      final again = await first.run(project: project);
+      expect(again.outcome.status, VocalSeparationStatus.reused);
+      expect(first.processes.calls, isEmpty);
+      final audio = again.updatedAudio!;
+      expect(audio.instrumentalPath, separated.outcome.accompanimentPath);
+      expect(audio.hasAutomaticAccompaniment, isTrue);
+    });
+
+    test('asking for it separates again when its file is gone', () async {
+      final first = await _fixture();
+      final separated = await first.run();
+      final project = first.project.copyWith(
+        audioAsset: separated.updatedAudio,
+      );
+      await File(separated.outcome.accompanimentPath!).delete();
+
+      final recognition = await first.run(project: project);
+      expect(recognition.outcome.status, VocalSeparationStatus.reused);
+
+      first.processes.calls.clear();
+      final generation = await first.run(
+        project: project,
+        requireAccompaniment: true,
+      );
+      expect(generation.outcome.status, VocalSeparationStatus.separated);
+      expect(first.processes.calls, isNotEmpty);
+      expect(
+        File(generation.updatedAudio!.instrumentalPath!).existsSync(),
+        isTrue,
+      );
+    });
+
+    test('the accompaniment a project plays survives a new run', () async {
+      final root = await Directory.systemTemp.createTemp('backing-keep-');
+      addTearDown(() => root.delete(recursive: true));
+      final current = Directory('${root.path}/stems/run-5');
+      await current.create(recursive: true);
+      final backing = File('${current.path}/accompaniment.wav');
+      await backing.writeAsString('current');
+      final fixture = await _fixture(
+        instrumentalPath: backing.path,
+        metadata: {
+          AutomaticAccompaniment.metadataKey: AutomaticAccompaniment(
+            path: backing.path,
+            generatedAt: DateTime.utc(2026, 1, 1),
+          ).toJson(),
+        },
+      );
+      final result = await LocalProjectVocalSeparator(
+        runtime: fixture.runtime,
+        startProcess: fixture.processes.start,
+      ).separate(
+        fixture.project,
+        config: _config,
+        workDirectory: '${root.path}/stems',
+        onProgress: (_) {},
+      );
+      expect(result.outcome.status, VocalSeparationStatus.separated);
+      expect(current.existsSync(), isTrue);
+      expect(
+        result.updatedAudio!.instrumentalPath,
+        result.outcome.accompanimentPath,
+        reason: 'a newer separation replaces the older separated one',
+      );
+    });
   });
 
   test('the silent-stem threshold is about -30 dB', () {

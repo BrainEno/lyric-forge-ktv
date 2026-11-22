@@ -17,6 +17,7 @@ import '../../../transcription/domain/models/transcription_degradation.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/models/transcription_run_progress.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
+import '../../../transcription/domain/services/project_accompaniment_generator.dart';
 import '../../../transcription/domain/services/project_transcription_workflow.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
 import '../../../transcription/presentation/widgets/asr_runtime_setup_dialog.dart';
@@ -56,9 +57,24 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   bool _isImportingStem = false;
   bool _importingVocal = false;
 
+  /// 自动生成伴奏 running on this page (D-060), with its own progress.
+  bool _isGeneratingAccompaniment = false;
+  double _generationProgress = 0;
+  String _generationMessage = '';
+
   /// Kept here rather than in the section: a refresh after an import shows
   /// the loading state and rebuilds the whole page.
   bool _audioSourcesExpanded = false;
+
+  /// The workflow's 自动生成伴奏, when this device can separate.
+  ProjectAccompanimentGenerator? get _accompanimentGenerator {
+    final workflow = _transcriptionWorkflow;
+    if (workflow is! ProjectAccompanimentGenerator) return null;
+    return workflow.canGenerateAccompaniment ? workflow : null;
+  }
+
+  bool get _busy =>
+      _isTranscribing || _isImportingStem || _isGeneratingAccompaniment;
 
   bool get _isDesktop =>
       !kIsWeb &&
@@ -79,8 +95,20 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     _progressSubscription = _transcriptionWorkflow.progressStream.listen((
       progress,
     ) {
+      if (!mounted) return;
+      if (_isGeneratingAccompaniment) {
+        setState(() {
+          if (progress.progress > _generationProgress) {
+            _generationProgress = progress.progress;
+          }
+          if (progress.message.isNotEmpty) {
+            _generationMessage = progress.message;
+          }
+        });
+        return;
+      }
       final tracker = _runTracker;
-      if (!mounted || tracker == null) return;
+      if (tracker == null) return;
       setState(() => tracker.record(progress, DateTime.now()));
     });
   }
@@ -131,11 +159,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   }
 
   Future<void> _startTranscription(ProjectManifest project) async {
-    if (!_isDesktop ||
-        _isTranscribing ||
-        _isImportingStem ||
-        project.audioAsset == null)
-      return;
+    if (!_isDesktop || _busy || project.audioAsset == null) return;
 
     if (project.hasLyrics) {
       final confirmed = await showDialog<bool>(
@@ -183,6 +207,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
 
     try {
       await _transcriptionWorkflow.transcribeProject(project.id);
+      // Separation may have linked a new vocal stem and accompaniment.
+      await _syncPlaybackSources(
+        project,
+        await _repository.getProjectById(project.id),
+      );
       await _refreshProject();
       if (mounted) {
         // The way to the next step is on the message itself (D-049).
@@ -253,11 +282,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     ProjectManifest project, {
     required bool vocal,
   }) async {
-    if (!_isDesktop ||
-        _isTranscribing ||
-        _isImportingStem ||
-        project.audioAsset == null)
-      return;
+    if (!_isDesktop || _busy || project.audioAsset == null) return;
     // Reserve the operation before awaiting the confirmation dialog or picker.
     setState(() {
       _isImportingStem = true;
@@ -336,6 +361,121 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     }
   }
 
+  /// Points a queue that is playing [before] at the tracks of [after], when
+  /// separation changed them and the change cannot interrupt the audio.
+  Future<bool> _syncPlaybackSources(
+    ProjectManifest before,
+    ProjectManifest? after,
+  ) async {
+    final updater = widget.dependencies.playbackSourceUpdater;
+    final expected = before.audioAsset;
+    final replacement = after?.audioAsset;
+    if (updater == null || expected == null || replacement == null) {
+      return false;
+    }
+    if (expected.instrumentalPath == replacement.instrumentalPath &&
+        expected.vocalPath == replacement.vocalPath) {
+      return false;
+    }
+    try {
+      return await updater.updateActiveProjectSources(
+        projectId: before.id,
+        expected: expected,
+        replacement: replacement,
+      );
+    } on Object {
+      // The project is saved; reopening the player picks the tracks up.
+      return false;
+    }
+  }
+
+  /// 自动生成伴奏 (D-060): separation on its own, so a project can be sung
+  /// over without recognising its lyrics first.
+  Future<void> _generateAccompaniment(ProjectManifest project) async {
+    final generator = _accompanimentGenerator;
+    if (generator == null ||
+        !_isDesktop ||
+        _busy ||
+        project.audioAsset == null) {
+      return;
+    }
+    setState(() {
+      _isGeneratingAccompaniment = true;
+      _generationProgress = 0;
+      _generationMessage = '正在准备生成伴奏';
+      _audioSourcesExpanded = true;
+    });
+    try {
+      // Separation needs the FFmpeg of the recognition environment.
+      final config = await _transcriptionSettingsStore.load();
+      if (config == null) {
+        if (!mounted) return;
+        final configured = await _configureTranscription();
+        if (configured == null) return;
+      }
+      final result = await generator.generateAccompaniment(project.id);
+      final synchronized = await _syncPlaybackSources(project, result.project);
+      if (!mounted) return;
+      await _refreshProject();
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            result.linked && synchronized
+                ? '${result.message}已同步到当前播放队列。'
+                : result.message,
+          ),
+          duration: const Duration(seconds: 8),
+          action: result.linked
+              ? SnackBarAction(
+                  label: '打开播放器',
+                  onPressed: () {
+                    if (mounted) {
+                      Navigator.pushNamed(
+                        context,
+                        Routes.playerPath(project.id),
+                      );
+                    }
+                  },
+                )
+              : null,
+        ),
+      );
+    } on TranscriptionException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          error.kind == TranscriptionFailureKind.cancelled
+              ? const SnackBar(content: Text('已停止生成伴奏'))
+              : SnackBar(
+                  content: Text('生成伴奏失败：$error'),
+                  backgroundColor: AppColors.error,
+                  duration: const Duration(seconds: 10),
+                ),
+        );
+        await _refreshProject();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('生成伴奏失败：$error'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 10),
+          ),
+        );
+        await _refreshProject();
+      }
+    } finally {
+      if (mounted) setState(() => _isGeneratingAccompaniment = false);
+    }
+  }
+
+  Future<void> _cancelAccompanimentGeneration() async {
+    if (!_isGeneratingAccompaniment) return;
+    await _transcriptionWorkflow.cancel();
+  }
+
   /// Asks before minutes of recognition are thrown away (D-049).
   Future<void> _cancelTranscription() async {
     final tracker = _runTracker;
@@ -396,6 +536,17 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                 setState(() => _audioSourcesExpanded = value),
             onImportAccompaniment: () => _importStem(project, vocal: false),
             onImportVocal: () => _importStem(project, vocal: true),
+            generation: AccompanimentGenerationView(
+              onGenerate:
+                  _accompanimentGenerator != null &&
+                      project.audioAsset?.instrumentalPath == null
+                  ? () => _generateAccompaniment(project)
+                  : null,
+              running: _isGeneratingAccompaniment,
+              progress: _generationProgress,
+              message: _generationMessage,
+              onCancel: _cancelAccompanimentGeneration,
+            ),
             onTranscribe: () => _startTranscription(project),
             onCancelTranscription: _cancelTranscription,
             onConfigureTranscription: _configureTranscription,
@@ -444,6 +595,7 @@ class _ProjectDetailContent extends StatelessWidget {
   final ValueChanged<bool> onAudioSourcesExpandedChanged;
   final VoidCallback onImportAccompaniment;
   final VoidCallback onImportVocal;
+  final AccompanimentGenerationView generation;
   final VoidCallback onTranscribe;
   final VoidCallback onCancelTranscription;
   final VoidCallback onConfigureTranscription;
@@ -461,6 +613,7 @@ class _ProjectDetailContent extends StatelessWidget {
     required this.onAudioSourcesExpandedChanged,
     required this.onImportAccompaniment,
     required this.onImportVocal,
+    required this.generation,
     required this.onTranscribe,
     required this.onCancelTranscription,
     required this.onConfigureTranscription,
@@ -555,6 +708,7 @@ class _ProjectDetailContent extends StatelessWidget {
                                   onAudioSourcesExpandedChanged,
                               onImportAccompaniment: onImportAccompaniment,
                               onImportVocal: onImportVocal,
+                              generation: generation,
                               onTranscribe: onTranscribe,
                               onCancelTranscription: onCancelTranscription,
                               onConfigureTranscription:
@@ -919,6 +1073,7 @@ class _ActionPanel extends StatelessWidget {
   final ValueChanged<bool> onAudioSourcesExpandedChanged;
   final VoidCallback onImportAccompaniment;
   final VoidCallback onImportVocal;
+  final AccompanimentGenerationView generation;
   final VoidCallback onTranscribe;
   final VoidCallback onCancelTranscription;
   final VoidCallback onConfigureTranscription;
@@ -934,6 +1089,7 @@ class _ActionPanel extends StatelessWidget {
     required this.onAudioSourcesExpandedChanged,
     required this.onImportAccompaniment,
     required this.onImportVocal,
+    required this.generation,
     required this.onTranscribe,
     required this.onCancelTranscription,
     required this.onConfigureTranscription,
@@ -981,6 +1137,7 @@ class _ActionPanel extends StatelessWidget {
               onPressed:
                   isTranscribing ||
                       isImportingStem ||
+                      generation.running ||
                       project.audioAsset == null
                   ? null
                   : onTranscribe,
@@ -1008,7 +1165,9 @@ class _ActionPanel extends StatelessWidget {
           if (isDesktop && project.hasLyrics && !isTranscribing) ...[
             const SizedBox(height: AppSpacing.sm),
             TextButton.icon(
-              onPressed: isImportingStem ? null : onTranscribe,
+              onPressed: isImportingStem || generation.running
+                  ? null
+                  : onTranscribe,
               icon: const Icon(Icons.replay_rounded),
               label: const Text('重新识别歌词'),
             ),
@@ -1033,6 +1192,7 @@ class _ActionPanel extends StatelessWidget {
               isImportingVocal: isImportingVocal,
               onImportAccompaniment: onImportAccompaniment,
               onImportVocal: onImportVocal,
+              generation: generation,
             ),
           ],
           if (isDesktop) ...[

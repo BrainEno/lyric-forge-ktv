@@ -7,6 +7,7 @@ import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_
 import 'package:lyric_forge_ktv/features/player/domain/services/audio_path_canonicalizer.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/automatic_accompaniment.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
@@ -451,6 +452,176 @@ void main() {
     expect(fixture.repository.project.name, 'Renamed');
     expect(fixture.repository.project.audioAsset?.vocalPath, isNull);
   });
+
+  group('自动生成伴奏 (D-060)', () {
+    ProjectVocalSeparation separatedWithBacking(
+      ProjectManifest project,
+      String vocal,
+      String backing,
+    ) {
+      final audio = project.audioAsset!;
+      return ProjectVocalSeparation(
+        VocalSeparationOutcome.separated(
+          vocalPath: vocal,
+          accompanimentPath: backing,
+          provider: 'dml',
+          elapsed: const Duration(seconds: 50),
+          separatorRevision: 'htdemucs-ft-vocals-onnx-v1',
+        ),
+        updatedAudio: linkAutomaticAccompaniment(
+          audio.copyWith(vocalPath: vocal),
+          path: backing,
+          generatedAt: DateTime.utc(2026, 11, 22),
+        ),
+      );
+    }
+
+    test('separates without recognising and links the accompaniment', () async {
+      final fixture = await _Fixture.create();
+      fixture.settings.config = _config.copyWith(
+        vocalSeparation: VocalSeparationPreference.off,
+      );
+      final stem = await fixture.writeStem('run-1');
+      final backing = '${stem.parent.path}/accompaniment.wav';
+      fixture.separator.result = (project) =>
+          separatedWithBacking(project, stem.path, backing);
+      final workflow = fixture.workflow();
+      final progress = <TranscriptionProgress>[];
+      final subscription = workflow.progressStream.listen(progress.add);
+      addTearDown(subscription.cancel);
+
+      expect(workflow.canGenerateAccompaniment, isTrue);
+      final result = await workflow.generateAccompaniment('p');
+
+      expect(result.linked, isTrue);
+      expect(result.message, contains('伴奏已生成'));
+      final saved = fixture.repository.project;
+      expect(saved.audioAsset?.instrumentalPath, backing);
+      expect(saved.audioAsset?.hasAutomaticAccompaniment, isTrue);
+      expect(saved.lyricDocument, isNull, reason: 'nothing was recognised');
+      expect(saved.status, ProjectStatus.editing);
+      expect(saved.projectDirectory, fixture.root.path);
+      expect(fixture.service.lastRequest, isNull);
+      // Asking for an accompaniment overrides the recognition setting and
+      // insists on a fresh accompaniment file.
+      expect(
+        fixture.separator.lastConfig?.vocalSeparation,
+        VocalSeparationPreference.automatic,
+      );
+      expect(fixture.separator.lastRequireAccompaniment, isTrue);
+      expect(fixture.separator.lastWorkDirectory, endsWith('stems'));
+      expect(progress.map((p) => p.message), contains('正在分离人声 50%'));
+      expect(progress.last.message, result.message);
+      expect(workflow.isRunning, isFalse);
+    });
+
+    test('recognition links the accompaniment it separated', () async {
+      final fixture = await _Fixture.create();
+      final stem = await fixture.writeStem('run-1');
+      final backing = '${stem.parent.path}/accompaniment.wav';
+      fixture.separator.result = (project) =>
+          separatedWithBacking(project, stem.path, backing);
+      await fixture.workflow().transcribeProject('p');
+      final saved = fixture.repository.project;
+      expect(saved.audioAsset?.instrumentalPath, backing);
+      expect(saved.lyricDocument?.lines.single.text, 'ASR draft');
+      expect(fixture.separator.lastRequireAccompaniment, isFalse);
+    });
+
+    test('a separation that does not work out writes nothing', () async {
+      final fixture = await _Fixture.create();
+      fixture.separator.result = (_) => const ProjectVocalSeparation(
+        VocalSeparationOutcome.failed(VocalSeparationFailure.separatorFailed),
+      );
+      final writes = fixture.repository.writes;
+      final result = await fixture.workflow().generateAccompaniment('p');
+      expect(result.linked, isFalse);
+      expect(result.message, '人声分离失败，没有生成伴奏。');
+      expect(fixture.repository.writes, writes);
+    });
+
+    test('an imported vocal cannot be turned into an accompaniment', () async {
+      final fixture = await _Fixture.create();
+      fixture.separator.result = (_) => const ProjectVocalSeparation(
+        VocalSeparationOutcome.skipped(
+          VocalSeparationSkipReason.userProvidedVocal,
+        ),
+      );
+      final result = await fixture.workflow().generateAccompaniment('p');
+      expect(result.linked, isFalse);
+      expect(result.message, contains('导入已有伴奏'));
+    });
+
+    test('without a separator there is nothing to offer', () async {
+      final fixture = await _Fixture.create();
+      final workflow = fixture.workflow(withSeparator: false);
+      expect(workflow.canGenerateAccompaniment, isFalse);
+      final result = await workflow.generateAccompaniment('p');
+      expect(
+        result.outcome.skipReason,
+        VocalSeparationSkipReason.unsupportedPlatform,
+      );
+
+      fixture.separator.supported = false;
+      expect(fixture.workflow().canGenerateAccompaniment, isFalse);
+    });
+
+    test('needs the recognition environment for FFmpeg', () async {
+      final fixture = await _Fixture.create();
+      fixture.settings.config = null;
+      await expectLater(
+        fixture.workflow().generateAccompaniment('p'),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.environment,
+          ),
+        ),
+      );
+      expect(fixture.separator.calls, 0);
+    });
+
+    test('cancelling stops the separation', () async {
+      final fixture = await _Fixture.create();
+      final release = Completer<void>();
+      final workflow = fixture.workflow();
+      fixture.separator.onSeparate = () => release.future;
+      fixture.separator.onCancel = () async {
+        if (!release.isCompleted) release.complete();
+      };
+      final running = workflow.generateAccompaniment('p');
+      // The run reads the project and creates its folder first.
+      for (var i = 0; i < 400 && fixture.separator.calls == 0; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      expect(fixture.separator.calls, 1);
+      expect(workflow.isRunning, isTrue);
+      await expectLater(
+        workflow.generateAccompaniment('p'),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.busy,
+          ),
+        ),
+      );
+      await workflow.cancel();
+      await expectLater(
+        running,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      expect(fixture.separator.cancels, 1);
+      expect(workflow.isRunning, isFalse);
+    });
+  });
 }
 
 class _Fixture {
@@ -576,7 +747,13 @@ class _Separator implements ProjectVocalSeparator {
   int calls = 0;
   int cancels = 0;
   String? lastWorkDirectory;
+  TranscriptionConfig? lastConfig;
+  bool? lastRequireAccompaniment;
   bool sawTranscribingStatus = false;
+  bool supported = true;
+
+  @override
+  bool get supportsCurrentPlatform => supported;
 
   @override
   Future<ProjectVocalSeparation> separate(
@@ -584,9 +761,12 @@ class _Separator implements ProjectVocalSeparator {
     required TranscriptionConfig config,
     required String workDirectory,
     required void Function(TranscriptionProgress progress) onProgress,
+    bool requireAccompaniment = false,
   }) async {
     calls++;
     lastWorkDirectory = workDirectory;
+    lastConfig = config;
+    lastRequireAccompaniment = requireAccompaniment;
     sawTranscribingStatus =
         repository?.project.status == ProjectStatus.transcribing;
     onProgress(
@@ -674,7 +854,7 @@ class _Service implements TranscriptionService {
 }
 
 class _Settings implements TranscriptionSettingsStore {
-  TranscriptionConfig config = _config;
+  TranscriptionConfig? config = _config;
 
   @override
   Future<TranscriptionConfig?> load() async => config;

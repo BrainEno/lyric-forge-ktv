@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/audio_asset.dart';
+import '../../../project/domain/models/automatic_accompaniment.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/lyric_timing.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -171,7 +172,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           artworkPath: audioAsset.thumbnailPath,
           hasLyrics: project.hasLyrics,
           audioAsset: audioAsset,
-          preferredSource: audioAsset.defaultSource,
+          preferredSource: audioAsset.preferredProjectPlaybackSource,
         ),
       );
     } catch (_) {

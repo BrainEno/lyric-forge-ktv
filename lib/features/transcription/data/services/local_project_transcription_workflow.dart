@@ -21,6 +21,7 @@ import '../../domain/models/vocal_gap_fill_models.dart';
 import '../../domain/models/vocal_separation_models.dart';
 import '../../domain/services/asr_resource_coordinator.dart';
 import '../../domain/services/asr_runtime_manager.dart';
+import '../../domain/services/project_accompaniment_generator.dart';
 import '../../domain/services/project_transcription_workflow.dart';
 import '../../domain/services/project_vocal_separator.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
@@ -48,7 +49,7 @@ enum _WorkflowPhase {
 /// truth immediately. Interoperable exports flatten the global correction into
 /// effective playback timestamps while this project timeline stays lossless.
 class LocalProjectTranscriptionWorkflow
-    implements ProjectTranscriptionWorkflow {
+    implements ProjectTranscriptionWorkflow, ProjectAccompanimentGenerator {
   static const _runIdKey = 'activeTranscriptionRunId';
 
   final ProjectRepository _projectRepository;
@@ -187,6 +188,125 @@ class LocalProjectTranscriptionWorkflow
         lease.release();
       }
     }
+  }
+
+  @override
+  bool get canGenerateAccompaniment =>
+      _vocalSeparator?.supportsCurrentPlatform ?? false;
+
+  /// Separation on its own (D-060): the accompaniment for KTV without
+  /// recognising the lyrics. It holds the recognition lease, so it never
+  /// competes with recognition for the GPU, and [cancel] stops it.
+  @override
+  Future<AccompanimentGeneration> generateAccompaniment(
+    String projectId,
+  ) async {
+    final separator = _vocalSeparator;
+    if (separator == null || !separator.supportsCurrentPlatform) {
+      return const AccompanimentGeneration(
+        VocalSeparationOutcome.skipped(
+          VocalSeparationSkipReason.unsupportedPlatform,
+        ),
+      );
+    }
+    if (isRunning) throw const TranscriptionException.busy('已有歌词识别任务正在运行');
+    final lease = _resources.tryAcquire(AsrResourceUse.transcription);
+    if (lease == null) {
+      throw const TranscriptionException.busy('识别资源正在使用，请稍后重试');
+    }
+    _phase = _WorkflowPhase.preparing;
+    _cancelRequested = false;
+    try {
+      return await _generateAccompaniment(projectId, separator);
+    } finally {
+      try {
+        final pendingCancel = _pendingCancel;
+        if (pendingCancel != null) await pendingCancel;
+      } finally {
+        _pendingCancel = null;
+        _cancelRequested = false;
+        _phase = _WorkflowPhase.idle;
+        lease.release();
+      }
+    }
+  }
+
+  Future<AccompanimentGeneration> _generateAccompaniment(
+    String projectId,
+    ProjectVocalSeparator separator,
+  ) async {
+    _announce('正在准备生成伴奏', stage: TranscriptionStage.preprocessing);
+    final project = await _projectRepository.getProjectById(projectId);
+    _checkCancelled();
+    if (project == null) {
+      throw const TranscriptionException.input('工程不存在');
+    }
+    if (project.audioAsset == null) {
+      throw const TranscriptionException.input('工程还没有音频');
+    }
+    final config = await _settingsStore.load();
+    _checkCancelled();
+    if (config == null) {
+      throw const TranscriptionException.environment(
+        '请先完成本机识别环境的安装，生成伴奏需要其中的 FFmpeg',
+      );
+    }
+    final TranscriptionConfig runtimeConfig;
+    try {
+      runtimeConfig = await _runtimeManager.repair(config);
+    } on TranscriptionException catch (error) {
+      if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
+      throw error.withKind(TranscriptionFailureKind.environment);
+    } catch (error) {
+      throw TranscriptionException.environment(
+        '无法检查本机识别环境',
+        details: error.toString(),
+      );
+    }
+    _checkCancelled();
+    final outputDirectory = await _outputDirectory(project);
+    _checkCancelled();
+
+    _phase = _WorkflowPhase.separating;
+    final prepared = await separator.separate(
+      project,
+      // Asking for an accompaniment is asking for separation, whatever the
+      // recognition setting says.
+      config: runtimeConfig.copyWith(
+        vocalSeparation: VocalSeparationPreference.automatic,
+      ),
+      workDirectory:
+          '${outputDirectory.parent.path}${Platform.pathSeparator}stems',
+      onProgress: _stepProgress.add,
+      requireAccompaniment: true,
+    );
+    _checkCancelled();
+    _phase = _WorkflowPhase.committing;
+    final updatedAudio = prepared.updatedAudio;
+    var saved = project;
+    if (updatedAudio != null) {
+      try {
+        saved = await _projectRepository.updateProjectIfUnchanged(
+          project.copyWith(
+            audioAsset: updatedAudio,
+            projectDirectory:
+                project.projectDirectory ?? outputDirectory.parent.path,
+          ),
+          expectedRevision: project.revision,
+        );
+      } on ProjectUpdateConflictException {
+        throw const TranscriptionException.input('生成伴奏期间工程发生变化，请刷新后重试。');
+      }
+    }
+    final result = AccompanimentGeneration(prepared.outcome, project: saved);
+    _stepProgress.add(
+      TranscriptionProgress(
+        stage: TranscriptionStage.completed,
+        progress: 1,
+        message: result.message,
+      ),
+    );
+    return result;
   }
 
   Future<void> _transcribeProject(String projectId) async {

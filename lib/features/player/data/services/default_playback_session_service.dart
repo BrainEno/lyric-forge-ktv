@@ -13,6 +13,7 @@ import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../../domain/services/project_audio_source_update.dart';
 import '../../../project/domain/models/audio_asset.dart';
+import '../../../project/domain/models/automatic_accompaniment.dart';
 
 class DefaultPlaybackSessionService
     implements PlaybackSessionService, ActiveProjectPlaybackSourceUpdater {
@@ -578,6 +579,19 @@ class DefaultPlaybackSessionService
     }
   }
 
+  /// Queue-local [metadata] with the separated-accompaniment marker of
+  /// [replacement] (D-060), so 进入 KTV can tell what kind of 纯伴奏 it offers.
+  static Map<String, dynamic> _withAccompanimentMarkerOf(
+    AudioAsset replacement,
+    Map<String, dynamic> metadata,
+  ) {
+    const key = AutomaticAccompaniment.metadataKey;
+    final marker = replacement.metadata[key];
+    final next = Map<String, dynamic>.of(metadata)..remove(key);
+    if (marker != null) next[key] = marker;
+    return next;
+  }
+
   @override
   Future<bool> updateActiveProjectSources({
     required String projectId,
@@ -614,7 +628,7 @@ class DefaultPlaybackSessionService
       sampleRate: current.sampleRate,
       bitDepth: current.bitDepth,
       duration: current.duration,
-      metadata: current.metadata,
+      metadata: _withAccompanimentMarkerOf(replacement, current.metadata),
     );
 
     // No await between the session check, player guard and queue update: another

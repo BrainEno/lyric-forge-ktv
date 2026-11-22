@@ -11,11 +11,13 @@ VocalSeparationFacts _facts({
   int bytes = 4000000,
   DateTime? modified,
   bool vocalFileExists = false,
+  bool accompanimentFileExists = false,
 }) => VocalSeparationFacts(
   sourceExists: sourceExists,
   sourceBytes: bytes,
   sourceModified: modified ?? _modified,
   vocalFileExists: vocalFileExists,
+  accompanimentFileExists: accompanimentFileExists,
 );
 
 AudioAsset _audio({
@@ -53,12 +55,14 @@ VocalSeparationPlan _plan(
   VocalSeparationPreference preference = VocalSeparationPreference.automatic,
   bool platformSupported = true,
   VocalSeparationFacts? facts,
+  bool requireAccompaniment = false,
 }) => const VocalSeparationPlanner().plan(
   audio: audio,
   preference: preference,
   platformSupported: platformSupported,
   separatorRevision: _revision,
   facts: facts ?? _facts(),
+  requireAccompaniment: requireAccompaniment,
 );
 
 void main() {
@@ -144,6 +148,33 @@ void main() {
       );
       expect(plan.action, VocalSeparationAction.run);
     }
+  });
+
+  test('a stem without its accompaniment is separated again only when the '
+      'accompaniment is wanted (D-060)', () {
+    final marker = _marker();
+    final audio = _audio(vocalPath: marker.vocalPath, marker: marker);
+    expect(
+      _plan(audio, facts: _facts(vocalFileExists: true)).action,
+      VocalSeparationAction.reuse,
+      reason: 'recognition only needs the vocal',
+    );
+    expect(
+      _plan(
+        audio,
+        facts: _facts(vocalFileExists: true),
+        requireAccompaniment: true,
+      ).action,
+      VocalSeparationAction.run,
+    );
+    expect(
+      _plan(
+        audio,
+        facts: _facts(vocalFileExists: true, accompanimentFileExists: true),
+        requireAccompaniment: true,
+      ).action,
+      VocalSeparationAction.reuse,
+    );
   });
 
   test('a new separator revision separates again', () {

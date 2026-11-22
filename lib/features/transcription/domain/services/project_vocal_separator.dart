@@ -8,8 +8,9 @@ class ProjectVocalSeparation {
   final VocalSeparationOutcome outcome;
 
   /// The audio asset with the new automatic stem linked, when the run
-  /// produced one. The workflow writes it under its run marker; null means
-  /// the project needs no change.
+  /// produced one, and the separated accompaniment linked when the project
+  /// has none of its own (D-060). The workflow writes it under its run
+  /// marker; null means the project needs no change.
   final AudioAsset? updatedAudio;
 
   const ProjectVocalSeparation(this.outcome, {this.updatedAudio});
@@ -21,8 +22,15 @@ class ProjectVocalSeparation {
 /// problem becomes a [VocalSeparationOutcome] and recognition continues on
 /// the original mix.
 abstract interface class ProjectVocalSeparator {
+  /// Whether this device can separate at all (D-060); false hides
+  /// 自动生成伴奏.
+  bool get supportsCurrentPlatform;
+
   /// Separates (or reuses, or skips) for [project], writing stems under
   /// [workDirectory]. Progress is reported as [TranscriptionStage.preprocessing].
+  ///
+  /// With [requireAccompaniment], an earlier stem is reused only while its
+  /// accompaniment still exists; otherwise the song is separated again.
   ///
   /// Throws [TranscriptionException] of kind
   /// [TranscriptionFailureKind.cancelled] after [cancel].
@@ -31,6 +39,7 @@ abstract interface class ProjectVocalSeparator {
     required TranscriptionConfig config,
     required String workDirectory,
     required void Function(TranscriptionProgress progress) onProgress,
+    bool requireAccompaniment = false,
   });
 
   /// Stops a running download or separation; [separate] then throws the

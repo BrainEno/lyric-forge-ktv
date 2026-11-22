@@ -55,7 +55,9 @@ class VocalSeparationFacts {
 /// 2. a vocal stem the user imported is never second-guessed;
 /// 3. platform support, source availability and length;
 /// 4. an automatic stem is reused only while both the song file (size and
-///    modification time) and the separator revision are unchanged.
+///    modification time) and the separator revision are unchanged, and,
+///    when the caller needs the accompaniment (D-060), while that file is
+///    still there.
 class VocalSeparationPlanner {
   /// Separation memory grows with length (four stems of float stereo); songs
   /// longer than this are recognised from the mix.
@@ -69,6 +71,7 @@ class VocalSeparationPlanner {
     required bool platformSupported,
     required String separatorRevision,
     required VocalSeparationFacts facts,
+    bool requireAccompaniment = false,
   }) {
     if (preference == VocalSeparationPreference.off) {
       return const VocalSeparationPlan.skip(VocalSeparationSkipReason.disabled);
@@ -98,6 +101,7 @@ class VocalSeparationPlanner {
     if (marker != null &&
         automaticStem &&
         facts.vocalFileExists &&
+        (!requireAccompaniment || facts.accompanimentFileExists) &&
         marker.separatorRevision == separatorRevision &&
         marker.sourceFingerprint == fingerprintOf(audio.originalPath, facts)) {
       return VocalSeparationPlan.reuse(marker);

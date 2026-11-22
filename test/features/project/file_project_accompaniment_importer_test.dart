@@ -5,6 +5,7 @@ import 'package:lyric_forge_ktv/features/player/domain/models/ktv_backing_mode.d
 import 'package:lyric_forge_ktv/features/project/data/repositories/file_project_repository.dart';
 import 'package:lyric_forge_ktv/features/project/data/services/file_project_accompaniment_importer.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/automatic_accompaniment.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
@@ -151,6 +152,43 @@ void main() {
       );
       final path = failing.received!.audioAsset!.instrumentalPath!;
       expect(await File(path).readAsBytes(), [1, 2, 3]);
+    },
+  );
+
+  test(
+    'an imported backing track replaces a separated one for good (D-060)',
+    () async {
+      const separated = '/p/stems/run-1/accompaniment.wav';
+      final withSeparated = await repository.updateProject(
+        project.copyWith(
+          audioAsset: linkAutomaticAccompaniment(
+            project.audioAsset!,
+            path: separated,
+            generatedAt: DateTime.utc(2026, 11, 22),
+          ),
+        ),
+      );
+      expect(withSeparated.audioAsset!.hasAutomaticAccompaniment, isTrue);
+
+      final updated = (await importer(
+        () async => source.path,
+      ).importFor(withSeparated))!;
+      final audio = updated.audioAsset!;
+      expect(audio.instrumentalPath, isNot(separated));
+      expect(audio.hasUserAccompaniment, isTrue);
+      expect(
+        audio.metadata.containsKey(AutomaticAccompaniment.metadataKey),
+        isFalse,
+      );
+      expect(
+        linkAutomaticAccompaniment(
+          audio,
+          path: separated,
+          generatedAt: DateTime.utc(2026, 11, 23),
+        ),
+        isNull,
+        reason: 'a later separation leaves the imported track alone',
+      );
     },
   );
 
