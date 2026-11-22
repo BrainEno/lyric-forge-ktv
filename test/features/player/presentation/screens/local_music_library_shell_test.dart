@@ -95,7 +95,9 @@ void main() {
     // The chips and the transfer button sit below the status bar.
     expect(tester.getTopLeft(find.text('歌曲')).dy, greaterThan(47));
     expect(
-      tester.getTopLeft(find.byKey(LocalMusicLibraryShell.transferButtonKey)).dy,
+      tester
+          .getTopLeft(find.byKey(LocalMusicLibraryShell.transferButtonKey))
+          .dy,
       greaterThanOrEqualTo(47),
     );
     // The section's own app bar must not pad for it a second time.
