@@ -32,7 +32,10 @@ void main() {
     );
 
     expect(calls.single.method, 'extractAudio');
-    expect(calls.single.arguments, {'input': '/in/a.mov', 'output': '/out/a.m4a'});
+    expect(calls.single.arguments, {
+      'input': '/in/a.mov',
+      'output': '/out/a.m4a',
+    });
     expect(result.path, '/out/a.m4a');
     expect(result.duration, const Duration(milliseconds: 61500));
   });

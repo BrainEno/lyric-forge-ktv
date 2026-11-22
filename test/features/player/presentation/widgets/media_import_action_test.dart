@@ -14,7 +14,10 @@ void main() {
     test('songs from videos are counted', () {
       expect(
         mediaImportSummary(
-          const MediaImportResult(importedPaths: ['a', 'b'], extractedFromVideo: 1),
+          const MediaImportResult(
+            importedPaths: ['a', 'b'],
+            extractedFromVideo: 1,
+          ),
         ),
         '已导入 2 首歌曲（其中 1 个视频已提取为音频）',
       );

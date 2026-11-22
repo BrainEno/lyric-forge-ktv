@@ -21,10 +21,10 @@ class MethodChannelMediaAudioExtractor implements MediaAudioExtractor {
   }) async {
     final Map<Object?, Object?>? reply;
     try {
-      reply = await _channel.invokeMapMethod<Object?, Object?>(
-        'extractAudio',
-        {'input': inputPath, 'output': outputPath},
-      );
+      reply = await _channel.invokeMapMethod<Object?, Object?>('extractAudio', {
+        'input': inputPath,
+        'output': outputPath,
+      });
     } on MissingPluginException {
       throw const MediaAudioExtractionException(
         MediaAudioExtractionException.unsupportedPlatform,

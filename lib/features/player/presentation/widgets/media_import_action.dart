@@ -50,10 +50,7 @@ Future<MediaImportResult?> runMediaImport(
     if (dialogOpen) navigator.pop();
     progress.dispose();
     messenger.showSnackBar(
-      SnackBar(
-        content: Text('导入失败：$error'),
-        backgroundColor: AppColors.error,
-      ),
+      SnackBar(content: Text('导入失败：$error'), backgroundColor: AppColors.error),
     );
     return null;
   }

@@ -92,7 +92,8 @@ class LocalMediaImportService implements MediaImportService {
     if (result == null) return null;
     return [
       for (final file in result.files)
-        if (file.path != null) PickedMediaFile(name: file.name, path: file.path!),
+        if (file.path != null)
+          PickedMediaFile(name: file.name, path: file.path!),
     ];
   }
 
@@ -170,7 +171,9 @@ class LocalMediaImportService implements MediaImportService {
             ),
           );
         } on Object catch (error) {
-          failures.add(MediaImportFailure(name: file.name, reason: '导入失败：$error'));
+          failures.add(
+            MediaImportFailure(name: file.name, reason: '导入失败：$error'),
+          );
         }
       }
       if (imported.isNotEmpty) await onImported(imported);

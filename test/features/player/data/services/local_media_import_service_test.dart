@@ -73,17 +73,20 @@ void main() {
     expect(mediaImportKindOf('/dir.mp3/file'), MediaImportKind.unsupported);
   });
 
-  test('audio is copied into the import folder and added to the library', () async {
-    final song = await pickedFile('晴天.mp3');
-    final result = await service([song]).importMedia(MediaImportSource.files);
+  test(
+    'audio is copied into the import folder and added to the library',
+    () async {
+      final song = await pickedFile('晴天.mp3');
+      final result = await service([song]).importMedia(MediaImportSource.files);
 
-    expect(result.importedPaths, ['${library.path}/晴天.mp3']);
-    expect(File(result.importedPaths.single).existsSync(), isTrue);
-    expect(result.extractedFromVideo, 0);
-    expect(result.failures, isEmpty);
-    expect(sunk, [result.importedPaths]);
-    expect(cleanUps, 1);
-  });
+      expect(result.importedPaths, ['${library.path}/晴天.mp3']);
+      expect(File(result.importedPaths.single).existsSync(), isTrue);
+      expect(result.extractedFromVideo, 0);
+      expect(result.failures, isEmpty);
+      expect(sunk, [result.importedPaths]);
+      expect(cleanUps, 1);
+    },
+  );
 
   test('the same song picked twice is kept once', () async {
     final song = await pickedFile('晴天.mp3');
@@ -105,10 +108,9 @@ void main() {
   test('a video is turned into an m4a next to the songs', () async {
     final video = await pickedFile('演唱会.MOV');
     final steps = <MediaImportProgress>[];
-    final result = await service([video]).importMedia(
-      MediaImportSource.photoLibrary,
-      onProgress: steps.add,
-    );
+    final result = await service([
+      video,
+    ]).importMedia(MediaImportSource.photoLibrary, onProgress: steps.add);
 
     expect(result.importedPaths, ['${library.path}/演唱会.m4a']);
     expect(result.extractedFromVideo, 1);

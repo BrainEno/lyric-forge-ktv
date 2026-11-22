@@ -346,15 +346,14 @@ void main() {
       mediaImport = importer;
       await pumpHome(tester);
 
-      expect(
-        heroText('先把歌曲放进音乐库：从“文件”或相册导入音频、视频，或从电脑传过来。'),
-        findsOneWidget,
-      );
+      expect(heroText('先把歌曲放进音乐库：从“文件”或相册导入音频、视频，或从电脑传过来。'), findsOneWidget);
       expect(find.byKey(ListenHomeScreen.importKey), findsOneWidget);
       await tester.tap(find.byKey(ListenHomeScreen.idleImportKey));
       await tester.pumpAndSettle();
       expect(find.text('从相册选择视频'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('media-import-source-photos')));
+      await tester.tap(
+        find.byKey(const ValueKey('media-import-source-photos')),
+      );
       await tester.pumpAndSettle();
 
       expect(importer.sources, [MediaImportSource.photoLibrary]);
