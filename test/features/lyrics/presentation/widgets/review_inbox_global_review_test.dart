@@ -56,13 +56,13 @@ void main() {
       await tester.pumpWidget(
         host(
           ReviewInboxSummaryBar(
-            summary: '3 个工程，共 12 行待复核',
+            summary: '3 个工程，共 12 行建议复核',
             onMarkEverything: () => pressed++,
           ),
         ),
       );
 
-      expect(find.text('3 个工程，共 12 行待复核'), findsOneWidget);
+      expect(find.text('3 个工程，共 12 行建议复核'), findsOneWidget);
       final button = find.byKey(ReviewInboxSummaryBar.buttonKey);
       expect(button, findsOneWidget);
       expect(tester.getSize(button).height, greaterThanOrEqualTo(40));
@@ -75,14 +75,14 @@ void main() {
       await tester.pumpWidget(
         host(
           const ReviewInboxSummaryBar(
-            summary: '2 个工程，暂时没有待复核的行',
+            summary: '2 个工程，暂时没有建议复核的行',
             onMarkEverything: null,
           ),
         ),
       );
 
       expect(find.byKey(ReviewInboxSummaryBar.buttonKey), findsNothing);
-      expect(find.text('2 个工程，暂时没有待复核的行'), findsOneWidget);
+      expect(find.text('2 个工程，暂时没有建议复核的行'), findsOneWidget);
     });
 
     testWidgets('replaces the button with announced progress while running', (
@@ -91,7 +91,7 @@ void main() {
       await tester.pumpWidget(
         host(
           ReviewInboxSummaryBar(
-            summary: '4 个工程，共 9 行待复核',
+            summary: '4 个工程，共 9 行建议复核',
             onMarkEverything: () {},
             progress: (done: 1, total: 4),
           ),

@@ -318,7 +318,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         [
           '最高质量识别完成',
           if (merge.secondaryOnlyLineIndices.isNotEmpty)
-            '补入 ${merge.secondaryOnlyLineIndices.length} 行备用引擎独有歌词（低置信待复核）',
+            '补入 ${merge.secondaryOnlyLineIndices.length} 行备用引擎独有歌词（列入建议复核）',
           if (merge.candidates.isNotEmpty)
             '发现 ${merge.candidates.length} 行需要重点校对',
           if (merge.candidates.isEmpty &&
@@ -635,7 +635,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       [
         '最高质量识别完成',
         if (merge.secondaryOnlyLineIndices.isNotEmpty)
-          '补入 ${merge.secondaryOnlyLineIndices.length} 行备用引擎独有歌词（低置信待复核）',
+          '补入 ${merge.secondaryOnlyLineIndices.length} 行备用引擎独有歌词（列入建议复核）',
         if (merge.whisperLoops.isNotEmpty)
           '处理 ${merge.whisperLoops.length} 处 Whisper 跨行循环重复',
         if (merge.candidates.isNotEmpty)

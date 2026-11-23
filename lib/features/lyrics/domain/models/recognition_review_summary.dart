@@ -51,8 +51,11 @@ class RecognitionReviewSummary {
   /// were therefore not inserted twice.
   final int? segmentationOnlySecondary;
 
-  /// The editor's review queue size ("待复核").
+  /// The editor's review queue size ("建议复核", D-068).
   final int pendingReview;
+
+  /// Of [pendingReview], the rows with strong evidence ("必看", D-069).
+  final int mustCheckReview;
 
   final int reviewedLines;
 
@@ -99,6 +102,7 @@ class RecognitionReviewSummary {
     required this.pendingSecondaryOnlySuggestions,
     required this.segmentationOnlySecondary,
     required this.pendingReview,
+    this.mustCheckReview = 0,
     required this.reviewedLines,
     this.vocalCheck,
     this.openVocalSpans = const [],
@@ -274,6 +278,7 @@ class RecognitionReviewSummary {
           ? segmentation
           : null,
       pendingReview: queue.needsReviewCount,
+      mustCheckReview: queue.mustCheckCount,
       reviewedLines: reviewed.length,
       vocalCheck: vocalCheck,
       openVocalSpans: vocalCheck?.openSpans(document) ?? const [],

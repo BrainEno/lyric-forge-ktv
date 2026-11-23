@@ -398,7 +398,7 @@ class _LineInspectorState extends State<LineInspector> {
             children: [
               if (_workingLine.isLowConfidence(kLyricReviewConfidenceThreshold))
                 LyricTinyBadge(
-                  label: '低置信度 ${_workingLine.confidence}',
+                  label: '置信度低 ${_workingLine.confidence}',
                   warning: true,
                 )
               else if (!_workingLine.hasConfidenceScore)

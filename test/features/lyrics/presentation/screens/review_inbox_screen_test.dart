@@ -139,7 +139,7 @@ void main() {
     expect(find.text('去导入'), findsOneWidget);
   });
 
-  testWidgets('只列出有歌词的工程，并按待复核行数排序', (tester) async {
+  testWidgets('只列出有歌词的工程，并按建议复核行数排序', (tester) async {
     repository = _FakeProjectRepository([
       _project(id: 'a', name: '干净的工程', lines: [_line('月亮代表我的心')]),
       _project(
@@ -176,10 +176,43 @@ void main() {
     final second = tester.getTopLeft(find.text('干净的工程')).dy;
     expect(first, lessThan(second));
 
-    expect(find.text('待复核 2'), findsOneWidget);
-    expect(find.text('低置信度 2'), findsOneWidget);
+    // The editor's words: one 建议复核 count, no separate 低置信度 badge, and
+    // the reason underneath.
+    expect(find.text('建议复核 2'), findsOneWidget);
+    expect(find.textContaining('低置信度'), findsNothing);
+    expect(find.textContaining('必看'), findsNothing);
+    expect(find.text('主要原因：置信度低 2'), findsOneWidget);
     expect(find.text('已复核'), findsOneWidget);
-    expect(find.textContaining('共 2 行待复核'), findsOneWidget);
+    expect(find.text('2 个工程，共 2 行建议复核'), findsOneWidget);
+  });
+
+  testWidgets('必看的行多的工程排在前面，摘要说出必看行数', (tester) async {
+    repository = _FakeProjectRepository([
+      _project(
+        id: 'many',
+        name: '留意较多',
+        lines: [
+          _line('第 1 行', confidence: 40),
+          _line('第 2 行', confidence: 40, startSeconds: 4),
+          _line('第 3 行', confidence: 40, startSeconds: 8),
+        ],
+      ),
+      _project(
+        id: 'must',
+        name: '有一行必看',
+        updatedAt: DateTime(2026, 9, 1),
+        lines: [_line('')],
+      ),
+    ]);
+
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    final must = tester.getTopLeft(find.text('有一行必看')).dy;
+    final many = tester.getTopLeft(find.text('留意较多')).dy;
+    expect(must, lessThan(many));
+    expect(find.text('2 个工程，共 4 行建议复核，其中 1 行必看'), findsOneWidget);
+    expect(find.text('必看 1'), findsOneWidget);
   });
 
   testWidgets('点一行进入该工程的歌词编辑器', (tester) async {
@@ -203,7 +236,7 @@ void main() {
     ]);
     await tester.pumpWidget(buildScreen());
     await tester.pumpAndSettle();
-    expect(find.text('待复核 1'), findsOneWidget);
+    expect(find.text('建议复核 1'), findsOneWidget);
 
     await tester.tap(find.text('夜曲'));
     await tester.pumpAndSettle();
@@ -226,9 +259,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.calls, readsBefore + 1);
-    expect(find.text('待复核 1'), findsNothing);
+    expect(find.text('建议复核 1'), findsNothing);
     expect(find.text('已复核'), findsOneWidget);
-    expect(find.textContaining('暂时没有待复核的行'), findsOneWidget);
+    expect(find.textContaining('暂时没有建议复核的行'), findsOneWidget);
   });
 
   testWidgets('和编辑器一样按音频时长计算待复核', (tester) async {
@@ -250,11 +283,11 @@ void main() {
 
     // The second line starts after the song ends: the editor queues it, so
     // the inbox must not call the project fully reviewed.
-    expect(find.text('待复核 1'), findsOneWidget);
+    expect(find.text('建议复核 1'), findsOneWidget);
     expect(find.text('已复核'), findsNothing);
   });
 
-  testWidgets('未评分的工程显示未评分而不是低置信度 0', (tester) async {
+  testWidgets('未评分的工程不显示低置信度 0', (tester) async {
     repository = _FakeProjectRepository([
       _project(
         id: 'a',
@@ -274,9 +307,11 @@ void main() {
     await tester.pumpWidget(buildScreen());
     await tester.pumpAndSettle();
 
-    expect(find.text('待复核 1'), findsOneWidget);
+    expect(find.text('建议复核 1'), findsOneWidget);
     expect(find.textContaining('低置信度'), findsNothing);
-    expect(find.text('未评分 1'), findsOneWidget);
+    // An empty line is strong evidence, so 必看 takes the second badge.
+    expect(find.text('必看 1'), findsOneWidget);
+    expect(find.text('主要原因：空歌词 1'), findsOneWidget);
   });
 
   testWidgets('加载失败时给出重试', (tester) async {
@@ -309,7 +344,7 @@ void main() {
     expect(find.text('第一首'), findsOneWidget);
     expect(find.text('第二首'), findsOneWidget);
     expect(find.textContaining('已复核的工程'), findsNothing);
-    expect(find.textContaining('暂时没有待复核的行'), findsOneWidget);
+    expect(find.textContaining('暂时没有建议复核的行'), findsOneWidget);
   });
 
   testWidgets('收起后已复核的工程再次隐藏', (tester) async {
@@ -407,10 +442,10 @@ void main() {
 
       expect(find.byType(AlertDialog), findsOneWidget);
       expect(
-        find.textContaining('「待处理」的 3 行都会记为人工确认，待复核的 2 行会离开队列。'),
+        find.textContaining('「待处理」的 3 行都会记为人工确认，建议复核的 2 行会移出列表。'),
         findsOneWidget,
       );
-      expect(find.textContaining('重新回到待复核'), findsOneWidget);
+      expect(find.textContaining('重新列入建议复核'), findsOneWidget);
     });
 
     testWidgets('取消时什么都不写', (tester) async {
@@ -423,7 +458,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repository.writes, 0);
-      expect(find.text('待复核 2'), findsOneWidget);
+      expect(find.text('建议复核 2'), findsOneWidget);
     });
 
     testWidgets('确认后工程离开待复核队列，并可以撤销', (tester) async {
@@ -437,17 +472,17 @@ void main() {
 
       expect(repository.writes, 1);
       expect(find.text(ReviewInboxScreen.markedMessage('待处理')), findsOneWidget);
-      expect(find.text('待复核 2'), findsNothing);
+      expect(find.text('建议复核 2'), findsNothing);
       expect(find.text('已复核'), findsOneWidget);
       expect(find.textContaining('3 行已确认'), findsOneWidget);
-      expect(find.textContaining('暂时没有待复核的行'), findsOneWidget);
+      expect(find.textContaining('暂时没有建议复核的行'), findsOneWidget);
 
       await tester.tap(find.text(ReviewInboxScreen.undoLabel));
       await tester.pumpAndSettle();
 
       expect(repository.writes, 2);
       expect(find.text(ReviewInboxScreen.undoneMessage), findsOneWidget);
-      expect(find.text('待复核 2'), findsOneWidget);
+      expect(find.text('建议复核 2'), findsOneWidget);
       expect(find.textContaining('0 行已确认'), findsOneWidget);
     });
 
@@ -467,7 +502,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text(ReviewInboxScreen.undoLabel), findsNothing);
-      expect(find.text('待复核 2'), findsOneWidget);
+      expect(find.text('建议复核 2'), findsOneWidget);
     });
   });
 
@@ -532,7 +567,7 @@ void main() {
 
       expect(find.text('把 2 个工程全部标为已复核？'), findsOneWidget);
       expect(
-        find.textContaining('这 2 个工程共 5 行都会记为人工确认，待复核的 5 行会离开队列。'),
+        find.textContaining('这 2 个工程共 5 行都会记为人工确认，建议复核的 5 行会移出列表。'),
         findsOneWidget,
       );
       expect(find.text('「乙」「甲」'), findsOneWidget);
@@ -550,7 +585,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repository.writes, 0);
-      expect(find.textContaining('共 5 行待复核'), findsOneWidget);
+      expect(find.textContaining('共 5 行建议复核'), findsOneWidget);
     });
 
     testWidgets('确认后所有工程离开队列，并可以一次撤销', (tester) async {
@@ -563,7 +598,7 @@ void main() {
 
       expect(repository.writes, 2);
       expect(find.text('已将 2 个工程标为已复核（新确认 5 行）'), findsOneWidget);
-      expect(find.textContaining('暂时没有待复核的行'), findsOneWidget);
+      expect(find.textContaining('暂时没有建议复核的行'), findsOneWidget);
       expect(find.text('已复核'), findsNWidgets(2));
       expect(markEverything, findsNothing);
 
@@ -572,7 +607,7 @@ void main() {
 
       expect(repository.writes, 4);
       expect(find.text('已撤销，2 个工程的复核标记恢复原样'), findsOneWidget);
-      expect(find.textContaining('共 5 行待复核'), findsOneWidget);
+      expect(find.textContaining('共 5 行建议复核'), findsOneWidget);
     });
 
     testWidgets('别处刚保存过的工程被跳过，其余照常保存', (tester) async {
@@ -639,10 +674,12 @@ void main() {
           name: '晴天',
           subtitle: '周杰伦 · 32 行 · 20 行已确认',
           pending: 12,
-          lowConfidence: 5,
+          mustCheck: 5,
           unscored: 0,
+          reasons: '主要原因：双引擎分歧 7、置信度低 5',
         ),
-        '晴天，周杰伦，32 行，20 行已确认，待复核 12 行，低置信度 5 行',
+        '晴天，周杰伦，32 行，20 行已确认，建议复核 12 行，必看 5 行，'
+        '主要原因：双引擎分歧 7、置信度低 5',
       );
     });
 
@@ -652,24 +689,25 @@ void main() {
           name: '七里香',
           subtitle: '8 行 · 8 行已确认',
           pending: 0,
-          lowConfidence: 0,
+          mustCheck: 0,
           unscored: 3,
+          reasons: '主要原因：空歌词 1',
         ),
         '七里香，8 行，8 行已确认，已复核',
       );
     });
 
-    test('未评分只在还有待复核时说，保存中也说出来', () {
+    test('未评分只在还有建议复核时说，保存中也说出来', () {
       expect(
         ReviewInboxScreen.tileLabel(
           name: '稻香',
           subtitle: '10 行 · 0 行已确认',
           pending: 4,
-          lowConfidence: 0,
+          mustCheck: 0,
           unscored: 10,
           saving: true,
         ),
-        '稻香，10 行，0 行已确认，待复核 4 行，未评分 10 行，'
+        '稻香，10 行，0 行已确认，建议复核 4 行，未评分 10 行，'
         '${ReviewInboxScreen.savingLabel}',
       );
     });
@@ -713,7 +751,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final tile = tileOf(tester, '待处理');
-      expect(tile.properties.label, contains('待复核 2 行'));
+      expect(tile.properties.label, contains('建议复核 2 行'));
       final actions = tile.properties.customSemanticsActions!;
       expect(actions.keys.map((action) => action.label), [
         ReviewInboxScreen.markAllReviewedLabel,

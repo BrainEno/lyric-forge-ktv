@@ -24,10 +24,10 @@ abstract final class ReviewInboxGlobalReviewText {
     required int pendingLines,
   }) {
     final confirmed = '这 $projects 个工程共 $totalLines 行都会记为人工确认，';
-    return '$confirmed待复核的 $pendingLines 行会离开队列。';
+    return '$confirmed建议复核的 $pendingLines 行会移出列表。';
   }
 
-  static const String reversibleNote = '之后改动任何一行的文字或时间，那一行会重新回到待复核。完成后可以撤销。';
+  static const String reversibleNote = '之后改动任何一行的文字或时间，那一行会重新列入建议复核。完成后可以撤销。';
 
   /// 「甲」「乙」「丙」等 5 个工程 — or every name when there are few.
   static String names(List<String> names) {
