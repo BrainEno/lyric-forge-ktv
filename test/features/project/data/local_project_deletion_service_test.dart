@@ -79,10 +79,12 @@ void main() {
     final keep = _project('keep', audio: '/music/song.mp3');
     projects.add([dup, keep]);
     final folder = await folderOf('dup', bytes: 2048);
-    final takes = Directory('${folder.path}${Platform.pathSeparator}recordings');
-    await Directory('${takes.path}${Platform.pathSeparator}take-1').create(
-      recursive: true,
+    final takes = Directory(
+      '${folder.path}${Platform.pathSeparator}recordings',
     );
+    await Directory(
+      '${takes.path}${Platform.pathSeparator}take-1',
+    ).create(recursive: true);
     queue.items = [
       _item('done', 'dup', TranscriptionQueueItemStatus.completed),
       _item('failed', 'dup', TranscriptionQueueItemStatus.failed),

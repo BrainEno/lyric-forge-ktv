@@ -126,9 +126,10 @@ class ProjectDuplicateFinder {
     return '$title|${_normalise(project.artist ?? '')}';
   }
 
-  static String _normalise(String value) => value
-      .toLowerCase()
-      .replaceAll(RegExp(r'[\s\p{P}\p{S}]+', unicode: true), '');
+  static String _normalise(String value) => value.toLowerCase().replaceAll(
+    RegExp(r'[\s\p{P}\p{S}]+', unicode: true),
+    '',
+  );
 
   /// Orders the project worth keeping first: one with lyrics, then the one
   /// furthest along (edited lyrics beat a fresh draft), then the one with

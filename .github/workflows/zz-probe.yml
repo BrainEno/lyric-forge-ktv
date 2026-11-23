@@ -36,4 +36,4 @@ jobs:
           enc() { sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g'; }
           if [ -s problems.txt ]; then echo "::warning title=problems::$(head -c 60000 problems.txt | enc)"; fi
           echo "::notice title=tests::$(head -c 60000 testfail.txt | enc)"
-          if [ -s fmt.diff ]; then echo "::error title=fmt::$(head -c 60000 fmt.diff | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"; fi
+          if [ -s fmt.diff ]; then split -b 3000 fmt.diff fmtpart.; for f in fmtpart.*; do echo "::error title=fmt $f::$(cat $f | enc)"; done; fi

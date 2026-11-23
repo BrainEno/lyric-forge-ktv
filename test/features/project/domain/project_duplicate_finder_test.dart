@@ -63,20 +63,17 @@ void main() {
     expect(groups, hasLength(1));
     final group = groups.single;
     expect(group.reason, ProjectDuplicateReason.sameAudio);
-    expect(group.projects.map((p) => p.id), [
-      'edited',
-      'recognised',
-      'draft',
-    ]);
+    expect(group.projects.map((p) => p.id), ['edited', 'recognised', 'draft']);
     expect(group.keep.id, 'edited');
     expect(group.extras.map((p) => p.id), ['recognised', 'draft']);
     expect(ProjectDuplicateFinder.keepReason(group), '歌词校对过');
   });
 
   test('paths are compared after canonicalising', () {
-    final groups = ProjectDuplicateFinder(
+    final caseless = ProjectDuplicateFinder(
       canonicalize: (path) => path.toLowerCase(),
-    ).find([
+    );
+    final groups = caseless.find([
       _project('a', path: r'C:\Music\Song.MP3'),
       _project('b', path: r'c:\music\song.mp3'),
     ]);

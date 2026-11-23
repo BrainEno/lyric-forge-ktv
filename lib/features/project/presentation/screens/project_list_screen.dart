@@ -169,9 +169,7 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
                   key: const ValueKey('project_list_delete_selected'),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.error,
-                    minimumSize: Size.fromHeight(
-                      spec.minimumInteractiveExtent,
-                    ),
+                    minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
                   ),
                   onPressed: _deleting ? null : () => _delete(selected),
                   icon: const Icon(Icons.delete_outline_rounded),
@@ -327,11 +325,10 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
     );
   }
 
-  static String _reasonLabel(ProjectDuplicateReason reason) =>
-      switch (reason) {
-        ProjectDuplicateReason.sameAudio => '同一个音频文件',
-        ProjectDuplicateReason.sameSong => '同名同时长',
-      };
+  static String _reasonLabel(ProjectDuplicateReason reason) => switch (reason) {
+    ProjectDuplicateReason.sameAudio => '同一个音频文件',
+    ProjectDuplicateReason.sameSong => '同名同时长',
+  };
 }
 
 class _DuplicateBanner extends StatelessWidget {

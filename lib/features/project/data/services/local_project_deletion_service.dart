@@ -33,7 +33,9 @@ class LocalProjectDeletionService implements ProjectDeletionService {
   static Future<Directory> _defaultProjectsRoot() async {
     final support = await getApplicationSupportDirectory();
     final separator = Platform.pathSeparator;
-    return Directory('${support.path}${separator}LyricForge${separator}Projects');
+    return Directory(
+      '${support.path}${separator}LyricForge${separator}Projects',
+    );
   }
 
   /// Why [project] cannot go now, or null.
