@@ -16,6 +16,34 @@ import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 
 void main() {
+  test('a deleted project is restored as it was (D-064)', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'lyricforge-project-restore-',
+    );
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+
+    final repository = FileProjectRepository(rootDirectory: root);
+    final created = await repository.createProject(name: 'Song');
+    final saved = await repository.updateProject(
+      created.copyWith(lyricDocument: _lyricDocument(text: '校对过的歌词')),
+    );
+    await repository.deleteProject(saved.id);
+
+    await repository.restoreProject(saved);
+    await expectLater(
+      repository.restoreProject(saved),
+      throwsA(isA<ProjectRepositoryException>()),
+    );
+
+    final reopened = FileProjectRepository(rootDirectory: root);
+    final restored = await reopened.getProjectById(saved.id);
+    expect(restored?.revision, saved.revision);
+    expect(restored?.updatedAt, saved.updatedAt);
+    expect(restored?.lyricDocument?.lines.single.text, '校对过的歌词');
+  });
+
   test('conditional project updates reject stale editor snapshots', () async {
     final root = await Directory.systemTemp.createTemp(
       'lyricforge-project-conflict-',

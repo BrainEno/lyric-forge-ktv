@@ -6,6 +6,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_tap_target.dart';
+import '../../../../core/widgets/undo_snack_bar.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import 'playback_action_feedback.dart';
@@ -77,6 +78,18 @@ class PlaybackQueuePanel extends StatelessWidget {
     );
   }
 
+  void _removeWithUndo(
+    BuildContext context,
+    PlaybackSessionState state,
+    int index,
+  ) => _removeQueueItemWithUndo(context, session, state, index);
+
+  void _clearWithUndo(
+    BuildContext context,
+    PlaybackSessionState state, {
+    required bool keepCurrent,
+  }) => _clearQueueWithUndo(context, session, state, keepCurrent: keepCurrent);
+
   Widget _buildForState(BuildContext context, PlaybackSessionState state) {
     final savableQueueCount = localQueuePlaylistPaths(state).length;
     return Container(
@@ -97,10 +110,10 @@ class PlaybackQueuePanel extends StatelessWidget {
                 ? () => _saveQueue(context, state)
                 : null,
             onClearUpcoming: state.upcomingCount > 0
-                ? () => session.clearQueue()
+                ? () => _clearWithUndo(context, state, keepCurrent: true)
                 : null,
             onClearAll: state.queue.isNotEmpty && allowClearAll
-                ? () => session.clearQueue(keepCurrent: false)
+                ? () => _clearWithUndo(context, state, keepCurrent: false)
                 : null,
           ),
           Divider(height: 1, color: AppColors.borderMuted),
@@ -131,7 +144,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                           context,
                           () => session.playAt(index),
                         ),
-                        onRemove: () => session.removeAt(index),
+                        onRemove: () => _removeWithUndo(context, state, index),
                       );
                     },
                   ),
@@ -139,6 +152,78 @@ class PlaybackQueuePanel extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Takes one song off the queue and offers 撤销 (D-064).
+Future<void> _removeQueueItemWithUndo(
+  BuildContext context,
+  PlaybackSessionService session,
+  PlaybackSessionState state,
+  int index,
+) async {
+  if (index < 0 || index >= state.queue.length) return;
+  final messenger = ScaffoldMessenger.of(context);
+  final item = state.queue[index];
+  await session.removeAt(index);
+  showUndoSnackBar(
+    messenger,
+    message: '已从播放队列移除“${item.title}”',
+    onUndo: () async {
+      await restoreQueueItems(session, [(index: index, item: item)]);
+      return null;
+    },
+  );
+}
+
+/// Clears the queue — all of it, or all but the current song — and offers
+/// 撤销 (D-064).
+Future<void> _clearQueueWithUndo(
+  BuildContext context,
+  PlaybackSessionService session,
+  PlaybackSessionState state, {
+  required bool keepCurrent,
+}) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final removed = [
+    for (var index = 0; index < state.queue.length; index++)
+      if (!keepCurrent || index != state.currentIndex)
+        (index: index, item: state.queue[index]),
+  ];
+  await session.clearQueue(keepCurrent: keepCurrent);
+  if (removed.isEmpty) return;
+  showUndoSnackBar(
+    messenger,
+    message: keepCurrent
+        ? '已清空待播的 ${removed.length} 首'
+        : '已清空播放队列（${removed.length} 首）',
+    onUndo: () async {
+      await restoreQueueItems(session, removed);
+      return null;
+    },
+  );
+}
+
+/// Puts [removed] songs back at their old places (D-064).
+///
+/// They are appended, then moved into place in ascending order, so each
+/// lands where it was. With shuffle on, the session shuffles what it is
+/// given, so only the songs come back, not their order. Restoring a cleared
+/// queue does not start playback.
+Future<void> restoreQueueItems(
+  PlaybackSessionService session,
+  List<({int index, PlaybackItem item})> removed,
+) async {
+  final ordered = [...removed]..sort((a, b) => a.index.compareTo(b.index));
+  for (final entry in ordered) {
+    await session.enqueue(entry.item);
+  }
+  if (session.currentState.shuffleEnabled) return;
+  for (final entry in ordered) {
+    final queue = session.currentState.queue;
+    final at = queue.indexWhere((item) => item.id == entry.item.id);
+    final target = entry.index.clamp(0, queue.length - 1).toInt();
+    if (at >= 0 && at != target) await session.moveItem(at, target);
   }
 }
 

@@ -50,6 +50,13 @@ class _KtvTakeHistorySheetState extends State<KtvTakeHistorySheet> {
   bool _loading = true;
   StreamSubscription<KtvRecordingState>? _recordingSubscription;
 
+  /// Takes deleted but still undoable (D-064), with the timer that deletes
+  /// them for good.
+  final Map<String, ({KtvRecordingSession take, Timer timer})> _pending = {};
+
+  /// How long a deleted take can be brought back.
+  static const _undoWindow = Duration(seconds: 8);
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +71,12 @@ class _KtvTakeHistorySheetState extends State<KtvTakeHistorySheet> {
   @override
   void dispose() {
     _recordingSubscription?.cancel();
+    // Closing the sheet ends the chance to undo: delete what was deleted.
+    for (final pending in _pending.values) {
+      pending.timer.cancel();
+      unawaited(_deleteForGood(pending.take, reload: false));
+    }
+    _pending.clear();
     super.dispose();
   }
 
@@ -181,39 +194,47 @@ class _KtvTakeHistorySheetState extends State<KtvTakeHistorySheet> {
     }
   }
 
-  Future<void> _confirmDelete(KtvRecordingSession take) async {
+  /// Hides [take] at once and deletes it after [_undoWindow] unless its
+  /// row's 撤销 is tapped first (D-064). The row stays in the sheet, where
+  /// the undo can be seen — a snackbar would sit behind this sheet.
+  void _delete(KtvRecordingSession take) {
     if (!_ensureUnlocked()) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('永久删除这次演唱录音？'),
-        content: const Text('将删除本次录音的人声、混音和记录文件，无法撤销。其他录音不受影响。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('确认永久删除'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    if (!_ensureUnlocked()) return;
+    if (_pending.containsKey(take.id)) return;
+    setState(() {
+      _pending[take.id] = (
+        take: take,
+        timer: Timer(_undoWindow, () => _commitDelete(take.id)),
+      );
+    });
+  }
+
+  void _undoDelete(String id) {
+    final pending = _pending.remove(id);
+    if (pending == null) return;
+    pending.timer.cancel();
+    setState(() {});
+  }
+
+  void _commitDelete(String id) {
+    final pending = _pending.remove(id);
+    if (pending == null) return;
+    if (mounted) setState(() {});
+    unawaited(_deleteForGood(pending.take, reload: true));
+  }
+
+  Future<void> _deleteForGood(
+    KtvRecordingSession take, {
+    required bool reload,
+  }) async {
     try {
       await widget.takeHistoryStore.deleteProjectTake(widget.project, take);
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('演唱录音已删除')));
-      await _load();
+      if (reload && mounted) await _load();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ScaffoldMessenger.maybeOf(
         context,
-      ).showSnackBar(SnackBar(content: Text('删除失败：$error')));
+      )?.showSnackBar(SnackBar(content: Text('删除失败：$error')));
+      await _load();
     }
   }
 
@@ -247,7 +268,7 @@ class _KtvTakeHistorySheetState extends State<KtvTakeHistorySheet> {
       padding: const EdgeInsets.all(AppSpacing.xl),
       children: [
         Text(
-          '演唱历史（${takes.length}）',
+          '演唱历史（${takes.length - _pending.length}）',
           style: Theme.of(context).textTheme.titleLarge,
         ),
         if (locked) ...[
@@ -285,6 +306,19 @@ class _KtvTakeHistorySheetState extends State<KtvTakeHistorySheet> {
         for (final take in takes)
           Builder(
             builder: (tileContext) {
+              if (_pending.containsKey(take.id)) {
+                return ListTile(
+                  key: ValueKey('ktv_take_deleted_${take.id}'),
+                  leading: const Icon(Icons.delete_outline_rounded),
+                  title: const Text('已删除这次演唱录音'),
+                  subtitle: const Text('几秒后彻底删除'),
+                  trailing: TextButton(
+                    key: ValueKey('ktv_take_undo_${take.id}'),
+                    onPressed: () => _undoDelete(take.id),
+                    child: const Text('撤销'),
+                  ),
+                );
+              }
               final timestamp = take.startedAt
                   .toLocal()
                   .toString()
@@ -326,12 +360,12 @@ class _KtvTakeHistorySheetState extends State<KtvTakeHistorySheet> {
                         if (action == 'rename') {
                           unawaited(_rename(take));
                         } else if (action == 'delete') {
-                          unawaited(_confirmDelete(take));
+                          _delete(take);
                         }
                       },
                       itemBuilder: (context) => const [
                         PopupMenuItem(value: 'rename', child: Text('重命名')),
-                        PopupMenuItem(value: 'delete', child: Text('永久删除')),
+                        PopupMenuItem(value: 'delete', child: Text('删除')),
                       ],
                     ),
                   ],

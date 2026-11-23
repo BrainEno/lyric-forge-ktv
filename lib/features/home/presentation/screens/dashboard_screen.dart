@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/diagnostics/app_build_info.dart';
@@ -42,10 +44,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late final TranscriptionSettingsStore _transcriptionSettingsStore;
   late Future<List<ProjectManifest>> _projectsFuture;
   late Future<List<PlayHistory>> _historyFuture;
+  StreamSubscription<void>? _projectChanges;
 
   @override
   void initState() {
     super.initState();
+    _projectChanges = widget.dependencies.projectChanges?.listen((_) {
+      if (mounted) _refresh();
+    });
     _projects = widget.dependencies.projectRepository;
     _history = widget.dependencies.playHistoryRepository;
     _playbackSession = widget.dependencies.playbackSession;
@@ -71,6 +77,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _refresh() async => setState(_loadData);
+
+  @override
+  void dispose() {
+    _projectChanges?.cancel();
+    super.dispose();
+  }
 
   Future<void> _openModelSettings() async {
     try {

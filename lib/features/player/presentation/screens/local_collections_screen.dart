@@ -11,6 +11,7 @@ import '../../../../core/widgets/app_catalog_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../../core/widgets/app_song_row.dart';
+import '../../../../core/widgets/undo_snack_bar.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -202,10 +203,23 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
   }
 
   Future<void> _removeFavorite(_CollectionSong song) async {
+    final messenger = ScaffoldMessenger.of(context);
+    var removed = false;
     await _withWork(() async {
       await _collections.setFavorite(song.sourcePath, false);
+      removed = true;
       await _reload();
     });
+    if (!removed) return;
+    showUndoSnackBar(
+      messenger,
+      message: '已取消收藏“${song.title}”',
+      onUndo: () async {
+        await _collections.setFavorite(song.sourcePath, true);
+        if (mounted) await _reload();
+        return null;
+      },
+    );
   }
 
   Future<void> _addFavoriteToPlaylist(_CollectionSong song) async {
@@ -238,31 +252,36 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     await _reload();
   }
 
+  /// Deletes at once and offers 撤销 (D-064): the list is rebuilt with
+  /// its name, description and songs in order. No audio file is touched.
   Future<void> _deletePlaylist(LocalPlaylist playlist) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('删除播放列表？'),
-        content: Text('只会删除“${playlist.name}”这个列表，不会删除任何音频文件。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
+    final messenger = ScaffoldMessenger.of(context);
+    var deleted = false;
     await _withWork(() async {
       await _collections.deletePlaylist(playlist.id);
+      deleted = true;
       if (mounted) setState(() => _selectedPlaylistId = null);
       await _reload();
     });
+    if (!deleted) return;
+    showUndoSnackBar(
+      messenger,
+      message: '已删除播放列表“${playlist.name}”（音频文件不受影响）',
+      onUndo: () async {
+        final restored = await _collections.createPlaylist(
+          playlist.name,
+          description: playlist.description,
+        );
+        if (playlist.sourcePaths.isNotEmpty) {
+          await _collections.addToPlaylist(restored.id, playlist.sourcePaths);
+        }
+        if (mounted) {
+          setState(() => _selectedPlaylistId = restored.id);
+          await _reload();
+        }
+        return '播放列表已恢复';
+      },
+    );
   }
 
   Future<void> _addCurrentToPlaylist(LocalPlaylist playlist) async {
@@ -280,10 +299,30 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     LocalPlaylist playlist,
     _CollectionSong song,
   ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final position = playlist.sourcePaths.indexOf(song.sourcePath);
+    var removed = false;
     await _withWork(() async {
       await _collections.removeFromPlaylist(playlist.id, song.sourcePath);
+      removed = true;
       await _reload();
     });
+    if (!removed) return;
+    showUndoSnackBar(
+      messenger,
+      message: '已从“${playlist.name}”移除“${song.title}”',
+      onUndo: () async {
+        final updated = await _collections.addToPlaylist(playlist.id, [
+          song.sourcePath,
+        ]);
+        final last = updated.sourcePaths.length - 1;
+        if (position >= 0 && position < last) {
+          await _collections.moveInPlaylist(playlist.id, last, position);
+        }
+        if (mounted) await _reload();
+        return null;
+      },
+    );
   }
 
   Future<void> _moveInPlaylist(

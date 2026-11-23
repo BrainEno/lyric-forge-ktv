@@ -5,6 +5,7 @@ import 'diagnostics_assembly.dart';
 import 'ktv_recording_assembly.dart';
 
 import '../core/diagnostics/app_diagnostics.dart';
+import '../core/diagnostics/app_logger.dart';
 import '../core/theme/app_appearance.dart';
 import '../features/lyrics/data/services/local_lyric_file_export_service.dart';
 import '../features/lyrics/data/services/local_lyric_file_import_service.dart';
@@ -50,7 +51,9 @@ import '../features/player/domain/services/library_lyrics_auto_linker.dart';
 import '../features/player/domain/services/local_media_relink_service.dart';
 import '../features/player/domain/services/playback_session_service.dart';
 import '../features/project/data/repositories/file_project_repository.dart';
+import '../features/project/data/services/local_project_deletion_service.dart';
 import '../features/project/domain/repositories/project_repository.dart';
+import '../features/project/domain/services/project_deletion_service.dart';
 import '../features/settings/data/services/file_appearance_store.dart';
 import '../features/transcription/data/services/file_batch_transcription_queue.dart';
 import '../features/transcription/data/services/file_transcription_settings_store.dart';
@@ -192,6 +195,10 @@ class AppServices {
   late final VocalSeparatorRuntime vocalSeparatorRuntime;
   late final AsrEndToEndSmokeTestService asrEndToEndSmokeTestService;
   late final BatchTranscriptionQueue transcriptionQueue;
+
+  /// Deletes projects into 最近删除 (D-063, D-064). One instance, so every
+  /// open project list hears an undo.
+  late final ProjectDeletionService projectDeletionService;
   late final MediaHubClientService mediaHubClientService;
   late final MediaHubConnectionStore mediaHubConnectionStore;
   late final MediaTransferService mediaTransferService;
@@ -430,6 +437,23 @@ class AppServices {
       workflow: createProjectTranscriptionWorkflow(),
     );
     unawaited(transcriptionQueue.initialize());
+    projectDeletionService = LocalProjectDeletionService(
+      projectRepository: projectRepository,
+      playbackSession: playbackSessionService,
+      transcriptionQueue: transcriptionQueue,
+    );
+    // Listing 最近删除 deletes what is past the 30 days.
+    unawaited(
+      projectDeletionService.trashed().then<void>(
+        (_) {},
+        onError: (Object error, StackTrace stackTrace) => appLog.warning(
+          'project',
+          'Could not tidy 最近删除',
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      ),
+    );
     registerAppDiagnosticsSections(
       diagnostics,
       settingsStore: transcriptionSettingsStore,

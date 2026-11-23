@@ -4,7 +4,8 @@ import '../../domain/repositories/project_repository.dart';
 /// In-memory implementation of ProjectRepository.
 /// Used for MVP before introducing persistent storage (Drift/Hive).
 /// All data is lost on app restart.
-class MemoryProjectRepository implements ProjectRepository {
+class MemoryProjectRepository
+    implements ProjectRepository, ProjectRecordRestorer {
   final Map<String, ProjectManifest> _projects = {};
 
   @override
@@ -17,6 +18,15 @@ class MemoryProjectRepository implements ProjectRepository {
   @override
   Future<ProjectManifest?> getProjectById(String id) async {
     return _projects[id];
+  }
+
+  @override
+  Future<ProjectManifest> restoreProject(ProjectManifest project) async {
+    if (_projects.containsKey(project.id)) {
+      throw ProjectRepositoryException('Project exists: ${project.id}');
+    }
+    _projects[project.id] = project;
+    return project;
   }
 
   @override

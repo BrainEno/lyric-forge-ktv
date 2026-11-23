@@ -4,9 +4,11 @@ import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart'
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
-import 'package:lyric_forge_ktv/features/project/domain/services/project_deletion_service.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/project_list_dependencies.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/screens/project_list_screen.dart';
+import 'package:lyric_forge_ktv/features/project/presentation/screens/project_trash_screen.dart';
+
+import '../support/fake_project_deletion_service.dart';
 
 ProjectManifest _project(
   String id, {
@@ -39,7 +41,7 @@ ProjectManifest _project(
 
 void main() {
   late _Projects projects;
-  late _Deletion deletion;
+  late FakeProjectDeletionService deletion;
 
   Future<void> pump(
     WidgetTester tester, {
@@ -82,7 +84,10 @@ void main() {
       _project('dup-2', day: 7),
       _project('other', name: 'Riders on the Storm', path: '/music/r.mp3'),
     ]);
-    deletion = _Deletion(projects);
+    deletion = FakeProjectDeletionService(
+      removeProject: projects.deleteProject,
+      addProject: projects.restore,
+    );
   });
 
   testWidgets('cleans up a song recognised several times in one go', (
@@ -104,9 +109,9 @@ void main() {
     await confirm(tester);
 
     expect(deletion.deleted, unorderedEquals(['dup-1', 'dup-2']));
-    expect(deletion.removeFiles, isTrue);
-    expect(find.text('已删除 2 个工程'), findsOneWidget);
+    expect(find.text('已删除 2 个工程，可在“最近删除”恢复'), findsOneWidget);
     expect(find.text('2 个工程'), findsOneWidget);
+    expect(find.text('最近删除（2）'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('project_list_duplicates_banner')),
       findsNothing,
@@ -127,38 +132,75 @@ void main() {
     expect(find.text('重复'), findsNWidgets(2));
   });
 
-  testWidgets('deletes one project from its menu, files optional', (
-    tester,
-  ) async {
+  testWidgets('one project goes at once and 撤销 brings it back', (tester) async {
     await pump(tester);
     await tester.tap(find.byKey(const ValueKey('project_menu_other')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('project_delete_other')));
     await tester.pumpAndSettle();
 
-    expect(find.text('删除工程“Riders on the Storm”？'), findsOneWidget);
-    expect(find.textContaining('5.0 MB'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('project_delete_files')));
-    await tester.pump();
-    await confirm(tester);
-
+    expect(find.byKey(const ValueKey('project_delete_dialog')), findsNothing);
     expect(deletion.deleted, ['other']);
-    expect(deletion.removeFiles, isFalse);
-    expect(find.text('工程已删除'), findsOneWidget);
+    expect(find.text('工程已移到“最近删除”'), findsOneWidget);
     expect(find.byKey(const ValueKey('project_row_other')), findsNothing);
+    expect(find.text('最近删除（1）'), findsOneWidget);
+
+    await tester.tap(find.text('撤销'));
+    await tester.pumpAndSettle();
+
+    expect(deletion.restored, ['other']);
+    expect(find.text('工程已恢复'), findsOneWidget);
+    expect(find.byKey(const ValueKey('project_row_other')), findsOneWidget);
+    expect(find.text('4 个工程'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('project_list_trash_entry')),
+      findsNothing,
+    );
   });
 
-  testWidgets('cancel keeps everything', (tester) async {
+  testWidgets('cancel keeps a selection', (tester) async {
     await pump(tester);
-    await tester.tap(find.byKey(const ValueKey('project_menu_other')));
+    await tester.tap(find.byKey(const ValueKey('project_list_select')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('project_delete_other')));
+    await tester.tap(find.byKey(const ValueKey('project_row_dup-1')));
+    await tester.tap(find.byKey(const ValueKey('project_row_other')));
     await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('project_list_delete_selected')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('30 天内可以恢复'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('project_delete_cancel')));
     await tester.pumpAndSettle();
 
     expect(deletion.deleted, isEmpty);
     expect(find.text('4 个工程'), findsOneWidget);
+  });
+
+  testWidgets('最近删除 opens from the list and restores', (tester) async {
+    await pump(tester);
+    await tester.tap(find.byKey(const ValueKey('project_menu_other')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('project_delete_other')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('project_list_trash')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ProjectTrashScreen), findsOneWidget);
+    expect(find.text('Riders on the Storm'), findsOneWidget);
+    expect(find.textContaining('还剩'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('project_trash_restore_other')));
+    await tester.pumpAndSettle();
+    expect(deletion.restored, ['other']);
+    expect(
+      find.byKey(const ValueKey('project_trash_empty_state')),
+      findsOneWidget,
+    );
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('project_row_other')), findsOneWidget);
   });
 
   testWidgets('deletes a selection', (tester) async {
@@ -189,7 +231,6 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('project_delete_other')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('project_delete_dialog')), findsNothing);
     expect(find.text('这首歌正在播放，换一首或停止播放后再删除'), findsOneWidget);
     expect(deletion.deleted, isEmpty);
   });
@@ -231,32 +272,8 @@ class _Projects extends Fake implements ProjectRepository {
   Future<void> deleteProject(String id) async {
     _byId.remove(id);
   }
-}
 
-class _Deletion implements ProjectDeletionService {
-  _Deletion(this.projects);
-
-  final _Projects projects;
-  final deleted = <String>[];
-  final blockers = <String, String>{};
-  bool? removeFiles;
-
-  @override
-  Future<ProjectDeletionCheck> check(ProjectManifest project) async =>
-      ProjectDeletionCheck(
-        blocker: blockers[project.id],
-        hasFiles: true,
-        removableBytes: 5 * 1024 * 1024,
-      );
-
-  @override
-  Future<ProjectDeletionResult> delete(
-    ProjectManifest project, {
-    bool removeFiles = true,
-  }) async {
-    this.removeFiles = removeFiles;
-    deleted.add(project.id);
-    await projects.deleteProject(project.id);
-    return ProjectDeletionResult(removedFiles: removeFiles);
+  Future<void> restore(ProjectManifest project) async {
+    _byId[project.id] = project;
   }
 }

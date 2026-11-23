@@ -13,5 +13,6 @@ DashboardDependencies assembleDashboardDependencies(AppServices services) {
     configDialogDependencies: assembleTranscriptionConfigDialogDependencies(
       services,
     ),
+    projectChanges: services.projectDeletionService.changes,
   );
 }

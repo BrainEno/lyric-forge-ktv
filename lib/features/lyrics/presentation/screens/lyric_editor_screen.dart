@@ -33,6 +33,7 @@ import '../widgets/lyric_editor_atoms.dart';
 import '../widgets/lyric_editor_content.dart';
 import '../widgets/lyric_editor_review_controls.dart';
 import '../widgets/lyric_editor_toolbar.dart';
+import '../widgets/lyric_line_delete_undo.dart';
 import '../widgets/lyric_proofread_dialog.dart';
 import '../widgets/project_save_conflict_dialog.dart';
 
@@ -312,12 +313,15 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     _projectFuture = Future<ProjectManifest?>.value(saved);
     final clean = _editor.markSavedIfUnchanged(editorRevision);
     setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(clean ? '歌词已保存' : '已保存，但保存期间的新修改尚未保存。'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // Saving answers at once, even over an undo offer for a deleted row.
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(clean ? '歌词已保存' : '已保存，但保存期间的新修改尚未保存。'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     return clean;
   }
 
@@ -707,9 +711,23 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     return shifted.isNegative ? Duration.zero : shifted;
   }
 
-  void _deleteLine(int index) => _applyRowEdit(
-    _editor.deleteLine(index, auditionTarget: _isAuditionTarget(index)),
-  );
+  /// Deletes the row and offers 撤销 in a snackbar (D-064), on top of
+  /// Ctrl/Cmd+Z: the undo applies only while nothing else has changed, so it
+  /// never takes back a later edit instead.
+  void _deleteLine(int index) {
+    final result = _editor.deleteLine(
+      index,
+      auditionTarget: _isAuditionTarget(index),
+    );
+    _applyRowEdit(result);
+    if (!result.applied || !mounted) return;
+    offerLyricLineDeleteUndo(
+      context,
+      lineNumber: index + 1,
+      revision: () => _editor.documentRevision,
+      undo: _undo,
+    );
+  }
 
   void _updateGlobalOffset(Duration offset) {
     final shouldPauseAudition = _audition.isSounding;

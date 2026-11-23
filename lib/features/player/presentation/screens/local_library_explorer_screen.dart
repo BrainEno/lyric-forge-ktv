@@ -11,6 +11,7 @@ import '../../../../core/widgets/app_catalog_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../../core/widgets/app_song_row.dart';
+import '../../../../core/widgets/undo_snack_bar.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_library_browse_item.dart';
 import '../../domain/models/local_media_library_entry.dart';
@@ -388,10 +389,52 @@ class _LocalLibraryExplorerScreenState
     );
   });
 
-  Future<void> _remove(_ExplorerSong song) => _withWork(() async {
-    await _library.remove(song.entry.sourcePath);
-    await _reload(showLoading: false);
-  });
+  /// Takes the song off the list (the file stays) and offers 撤销 (D-064).
+  Future<void> _remove(_ExplorerSong song) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final path = song.entry.sourcePath;
+    var removed = false;
+    await _withWork(() async {
+      await _library.remove(path);
+      removed = true;
+      await _reload(showLoading: false);
+    });
+    if (!removed) return;
+    showUndoSnackBar(
+      messenger,
+      message: '已从音乐库移除“${song.title}”（文件还在原处）',
+      onUndo: () async {
+        await _library.addPaths([path]);
+        if (mounted) await _reload(showLoading: false);
+        return null;
+      },
+    );
+  }
+
+  /// Drops songs whose file is gone and offers 撤销 (D-064).
+  Future<void> _cleanMissing() async {
+    final messenger = ScaffoldMessenger.of(context);
+    var paths = const <String>[];
+    await _withWork(() async {
+      final entries = await _library.getAll();
+      paths = [
+        for (final entry in entries)
+          if (entry.isMissing) entry.sourcePath,
+      ];
+      await _library.removeMissing();
+      await _reload(showLoading: false);
+    });
+    if (paths.isEmpty) return;
+    showUndoSnackBar(
+      messenger,
+      message: '已移除 ${paths.length} 首找不到文件的歌曲',
+      onUndo: () async {
+        await _library.addPaths(paths);
+        if (mounted) await _reload(showLoading: false);
+        return null;
+      },
+    );
+  }
 
   void _handleCompactAppAction(String action) {
     switch (action) {
@@ -516,12 +559,7 @@ class _LocalLibraryExplorerScreenState
                   ? null
                   : () => _playAll(shuffle: true),
               menu: compactMenu,
-              onCleanMissing: missingCount == 0
-                  ? null
-                  : () => _withWork(() async {
-                      await _library.removeMissing();
-                      await _reload(showLoading: false);
-                    }),
+              onCleanMissing: missingCount == 0 ? null : _cleanMissing,
             ),
             if (_working) const LinearProgressIndicator(minHeight: 2),
             if (_storeIssues.isNotEmpty)

@@ -35,6 +35,17 @@ abstract class ProjectRepository {
   Future<List<ProjectManifest>> getRecentProjects({int limit = 10});
 }
 
+/// Puts a deleted project back exactly as it was (D-064).
+///
+/// Separate from [ProjectRepository] so the many test doubles of the
+/// repository need not implement it; the file and memory repositories do.
+abstract interface class ProjectRecordRestorer {
+  /// Stores [project] with its id, dates and lyrics unchanged.
+  ///
+  /// Throws [ProjectRepositoryException] when a project with that id exists.
+  Future<ProjectManifest> restoreProject(ProjectManifest project);
+}
+
 /// Exception thrown when project operations fail.
 class ProjectRepositoryException implements Exception {
   final String message;

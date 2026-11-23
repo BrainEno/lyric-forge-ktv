@@ -101,6 +101,50 @@ void main() {
     expect(find.widgetWithIcon(IconButton, Icons.star_rounded), findsOneWidget);
   });
 
+  Future<void> deleteFirstTake(WidgetTester tester) async {
+    await tester.tap(find.byTooltip('更多操作'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('删除'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('删除后几秒内可在表内撤销，不会删除文件 (D-064)', (tester) async {
+    await pumpSheet(tester);
+    await deleteFirstTake(tester);
+
+    expect(
+      find.byKey(const ValueKey('ktv_take_deleted_take-1')),
+      findsOneWidget,
+    );
+    expect(find.text('演唱历史（0）'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.tap(find.byKey(const ValueKey('ktv_take_undo_take-1')));
+    await tester.pump();
+
+    expect(find.text('演唱历史（1）'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 10));
+    expect(store.mutations, isEmpty);
+  });
+
+  testWidgets('不撤销时到时间才真正删除 (D-064)', (tester) async {
+    await pumpSheet(tester);
+    await deleteFirstTake(tester);
+    expect(store.mutations, isEmpty);
+
+    await tester.pump(const Duration(seconds: 9));
+    await tester.pump();
+    expect(store.mutations.single.id, 'take-1');
+    expect(find.text('暂无已完成的演唱录音'), findsOneWidget);
+  });
+
+  testWidgets('关闭列表时立即完成待删除的录音 (D-064)', (tester) async {
+    await pumpSheet(tester);
+    await deleteFirstTake(tester);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(store.mutations.single.id, 'take-1');
+  });
+
   testWidgets('中断录音的恢复结果在表内提示，不再依赖打开前的 SnackBar', (tester) async {
     store = _FakeTakeHistoryStore(takes: const [], recoveredCount: 2);
     await pumpSheet(tester);

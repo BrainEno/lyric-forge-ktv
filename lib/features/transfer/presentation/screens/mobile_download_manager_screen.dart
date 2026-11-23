@@ -9,6 +9,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_artwork.dart';
 import '../../../../core/widgets/app_song_row.dart';
 import '../../../../core/widgets/app_tap_target.dart';
+import '../../../../core/widgets/undo_snack_bar.dart';
 import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
@@ -197,8 +198,25 @@ class _MobileDownloadManagerScreenState
   }
 
   Future<void> _clearMissing() async {
+    final messenger = ScaffoldMessenger.of(context);
+    // The audio is gone already, so only the list entries leave; 撤销 just
+    // puts them back (D-064).
+    final paths = [
+      for (final entry in await _library.getAll())
+        if (entry.isMissing) entry.sourcePath,
+    ];
     await _library.removeMissing();
     await _load();
+    if (paths.isEmpty) return;
+    showUndoSnackBar(
+      messenger,
+      message: '已移除 ${paths.length} 首找不到文件的歌曲',
+      onUndo: () async {
+        await _library.addPaths(paths);
+        if (mounted) await _load();
+        return null;
+      },
+    );
   }
 
   int get _totalBytes => _downloads.fold<int>(
