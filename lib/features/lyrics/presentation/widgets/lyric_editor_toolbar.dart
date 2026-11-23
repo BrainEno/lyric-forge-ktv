@@ -239,7 +239,10 @@ class LyricEditorOverflowMenu extends StatelessWidget {
           MenuItemButton(
             key: jumpToLineKey,
             onPressed: jumpToLine,
-            leadingIcon: const Icon(Icons.format_list_numbered_rounded, size: 18),
+            leadingIcon: const Icon(
+              Icons.format_list_numbered_rounded,
+              size: 18,
+            ),
             child: _OverflowLabel(
               title: LyricJumpStrings.title,
               detail: LyricJumpStrings.menuDetail(),

@@ -13,7 +13,8 @@
   - Tests: `test/features/lyrics/domain/services/lyric_line_locator_test.dart`, `test/features/lyrics/presentation/widgets/lyric_line_jump_test.dart`, `test/features/lyrics/presentation/screens/lyric_editor_jump_to_line_test.dart`, `test/features/lyrics/presentation/widgets/{lyric_list_logic_test,lyric_edit_shortcuts_test}.dart`.
   - `docs/decisions.md` (D-067), `docs/handoff.md`, `docs/lyric_proofreading_ux_review.md` §6 items 6 and 9.
 - Validation:
-  - No Dart SDK in the sandbox; format, analyze and tests run in a temporary branch CI probe.
+  - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
+  - Probe: analyze clean, all 5388 tests passed; three `dart format` line joins/splits applied by hand afterwards. Probe removed.
 - Notes:
   - The editor screen is unchanged (1198 lines); everything is wired in the content widget.
   - Times typed in the box are lyric times as the list shows them, not shifted by the global offset.

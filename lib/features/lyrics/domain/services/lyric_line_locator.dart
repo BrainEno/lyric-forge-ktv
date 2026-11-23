@@ -74,8 +74,7 @@ abstract final class LyricLineLocator {
       final line = lines[index];
       if (line.startTime >= lines[last].startTime) last = index;
       if (line.startTime <= time && time < line.endTime) {
-        if (covering == null ||
-            line.startTime >= lines[covering].startTime) {
+        if (covering == null || line.startTime >= lines[covering].startTime) {
           covering = index;
         }
       } else if (line.startTime > time) {

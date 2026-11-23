@@ -175,10 +175,7 @@ void main() {
         LyricJumpStrings.menuDetail(TargetPlatform.windows),
         contains('Ctrl+G'),
       );
-      expect(
-        LyricJumpStrings.menuDetail(TargetPlatform.macOS),
-        contains('⌘G'),
-      );
+      expect(LyricJumpStrings.menuDetail(TargetPlatform.macOS), contains('⌘G'));
       expect(
         LyricJumpStrings.menuDetail(TargetPlatform.android),
         LyricJumpStrings.menuDetailTouch,
