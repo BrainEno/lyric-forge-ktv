@@ -27,6 +27,7 @@ import 'lyric_editor_review_controls.dart';
 import 'lyric_editor_toolbar.dart';
 import 'lyric_edit_shortcuts.dart';
 import 'lyric_inspector_pane.dart';
+import 'lyric_line_jump.dart';
 import 'lyric_list_pane.dart';
 import 'lyric_proofread_menu_button.dart';
 import 'lyric_recognition_summary_card.dart';
@@ -272,14 +273,37 @@ class LyricEditorContent extends StatelessWidget {
         auditionLineIndex: audition.activeLineIndex,
       );
 
+  /// 跳到行 (D-067): asks for a row number or a time, then shows that row.
+  /// A row the filter hides brings every row back first.
+  Future<void> _jumpToLine(
+    BuildContext context,
+    LyricLineJumpController jump,
+  ) async {
+    if (document.lines.isEmpty) return;
+    final target = await showLyricJumpToLineDialog(
+      context,
+      document: document,
+      current: review.selectionWithin(document.lines.length),
+    );
+    if (target == null || !context.mounted) return;
+    if (!review.visibleIndices(document.lines.length).contains(target)) {
+      review.onFilterChanged(LyricReviewFilter.all);
+    }
+    review.onSelectLine(target);
+    jump.jumpTo(target);
+  }
+
   /// Rebuilt when the batch choice changes as well as with the document.
   @override
   Widget build(BuildContext context) {
     final editor = this.editor;
-    if (editor == null) return _build(context, null);
-    return ListenableBuilder(
-      listenable: editor,
-      builder: (context, _) => _build(context, editor),
+    return LyricLineJumpHost(
+      builder: (context, jump) => editor == null
+          ? _build(context, null, jump)
+          : ListenableBuilder(
+              listenable: editor,
+              builder: (context, _) => _build(context, editor, jump),
+            ),
     );
   }
 
@@ -311,7 +335,11 @@ class LyricEditorContent extends StatelessWidget {
     );
   }
 
-  Widget _build(BuildContext context, LyricEditorDocumentController? editor) {
+  Widget _build(
+    BuildContext context,
+    LyricEditorDocumentController? editor,
+    LyricLineJumpController jump,
+  ) {
     final spec = AppResponsive.of(context);
     final currentPlaybackLine = _currentPlaybackLineIndex();
     final visibleIndices = review.visibleIndices(document.lines.length);
@@ -329,6 +357,9 @@ class LyricEditorContent extends StatelessWidget {
             onDelete: () => _batchFlow(editor).delete(context),
           );
     final choosing = batch != null && batch.active;
+    final VoidCallback? jumpToLine = document.lines.isEmpty
+        ? null
+        : () => unawaited(_jumpToLine(context, jump));
 
     return PopScope(
       canPop: !hasChanges && !isSaving && !choosing,
@@ -364,6 +395,7 @@ class LyricEditorContent extends StatelessWidget {
         onSave: isSaving ? null : _requestSave,
         onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
         onEndBatch: choosing ? editor?.endBatch : null,
+        onJumpToLine: jumpToLine,
         child: Scaffold(
           backgroundColor: AppColors.bgBase,
           appBar: AppBar(
@@ -393,6 +425,7 @@ class LyricEditorContent extends StatelessWidget {
                 redoLabel: history.availableRedoLabel,
                 canExport: document.lines.isNotEmpty,
                 onExport: onExport,
+                onJumpToLine: jumpToLine,
                 onInsertAtPlayback: player.belongsToProject
                     ? edits.onInsertAtPlayback
                     : null,
@@ -534,6 +567,7 @@ class LyricEditorContent extends StatelessWidget {
                               manuallyEditedLineIndices:
                                   manuallyEditedLineIndices,
                               batch: batch,
+                              jump: jump,
                             );
                             final list = summaryCard == null
                                 ? listPane

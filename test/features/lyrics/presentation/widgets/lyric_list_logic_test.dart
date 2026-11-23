@@ -348,36 +348,67 @@ void main() {
     });
   });
 
-  group('follow target', () {
-    double? target({
-      int position = 10,
-      double viewport = 500,
-      double max = 5000,
-      double offset = 0,
-    }) => LyricListNavigation.followTarget(
-      position: position,
-      viewport: viewport,
-      minExtent: 0,
-      maxExtent: max,
-      offset: offset,
-    );
-
-    test('puts the row a little above the middle', () {
-      expect(target(), 10 * 68 - 500 * 0.42);
+  group('revealing a row (D-067)', () {
+    test('the average row height comes from the laid-out list', () {
+      expect(
+        LyricListNavigation.averageRowExtent(
+          maxExtent: 7500,
+          viewport: 500,
+          rows: 100,
+        ),
+        80,
+      );
+      expect(
+        LyricListNavigation.averageRowExtent(
+          maxExtent: 0,
+          viewport: 500,
+          rows: 0,
+        ),
+        LyricListNavigation.estimatedRowExtent,
+      );
     });
 
-    test('is clamped to the scroll range', () {
-      expect(target(position: 1, offset: 100), 0);
-      expect(target(position: 100, max: 1000), 1000);
+    test('the first guess puts the row near the follow anchor', () {
+      expect(
+        LyricListNavigation.revealEstimate(
+          position: 50,
+          rowExtent: 80,
+          viewport: 500,
+          minExtent: 0,
+          maxExtent: 7500,
+        ),
+        50 * 80 - 500 * LyricListNavigation.followAnchor,
+      );
+      expect(
+        LyricListNavigation.revealEstimate(
+          position: 1,
+          rowExtent: 80,
+          viewport: 500,
+          minExtent: 0,
+          maxExtent: 7500,
+        ),
+        0,
+      );
     });
 
-    test('does not scroll for small differences', () {
-      expect(target(offset: 10 * 68 - 210 + 19), isNull);
-      expect(target(offset: 10 * 68 - 210 + 21), isNotNull);
+    double? keep(double offset, {double top = 400, double bottom = 0}) =>
+        LyricListNavigation.keepVisibleOffset(
+          offset: offset,
+          top: top,
+          bottom: bottom,
+          minExtent: 0,
+          maxExtent: 2000,
+        );
+
+    test('an arrow key only scrolls when the row is off screen', () {
+      // The row is fully visible for offsets between 0 and 400.
+      expect(keep(200), isNull);
+      expect(keep(500), 400);
+      expect(keep(100, top: 900, bottom: 500), 500);
     });
 
-    test('a hidden row does not scroll', () {
-      expect(target(position: -1), isNull);
+    test('a row taller than the window shows its start', () {
+      expect(keep(100, top: 300, bottom: 350), 300);
     });
   });
 }

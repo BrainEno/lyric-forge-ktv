@@ -11,6 +11,7 @@ import '../lyric_review_strings.dart';
 import 'auto_proofread_dialogs.dart';
 import 'lyric_editor_actions.dart';
 import 'lyric_editor_review_controls.dart';
+import 'lyric_line_jump.dart';
 import 'lyric_proofread_menu_button.dart';
 
 /// Which lines the editor list shows.
@@ -137,6 +138,7 @@ class LyricEditorToolbar extends StatelessWidget {
                       : Icons.location_disabled_rounded,
                   size: 16,
                 ),
+                tooltip: LyricListFollowStrings.tooltip,
                 label: const Text('跟随播放'),
               ),
               _OffsetMenu(offset: offset, onChanged: onUpdateOffset),
@@ -207,6 +209,9 @@ class LyricEditorOverflowMenu extends StatelessWidget {
   final VoidCallback? onInsertAtPlayback;
   final VoidCallback? onOpenPlayer;
 
+  /// Opens 跳到行 (D-067); null leaves the entry out.
+  final VoidCallback? onJumpToLine;
+
   const LyricEditorOverflowMenu({
     super.key,
     this.onUndo,
@@ -217,15 +222,34 @@ class LyricEditorOverflowMenu extends StatelessWidget {
     required this.onExport,
     required this.onInsertAtPlayback,
     required this.onOpenPlayer,
+    this.onJumpToLine,
   });
+
+  static const jumpToLineKey = ValueKey('lyric_editor_jump_to_line');
 
   @override
   Widget build(BuildContext context) {
     final openPlayer = onOpenPlayer;
     final undo = onUndo;
     final redo = onRedo;
+    final jumpToLine = onJumpToLine;
     return MenuAnchor(
       menuChildren: [
+        if (jumpToLine != null) ...[
+          MenuItemButton(
+            key: jumpToLineKey,
+            onPressed: jumpToLine,
+            leadingIcon: const Icon(
+              Icons.format_list_numbered_rounded,
+              size: 18,
+            ),
+            child: _OverflowLabel(
+              title: LyricJumpStrings.title,
+              detail: LyricJumpStrings.menuDetail(),
+            ),
+          ),
+          const Divider(height: 1),
+        ],
         MenuItemButton(
           onPressed: undo,
           leadingIcon: const Icon(Icons.undo_rounded, size: 18),
