@@ -12,7 +12,7 @@
   - `docs/decisions.md` (D-069), `docs/handoff.md`, `docs/lyric_proofreading_ux_review.md` §6 item 13.
 - Validation:
   - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
-  - Probe results: see handoff.
+  - Probe: `dart format` clean, `flutter analyze` clean, all 5404 tests passed on the first run. Probe removed.
 - Notes:
   - The project feature still does not import the lyrics feature; the counter is injected from `lib/app`, so the feature dependency graph is unchanged.
   - `LyricReviewQueue.lowConfidenceCount` is no longer shown anywhere but kept for the queue's own tests and future use.
