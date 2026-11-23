@@ -19,7 +19,8 @@ import '../../domain/repositories/project_repository.dart';
 /// The repository lazily restores all manifests from a single JSON document and
 /// rewrites it through a temporary file after every mutation. This keeps the
 /// existing repository contract while making projects survive app restarts.
-class FileProjectRepository implements ProjectRepository {
+class FileProjectRepository
+    implements ProjectRepository, ProjectRecordRestorer {
   static const int _schemaVersion = 1;
 
   static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
@@ -299,6 +300,25 @@ class FileProjectRepository implements ProjectRepository {
         stackTrace: callbackStackTrace,
       );
     }
+  }
+
+  @override
+  Future<ProjectManifest> restoreProject(ProjectManifest project) async {
+    await _ensureLoaded();
+    if (_projects.containsKey(project.id)) {
+      throw ProjectRepositoryException('Project exists: ${project.id}');
+    }
+    final payload = _encode([..._projects.values, project]);
+    _projects[project.id] = project;
+    try {
+      await _writePayload(payload);
+    } catch (_) {
+      if (identical(_projects[project.id], project)) {
+        _projects.remove(project.id);
+      }
+      rethrow;
+    }
+    return project;
   }
 
   @override

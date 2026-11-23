@@ -27,6 +27,8 @@ import 'package:lyric_forge_ktv/features/transcription/domain/services/transcrip
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_settings_store.dart';
 import 'package:lyric_forge_ktv/features/transcription/presentation/transcription_screen_dependencies.dart';
 
+import '../support/fake_project_deletion_service.dart';
+
 ProjectManifest _project({required ProcessingStage stage, AudioAsset? audio}) =>
     ProjectManifest(
       id: 'project',
@@ -800,10 +802,12 @@ void main() {
     }
   });
 
-  group('删除工程 (D-063)', () {
-    testWidgets('deletes after confirming and goes back', (tester) async {
+  group('删除工程 (D-063, D-064)', () {
+    testWidgets('goes to 最近删除 at once, goes back, 撤销 restores', (
+      tester,
+    ) async {
       final projects = _Projects(_project(stage: ProcessingStage.lyricsEdited));
-      final deletion = _Deletion(projects);
+      final deletion = FakeProjectDeletionService();
       await _showProject(
         tester,
         projects.project,
@@ -818,20 +822,23 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('project_detail_delete')));
       await tester.pumpAndSettle();
-      expect(find.text('删除工程“Test song”？'), findsOneWidget);
-      expect(find.textContaining('歌曲的音频文件不会删除'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('project_delete_confirm')));
-      await tester.pumpAndSettle();
 
+      expect(find.byKey(const ValueKey('project_delete_dialog')), findsNothing);
       expect(deletion.deleted, ['project']);
       expect(find.byType(ProjectDetailScreen), findsNothing);
       expect(find.text('open project'), findsOneWidget);
-      expect(find.text('工程已删除'), findsOneWidget);
+      expect(find.text('工程已移到“最近删除”'), findsOneWidget);
+
+      await tester.tap(find.text('撤销'));
+      await tester.pumpAndSettle();
+      expect(deletion.restored, ['project']);
+      expect(find.text('工程已恢复'), findsOneWidget);
     });
 
-    testWidgets('cancelling keeps the project open', (tester) async {
+    testWidgets('a project in use stays open and says why', (tester) async {
       final projects = _Projects(_project(stage: ProcessingStage.lyricsEdited));
-      final deletion = _Deletion(projects);
+      final deletion = FakeProjectDeletionService()
+        ..blockers['project'] = '这首歌正在播放，换一首或停止播放后再删除';
       await _showProject(
         tester,
         projects.project,
@@ -844,12 +851,11 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('project_detail_more')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('project_detail_delete')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('project_delete_cancel')));
       await tester.pumpAndSettle();
 
       expect(deletion.deleted, isEmpty);
       expect(find.byType(ProjectDetailScreen), findsOneWidget);
+      expect(find.text('这首歌正在播放，换一首或停止播放后再删除'), findsOneWidget);
     });
 
     testWidgets('without the service there is no delete menu', (tester) async {
@@ -1026,26 +1032,6 @@ class _Projects extends Fake implements ProjectRepository {
   ProjectManifest project;
   @override
   Future<ProjectManifest?> getProjectById(String id) async => project;
-}
-
-class _Deletion implements ProjectDeletionService {
-  _Deletion(this.projects);
-
-  final _Projects projects;
-  final deleted = <String>[];
-
-  @override
-  Future<ProjectDeletionCheck> check(ProjectManifest project) async =>
-      const ProjectDeletionCheck();
-
-  @override
-  Future<ProjectDeletionResult> delete(
-    ProjectManifest project, {
-    bool removeFiles = true,
-  }) async {
-    deleted.add(project.id);
-    return const ProjectDeletionResult();
-  }
 }
 
 /// Saves conditional updates like the real repository: by revision.

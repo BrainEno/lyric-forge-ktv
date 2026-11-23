@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/diagnostics/best_effort.dart';
+import '../../../../core/widgets/undo_snack_bar.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../player/domain/services/playback_session_service.dart';
@@ -312,12 +313,15 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     _projectFuture = Future<ProjectManifest?>.value(saved);
     final clean = _editor.markSavedIfUnchanged(editorRevision);
     setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(clean ? '歌词已保存' : '已保存，但保存期间的新修改尚未保存。'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // Saving answers at once, even over an undo offer for a deleted row.
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(clean ? '歌词已保存' : '已保存，但保存期间的新修改尚未保存。'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     return clean;
   }
 
@@ -707,9 +711,31 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     return shifted.isNegative ? Duration.zero : shifted;
   }
 
-  void _deleteLine(int index) => _applyRowEdit(
-    _editor.deleteLine(index, auditionTarget: _isAuditionTarget(index)),
-  );
+  /// Deletes the row and offers 撤销 in a snackbar (D-064), on top of
+  /// Ctrl/Cmd+Z: the undo applies only while nothing else has changed, so it
+  /// never takes back a later edit instead.
+  void _deleteLine(int index) {
+    final result = _editor.deleteLine(
+      index,
+      auditionTarget: _isAuditionTarget(index),
+    );
+    _applyRowEdit(result);
+    if (!result.applied || !mounted) return;
+    final revision = _editor.documentRevision;
+    final messenger = ScaffoldMessenger.of(context);
+    showUndoSnackBar(
+      messenger,
+      message: '已删除第 ${index + 1} 行',
+      onUndo: () async {
+        if (!mounted) return null;
+        if (_editor.documentRevision != revision) {
+          return '之后又有修改，请用工具栏的撤销或 Ctrl/Cmd+Z';
+        }
+        _undo();
+        return null;
+      },
+    );
+  }
 
   void _updateGlobalOffset(Duration offset) {
     final shouldPauseAudition = _audition.isSounding;

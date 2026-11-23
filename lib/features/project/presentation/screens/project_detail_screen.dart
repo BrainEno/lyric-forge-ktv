@@ -221,7 +221,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   Future<void> _deleteProject(ProjectManifest project) async {
     final service = widget.dependencies.deletionService;
     if (service == null || _busy) return;
-    final outcome = await deleteProjectsWithConfirmation(
+    final outcome = await deleteProjectsWithUndo(
       context,
       service: service,
       projects: [project],

@@ -16,6 +16,10 @@ class DashboardDependencies {
   final TranscriptionSettingsStore transcriptionSettingsStore;
   final TranscriptionConfigDialogDependencies configDialogDependencies;
 
+  /// Fires when a project is deleted or restored (D-064), so 最近工程
+  /// follows an undo made from a snackbar.
+  final Stream<void>? projectChanges;
+
   const DashboardDependencies({
     required this.projectRepository,
     required this.playHistoryRepository,
@@ -24,5 +28,6 @@ class DashboardDependencies {
     required this.transcriptionQueue,
     required this.transcriptionSettingsStore,
     required this.configDialogDependencies,
+    this.projectChanges,
   });
 }

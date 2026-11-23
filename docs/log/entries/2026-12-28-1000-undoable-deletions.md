@@ -1,0 +1,20 @@
+# [2026-12-28 10:00] Undoable deletions and 最近删除
+
+- Scope: round 44, user request: friendlier UI where mistakes can be taken back (D-064).
+  - `ProjectDeletionService` now deletes into 最近删除: `delete` (no `removeFiles`), `trashed`, `restore`, `purge`, `purgeAll`, `changes`, `retention` (30 days); `TrashedProject`, `ProjectRestoreException`.
+  - `LocalProjectDeletionService`: `<support>/LyricForge/Trash/Projects/<id>/entry.json` (record snapshot, deletedAt, folder size) + `files/` (moved working folder); snapshot first, then the store, then the folder; restore puts record and folder back; expired entries go when listed (and at start-up). One shared instance in `AppServices.projectDeletionService`.
+  - `ProjectRecordRestorer` (`restoreProject`) on the file and memory repositories, separate from `ProjectRepository` so its test doubles need not change.
+  - UI: `showUndoSnackBar` (core, 8 s, replaces the current snackbar, reports a failing undo). `deleteProjectsWithUndo`: a single project goes at once with 撤销, several or a clean-up are confirmed. `ProjectTrashScreen` (restore, delete for good, 清空); 全部工程 gets a 最近删除 button with a badge and a footer entry and reloads on `changes`; the dashboard reloads on `projectChanges`.
+  - Undo elsewhere: playlist delete (confirm dialog dropped; rebuilt on undo), remove from playlist (back at its position), unfavourite, remove from library and clean missing (`addPaths`), queue remove / clear (`restoreQueueItems`: enqueue then move into place; no playback restart), lyric row delete (only while the document revision is unchanged). KTV takes: inline 撤销 row in the sheet, deleted after 8 s or when the sheet closes. The editor's save notice removes the current snackbar so it is never queued behind an undo offer.
+- Files:
+  - New: `lib/core/widgets/undo_snack_bar.dart`, `lib/features/project/presentation/screens/project_trash_screen.dart`.
+  - Changed: `lib/features/project/domain/{repositories/project_repository,services/project_deletion_service}.dart`, `lib/features/project/data/{repositories/file_project_repository,repositories/memory_project_repository,services/local_project_deletion_service}.dart`, `lib/features/project/presentation/{screens/project_list_screen,screens/project_detail_screen,widgets/project_delete_dialog,widgets/project_deletion_flow}.dart`, `lib/features/player/presentation/{screens/local_collections_screen,screens/local_library_explorer_screen,widgets/playback_queue_panel,widgets/ktv_take_history_sheet}.dart`, `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`, `lib/features/home/presentation/{dashboard_dependencies,screens/dashboard_screen}.dart`, `lib/app/{app_services,home_assembly,screen_assembly}.dart`.
+  - Tests: `test/core/widgets/undo_snack_bar_test.dart`, `test/features/project/support/fake_project_deletion_service.dart`, `test/features/project/presentation/project_trash_screen_test.dart`, `test/features/player/presentation/widgets/playback_queue_undo_test.dart`, updated `test/features/project/data/local_project_deletion_service_test.dart`, `test/features/project/presentation/{project_list_screen,project_detail_capability}_test.dart`, `test/features/player/presentation/widgets/ktv_take_history_sheet_test.dart`, `test/file_project_repository_test.dart`.
+  - `docs/decisions.md` (D-064), `docs/handoff.md`.
+- Validation:
+  - No Dart SDK in the sandbox: format, analyze and tests => PR's Flutter Quality Gate.
+- Notes:
+  - Projects in 最近删除 keep their disk space until purged or 30 days pass.
+  - Undoing a playlist deletion makes a new playlist id with the same name, description and songs.
+  - With shuffle on, a queue undo brings the songs back but not their order.
+- Commit: `Make deletions undoable and keep deleted projects in 最近删除`

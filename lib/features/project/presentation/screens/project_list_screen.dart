@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
@@ -5,12 +7,15 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/project_manifest.dart';
+import '../../domain/services/project_deletion_service.dart';
 import '../../domain/services/project_duplicate_finder.dart';
 import '../project_list_dependencies.dart';
 import '../widgets/project_deletion_flow.dart';
+import 'project_trash_screen.dart';
 
 /// 全部工程: every lyric project, with deleting and cleaning up the songs
-/// that got a project more than once (D-063).
+/// that got a project more than once (D-063). Deleted projects go to
+/// 最近删除, reachable from here (D-064).
 ///
 /// The dashboard only shows the eight most recent projects and nothing
 /// could delete one, so a song recognised twice stayed twice for good.
@@ -39,24 +44,35 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
   bool _selecting = false;
   bool _deleting = false;
   final Set<String> _selected = {};
+  int _trashed = 0;
+  StreamSubscription<void>? _changes;
 
   ProjectListDependencies get _deps => widget.dependencies;
 
   @override
   void initState() {
     super.initState();
+    _changes = _deps.deletionService.changes.listen((_) => _load());
     _load();
+  }
+
+  @override
+  void dispose() {
+    _changes?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
     try {
       final projects = await _deps.projectRepository.getAllProjects();
+      final trashed = await _trashedCount();
       if (!mounted) return;
       final finder = ProjectDuplicateFinder(
         canonicalize: _deps.canonicalizeAudioPath,
       );
       setState(() {
         _projects = projects;
+        _trashed = trashed;
         _groups = finder.find(projects);
         _error = null;
         final ids = {for (final project in projects) project.id};
@@ -66,6 +82,24 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
     } on Object catch (error) {
       if (mounted) setState(() => _error = error);
     }
+  }
+
+  Future<int> _trashedCount() async {
+    try {
+      return (await _deps.deletionService.trashed()).length;
+    } on Object {
+      return 0;
+    }
+  }
+
+  Future<void> _openTrash() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => ProjectTrashScreen(service: _deps.deletionService),
+      ),
+    );
+    if (mounted) await _load();
   }
 
   bool _matches(ProjectManifest project) {
@@ -84,7 +118,7 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
     if (_deleting || projects.isEmpty) return;
     setState(() => _deleting = true);
     try {
-      final outcome = await deleteProjectsWithConfirmation(
+      final outcome = await deleteProjectsWithUndo(
         context,
         service: _deps.deletionService,
         projects: projects,
@@ -149,6 +183,16 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
               child: Text(_selecting ? '完成' : '选择'),
             ),
           IconButton(
+            key: const ValueKey('project_list_trash'),
+            tooltip: '最近删除',
+            onPressed: _openTrash,
+            icon: Badge(
+              isLabelVisible: _trashed > 0,
+              label: Text('$_trashed'),
+              child: const Icon(Icons.delete_sweep_outlined),
+            ),
+          ),
+          IconButton(
             tooltip: '刷新',
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded),
@@ -200,9 +244,15 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (projects.isEmpty) {
-      return const _Message(
+      return _Message(
         icon: Icons.library_music_outlined,
         text: '还没有歌词工程',
+        action: _trashed > 0
+            ? TextButton(
+                onPressed: _openTrash,
+                child: Text('最近删除（$_trashed）'),
+              )
+            : null,
       );
     }
 
@@ -294,6 +344,28 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
               child: Center(child: Text('没有符合的工程')),
             ),
           ...rows,
+          if (_trashed > 0) ...[
+            const SizedBox(height: AppSpacing.md),
+            ListTile(
+              key: const ValueKey('project_list_trash_entry'),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+              ),
+              leading: Icon(
+                Icons.delete_sweep_outlined,
+                color: AppColors.textSecondary,
+              ),
+              title: Text('最近删除（$_trashed）'),
+              subtitle: Text(
+                '${ProjectDeletionService.retention.inDays} 天内可以恢复',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: _openTrash,
+            ),
+          ],
         ],
       ),
     );
@@ -375,7 +447,7 @@ class _DuplicateBanner extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '一键清理会给每首歌留下有歌词、校对过或最近修改的那个工程，其余删除；删除前会再确认。',
+            '一键清理会给每首歌留下有歌词、校对过或最近修改的那个工程，其余放进“最近删除”；删除前会再确认。',
             style: theme.textTheme.bodySmall?.copyWith(
               color: AppColors.textSecondary,
             ),
