@@ -858,10 +858,7 @@ void main() {
         _project(stage: ProcessingStage.lyricsEdited),
         const Size(1366, 768),
       );
-      expect(
-        find.byKey(const ValueKey('project_detail_more')),
-        findsNothing,
-      );
+      expect(find.byKey(const ValueKey('project_detail_more')), findsNothing);
     });
   });
 

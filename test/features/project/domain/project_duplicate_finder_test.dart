@@ -136,12 +136,10 @@ void main() {
   });
 
   test('without lyrics or progress the most recent one is kept', () {
-    final group = finder
-        .find([
-          _project('old', path: '/a', updatedDay: 1),
-          _project('new', path: '/a', updatedDay: 5),
-        ])
-        .single;
+    final group = finder.find([
+      _project('old', path: '/a', updatedDay: 1),
+      _project('new', path: '/a', updatedDay: 5),
+    ]).single;
     expect(group.keep.id, 'new');
     expect(ProjectDuplicateFinder.keepReason(group), '最近修改');
   });

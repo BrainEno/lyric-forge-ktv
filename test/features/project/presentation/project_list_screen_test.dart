@@ -117,7 +117,9 @@ void main() {
     tester,
   ) async {
     await pump(tester);
-    await tester.tap(find.byKey(const ValueKey('project_list_show_duplicates')));
+    await tester.tap(
+      find.byKey(const ValueKey('project_list_show_duplicates')),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('project_row_other')), findsNothing);
