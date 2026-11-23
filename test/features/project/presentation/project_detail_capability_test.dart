@@ -7,6 +7,7 @@ import 'package:lyric_forge_ktv/features/player/domain/services/playback_session
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/automatic_accompaniment.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/lyric_review_overview.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 import 'package:lyric_forge_ktv/features/project/domain/services/project_accompaniment_importer.dart';
@@ -60,6 +61,7 @@ Future<void> _showProject(
   ProjectTranscriptionWorkflow? workflow,
   TranscriptionSettingsStore? settings,
   ProjectDeletionService? deletionService,
+  ProjectLyricReviewCounter? reviewCounter,
   double textScale = 1,
   bool openAudioSources = true,
   bool pushed = false,
@@ -88,6 +90,7 @@ Future<void> _showProject(
       ),
     ),
     deletionService: deletionService,
+    reviewCounter: reviewCounter,
   );
   final screen = ProjectDetailScreen(
     projectId: project.id,
@@ -999,6 +1002,71 @@ void main() {
     expect(find.text('工程记录了音轨分离阶段'), findsOneWidget);
     expect(find.text('人声与伴奏已经准备好'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  group('歌词卡片用编辑器的“建议复核”说法 (D-069)', () {
+    ProjectManifest withFrozenCounts() {
+      final project = _project(stage: ProcessingStage.lyricsEdited);
+      return project.copyWith(
+        lyricDocument: project.lyricDocument!.copyWith(
+          metadata: const {
+            'lowConfidenceLineCount': 9,
+            'fallbackCandidateCount': 4,
+          },
+        ),
+      );
+    }
+
+    testWidgets('显示建议复核和必看，不再显示识别时记下的旧数字', (tester) async {
+      ProjectManifest? counted;
+      await _showProject(
+        tester,
+        withFrozenCounts(),
+        const Size(1366, 768),
+        reviewCounter: (project) {
+          counted = project;
+          return const ProjectLyricReviewOverview(
+            suggested: 7,
+            mustCheck: 2,
+            reviewed: 1,
+          );
+        },
+      );
+
+      expect(counted?.id, 'project');
+      expect(find.text('还有 7 行建议复核，其中 2 行必看，在歌词编辑器里逐行确认。'), findsOneWidget);
+      expect(find.text('建议复核 · 7 行'), findsOneWidget);
+      expect(find.text('必看 · 2 行'), findsOneWidget);
+      expect(find.textContaining('低置信度'), findsNothing);
+      expect(find.textContaining('重点复核'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('全部确认后说明已确认，不显示必看', (tester) async {
+      await _showProject(
+        tester,
+        withFrozenCounts(),
+        const Size(1366, 768),
+        reviewCounter: (_) => const ProjectLyricReviewOverview(
+          suggested: 0,
+          mustCheck: 0,
+          reviewed: 1,
+        ),
+      );
+
+      expect(find.text('建议复核的行都已确认，仍可在歌词编辑器里逐行检查。'), findsOneWidget);
+      expect(find.text('建议复核 · 无'), findsOneWidget);
+      expect(find.textContaining('必看'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('没有计数时只显示行数和语言', (tester) async {
+      await _showProject(tester, withFrozenCounts(), const Size(1366, 768));
+
+      expect(find.text('自动识别结果仍建议进入歌词编辑器逐行校对。'), findsOneWidget);
+      expect(find.textContaining('建议复核 ·'), findsNothing);
+      expect(find.textContaining('低置信度'), findsNothing);
+    });
   });
 }
 

@@ -22,6 +22,7 @@ import '../../../transcription/domain/services/project_accompaniment_generator.d
 import '../../../transcription/domain/services/project_transcription_workflow.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
 import '../../../transcription/presentation/widgets/asr_runtime_setup_dialog.dart';
+import '../../domain/models/lyric_review_overview.dart';
 import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../widgets/project_detail_columns.dart';
@@ -630,6 +631,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                 ? null
                 : () => _deleteProject(project),
             deleteEnabled: !_busy,
+            review: project.hasLyrics
+                ? widget.dependencies.reviewCounter?.call(project)
+                : null,
           );
         },
       ),
@@ -685,6 +689,9 @@ class _ProjectDetailContent extends StatelessWidget {
   final VoidCallback? onDelete;
   final bool deleteEnabled;
 
+  /// The editor's 建议复核 counts; null when unknown.
+  final ProjectLyricReviewOverview? review;
+
   const _ProjectDetailContent({
     required this.project,
     required this.onRefresh,
@@ -705,6 +712,7 @@ class _ProjectDetailContent extends StatelessWidget {
     required this.onOpenEditor,
     this.onDelete,
     this.deleteEnabled = true,
+    this.review,
   });
 
   @override
@@ -794,7 +802,7 @@ class _ProjectDetailContent extends StatelessWidget {
                                 progress: project.progressPercent,
                               ),
                             const SizedBox(height: AppSpacing.md),
-                            _LyricStatusCard(project: project),
+                            _LyricStatusCard(project: project, review: review),
                           ],
                         ),
                         side: Column(
@@ -1074,17 +1082,32 @@ class _ProcessingProgress extends StatelessWidget {
   }
 }
 
+/// The lyric draft at a glance. Since D-069 its review numbers are the
+/// editor's 建议复核 and 必看, counted live, instead of the 低置信度 and
+/// 重点复核 numbers frozen into the draft when it was recognised.
 class _LyricStatusCard extends StatelessWidget {
   final ProjectManifest project;
+  final ProjectLyricReviewOverview? review;
 
-  const _LyricStatusCard({required this.project});
+  const _LyricStatusCard({required this.project, this.review});
+
+  /// The sentence under the title for a project with lyrics.
+  static String reviewSentence(ProjectLyricReviewOverview? review) {
+    if (review == null) return '自动识别结果仍建议进入歌词编辑器逐行校对。';
+    if (review.suggested == 0) {
+      return review.reviewed > 0
+          ? '建议复核的行都已确认，仍可在歌词编辑器里逐行检查。'
+          : '没有发现需要复核的行，仍可在歌词编辑器里逐行检查。';
+    }
+    final must = review.mustCheck > 0 ? '，其中 ${review.mustCheck} 行必看' : '';
+    return '还有 ${review.suggested} 行建议复核$must，在歌词编辑器里逐行确认。';
+  }
 
   @override
   Widget build(BuildContext context) {
     final document = project.lyricDocument;
     final hasLyrics = project.hasLyrics;
-    final lowConfidence = document?.metadata['lowConfidenceLineCount'];
-    final fallback = document?.metadata['fallbackCandidateCount'];
+    final review = this.review;
 
     return _SurfaceCard(
       child: Column(
@@ -1119,7 +1142,7 @@ class _LyricStatusCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       hasLyrics
-                          ? '自动识别结果仍建议进入歌词编辑器逐行校对。'
+                          ? reviewSentence(review)
                           : '在桌面端完成本地识别后，会在这里生成可编辑时间轴。',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textTertiary,
@@ -1145,10 +1168,13 @@ class _LyricStatusCard extends StatelessWidget {
                     label: '语言',
                     value: SpokenLanguagePolicy.label(document.language.trim()),
                   ),
-                if (lowConfidence != null)
-                  _MetricChip(label: '低置信度', value: '$lowConfidence 行'),
-                if (fallback != null)
-                  _MetricChip(label: '重点复核', value: '$fallback 行'),
+                if (review != null)
+                  _MetricChip(
+                    label: '建议复核',
+                    value: review.suggested > 0 ? '${review.suggested} 行' : '无',
+                  ),
+                if (review != null && review.mustCheck > 0)
+                  _MetricChip(label: '必看', value: '${review.mustCheck} 行'),
               ],
             ),
           ],

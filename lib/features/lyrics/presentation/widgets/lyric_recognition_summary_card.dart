@@ -6,6 +6,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/recognition_review_summary.dart';
 import '../../domain/models/vocal_check_record.dart';
 import '../../domain/services/lyric_draft_health_service.dart';
+import '../lyric_review_strings.dart';
 import 'auto_proofread_dialogs.dart';
 import 'lyric_batch_text_edit.dart';
 import 'lyric_vocal_check_request.dart';
@@ -222,7 +223,7 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
     ];
     return [
       '识别时已按人声自动补上 ${record.filledSpans.length} 处漏句$fallback，'
-          '补上的行列入待复核，试听确认后即可移出',
+          '补上的行列入建议复核，试听确认后即可移出',
       if (rest.isNotEmpty) '自动补句：${rest.join('、')}',
     ];
   }
@@ -489,7 +490,14 @@ class _LyricRecognitionSummaryCardState
             : '不可用',
         attention: (summary.pendingSecondaryOnlySuggestions ?? 0) > 0,
       ),
-      (label: '待复核', value: '$pending', attention: pending > 0),
+      (
+        label: LyricSuggestedReviewStrings.label,
+        value: LyricSuggestedReviewStrings.countWithMustCheck(
+          pending,
+          summary.mustCheckReview,
+        ),
+        attention: pending > 0,
+      ),
       if (summary.vocalGapFill != null)
         (
           label: '自动补句',

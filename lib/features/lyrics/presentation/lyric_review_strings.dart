@@ -311,6 +311,14 @@ abstract final class LyricSuggestedReviewStrings {
     LyricReviewReasonKind.suspiciousText => '文本可疑',
   };
 
+  /// `12（必看 5）`, or just `12` when nothing is 必看 (D-069).
+  static String countWithMustCheck(int pending, int mustCheck) =>
+      mustCheck > 0 ? '$pending（${mustCheckLabel(mustCheck)}）' : '$pending';
+
+  /// `必看 5`.
+  static String mustCheckLabel(int count) =>
+      '${urgency(LyricReviewUrgency.mustCheck)} $count';
+
   /// `必看 2 · 留意 3`, leaving out an empty tier.
   static String tiers(LyricReviewQueue queue) => [
     if (queue.mustCheckCount > 0)

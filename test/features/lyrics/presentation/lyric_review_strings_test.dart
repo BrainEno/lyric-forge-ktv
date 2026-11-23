@@ -322,6 +322,12 @@ void main() {
           reasons: [LyricReviewPriorityReason(code)],
         );
 
+    test('a count names its 必看 rows only when there are some (D-069)', () {
+      expect(LyricSuggestedReviewStrings.countWithMustCheck(12, 5), '12（必看 5）');
+      expect(LyricSuggestedReviewStrings.countWithMustCheck(3, 0), '3');
+      expect(LyricSuggestedReviewStrings.mustCheckLabel(2), '必看 2');
+    });
+
     test('tiers leave out an empty tier', () {
       final onlyWorth = queueOf([
         row(20, LyricReviewPriorityReasonCode.repeatedWords),

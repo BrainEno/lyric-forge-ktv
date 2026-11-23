@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-25 09:30] Sung-language probe before recognition ([entry](log/entries/2026-12-25-0930-sung-language-probe.md))
 - [2026-12-24 09:30] Auto-separated KTV accompaniment ([entry](log/entries/2026-12-24-0930-auto-separated-ktv-accompaniment.md))
 - [2026-12-23 09:30] Paused bars, library toolbar and song info sync ([entry](log/entries/2026-12-23-0930-paused-bars-library-toolbar-song-info-sync.md))
 - [2026-12-22 09:30] Mobile simplification and violet vinyl ([entry](log/entries/2026-12-22-0930-mobile-simplification-and-violet-vinyl.md))
