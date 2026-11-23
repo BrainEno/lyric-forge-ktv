@@ -16,7 +16,9 @@
   - Tests: `test/features/lyrics/domain/services/lyric_line_batch_service_test.dart`, `test/features/lyrics/presentation/controllers/lyric_editor_batch_selection_test.dart`, `test/features/lyrics/presentation/widgets/lyric_batch_selection_test.dart`, `test/features/lyrics/presentation/screens/lyric_editor_batch_edit_test.dart`, `test/features/lyrics/presentation/widgets/lyric_list_logic_test.dart`.
   - `docs/decisions.md` (D-066), `docs/handoff.md`.
 - Validation:
-  - No Dart SDK in the sandbox: format, analyze and tests => PR's Flutter Quality Gate.
+  - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
+  - First probe: analyze clean, 5359 passed, 3 failed, 2 format diffs. Causes: the row's `Tooltip` opens on long press on touch platforms and swallowed the long press that starts choosing (now `TooltipTriggerMode.manual` when the row has a long press; hover still works); the phone ⋮ menu showed the "choose neighbours" hint even when merge was allowed.
+  - Second probe: format and analyze clean, all 5362 tests passed. Probe removed.
 - Notes:
   - A long press on a row now starts choosing; inline editing stays on double click, Enter/F2, the row menu and the phone's row sheet.
   - The bar's 全选 chooses the rows the filter shows; Ctrl/⌘+A in the list also honours the search box.
