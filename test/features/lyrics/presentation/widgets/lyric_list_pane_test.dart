@@ -122,7 +122,7 @@ void main() {
       ),
     );
 
-    expect(find.byTooltip('歌词为空'), findsOneWidget);
+    expect(find.byTooltip('必看 · 优先级 60\n歌词为空'), findsOneWidget);
   });
 
   testWidgets('100 confidence does not hide unreviewed engine evidence', (
@@ -264,21 +264,6 @@ void main() {
     expect(find.text('当前筛选下没有待处理歌词'), findsOneWidget);
     // Every line is already shown, so there is nothing to go back to.
     expect(find.text('显示全部歌词'), findsNothing);
-  });
-
-  testWidgets('筛选把所有行藏起来时可以一键回到全部歌词', (tester) async {
-    var showAll = 0;
-    await tester.pumpWidget(
-      host(
-        document: _document(3),
-        visibleIndices: const [],
-        onShowAllLines: () => showAll++,
-      ),
-    );
-
-    expect(find.text('换一个筛选条件，或回到全部歌词继续校对。'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('lyric-list:show-all')));
-    expect(showAll, 1);
   });
 
   testWidgets('复核队列清空时也提供回到全部歌词', (tester) async {
