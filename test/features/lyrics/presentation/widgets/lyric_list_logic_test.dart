@@ -275,6 +275,43 @@ void main() {
       expect(commandFor(LogicalKeyboardKey.keyF), isNull);
     });
 
+    test('Shift turns the arrows into extending the batch choice', () {
+      expect(
+        LyricListNavigation.commandFor(
+          LogicalKeyboardKey.arrowDown,
+          command: false,
+          shift: true,
+        ),
+        LyricListCommand.extendNext,
+      );
+      expect(
+        LyricListNavigation.commandFor(
+          LogicalKeyboardKey.arrowUp,
+          command: false,
+          shift: true,
+        ),
+        LyricListCommand.extendPrevious,
+      );
+      expect(LyricListCommand.extendNext.growsBatch, isTrue);
+      expect(LyricListCommand.next.growsBatch, isFalse);
+    });
+
+    test('Ctrl or Cmd + A chooses all; Esc leaves batch mode only', () {
+      expect(
+        commandFor(LogicalKeyboardKey.keyA, cmd: true),
+        LyricListCommand.selectAll,
+      );
+      expect(commandFor(LogicalKeyboardKey.keyA), isNull);
+      expect(
+        LyricListNavigation.commandFor(
+          LogicalKeyboardKey.escape,
+          command: false,
+          batch: true,
+        ),
+        LyricListCommand.endBatch,
+      );
+    });
+
     test('other keys are left to the app', () {
       for (final key in [
         LogicalKeyboardKey.tab,

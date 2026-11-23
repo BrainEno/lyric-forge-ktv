@@ -135,6 +135,7 @@ class LyricLineEditActions {
     required this.onUpdateOffset,
     required this.onSetStartFromPlayback,
     required this.onSetEndFromPlayback,
+    this.onBatchEdit,
   });
 
   final VoidCallback onAddLine;
@@ -153,6 +154,10 @@ class LyricLineEditActions {
   final ValueChanged<Duration> onUpdateOffset;
   final ValueChanged<int> onSetStartFromPlayback;
   final ValueChanged<int> onSetEndFromPlayback;
+
+  /// Told about a batch edit the content made on the editor (D-066), so the
+  /// screen can drop an audition of a row that moved or went away.
+  final ValueChanged<LyricEditResult>? onBatchEdit;
 }
 
 /// Playing one row on its own while proofreading.

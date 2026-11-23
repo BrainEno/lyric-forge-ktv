@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
+import 'lyric_batch_selection_bar.dart';
 import 'lyric_editor_review_controls.dart';
 import 'lyric_editor_toolbar.dart';
 import 'lyric_inline_editor_row.dart';
@@ -72,6 +73,10 @@ class LyricListPane extends StatefulWidget {
   final ValueChanged<int>? onSetEndFromPlayback;
   final Set<int> manuallyEditedLineIndices;
 
+  /// Choosing rows for a batch edit (D-066); null where batch edits are not
+  /// offered, which keeps the long press on inline editing.
+  final LyricBatchControls? batch;
+
   const LyricListPane({
     super.key,
     required this.document,
@@ -94,6 +99,7 @@ class LyricListPane extends StatefulWidget {
     this.onSetStartFromPlayback,
     this.onSetEndFromPlayback,
     this.manuallyEditedLineIndices = const {},
+    this.batch,
   });
 
   LyricReviewFilter get filter => review.filter;
@@ -288,36 +294,84 @@ class _LyricListPaneState extends State<LyricListPane> {
   bool _handleKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent || _editingIndex != null) return false;
     final keyboard = HardwareKeyboard.instance;
+    final batch = widget.batch;
     final command = LyricListNavigation.commandFor(
       event.logicalKey,
       command: keyboard.isControlPressed || keyboard.isMetaPressed,
+      shift: keyboard.isShiftPressed,
+      batch: batch?.active ?? false,
     );
     if (command == null) return false;
-    if (command == LyricListCommand.search) {
-      if (!_showsSearch) return false;
-      _searchFocusNode.requestFocus();
-      return true;
+    switch (command) {
+      case LyricListCommand.search:
+        if (!_showsSearch) return false;
+        _searchFocusNode.requestFocus();
+        return true;
+      case LyricListCommand.selectAll:
+        if (batch == null) return false;
+        batch.onSelectAll(_filteredIndices);
+        return true;
+      case LyricListCommand.endBatch:
+        if (batch == null) return false;
+        batch.onEnd();
+        return true;
+      default:
+        break;
     }
     final selected = widget.selectedIndex;
     if (selected == null) return false;
+    final shown = _filteredIndices;
     switch (command) {
       case LyricListCommand.next:
-        final next = LyricListNavigation.next(_filteredIndices, selected);
-        if (next != null) widget.onSelectLine(next);
+      case LyricListCommand.extendNext:
+        final next = LyricListNavigation.next(shown, selected);
+        if (next != null) _moveTo(next, extend: command.growsBatch);
       case LyricListCommand.previous:
-        final previous = LyricListNavigation.previous(
-          _filteredIndices,
-          selected,
-        );
-        if (previous != null) widget.onSelectLine(previous);
+      case LyricListCommand.extendPrevious:
+        final previous = LyricListNavigation.previous(shown, selected);
+        if (previous != null) _moveTo(previous, extend: command.growsBatch);
       case LyricListCommand.edit:
         _startInlineEdit(selected);
       case LyricListCommand.delete:
-        widget.onDeleteLine(selected);
+        if (batch != null && batch.active && batch.selected.isNotEmpty) {
+          batch.onDelete();
+        } else {
+          widget.onDeleteLine(selected);
+        }
       case LyricListCommand.search:
+      case LyricListCommand.selectAll:
+      case LyricListCommand.endBatch:
         break;
     }
     return true;
+  }
+
+  /// Selects row [index]; with [extend] (Shift) the batch choice grows to it.
+  void _moveTo(int index, {required bool extend}) {
+    final batch = widget.batch;
+    if (extend && batch != null) {
+      batch.onRange(index, _filteredIndices);
+    } else {
+      widget.onSelectLine(index);
+    }
+  }
+
+  /// A tap on row [index]: Ctrl/Cmd adds it to the batch choice, Shift
+  /// chooses up to it, and in batch mode a plain tap chooses it (D-066).
+  void _tapRow(int index) {
+    final batch = widget.batch;
+    final keyboard = HardwareKeyboard.instance;
+    if (batch != null &&
+        (keyboard.isControlPressed || keyboard.isMetaPressed)) {
+      batch.onToggle(index, includeCurrent: true);
+    } else if (batch != null && keyboard.isShiftPressed) {
+      batch.onRange(index, _filteredIndices);
+    } else if (batch != null && batch.active) {
+      batch.onToggle(index);
+    } else {
+      widget.onSelectLine(index);
+    }
+    _listFocusNode.requestFocus();
   }
 
   @override
@@ -427,6 +481,8 @@ class _LyricListPaneState extends State<LyricListPane> {
     final onStart = widget.onSetStartFromPlayback;
     final onEnd = widget.onSetEndFromPlayback;
     final hasNext = index + 1 < widget.document.lines.length;
+    final batch = widget.batch;
+    final choosing = batch != null && batch.active;
     return LyricReviewRow(
       index: index,
       line: line,
@@ -442,12 +498,13 @@ class _LyricListPaneState extends State<LyricListPane> {
       auditionIsPlaying:
           widget.auditionPlaying && widget.activeAuditionLineIndex == index,
       onPreview: onPreview == null ? null : () => onPreview(index),
-      onTap: () {
-        widget.onSelectLine(index);
-        _listFocusNode.requestFocus();
-      },
-      onDoubleTap: () => _startInlineEdit(index),
-      onLongPress: () => _startInlineEdit(index),
+      onTap: () => _tapRow(index),
+      // While choosing, a tap answers at once instead of waiting to see
+      // whether a second tap follows.
+      onDoubleTap: choosing ? null : () => _startInlineEdit(index),
+      onLongPress: batch == null
+          ? () => _startInlineEdit(index)
+          : () => batch.onToggle(index),
       onDelete: () => widget.onDeleteLine(index),
       onSplit: onSplit == null ? null : () => onSplit(index, null),
       onMergeWithNext: onMerge == null || !hasNext
@@ -459,6 +516,7 @@ class _LyricListPaneState extends State<LyricListPane> {
       onSetStartFromPlayback: onStart == null ? null : () => onStart(index),
       onSetEndFromPlayback: onEnd == null ? null : () => onEnd(index),
       isManuallyEdited: widget.manuallyEditedLineIndices.contains(index),
+      checked: choosing ? batch.isChosen(index) : null,
     );
   }
 }

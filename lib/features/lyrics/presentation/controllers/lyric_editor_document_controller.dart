@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_edit_history.dart';
 import '../../domain/services/lyric_indexed_review_metadata.dart';
+import '../../domain/services/lyric_line_batch_service.dart';
 import '../../domain/services/lyric_line_structure_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
 import '../../domain/services/lyric_metadata_json_sanitizer.dart';
@@ -91,6 +92,7 @@ class LyricEditorDocumentController extends ChangeNotifier {
     this.reviewDecisionService = const LyricReviewDecisionService(),
     this.insertionService = const LyricTimelineInsertionService(),
     this.structureService = const LyricLineStructureService(),
+    this.batchService = const LyricLineBatchService(),
     LyricEditHistory? history,
     DateTime Function()? clock,
   }) : history = history ?? LyricEditHistory(),
@@ -100,6 +102,7 @@ class LyricEditorDocumentController extends ChangeNotifier {
   final LyricReviewDecisionService reviewDecisionService;
   final LyricTimelineInsertionService insertionService;
   final LyricLineStructureService structureService;
+  final LyricLineBatchService batchService;
   final LyricEditHistory history;
   final DateTime Function() _clock;
 
@@ -114,6 +117,12 @@ class LyricEditorDocumentController extends ChangeNotifier {
   int? _selectedLineIndex;
   final Set<String> _manuallyEditedLineIds = <String>{};
   LyricEditorSnapshot? _alignmentSnapshot;
+
+  /// The rows chosen for a batch edit, by stable line id (D-066), so the
+  /// choice keeps describing the same rows across edits, undo and redo.
+  final Set<String> _batchIds = <String>{};
+  String? _batchAnchorId;
+  bool _batchMode = false;
 
   LyricDocument? get document => _document;
 
@@ -154,6 +163,125 @@ class LyricEditorDocumentController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether the list is choosing rows for a batch edit (D-066). The mode
+  /// can be on with nothing chosen yet, right after the 多选 button.
+  bool get batchMode => _batchMode;
+
+  /// The chosen rows that still exist, ascending.
+  List<int> get batchSelection {
+    final document = _document;
+    if (document == null || _batchIds.isEmpty) return const <int>[];
+    return [
+      for (var index = 0; index < document.lines.length; index++)
+        if (_batchIds.contains(document.lines[index].id)) index,
+    ];
+  }
+
+  /// Turns batch mode on, choosing row [index] when given.
+  void startBatch([int? index]) {
+    _batchMode = true;
+    if (index != null) _chooseBatch([index], replace: false, anchor: index);
+    notifyListeners();
+  }
+
+  /// Adds row [index] to the batch, or takes it out again.
+  ///
+  /// [includeCurrent] (a Ctrl/Cmd+click) also chooses the row that was
+  /// selected before batch mode began, as a file manager does.
+  void toggleBatchLine(int index, {bool includeCurrent = false}) {
+    final id = _idAt(index);
+    if (id == null) return;
+    if (!_batchMode && includeCurrent) {
+      final current = _selectedLineIndex;
+      if (current != null && current != index) {
+        _chooseBatch([current], replace: false, anchor: current);
+      }
+    }
+    _batchMode = true;
+    if (!_batchIds.remove(id)) _batchIds.add(id);
+    _batchAnchorId = id;
+    _selectedLineIndex = index;
+    notifyListeners();
+  }
+
+  /// Chooses every row of [order] (the rows as the list shows them) from
+  /// the anchor (the row chosen last, or the selected row) to [index], as
+  /// Shift+click and Shift+arrow do. Replaces the earlier choice.
+  void selectBatchRange(int index, List<int> order) {
+    final anchorIndex = _indexOfId(_batchAnchorId) ?? _selectedLineIndex;
+    final to = order.indexOf(index);
+    if (to < 0) return;
+    final from = anchorIndex == null ? -1 : order.indexOf(anchorIndex);
+    final range = from < 0
+        ? [index]
+        : order.sublist(from < to ? from : to, (from < to ? to : from) + 1);
+    _batchMode = true;
+    _chooseBatch(range, replace: true, anchor: from < 0 ? index : anchorIndex);
+    _selectedLineIndex = index;
+    notifyListeners();
+  }
+
+  /// Chooses every row of [order], the rows the list shows.
+  void selectAllBatch(List<int> order) {
+    _batchMode = true;
+    _chooseBatch(order, replace: true, anchor: _batchAnchor);
+    notifyListeners();
+  }
+
+  /// Leaves batch mode and forgets the choice.
+  void endBatch() {
+    if (!_batchMode && _batchIds.isEmpty) return;
+    _clearBatch();
+    notifyListeners();
+  }
+
+  int? get _batchAnchor => _indexOfId(_batchAnchorId);
+
+  void _clearBatch() {
+    _batchMode = false;
+    _batchIds.clear();
+    _batchAnchorId = null;
+  }
+
+  void _chooseBatch(
+    Iterable<int> indices, {
+    required bool replace,
+    required int? anchor,
+  }) {
+    _ensureLineIds();
+    if (replace) _batchIds.clear();
+    for (final index in indices) {
+      final id = _idAt(index);
+      if (id != null) _batchIds.add(id);
+    }
+    if (anchor != null) _batchAnchorId = _idAt(anchor) ?? _batchAnchorId;
+  }
+
+  /// Gives id-less rows an id so they can be chosen. Not an edit: the text
+  /// and timing stay, so neither the history nor the dirty flag moves.
+  void _ensureLineIds() {
+    final document = _document;
+    if (document == null) return;
+    if (document.lines.every((line) => line.id != null)) return;
+    _document = markerService.assignMissingLineIds(document);
+  }
+
+  String? _idAt(int index) {
+    _ensureLineIds();
+    final document = _document;
+    if (document == null || index < 0 || index >= document.lines.length) {
+      return null;
+    }
+    return document.lines[index].id;
+  }
+
+  int? _indexOfId(String? id) {
+    final document = _document;
+    if (document == null || id == null) return null;
+    final index = document.lines.indexWhere((line) => line.id == id);
+    return index < 0 ? null : index;
+  }
+
   /// A freshly loaded document is a new baseline: undo must never walk back into
   /// a different song, so history is cleared here rather than by the caller.
   LyricDocument load(LyricDocument loaded) {
@@ -162,6 +290,7 @@ class LyricEditorDocumentController extends ChangeNotifier {
     _documentRevision++;
     _hasChanges = false;
     _alignmentSnapshot = null;
+    _clearBatch();
     history.clear();
     _manuallyEditedLineIds
       ..clear()
@@ -532,6 +661,156 @@ class LyricEditorDocumentController extends ChangeNotifier {
     return const LyricEditResult();
   }
 
+  /// Marks every row of [indices] as reviewed, or clears their marks, as
+  /// one undo step, and leaves batch mode.
+  LyricEditResult setLinesReviewed(
+    List<int> indices, {
+    required bool reviewed,
+  }) {
+    final document = _document;
+    if (document == null) return const LyricEditResult.notApplied();
+    final rows = [
+      for (final index in LyricLineBatchService.normalize(document, indices))
+        if (reviewDecisionService.isReviewed(document, index) != reviewed)
+          index,
+    ];
+    if (rows.isEmpty) {
+      return LyricEditResult.notApplied(
+        message: reviewed ? '选中的行都已经复核过了' : '选中的行都没有复核标记',
+      );
+    }
+    final now = _clock();
+    var updated = document;
+    for (final index in rows) {
+      updated = reviewDecisionService.setReviewed(
+        updated,
+        index,
+        reviewed: reviewed,
+        reviewedAt: now,
+      );
+    }
+    if (identical(updated, document)) return const LyricEditResult.notApplied();
+
+    final count = rows.length;
+    final label = reviewed ? '标记 $count 行为已复核' : '取消 $count 行的复核标记';
+    _recordEdit(label);
+    _document = updated;
+    _clearBatch();
+    _markEdited();
+    notifyListeners();
+    return LyricEditResult(
+      hint: reviewed ? '已将 $count 行标记为已复核' : '已取消 $count 行的复核标记',
+    );
+  }
+
+  /// Deletes every row of [indices] as one undo step and leaves batch mode.
+  /// The selection moves to the row that took the first deleted one's place.
+  LyricEditResult deleteLines(
+    List<int> indices, {
+    bool auditionTarget = false,
+  }) {
+    final document = _document;
+    if (document == null) return const LyricEditResult.notApplied();
+    final rows = LyricLineBatchService.normalize(document, indices);
+    if (rows.isEmpty) return const LyricEditResult.notApplied();
+
+    final count = rows.length;
+    _recordEdit('删除 $count 行');
+    final updated = batchService.delete(document, rows);
+    for (final index in rows) {
+      final id = document.lines[index].id;
+      if (id != null) _manuallyEditedLineIds.remove(id);
+    }
+    _document = updated;
+    final remaining = updated.lines.length;
+    final selected = _selectedLineIndex;
+    if (remaining == 0) {
+      _selectedLineIndex = null;
+    } else if (selected != null) {
+      final before = rows.where((index) => index < selected).length;
+      _selectedLineIndex = rows.contains(selected)
+          ? rows.first.clamp(0, remaining - 1).toInt()
+          : selected - before;
+    }
+    _clearBatch();
+    _markEdited();
+    notifyListeners();
+    return LyricEditResult(
+      clearsAudition: auditionTarget,
+      hint: '已删除 $count 行',
+    );
+  }
+
+  /// Joins the consecutive rows of [indices] into one row, as one undo
+  /// step, and leaves batch mode. The joined row counts as hand-edited.
+  LyricEditResult mergeLines(List<int> indices, {bool auditionTarget = false}) {
+    final document = _document;
+    if (document == null) return const LyricEditResult.notApplied();
+    final rows = LyricLineBatchService.normalize(document, indices);
+    if (rows.length < 2) {
+      return const LyricEditResult.notApplied(message: '至少选两行才能合并');
+    }
+    final merged = batchService.merge(document, rows);
+    if (merged == null) {
+      return const LyricEditResult.notApplied(message: '只能合并相邻的行，请选连续的几行');
+    }
+
+    final range = '第 ${rows.first + 1}–${rows.last + 1} 行';
+    _recordEdit('合并$range');
+    final updated = markerService.assignMissingLineIds(merged);
+    for (final index in rows.skip(1)) {
+      final id = document.lines[index].id;
+      if (id != null) _manuallyEditedLineIds.remove(id);
+    }
+    final mergedId = updated.lines[rows.first].id;
+    if (mergedId != null) _manuallyEditedLineIds.add(mergedId);
+    _document = updated;
+    final selected = _selectedLineIndex;
+    if (selected != null && selected > rows.first) {
+      _selectedLineIndex = selected <= rows.last
+          ? rows.first
+          : selected - (rows.length - 1);
+    }
+    _clearBatch();
+    _markEdited();
+    notifyListeners();
+    return LyricEditResult(
+      clearsAudition: auditionTarget,
+      hint: '已把$range合并成一行',
+    );
+  }
+
+  /// Moves every row of [indices] by [delta] as one undo step. Batch mode
+  /// stays on, so the same rows can be nudged again.
+  LyricEditResult shiftLines(
+    List<int> indices,
+    Duration delta, {
+    Duration? audioDuration,
+    bool auditionTarget = false,
+  }) {
+    final document = _document;
+    if (document == null) return const LyricEditResult.notApplied();
+    final result = batchService.shift(
+      document,
+      indices,
+      delta,
+      audioDuration: audioDuration,
+    );
+    final updated = result.document;
+    if (updated == null) {
+      return const LyricEditResult.notApplied(message: '时间没有变化');
+    }
+    final count = result.changedCount;
+    _recordEdit('平移 $count 行的时间');
+    _document = updated;
+    _markEdited();
+    notifyListeners();
+    return LyricEditResult(
+      clearsAudition: auditionTarget,
+      hint: lyricBatchShiftMessage(count, delta, result.clampedCount),
+    );
+  }
+
   /// Swaps in a document produced elsewhere (alignment, proofreading, restore).
   ///
   /// [keepBatchSnapshot] keeps the pre-change state so the batch can be undone
@@ -662,4 +941,12 @@ class LyricEditorDocumentController extends ChangeNotifier {
       isReferenceProofread: isReferenceProofread,
     );
   }
+}
+
+/// e.g. "已把 3 行的时间推后 0.50 秒", noting rows held at an edge.
+String lyricBatchShiftMessage(int rows, Duration delta, int clamped) {
+  final seconds = (delta.inMilliseconds.abs() / 1000).toStringAsFixed(2);
+  final direction = delta.isNegative ? '提前' : '推后';
+  final edge = clamped == 0 ? '' : '（$clamped 行已到开头或结尾，停在边界）';
+  return '已把 $rows 行的时间$direction $seconds 秒$edge';
 }
