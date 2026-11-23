@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-21 09:30] Mobile audio and video import ([entry](log/entries/2026-12-21-0930-mobile-audio-and-video-import.md))
 - [2026-12-20 09:30] Song tag queries and tap-sync prompt ([entry](log/entries/2026-12-20-0930-song-tag-queries-and-tap-sync-prompt.md))
 - [2026-12-19 09:30] Untimed reference lyrics ([entry](log/entries/2026-12-19-0930-untimed-reference-lyrics.md))
 - [2026-12-18 09:30] Simplify the proofreading menu ([entry](log/entries/2026-12-18-0930-simplify-the-proofreading-menu.md))

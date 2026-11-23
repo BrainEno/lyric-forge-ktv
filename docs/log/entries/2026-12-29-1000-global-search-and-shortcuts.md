@@ -1,0 +1,24 @@
+# [2026-12-29 10:00] Global search and the shortcut panel
+
+- Scope: round 45, user request: friendlier UI, chosen area 全局搜索 + 快捷键面板 (D-065).
+  - New feature `lib/features/search/` (domain → project/player domain only):
+    - `GlobalSearchItem` / `GlobalSearchTarget` (open route, play song, open playlist, show shortcuts), `GlobalSearchIndex` (normalised once; exact > prefix > word start > contains > all words > keyword > subtitle; lyric lines as 歌词里提到; per-kind limits with a hidden count; `browse` for the empty query), `normalizeSearchText`, `findSearchMatch`.
+    - `globalSearchActions(phone:)`: desktop and phone page lists with English and pinyin keywords; `keyboardShortcutGroups(apple:)`: the shortcut catalog.
+    - `LocalGlobalSearchSource`: projects (newest first, lyric lines), library songs (user overrides win, missing files skipped), playlists (playable songs); each store read on its own.
+    - Presentation: `showGlobalSearch` / `GlobalSearchPalette` (top dialog on desktop, full screen on compact; ↑/↓, Enter, Shift+Enter, Esc; highlighted matches; retry on failure), `runGlobalSearchChoice`, `showKeyboardShortcuts` / `KeyboardShortcutsPanel`, `GlobalSearchShortcuts` (Ctrl+K or ⌘K, Ctrl+/ or ⌘/, F1, ? while nothing is focused).
+  - Core: `AppCommandKeys` (Ctrl vs ⌘ labels), `AppChromeScope.onOpenSearch` / `onShowShortcuts` (+ `searchOf` / `shortcutsOf`), `AppSearchButton`, the rail's search button (icon, or a field with its keys when extended) and shortcut button, route `Routes.projectTrash` (`/projects/trash`, under 工程).
+  - App: `assembleGlobalSearchDependencies`, `app.dart` opens routes like the rail (`goToDestination` for top-level destinations), skips the dialogs during fullscreen KTV, wraps the routed shell in `GlobalSearchShortcuts`; the router builds `/projects/trash` and passes `?playlist=` to the library shell → `LocalCollectionsScreen.initialPlaylistId`.
+  - Pages: search buttons in the dashboard header and the library section strip; the phone's listening home search opens the global search.
+- Files:
+  - New: `lib/features/search/{domain/global_search_item,domain/global_search_index,domain/global_search_actions,domain/global_search_source,domain/keyboard_shortcut_catalog,data/local_global_search_source,presentation/global_search_dependencies,presentation/widgets/global_search_palette,presentation/widgets/global_search_shortcuts,presentation/widgets/keyboard_shortcuts_panel}.dart`, `lib/core/navigation/app_command_keys.dart`, `lib/core/widgets/app_search_button.dart`, `lib/app/search_assembly.dart`.
+  - Changed: `lib/app/{app,app_chrome,app_router}.dart`, `lib/core/navigation/{app_chrome_scope,app_destinations,app_navigation_shell,routes}.dart`, `lib/features/home/presentation/screens/dashboard_screen.dart`, `lib/features/player/presentation/screens/{listen_home_screen,local_collections_screen,local_music_library_shell}.dart`.
+  - Tests: `test/features/search/{domain/global_search_index_test,data/local_global_search_source_test,presentation/global_search_palette_test,presentation/global_search_shortcuts_test,presentation/keyboard_shortcuts_panel_test}.dart`, `test/core/navigation/app_search_entry_test.dart`.
+  - `docs/decisions.md` (D-065), `docs/handoff.md`.
+- Validation:
+  - CI probe on the branch: `dart format` clean, `flutter analyze` no errors or warnings, `flutter test` 5309 passed.
+  - The first probe caught module-level "already open" flags that stayed set when a dialog was torn down without closing; the search box and the panel now count themselves in `initState` / `dispose`.
+- Notes:
+  - Pinyin is only in the page keywords; song and project titles are matched as written.
+  - Playing a song from the search replaces the queue with that song; Shift+Enter keeps the queue.
+  - The shortcut catalog repeats the bindings; `keyboard_shortcuts_panel_test.dart` checks it against the timing dialogs' own key hints.
+- Commit: `Add the global search (Ctrl/⌘+K) and the keyboard shortcut panel`

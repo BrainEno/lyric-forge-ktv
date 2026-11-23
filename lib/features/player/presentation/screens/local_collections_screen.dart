@@ -34,10 +34,15 @@ class LocalCollectionsScreen extends StatefulWidget {
   /// Supplied by `LocalMusicLibraryShell`.
   final LocalLibraryDependencies dependencies;
 
+  /// The playlist to open with, e.g. one picked in the global search
+  /// (D-065). Ignored when it no longer exists.
+  final String? initialPlaylistId;
+
   const LocalCollectionsScreen({
     super.key,
     required this.view,
     required this.dependencies,
+    this.initialPlaylistId,
   });
 
   @override
@@ -68,6 +73,9 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     _library = dependencies.libraryRepository;
     _metadata = dependencies.metadataRepository;
     _session = dependencies.playbackSession;
+    if (widget.view == LocalCollectionView.playlists) {
+      _selectedPlaylistId = widget.initialPlaylistId;
+    }
     _collectionSubscription = _collections.changes.listen((_) {
       unawaited(_reload());
     });

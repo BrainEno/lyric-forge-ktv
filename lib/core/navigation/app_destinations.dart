@@ -78,7 +78,8 @@ AppDestination? destinationForRoute(String? routeName) {
   if (path == Routes.home ||
       path == Routes.dashboard ||
       path == Routes.import ||
-      path == Routes.projects) {
+      path == Routes.projects ||
+      path == Routes.projectTrash) {
     return AppDestination.projects;
   }
 

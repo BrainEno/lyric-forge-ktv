@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/layout/app_responsive.dart';
+import '../core/navigation/app_chrome_controller.dart';
 import '../core/navigation/app_destinations.dart';
 import '../core/navigation/current_route_observer.dart';
 import '../core/navigation/destination_navigation.dart';
@@ -14,12 +17,17 @@ import '../features/player/presentation/widgets/global_playback_shortcuts.dart';
 import '../features/player/presentation/widgets/global_player_bar.dart';
 import '../features/player/presentation/widgets/mobile_global_player_bar.dart';
 import '../features/player/presentation/widgets/playback_lyrics_availability_sync.dart';
+import '../features/search/presentation/global_search_dependencies.dart';
+import '../features/search/presentation/widgets/global_search_palette.dart';
+import '../features/search/presentation/widgets/global_search_shortcuts.dart';
+import '../features/search/presentation/widgets/keyboard_shortcuts_panel.dart';
 import '../features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 import 'app_chrome.dart';
 import 'app_router.dart';
 import 'app_services.dart';
 import 'local_library_assembly.dart';
 import 'playback_assembly.dart';
+import 'search_assembly.dart';
 
 final _appRouteObserver = CurrentRouteObserver();
 
@@ -45,6 +53,40 @@ void _goToMobileDestination(MobileDestination destination) {
     destination,
     _appRouteObserver.routeName.value,
   );
+}
+
+/// Opens [route] from the global search (D-065): a top-level destination the
+/// way its rail button does, anything else on top of the current page.
+void _openRoute(String route) {
+  final navigator = _navigatorKey.currentState;
+  if (navigator == null) return;
+  final current = _appRouteObserver.routeName.value;
+  for (final destination in AppDestination.values) {
+    if (destination.route == route) {
+      goToDestination(navigator, destination, current);
+      return;
+    }
+  }
+  if (route == current) return;
+  unawaited(navigator.pushNamed<void>(route));
+}
+
+/// A context under the navigator for the search and the shortcut panel, or
+/// null while fullscreen KTV is up: it keeps the keys for itself and has no
+/// room for a dialog.
+BuildContext? _dialogContext() {
+  if (AppChromeController.immersive.value) return null;
+  return _navigatorKey.currentContext;
+}
+
+void _openSearch(GlobalSearchDependencies dependencies) {
+  final context = _dialogContext();
+  if (context != null) unawaited(showGlobalSearch(context, dependencies));
+}
+
+void _showShortcuts() {
+  final context = _dialogContext();
+  if (context != null) unawaited(showKeyboardShortcuts(context));
 }
 
 /// The app shell: theme, navigator, routing table and the chrome around it.
@@ -83,6 +125,14 @@ class ElysiumPlayerApp extends StatelessWidget {
     final localLibrary = services.isInitialized
         ? assembleLocalLibraryDependencies(services)
         : null;
+    // The global search and its keys (D-065), also skipped before bootstrap.
+    final search = services.isInitialized
+        ? assembleGlobalSearchDependencies(
+            services,
+            phone: !desktopChrome,
+            openRoute: _openRoute,
+          )
+        : null;
 
     // The chosen theme (decision D-042): the host switches the palette that
     // AppColors reads and rebuilds everything below when it changes.
@@ -92,6 +142,7 @@ class ElysiumPlayerApp extends StatelessWidget {
         services: services,
         router: router,
         localLibrary: localLibrary,
+        search: search,
         desktopChrome: desktopChrome,
         theme: AppTheme.themeFor(variant.palette),
       ),
@@ -102,6 +153,7 @@ class ElysiumPlayerApp extends StatelessWidget {
     required AppServices services,
     required AppRouter router,
     required LocalLibraryDependencies? localLibrary,
+    required GlobalSearchDependencies? search,
     required bool desktopChrome,
     required ThemeData theme,
   }) {
@@ -126,13 +178,24 @@ class ElysiumPlayerApp extends StatelessWidget {
         //
         // The global playback shortcuts sit inside it, around the routes, so
         // focused text fields and dialogs see their keys first.
+        final openSearch = search == null ? null : () => _openSearch(search);
+        // The phone has no keyboard to list shortcuts for.
+        final showShortcuts = search != null && desktopChrome
+            ? _showShortcuts
+            : null;
         final syncedShell = services.isInitialized
             ? PlaybackLyricsAvailabilitySync(
                 lyricsResolver: buildPlaybackLyricsResolver(services),
                 playbackSession: services.playbackSessionService,
                 child: GlobalPlaybackShortcuts(
                   playbackSession: services.playbackSessionService,
-                  child: shell,
+                  child: openSearch == null
+                      ? shell
+                      : GlobalSearchShortcuts(
+                          onSearch: openSearch,
+                          onShortcuts: showShortcuts ?? () {},
+                          child: shell,
+                        ),
                 ),
               )
             : shell;
@@ -142,6 +205,8 @@ class ElysiumPlayerApp extends StatelessWidget {
           currentRoute: _appRouteObserver.routeName,
           onSelectDestination: _goToDestination,
           onSelectMobileDestination: _goToMobileDestination,
+          onOpenSearch: openSearch,
+          onShowShortcuts: showShortcuts,
           queueBar: desktopChrome && services.isInitialized
               ? GlobalTranscriptionQueueBar(queue: services.transcriptionQueue)
               : null,

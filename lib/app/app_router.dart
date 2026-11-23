@@ -17,6 +17,7 @@ import '../features/player/presentation/screens/player_screen.dart';
 import '../features/player/presentation/screens/quick_play_screen.dart';
 import '../features/project/presentation/screens/project_detail_screen.dart';
 import '../features/project/presentation/screens/project_list_screen.dart';
+import '../features/project/presentation/screens/project_trash_screen.dart';
 import '../features/settings/presentation/screens/settings_screen.dart';
 import '../features/transfer/presentation/screens/desktop_media_transfer_hub_screen.dart';
 import '../features/transfer/presentation/screens/media_hub_qr_scanner_screen.dart';
@@ -59,17 +60,26 @@ class AppRouter {
 
   /// The music library is one screen with five sections; each route only
   /// differs in which section (and, for songs, which smart view) is selected.
-  Widget _libraryShell(LibraryShellTarget target) => LocalMusicLibraryShell(
-    initialIndex: target.index,
-    initialSmartView: target.smartView,
-    dependencies: assembleLocalLibraryDependencies(services),
-  );
+  Widget _libraryShell(LibraryShellTarget target, {String? playlistId}) {
+    return LocalMusicLibraryShell(
+      initialIndex: target.index,
+      initialSmartView: target.smartView,
+      initialPlaylistId: playlistId,
+      dependencies: assembleLocalLibraryDependencies(services),
+    );
+  }
 
   Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final uri = Uri.parse(settings.name ?? Routes.home);
 
     final section = LocalMusicLibraryShell.targetFor(uri.path);
-    if (section != null) return _fadeRoute(_libraryShell(section), settings);
+    if (section != null) {
+      final playlistId = uri.queryParameters['playlist'];
+      return _fadeRoute(
+        _libraryShell(section, playlistId: playlistId),
+        settings,
+      );
+    }
 
     switch (uri.path) {
       case Routes.home when listeningHome:
@@ -84,6 +94,7 @@ class AppRouter {
       case Routes.import when listeningHome:
       case Routes.review when listeningHome:
       case Routes.projects when listeningHome:
+      case Routes.projectTrash when listeningHome:
         return _mobileLyrics(settings);
 
       case Routes.home:
@@ -147,6 +158,12 @@ class AppRouter {
             dependencies: assembleProjectListDependencies(services),
             duplicatesOnly: uri.queryParameters['duplicates'] == '1',
           ),
+          settings,
+        );
+
+      case Routes.projectTrash:
+        return _fadeRoute(
+          ProjectTrashScreen(service: assembleProjectDeletionService(services)),
           settings,
         );
 

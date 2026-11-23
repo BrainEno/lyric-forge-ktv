@@ -6,6 +6,7 @@ import '../../../../core/navigation/routes.dart';
 import '../../../../core/navigation/transfer_entry.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_search_button.dart';
 import '../../../../core/widgets/app_tap_pulse.dart';
 import '../../domain/models/local_library_browse_item.dart';
 import '../local_library_dependencies.dart';
@@ -33,6 +34,10 @@ class LocalMusicLibraryShell extends StatefulWidget {
   /// The smart view the songs section opens with; null opens 全部.
   final LocalLibrarySmartView? initialSmartView;
 
+  /// The playlist the 歌单 section opens on (`/playlists?playlist=<id>`,
+  /// from the global search, D-065); null opens the list.
+  final String? initialPlaylistId;
+
   /// Supplied by the routing table (`lib/app/local_library_assembly.dart`) and
   /// handed to each section. Builds only when [sections] is omitted.
   final LocalLibraryDependencies? dependencies;
@@ -45,6 +50,7 @@ class LocalMusicLibraryShell extends StatefulWidget {
     super.key,
     this.initialIndex = 0,
     this.initialSmartView,
+    this.initialPlaylistId,
     this.dependencies,
     this.sections,
   }) : assert(
@@ -187,6 +193,7 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
       LocalCollectionsScreen(
         view: LocalCollectionView.playlists,
         dependencies: dependencies,
+        initialPlaylistId: widget.initialPlaylistId,
       ),
     ];
   }
@@ -346,6 +353,12 @@ class _SectionStripState extends State<_SectionStrip> {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
+            // Shown only where the app offers the global search (D-065).
+            AppSearchButton(
+              filledTonal: true,
+              size: layout.minimumInteractiveExtent,
+              trailingGap: AppSpacing.xs,
+            ),
             IconButton.filledTonal(
               key: LocalMusicLibraryShell.transferButtonKey,
               tooltip: TransferEntry.label,

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -6,6 +8,8 @@ import '../theme/app_appearance_host.dart';
 import '../theme/color_tokens.dart';
 import '../widgets/app_tap_pulse.dart';
 import '../widgets/app_theme_menu_button.dart';
+import 'app_chrome_scope.dart';
+import 'app_command_keys.dart';
 import 'app_destinations.dart';
 import 'mobile_destinations.dart';
 
@@ -119,6 +123,9 @@ class AppNavigationRail extends StatefulWidget {
   /// Space above the first destination.
   static const double topInset = 12;
 
+  static const searchKey = ValueKey('app-navigation-rail-search');
+  static const shortcutsKey = ValueKey('app-navigation-rail-shortcuts');
+
   @override
   State<AppNavigationRail> createState() => _AppNavigationRailState();
 }
@@ -136,6 +143,11 @@ class _AppNavigationRailState extends State<AppNavigationRail>
     // places (decision D-042). Absent when the app has no appearance
     // controller, as in most widget tests.
     final appearance = AppAppearanceScope.maybeOf(context);
+    // The global search sits above the places and the shortcut panel by the
+    // theme button (D-065); both only where the app shell offers them.
+    final search = AppChromeScope.searchOf(context);
+    final shortcuts = AppChromeScope.shortcutsOf(context);
+    final platform = Theme.of(context).platform;
     return SizedBox(
       width: extended
           ? AppNavigationRail.extendedWidth
@@ -146,7 +158,17 @@ class _AppNavigationRailState extends State<AppNavigationRail>
           right: false,
           child: Column(
             children: [
-              Expanded(child: _rail(selected, extended)),
+              Expanded(child: _rail(selected, extended, search, platform)),
+              if (shortcuts != null)
+                IconButton(
+                  key: AppNavigationRail.shortcutsKey,
+                  tooltip: AppCommandKeys.hint(
+                    '快捷键',
+                    AppCommandKeys.withCommand('/', platform),
+                  ),
+                  onPressed: shortcuts,
+                  icon: const Icon(Icons.keyboard_outlined),
+                ),
               if (appearance != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -162,7 +184,67 @@ class _AppNavigationRailState extends State<AppNavigationRail>
     );
   }
 
-  Widget _rail(AppDestination? selected, bool extended) {
+  Widget _searchButton(
+    VoidCallback search,
+    bool extended,
+    TargetPlatform platform,
+  ) {
+    final keys = AppCommandKeys.search(platform);
+    final icon = IconButton(
+      key: AppNavigationRail.searchKey,
+      tooltip: AppCommandKeys.hint('搜索', keys),
+      onPressed: search,
+      icon: const Icon(Icons.search_rounded),
+    );
+    if (!extended) return icon;
+    // The rail's width animates; below the field's width the icon stands in.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = math.min(
+          constraints.maxWidth - 24,
+          AppNavigationRail.extendedWidth - 24,
+        );
+        if (width < 140) return icon;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: SizedBox(width: width, child: _searchField(search, keys)),
+        );
+      },
+    );
+  }
+
+  Widget _searchField(VoidCallback search, String keys) {
+    return OutlinedButton(
+      key: AppNavigationRail.searchKey,
+      onPressed: search,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.search_rounded, size: 18),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text('搜索', maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          Text(
+            keys,
+            maxLines: 1,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rail(
+    AppDestination? selected,
+    bool extended,
+    VoidCallback? search,
+    TargetPlatform platform,
+  ) {
     return NavigationRail(
       backgroundColor: Colors.transparent,
       selectedIndex: selected == null
@@ -180,7 +262,12 @@ class _AppNavigationRailState extends State<AppNavigationRail>
       // No brand mark above the destinations any more (D-049): the user
       // found the embedded mark distracting. A little air keeps the first
       // destination off the window's top edge.
-      leading: const SizedBox(height: AppNavigationRail.topInset),
+      leading: search == null
+          ? const SizedBox(height: AppNavigationRail.topInset)
+          : Padding(
+              padding: const EdgeInsets.only(top: AppNavigationRail.topInset),
+              child: _searchButton(search, extended, platform),
+            ),
       destinations: [
         for (final destination in AppDestination.values)
           NavigationRailDestination(

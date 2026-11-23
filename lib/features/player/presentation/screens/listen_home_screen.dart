@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/diagnostics/best_effort.dart';
 import '../../../../core/layout/app_responsive.dart';
+import '../../../../core/navigation/app_chrome_scope.dart';
 import '../../../../core/navigation/playback_destination.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/navigation/transfer_entry.dart';
@@ -300,7 +301,13 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
                           _HomeHeader(
                             songCount: _availableCount,
                             loading: _loading,
-                            onSearch: () => _open(Routes.library),
+                            // The global search when the app offers it
+                            // (D-065): songs, playlists and lyrics at once.
+                            onSearch:
+                                AppChromeScope.searchOf(context) ??
+                                () => _open(Routes.library),
+                            searchesEverything:
+                                AppChromeScope.searchOf(context) != null,
                             onImport: widget.dependencies.mediaImport == null
                                 ? null
                                 : _importMedia,
@@ -450,12 +457,16 @@ class _HomeHeader extends StatelessWidget {
     required this.songCount,
     required this.loading,
     required this.onSearch,
+    this.searchesEverything = false,
     this.onImport,
   });
 
   final int songCount;
   final bool loading;
   final VoidCallback onSearch;
+
+  /// [onSearch] opens the global search rather than the library.
+  final bool searchesEverything;
   final VoidCallback? onImport;
 
   @override
@@ -493,7 +504,8 @@ class _HomeHeader extends StatelessWidget {
             icon: const Icon(Icons.add_circle_outline_rounded),
           ),
         IconButton(
-          tooltip: '搜索音乐库',
+          key: const ValueKey('listen-home-search'),
+          tooltip: searchesEverything ? '搜索歌曲、歌单和歌词' : '搜索音乐库',
           onPressed: onSearch,
           icon: const Icon(Icons.search_rounded),
         ),

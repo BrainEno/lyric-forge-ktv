@@ -27,6 +27,10 @@ abstract class Routes {
   /// 全部工程: every lyric project, deleting and duplicate cleanup (D-063).
   static const String projects = '/projects';
 
+  /// 最近删除: deleted projects, restorable for 30 days (D-064); the global
+  /// search opens it directly (D-065).
+  static const String projectTrash = '/projects/trash';
+
   static const String settings = '/settings';
   static const String mediaSharing = '/media-sharing';
   static const String remoteLibrary = '/remote-library';
