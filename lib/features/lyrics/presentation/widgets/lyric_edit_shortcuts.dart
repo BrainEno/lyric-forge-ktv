@@ -16,6 +16,10 @@ class LyricEditShortcuts extends StatelessWidget {
   /// Opens document-wide find-and-replace: Ctrl+H, or Cmd+Shift+H on macOS
   /// where Cmd+H hides the app.
   final VoidCallback? onFindReplace;
+
+  /// Leaves batch mode (Esc, D-066); null while it is off, so Esc keeps
+  /// its other meanings.
+  final VoidCallback? onEndBatch;
   final Widget child;
 
   const LyricEditShortcuts({
@@ -24,6 +28,7 @@ class LyricEditShortcuts extends StatelessWidget {
     required this.onRedo,
     this.onSave,
     this.onFindReplace,
+    this.onEndBatch,
     required this.child,
   });
 
@@ -35,8 +40,11 @@ class LyricEditShortcuts extends StatelessWidget {
   Widget build(BuildContext context) {
     final save = onSave;
     final findReplace = onFindReplace;
+    final endBatch = onEndBatch;
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
+        if (endBatch != null)
+          const SingleActivator(LogicalKeyboardKey.escape): endBatch,
         if (save != null) ...{
           const SingleActivator(LogicalKeyboardKey.keyS, control: true): save,
           const SingleActivator(LogicalKeyboardKey.keyS, meta: true): save,

@@ -144,6 +144,21 @@ enum LyricListCommand {
 
   /// Focus the search box (Ctrl or Cmd + F).
   search,
+
+  /// Extend the batch choice to the next shown row (Shift + ↓, D-066).
+  extendNext,
+
+  /// Extend the batch choice to the previous shown row (Shift + ↑).
+  extendPrevious,
+
+  /// Choose every shown row (Ctrl or Cmd + A).
+  selectAll,
+
+  /// Leave batch mode (Esc); only used while it is on.
+  endBatch;
+
+  /// Whether the command grows the batch choice as it moves.
+  bool get growsBatch => this == extendNext || this == extendPrevious;
 }
 
 /// Keyboard and scrolling rules of the list.
@@ -151,13 +166,28 @@ abstract final class LyricListNavigation {
   /// The command [key] stands for, given whether Ctrl or Cmd is held.
   ///
   /// Delete and Backspace only delete with Ctrl or Cmd, so a stray key does
-  /// not remove a line.
+  /// not remove a line. [shift] turns the arrows into extending the batch
+  /// choice; Esc ends batch mode, and is left alone outside it ([batch]).
   static LyricListCommand? commandFor(
     LogicalKeyboardKey key, {
     required bool command,
+    bool shift = false,
+    bool batch = false,
   }) {
-    if (key == LogicalKeyboardKey.arrowDown) return LyricListCommand.next;
-    if (key == LogicalKeyboardKey.arrowUp) return LyricListCommand.previous;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      return shift ? LyricListCommand.extendNext : LyricListCommand.next;
+    }
+    if (key == LogicalKeyboardKey.arrowUp) {
+      return shift
+          ? LyricListCommand.extendPrevious
+          : LyricListCommand.previous;
+    }
+    if (key == LogicalKeyboardKey.keyA && command) {
+      return LyricListCommand.selectAll;
+    }
+    if (key == LogicalKeyboardKey.escape) {
+      return batch ? LyricListCommand.endBatch : null;
+    }
     if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter ||
         key == LogicalKeyboardKey.f2) {

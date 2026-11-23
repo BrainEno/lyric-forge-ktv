@@ -1123,6 +1123,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                         focusRequestId: _focusRequestId,
                         focusLineIndex: _focusLineIndex,
                         manuallyEditedLineIndices: _manuallyEditedLineIndices,
+                        editor: _editor,
                       );
                     },
                   );
@@ -1164,6 +1165,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     onUpdateOffset: _updateGlobalOffset,
     onSetStartFromPlayback: _setLineStartFromPlayback,
     onSetEndFromPlayback: _setLineEndFromPlayback,
+    onBatchEdit: _applyRowEdit,
   );
 
   void _setLoopCurrentLine(bool value) {
