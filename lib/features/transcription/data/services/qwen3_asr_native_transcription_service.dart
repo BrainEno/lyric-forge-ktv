@@ -783,6 +783,10 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       'en' => 'English',
       'ja' => 'Japanese',
       'ko' => 'Korean',
+      'fr' => 'French',
+      'de' => 'German',
+      'es' => 'Spanish',
+      'ru' => 'Russian',
       _ => null,
     };
   }

@@ -400,6 +400,11 @@ class LyricEditorContent extends StatelessWidget {
                                     onAutoProofread: proofread.onAutoProofread,
                                     onVocalCheckAction:
                                         proofread.onVocalCheckAction,
+                                    // Through the unsaved-edits check.
+                                    onBackToProject:
+                                        Navigator.of(context).canPop()
+                                        ? () => Navigator.of(context).maybePop()
+                                        : null,
                                     onStartReview: firstQueued == null
                                         ? null
                                         : () {

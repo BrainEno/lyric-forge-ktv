@@ -13,6 +13,7 @@ import '../../../../core/widgets/app_badge.dart';
 import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
+import '../../../transcription/domain/models/spoken_language.dart';
 import '../../../transcription/domain/models/transcription_degradation.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/models/transcription_run_progress.dart';
@@ -27,6 +28,7 @@ import '../widgets/project_detail_columns.dart';
 import '../widgets/production_steps.dart';
 import '../widgets/recognition_progress_card.dart';
 import '../widgets/project_audio_sources_section.dart';
+import '../widgets/project_sung_language_selector.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   final String projectId;
@@ -158,6 +160,59 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       ).showSnackBar(const SnackBar(content: Text('本地歌词识别环境已保存')));
     }
     return config;
+  }
+
+  /// Saves this song's 演唱语言 (D-062); null is 自动判断. A draft that
+  /// already exists is not touched: the message offers to recognise again.
+  Future<void> _setSungLanguage(ProjectManifest project, String? code) async {
+    if (_busy) return;
+    final latest = await _repository.getProjectById(project.id);
+    if (latest == null || !mounted) return;
+    if (SpokenLanguageResolution.projectChoiceOf(latest.metadata) == code) {
+      return;
+    }
+    final metadata = Map<String, dynamic>.from(latest.metadata);
+    if (code == null) {
+      metadata.remove(SpokenLanguageResolution.projectChoiceKey);
+    } else {
+      metadata[SpokenLanguageResolution.projectChoiceKey] = code;
+    }
+    final ProjectManifest saved;
+    try {
+      saved = await _repository.updateProjectIfUnchanged(
+        latest.copyWith(metadata: metadata),
+        expectedRevision: latest.revision,
+      );
+    } on ProjectUpdateConflictException {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('工程刚刚被修改，请再选一次演唱语言')));
+      }
+      await _refreshProject();
+      return;
+    }
+    await _refreshProject();
+    if (!mounted) return;
+    final label = ProjectSungLanguageSelector.labelOf(code);
+    final applies = code == null ? '改为自动判断' : '已设为$label';
+    final canRecognize = _isDesktop && saved.audioAsset != null;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          saved.hasLyrics ? '演唱语言$applies，重新识别后生效' : '演唱语言$applies，生成歌词时使用',
+        ),
+        duration: const Duration(seconds: 6),
+        action: saved.hasLyrics && canRecognize
+            ? SnackBarAction(
+                label: '重新识别',
+                onPressed: () {
+                  if (mounted) _startTranscription(saved);
+                },
+              )
+            : null,
+      ),
+    );
   }
 
   Future<void> _startTranscription(ProjectManifest project) async {
@@ -550,6 +605,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               onCancel: _cancelAccompanimentGeneration,
             ),
             onTranscribe: () => _startTranscription(project),
+            onSungLanguageChanged: _busy
+                ? null
+                : (code) => _setSungLanguage(project, code),
             onCancelTranscription: _cancelTranscription,
             onConfigureTranscription: _configureTranscription,
             onOpenEditor: () => _openLyricEditor(project),
@@ -599,6 +657,7 @@ class _ProjectDetailContent extends StatelessWidget {
   final VoidCallback onImportVocal;
   final AccompanimentGenerationView generation;
   final VoidCallback onTranscribe;
+  final ValueChanged<String?>? onSungLanguageChanged;
   final VoidCallback onCancelTranscription;
   final VoidCallback onConfigureTranscription;
   final VoidCallback onOpenEditor;
@@ -617,6 +676,7 @@ class _ProjectDetailContent extends StatelessWidget {
     required this.onImportVocal,
     required this.generation,
     required this.onTranscribe,
+    required this.onSungLanguageChanged,
     required this.onCancelTranscription,
     required this.onConfigureTranscription,
     required this.onOpenEditor,
@@ -712,6 +772,7 @@ class _ProjectDetailContent extends StatelessWidget {
                               onImportVocal: onImportVocal,
                               generation: generation,
                               onTranscribe: onTranscribe,
+                              onSungLanguageChanged: onSungLanguageChanged,
                               onCancelTranscription: onCancelTranscription,
                               onConfigureTranscription:
                                   onConfigureTranscription,
@@ -1039,7 +1100,10 @@ class _LyricStatusCard extends StatelessWidget {
                   value: document!.lines.length.toString(),
                 ),
                 if (document.language.trim().isNotEmpty)
-                  _MetricChip(label: '语言', value: document.language),
+                  _MetricChip(
+                    label: '语言',
+                    value: SpokenLanguagePolicy.label(document.language.trim()),
+                  ),
                 if (lowConfidence != null)
                   _MetricChip(label: '低置信度', value: '$lowConfidence 行'),
                 if (fallback != null)
@@ -1077,6 +1141,7 @@ class _ActionPanel extends StatelessWidget {
   final VoidCallback onImportVocal;
   final AccompanimentGenerationView generation;
   final VoidCallback onTranscribe;
+  final ValueChanged<String?>? onSungLanguageChanged;
   final VoidCallback onCancelTranscription;
   final VoidCallback onConfigureTranscription;
   final VoidCallback onOpenEditor;
@@ -1093,6 +1158,7 @@ class _ActionPanel extends StatelessWidget {
     required this.onImportVocal,
     required this.generation,
     required this.onTranscribe,
+    required this.onSungLanguageChanged,
     required this.onCancelTranscription,
     required this.onConfigureTranscription,
     required this.onOpenEditor,
@@ -1184,6 +1250,16 @@ class _ActionPanel extends StatelessWidget {
             ),
           ],
           if (isDesktop && project.audioAsset != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            ProjectSungLanguageSelector(
+              value: SpokenLanguageResolution.projectChoiceOf(project.metadata),
+              recognizedAs: SpokenLanguageResolution.describeProject(
+                project.metadata,
+              ),
+              onChanged: isTranscribing ? null : onSungLanguageChanged,
+            ),
+          ],
+          if (isDesktop && project.audioAsset != null) ...[
             const Divider(height: AppSpacing.xl),
             ProjectAudioSourcesSection(
               audio: project.audioAsset!,
@@ -1263,8 +1339,9 @@ class _ProjectMetadata extends StatelessWidget {
       _MetadataValue('更新', _formatDate(project.updatedAt)),
       if (project.audioAsset != null)
         _MetadataValue('音频', project.audioAsset!.format.toUpperCase()),
-      if (transcription is Map && transcription['detectedLanguage'] != null)
-        _MetadataValue('识别语言', transcription['detectedLanguage'].toString()),
+      if (SpokenLanguageResolution.describeProject(project.metadata)
+          case final language?)
+        _MetadataValue('演唱语言', language),
       if (transcription is Map && transcription['mode'] != null)
         _MetadataValue(
           '识别模式',

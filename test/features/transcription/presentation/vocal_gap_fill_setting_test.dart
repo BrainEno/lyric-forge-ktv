@@ -127,4 +127,50 @@ void main() {
     expect(result!.vocalSeparation, initial.vocalSeparation);
     expect(result!.whisperExecutable, 'whisper-cli');
   });
+
+  group('识别语言 (D-062)', () {
+    final dropdown = find.byKey(
+      const ValueKey('transcription_language_dropdown'),
+    );
+
+    String? shown(WidgetTester tester) =>
+        tester.widget<DropdownButtonFormField<String>>(dropdown).initialValue;
+
+    testWidgets('offers 自动判断 and the per-song languages', (tester) async {
+      TranscriptionConfig? result;
+      await _open(tester, initial, onResult: (value) => result = value);
+      expect(shown(tester), 'auto');
+      expect(find.text('自动判断'), findsOneWidget);
+
+      await tester.ensureVisible(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+      for (final label in ['英文', '日文', '法语', '西班牙语', '俄语']) {
+        expect(find.text(label), findsWidgets, reason: label);
+      }
+      await tester.tap(find.text('法语').last);
+      await tester.pumpAndSettle();
+
+      final button = find.text('保存并退出');
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(result?.language, 'fr');
+    });
+
+    testWidgets('an odd saved value still opens', (tester) async {
+      await _open(tester, initial.copyWith(language: ' IT '));
+      expect(shown(tester), 'it');
+      expect(find.text('意大利语'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an empty saved value reads as 自动判断', (tester) async {
+      await _open(tester, initial.copyWith(language: ''));
+      expect(shown(tester), 'auto');
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

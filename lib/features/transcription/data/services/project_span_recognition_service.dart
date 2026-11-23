@@ -104,9 +104,9 @@ class ProjectSpanRecognitionService implements LyricSpanRecognizer {
     return _run(projectId, start, end, (input, clip, length) async {
       // A few seconds tell Whisper little about the language; the song's
       // own, found when it was recognised, is pinned instead (D-061).
-      final config = SpokenLanguagePolicy.withKnownLanguage(
+      final config = SpokenLanguagePolicy.forProject(
         await _readyConfig(engine),
-        input.language,
+        input.projectMetadata,
       );
       _checkCancelled();
       final shared = engine == LyricSpanEngine.qwen ? _sharedQwen : null;
@@ -278,7 +278,7 @@ class ProjectSpanRecognitionService implements LyricSpanRecognizer {
         _SpanInput(
           audioPath,
           recognitionHintsForProject(project),
-          SpokenLanguageResolution.languageOfProject(project.metadata),
+          project.metadata,
         ),
         clip,
         clipEnd - start,
@@ -401,10 +401,10 @@ class _SpanInput {
   final String audioPath;
   final RecognitionHints hints;
 
-  /// The song's language, when its recognition settled on one.
-  final String? language;
+  /// Where the song's language is: its own setting or its recognition's.
+  final Map<String, dynamic> projectMetadata;
 
-  const _SpanInput(this.audioPath, this.hints, this.language);
+  const _SpanInput(this.audioPath, this.hints, this.projectMetadata);
 }
 
 class _SpanClip {

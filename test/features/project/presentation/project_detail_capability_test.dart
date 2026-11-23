@@ -779,6 +779,100 @@ void main() {
     }
   });
 
+  group('演唱语言 (D-062)', () {
+    ProjectManifest songWithAudio({Map<String, dynamic> metadata = const {}}) =>
+        _project(
+          stage: ProcessingStage.lyricsEdited,
+          audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'),
+        ).copyWith(metadata: metadata);
+
+    Future<void> choose(WidgetTester tester, String code) async {
+      final menu = find.byKey(const ValueKey('project_sung_language_menu'));
+      await _reveal(tester, menu);
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('project_sung_language_$code')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('is saved with the project and offers to recognise again', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final projects = _RevisionedProjects(
+          songWithAudio(
+            metadata: const {
+              'transcription': {'detectedLanguage': 'nn'},
+            },
+          ),
+        );
+        await _showProject(
+          tester,
+          projects.project,
+          const Size(1366, 768),
+          projects: projects,
+          openAudioSources: false,
+        );
+        expect(find.text('上次识别：挪威语（引擎检测）'), findsOneWidget);
+
+        await choose(tester, 'en');
+
+        expect(projects.updates, 1);
+        expect(projects.project.metadata['sungLanguage'], 'en');
+        // The last recognition's record is kept.
+        expect(projects.project.metadata['transcription'], isNotNull);
+        expect(find.text('这首歌固定按英文识别，不受识别设置影响'), findsOneWidget);
+        expect(find.text('演唱语言已设为英文，重新识别后生效'), findsOneWidget);
+        expect(find.widgetWithText(SnackBarAction, '重新识别'), findsOneWidget);
+
+        ScaffoldMessenger.of(
+          tester.element(find.byType(ProjectDetailScreen)),
+        ).removeCurrentSnackBar();
+        await tester.pumpAndSettle();
+        await choose(tester, 'auto');
+        expect(projects.project.metadata, isNot(contains('sungLanguage')));
+        expect(find.text('演唱语言改为自动判断，重新识别后生效'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets('a concurrent change is reported, not overwritten', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final projects = _RevisionedProjects(songWithAudio())..conflict = true;
+        await _showProject(
+          tester,
+          projects.project,
+          const Size(1366, 768),
+          projects: projects,
+          openAudioSources: false,
+        );
+        await choose(tester, 'ja');
+        expect(projects.project.metadata, isNot(contains('sungLanguage')));
+        expect(find.text('工程刚刚被修改，请再选一次演唱语言'), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets('is not offered on mobile', (tester) async {
+      await _showProject(
+        tester,
+        songWithAudio(metadata: const {'sungLanguage': 'en'}),
+        const Size(390, 844),
+      );
+      expect(
+        find.byKey(const ValueKey('project_sung_language_menu')),
+        findsNothing,
+      );
+    });
+  });
+
   testWidgets('mobile does not expose desktop accompaniment import', (
     tester,
   ) async {
@@ -849,6 +943,26 @@ class _Projects extends Fake implements ProjectRepository {
   ProjectManifest project;
   @override
   Future<ProjectManifest?> getProjectById(String id) async => project;
+}
+
+/// Saves conditional updates like the real repository: by revision.
+class _RevisionedProjects extends _Projects {
+  _RevisionedProjects(super.project);
+
+  int updates = 0;
+  bool conflict = false;
+
+  @override
+  Future<ProjectManifest> updateProjectIfUnchanged(
+    ProjectManifest project, {
+    required int expectedRevision,
+  }) async {
+    if (conflict || expectedRevision != this.project.revision) {
+      throw ProjectUpdateConflictException(currentProject: this.project);
+    }
+    updates++;
+    return this.project = project.copyWith(revision: expectedRevision + 1);
+  }
 }
 
 class _Importer extends Fake implements ProjectAccompanimentImporter {

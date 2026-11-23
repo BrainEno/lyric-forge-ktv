@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../lyrics/domain/models/chinese_script_preference.dart';
+import '../../domain/models/spoken_language.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_download_connection_checker.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
@@ -100,7 +101,10 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
       unawaited(_loadSavedDownloadProxy());
     }
 
-    _language = config?.language ?? 'auto';
+    // Normalised so the dropdown always has an entry for it.
+    _language =
+        SpokenLanguagePolicy.languageCode(config?.language) ??
+        SpokenLanguagePolicy.auto;
     _qwenDevice = config?.qwenDevice ?? 'cuda';
     _qwenDtype = config?.qwenDtype ?? 'bf16';
     _fallbackThreshold = config?.fallbackConfidenceThreshold ?? 70;
@@ -521,14 +525,28 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                 ),
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
+                key: const ValueKey('transcription_language_dropdown'),
                 initialValue: _language,
-                decoration: const InputDecoration(labelText: '识别语言'),
-                items: const [
-                  DropdownMenuItem(value: 'auto', child: Text('自动检测')),
-                  DropdownMenuItem(value: 'zh', child: Text('中文')),
-                  DropdownMenuItem(value: 'en', child: Text('英文')),
-                  DropdownMenuItem(value: 'ja', child: Text('日文')),
-                  DropdownMenuItem(value: 'ko', child: Text('韩文')),
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: '识别语言',
+                  helperText: '自动判断会先听演唱部分再定语言；个别歌曲判断错时，可在工程页单独设置它的演唱语言',
+                  helperMaxLines: 3,
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: SpokenLanguagePolicy.auto,
+                    child: Text('自动判断'),
+                  ),
+                  for (final code in {
+                    ...SpokenLanguagePolicy.selectableLanguages,
+                    // A language saved before the list changed stays listed.
+                    if (!SpokenLanguagePolicy.isAuto(_language)) _language,
+                  })
+                    DropdownMenuItem(
+                      value: code,
+                      child: Text(SpokenLanguagePolicy.label(code)),
+                    ),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _language = value);

@@ -334,6 +334,50 @@ void main() {
         ),
         'en',
       );
+      // The editor's summary reads it from the draft (D-062).
+      final draftLanguage =
+          fixture.repository.project.lyricDocument!.metadata['spokenLanguage']
+              as Map;
+      expect(draftLanguage['source'], 'detected');
+    });
+
+    test('a language set for the song wins, unprobed (D-062)', () async {
+      final fixture = await _Fixture.create();
+      fixture.repository.project = fixture.repository.project.copyWith(
+        metadata: const {'sungLanguage': 'ja'},
+      );
+      fixture.settings.config = _config.copyWith(language: 'zh');
+      final detector = _Detector();
+      final workflow = fixture.workflow(languageDetector: detector);
+      final progress = <TranscriptionProgress>[];
+      final subscription = workflow.progressStream.listen(progress.add);
+      addTearDown(subscription.cancel);
+
+      await workflow.transcribeProject('p');
+
+      expect(detector.requests, isEmpty);
+      expect(fixture.service.lastRequest?.config.language, 'ja');
+      expect(fixture.gapFill.lastRequest?.config.language, 'ja');
+      expect(progress.map((p) => p.message), contains('演唱语言：日文（本首歌设置）'));
+      final saved = fixture.repository.project;
+      expect(saved.metadata['sungLanguage'], 'ja');
+      final stored =
+          (saved.metadata['transcription'] as Map)['spokenLanguage'] as Map;
+      expect(stored['source'], 'project');
+      expect(stored['language'], 'ja');
+      expect(
+        (saved.lyricDocument!.metadata['spokenLanguage'] as Map)['language'],
+        'ja',
+      );
+    });
+
+    test('without a detector a song setting still applies', () async {
+      final fixture = await _Fixture.create();
+      fixture.repository.project = fixture.repository.project.copyWith(
+        metadata: const {'sungLanguage': 'ko'},
+      );
+      await fixture.workflow().transcribeProject('p');
+      expect(fixture.service.lastRequest?.config.language, 'ko');
     });
 
     test('a language chosen in the settings is never probed', () async {
@@ -347,6 +391,10 @@ void main() {
       final transcription =
           fixture.repository.project.metadata['transcription'] as Map;
       expect(transcription['spokenLanguage'], isNull);
+      expect(
+        fixture.repository.project.lyricDocument!.metadata,
+        isNot(contains('spokenLanguage')),
+      );
     });
 
     test('an unresolved probe leaves the language to the engines', () async {
