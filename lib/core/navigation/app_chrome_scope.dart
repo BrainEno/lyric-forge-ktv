@@ -21,6 +21,8 @@ class AppChromeScope extends InheritedWidget {
     required this.navigatorKey,
     required this.currentRoute,
     required super.child,
+    this.onOpenSearch,
+    this.onShowShortcuts,
   });
 
   /// Key of the app navigator.
@@ -28,6 +30,13 @@ class AppChromeScope extends InheritedWidget {
 
   /// Name of the visible route, published by the app's route observer.
   final ValueListenable<String?> currentRoute;
+
+  /// Opens the global search (D-065); null where the app has none, as in
+  /// most widget tests, and search buttons then stay hidden.
+  final VoidCallback? onOpenSearch;
+
+  /// Opens the keyboard shortcut panel (D-065); null hides its buttons.
+  final VoidCallback? onShowShortcuts;
 
   static AppChromeScope? maybeOf(BuildContext context) =>
       context.getInheritedWidgetOfExactType<AppChromeScope>();
@@ -46,6 +55,14 @@ class AppChromeScope extends InheritedWidget {
     return maybeOf(context)?.navigatorKey.currentContext ?? context;
   }
 
+  /// The global search launcher, or null when the app has none.
+  static VoidCallback? searchOf(BuildContext context) =>
+      maybeOf(context)?.onOpenSearch;
+
+  /// The shortcut panel launcher, or null when the app has none.
+  static VoidCallback? shortcutsOf(BuildContext context) =>
+      maybeOf(context)?.onShowShortcuts;
+
   /// The visible route, or null outside the app shell.
   static ValueListenable<String?>? routeOf(BuildContext context) =>
       maybeOf(context)?.currentRoute;
@@ -61,5 +78,7 @@ class AppChromeScope extends InheritedWidget {
   @override
   bool updateShouldNotify(AppChromeScope oldWidget) =>
       navigatorKey != oldWidget.navigatorKey ||
-      currentRoute != oldWidget.currentRoute;
+      currentRoute != oldWidget.currentRoute ||
+      onOpenSearch != oldWidget.onOpenSearch ||
+      onShowShortcuts != oldWidget.onShowShortcuts;
 }

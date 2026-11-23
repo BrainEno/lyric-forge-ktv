@@ -10,6 +10,7 @@ import '../../../../core/navigation/transfer_entry.dart';
 import '../dashboard_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_search_button.dart';
 import '../../../player/domain/models/play_history.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/repositories/play_history_repository.dart';
@@ -456,6 +457,8 @@ class _Header extends StatelessWidget {
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(layout.isCompact ? '识别歌词' : '导入并识别'),
             ),
+            // Shown only where the app offers the global search (D-065).
+            AppSearchButton(size: layout.minimumInteractiveExtent),
             SizedBox(
               width: layout.minimumInteractiveExtent,
               height: layout.minimumInteractiveExtent,

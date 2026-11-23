@@ -36,6 +36,8 @@ class AppChrome extends StatelessWidget {
     required this.child,
     this.queueBar,
     this.playerBar,
+    this.onOpenSearch,
+    this.onShowShortcuts,
   });
 
   /// Desktop chrome (rail, queue bar, overlay) instead of the mobile one.
@@ -63,11 +65,20 @@ class AppChrome extends StatelessWidget {
   /// its own transport.
   final Widget? playerBar;
 
+  /// Opens the global search (D-065); handed to every page through
+  /// [AppChromeScope] for their search buttons, and to the rail.
+  final VoidCallback? onOpenSearch;
+
+  /// Opens the keyboard shortcut panel (D-065); null on the phone.
+  final VoidCallback? onShowShortcuts;
+
   @override
   Widget build(BuildContext context) {
     return AppChromeScope(
       navigatorKey: navigatorKey,
       currentRoute: currentRoute,
+      onOpenSearch: onOpenSearch,
+      onShowShortcuts: onShowShortcuts,
       child: _ChromeOverlay(chrome: this),
     );
   }
