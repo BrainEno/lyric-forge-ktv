@@ -85,8 +85,7 @@ class LyricReviewControls {
 
   bool _shows(int index) => switch (filter) {
     LyricReviewFilter.all => true,
-    LyricReviewFilter.needsReview => queue.needsReview(index),
-    LyricReviewFilter.lowConfidence => queue.isLowConfidence(index),
+    LyricReviewFilter.suggested => queue.needsReview(index),
   };
 
   int _score(int index) => priorityByIndex[index]?.score ?? 0;

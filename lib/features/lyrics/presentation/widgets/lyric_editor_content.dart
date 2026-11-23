@@ -512,7 +512,7 @@ class LyricEditorContent extends StatelessWidget {
                                         ? null
                                         : () {
                                             review.onFilterChanged(
-                                              LyricReviewFilter.needsReview,
+                                              LyricReviewFilter.suggested,
                                             );
                                             if (twoPane) {
                                               review.onSelectLine(firstQueued);

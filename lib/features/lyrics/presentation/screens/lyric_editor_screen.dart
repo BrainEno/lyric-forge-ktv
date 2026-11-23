@@ -165,7 +165,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     if (!_editor.setLineReviewed(index, reviewed: reviewed).applied) return;
 
     setState(() {
-      _filter = LyricReviewFilter.needsReview;
+      _filter = LyricReviewFilter.suggested;
       _refreshReviewQueue(_editingDocument!, project.audioAsset?.duration);
       // The queue is already ranked: highest score first, then row order.
       _editor.select(
@@ -176,9 +176,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     final remaining = _reviewPriorityByIndex.length;
     final message = reviewed
         ? remaining == 0
-              ? '已确认第 ${index + 1} 行；待复核队列已清空。保存后会保留本次确认。'
-              : '已确认第 ${index + 1} 行；已跳到下一条待复核行（剩余 $remaining 行）。'
-        : '已取消第 ${index + 1} 行的复核标记；该行已重新进入待复核队列。';
+              ? '已确认第 ${index + 1} 行；建议复核的行已全部看完。保存后会保留本次确认。'
+              : '已确认第 ${index + 1} 行；已跳到下一条建议复核的行（剩余 $remaining 行）。'
+        : '已取消第 ${index + 1} 行的复核标记；该行重新列入建议复核。';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
     );
@@ -1143,7 +1143,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
       followPlayback: _followPlayback,
       onFilterChanged: (value) => setState(() {
         _filter = value;
-        if (value != LyricReviewFilter.needsReview) {
+        if (value != LyricReviewFilter.suggested) {
           _audition.loopEnabled = false;
         }
       }),

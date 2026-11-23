@@ -68,19 +68,14 @@ void main() {
       expect(_review().visibleIndices(6), [0, 1, 2, 3, 4, 5]);
     });
 
-    test('needs review lists queued rows, most urgent first', () {
-      final review = _review(filter: LyricReviewFilter.needsReview);
+    test('建议复核 lists queued rows, most urgent first', () {
+      final review = _review(filter: LyricReviewFilter.suggested);
       // 3 and 4 share a score, so they keep document order.
       expect(review.visibleIndices(6), [3, 4, 1]);
     });
 
-    test('low confidence lists only rows with a low engine score', () {
-      final review = _review(filter: LyricReviewFilter.lowConfidence);
-      expect(review.visibleIndices(6), [3, 4]);
-    });
-
     test('rows past the end of the document are never listed', () {
-      final review = _review(filter: LyricReviewFilter.needsReview);
+      final review = _review(filter: LyricReviewFilter.suggested);
       expect(review.visibleIndices(4), [3, 1]);
       expect(review.visibleIndices(0), isEmpty);
     });
@@ -109,12 +104,12 @@ void main() {
     test('callbacks pass straight through to the screen', () {
       final calls = <String>[];
       final review = _review(calls: calls);
-      review.onFilterChanged(LyricReviewFilter.needsReview);
+      review.onFilterChanged(LyricReviewFilter.suggested);
       review.onFollowPlaybackChanged(false);
       review.onSelectLine(3);
       review.onDecision(3, true);
       expect(calls, [
-        'filter:needsReview',
+        'filter:suggested',
         'follow:false',
         'select:3',
         'decide:3:true',

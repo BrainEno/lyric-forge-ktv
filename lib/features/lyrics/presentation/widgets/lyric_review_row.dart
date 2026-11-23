@@ -116,9 +116,6 @@ class LyricReviewRow extends StatelessWidget {
   /// the row is selected.
   static const int longTextLength = 28;
 
-  /// The row's priority badge turns to a warning from this score.
-  static const int warningScore = 45;
-
   /// What [action] runs on this row, or null when the row does not offer it.
   VoidCallback? callbackFor(LyricRowMenuAction action) => switch (action) {
     LyricRowMenuAction.editText => onDoubleTap,
@@ -415,7 +412,10 @@ class LyricReviewRow extends StatelessWidget {
   }
 
   /// Chorus (wide layouts only), saved engine candidate, suggested
-  /// insertion, and the review state or priority; phones use short labels.
+  /// insertion, and the review state or tier; phones use short labels.
+  ///
+  /// A queued row says 必看 or 留意 instead of `优先 52` (D-068): the tier is
+  /// what the user acts on, and the score stays in the tooltip.
   List<Widget> _statusBadges({required bool compact}) {
     final priority = this.priority;
     return [
@@ -429,12 +429,10 @@ class LyricReviewRow extends StatelessWidget {
         const LyricTinyBadge(label: '已复核', accent: true)
       else if (priority != null)
         Tooltip(
-          message: priority.reasons
-              .map(LyricReviewStrings.priorityReason)
-              .join('\n'),
+          message: LyricSuggestedReviewStrings.badgeTooltip(priority),
           child: LyricTinyBadge(
-            label: compact ? '复核' : '优先 ${priority.score}',
-            warning: priority.score >= warningScore,
+            label: LyricSuggestedReviewStrings.urgency(priority.urgency),
+            warning: priority.urgency == LyricReviewUrgency.mustCheck,
           ),
         ),
     ];
