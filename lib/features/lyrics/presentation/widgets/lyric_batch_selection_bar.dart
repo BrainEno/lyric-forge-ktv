@@ -244,7 +244,7 @@ class LyricBatchActionBar extends StatelessWidget {
             key: action.key,
             value: action,
             enabled: action.onPressed != null,
-            child: Text(action.disabledHint ?? action.label),
+            child: Text(action._tooltip),
           ),
       ],
     );
@@ -277,9 +277,8 @@ class _BatchAction {
   String get _tooltip =>
       onPressed == null && disabledHint != null ? disabledHint! : label;
 
-  Color? get _color => destructive && onPressed != null
-      ? AppColors.errorText
-      : null;
+  Color? get _color =>
+      destructive && onPressed != null ? AppColors.errorText : null;
 
   Widget asLabelled() => Padding(
     padding: const EdgeInsets.only(left: AppSpacing.xs),

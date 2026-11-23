@@ -292,7 +292,15 @@ class LyricReviewRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
           child: onDoubleTap == null
               ? content
-              : Tooltip(message: rowTooltip, child: content),
+              : Tooltip(
+                  message: rowTooltip,
+                  // On touch screens a tooltip opens on long press and would
+                  // swallow the long press that starts choosing rows (D-066).
+                  triggerMode: onLongPress == null
+                      ? null
+                      : TooltipTriggerMode.manual,
+                  child: content,
+                ),
         ),
       ),
     );

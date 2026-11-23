@@ -87,11 +87,10 @@ void main() {
 
   group('shift', () {
     test('moves only the chosen rows, also across a gap', () {
-      final result = service.shift(
-        _document(4),
-        [0, 2],
-        const Duration(milliseconds: 500),
-      );
+      final result = service.shift(_document(4), [
+        0,
+        2,
+      ], const Duration(milliseconds: 500));
       final lines = result.document!.lines;
       expect(result.changedCount, 2);
       expect(lines[0].startTime, const Duration(milliseconds: 1500));
