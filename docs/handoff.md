@@ -18,7 +18,7 @@
 
 ## 检查结果
 
-- 沙箱里没有 Dart SDK；格式、分析和测试以 PR 的 Flutter Quality Gate 为准。
+- 分支上的 CI 探针：格式无差异，analyze 无错误和警告，5309 个测试全部通过。
 
 ## 下一步
 

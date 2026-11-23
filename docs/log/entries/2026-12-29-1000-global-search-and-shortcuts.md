@@ -15,7 +15,8 @@
   - Tests: `test/features/search/{domain/global_search_index_test,data/local_global_search_source_test,presentation/global_search_palette_test,presentation/global_search_shortcuts_test,presentation/keyboard_shortcuts_panel_test}.dart`, `test/core/navigation/app_search_entry_test.dart`.
   - `docs/decisions.md` (D-065), `docs/handoff.md`.
 - Validation:
-  - No Dart SDK in the sandbox: format, analyze and tests => PR's Flutter Quality Gate.
+  - CI probe on the branch: `dart format` clean, `flutter analyze` no errors or warnings, `flutter test` 5309 passed.
+  - The first probe caught module-level "already open" flags that stayed set when a dialog was torn down without closing; the search box and the panel now count themselves in `initState` / `dispose`.
 - Notes:
   - Pinyin is only in the page keywords; song and project titles are matched as written.
   - Playing a song from the search replaces the queue with that song; Shift+Enter keeps the queue.
