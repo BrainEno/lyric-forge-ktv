@@ -8,11 +8,11 @@
   - The list pane's scroll-to-top, follow and resume rules, 循环本行, 开始复核 and the decision jump now key on `LyricReviewFilter.suggested`.
 - Files:
   - Changed: `lib/features/lyrics/domain/models/lyric_review_queue.dart`, `lib/features/lyrics/domain/services/lyric_review_priority_service.dart`, `lib/features/lyrics/presentation/lyric_review_strings.dart`, `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`, `lib/features/lyrics/presentation/widgets/{lyric_editor_toolbar,lyric_editor_review_controls,lyric_editor_content,lyric_list_pane,lyric_list_states,lyric_review_row,lyric_row_semantics}.dart`.
-  - Tests: `test/features/lyrics/domain/models/lyric_review_queue_test.dart`, `test/features/lyrics/domain/services/lyric_review_priority_service_test.dart`, `test/features/lyrics/presentation/lyric_review_strings_test.dart`, `test/features/lyrics/presentation/widgets/{lyric_editor_toolbar,lyric_editor_review_controls,lyric_editor_panes_controls,lyric_list_pane,lyric_review_row,lyric_row_semantics}_test.dart`.
+  - Tests: `test/features/lyrics/presentation/screens/chunk_project_editor_review_integration_test.dart` (pump before the tap), `test/features/lyrics/domain/models/lyric_review_queue_test.dart`, `test/features/lyrics/domain/services/lyric_review_priority_service_test.dart`, `test/features/lyrics/presentation/lyric_review_strings_test.dart`, `test/features/lyrics/presentation/widgets/{lyric_editor_toolbar,lyric_editor_review_controls,lyric_editor_panes_controls,lyric_list_pane,lyric_review_row,lyric_row_semantics}_test.dart`.
   - `docs/decisions.md` (D-068), `docs/handoff.md`, `docs/lyric_proofreading_ux_review.md` §6 item 13.
 - Validation:
   - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
-  - Probe results: see handoff.
+  - Probe: `dart format` clean, `flutter analyze` clean, all 5396 tests passed after fixing three tests (a list-pane tooltip text, a list-pane empty-state test for the removed low-confidence filter, and the chunk editor integration test, which tapped 删除这一行 right after `scrollUntilVisible` without a frame — the status line's separators now use the label style, so the toolbar is 4 px shorter and the button no longer needed a drag). Probe removed.
 - Notes:
   - The queue still keeps `lowConfidenceIndices` / `lowConfidenceCount` for the review inbox and project screens, which still say 待复核 / 低置信度; aligning them is a follow-up.
   - The editor screen stays at 1198 lines (only strings changed).
