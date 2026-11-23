@@ -112,6 +112,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (mounted) _refresh();
   }
 
+  /// A project page or 全部工程; a project may be gone when the user
+  /// comes back (D-063).
+  Future<void> _openRoute(String route) async {
+    await Navigator.pushNamed(context, route);
+    if (mounted) _refresh();
+  }
+
   /// A recent song: the local player resumes that history entry.
   Future<void> _resumeHistory(PlayHistory history) async {
     await Navigator.pushNamed(
@@ -281,14 +288,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ? AppSpacing.xl
                                         : AppSpacing.xxxl,
                                   ),
+                                  // Every project, deleting and duplicate
+                                  // cleanup live on 全部工程 (D-063); import
+                                  // stays in the header.
                                   DashboardSectionHeader(
                                     title: '最近工程',
                                     subtitle: '继续识别、校对，或打开已经准备好的 KTV 工程',
-                                    action: '批量导入',
-                                    onAction: () => Navigator.pushNamed(
-                                      context,
-                                      Routes.import,
-                                    ),
+                                    action: '全部工程',
+                                    onAction: () => _openRoute(Routes.projects),
                                   ),
                                   const SizedBox(height: AppSpacing.md),
                                   FutureBuilder<List<ProjectManifest>>(
@@ -326,13 +333,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       }
                                       return DashboardProjectGrid(
                                         projects: items,
-                                        onOpen: (project) =>
-                                            Navigator.pushNamed(
-                                              context,
-                                              Routes.projectDetailPath(
-                                                project.id,
-                                              ),
-                                            ),
+                                        onOpen: (project) => _openRoute(
+                                          Routes.projectDetailPath(project.id),
+                                        ),
                                       );
                                     },
                                   ),

@@ -123,8 +123,8 @@ void main() {
     expect(find.text('选择音乐开始播放'), findsOneWidget);
     expect(find.text('打开音乐'), findsNothing);
     expect(find.text('选择音乐'), findsNothing);
-    // The project shelf keeps its own action.
-    expect(find.widgetWithText(TextButton, '批量导入'), findsOneWidget);
+    // The project shelf leads to every project (D-063).
+    expect(find.widgetWithText(TextButton, '全部工程'), findsOneWidget);
   });
 
   testWidgets('while playing, the header offers to open other music', (

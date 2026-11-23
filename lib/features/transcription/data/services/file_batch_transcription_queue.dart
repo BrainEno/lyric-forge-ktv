@@ -318,6 +318,24 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
       }
 
       var project = await _resolveProject(item);
+      // The song already has a project from an earlier import (D-063): use
+      // it instead of making a second one. Lyrics it already has, possibly
+      // proofread, are never replaced by a queue run.
+      if (project == null) {
+        final existing = await _projectForAudio(item.sourcePath);
+        if (existing != null && existing.hasLyrics) {
+          _items[index] = item.copyWith(
+            projectId: existing.id,
+            status: TranscriptionQueueItemStatus.completed,
+            progress: 1,
+            message: '这首歌已有歌词工程，没有重复创建',
+            clearError: true,
+            updatedAt: DateTime.now(),
+          );
+          return;
+        }
+        project = existing;
+      }
       if (project == null) {
         project = await projectRepository.createProject(name: item.projectName);
         project = await projectRepository.updateProject(
@@ -464,6 +482,24 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
       }
     }
     return null;
+  }
+
+  /// A project made from the audio at [sourcePath], preferring one with
+  /// lyrics, or null.
+  Future<ProjectManifest?> _projectForAudio(String sourcePath) async {
+    final key = _pathKey(sourcePath);
+    final matches = <ProjectManifest>[
+      for (final project in await projectRepository.getAllProjects())
+        if (project.audioAsset case final audio?
+            when audio.originalPath.trim().isNotEmpty &&
+                _pathKey(audio.originalPath) == key)
+          project,
+    ];
+    if (matches.isEmpty) return null;
+    return matches.firstWhere(
+      (project) => project.hasLyrics,
+      orElse: () => matches.first,
+    );
   }
 
   bool _isEnvironmentBlocked(TranscriptionException error) {

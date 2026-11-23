@@ -418,6 +418,89 @@ void main() {
       await queue.dispose();
     },
   );
+
+  group('a song that already has a project (D-063)', () {
+    Future<_ExistingFixture> prepare({required bool withLyrics}) async {
+      final root = await Directory.systemTemp.createTemp('queue-existing-');
+      addTearDown(() async {
+        if (await root.exists()) await root.delete(recursive: true);
+      });
+      final audio = File('${root.path}${Platform.pathSeparator}song.mp3');
+      await audio.writeAsBytes([1]);
+      final repository = FileProjectRepository(
+        rootDirectory: Directory('${root.path}${Platform.pathSeparator}p'),
+      );
+      final created = await repository.createProject(name: 'song');
+      await repository.updateProject(
+        created.copyWith(
+          currentStage: withLyrics
+              ? ProcessingStage.lyricsEdited
+              : ProcessingStage.audioImported,
+          audioAsset: AudioAsset(originalPath: audio.path, format: 'mp3'),
+          lyricDocument: withLyrics
+              ? const LyricDocument(
+                  language: 'zh',
+                  lines: [
+                    LyricLine(
+                      text: '校对过的歌词',
+                      startTime: Duration.zero,
+                      endTime: Duration(seconds: 1),
+                    ),
+                  ],
+                )
+              : null,
+        ),
+      );
+      final workflow = _FakeWorkflow(repository);
+      final queue = FileBatchTranscriptionQueue(
+        projectRepository: repository,
+        workflow: workflow,
+        rootDirectory: Directory('${root.path}${Platform.pathSeparator}q'),
+      );
+      addTearDown(queue.dispose);
+      await queue.initialize();
+      return _ExistingFixture(audio, repository, workflow, queue);
+    }
+
+    test('with lyrics: no second project and no new recognition', () async {
+      final fixture = await prepare(withLyrics: true);
+      final existing = (await fixture.repository.getAllProjects()).single;
+
+      expect(await fixture.queue.enqueuePaths([fixture.audio.path]), 1);
+      await _waitUntil(() => fixture.queue.current.completedCount == 1);
+
+      final projects = await fixture.repository.getAllProjects();
+      expect(projects.map((project) => project.id), [existing.id]);
+      expect(projects.single.lyricDocument!.lines.single.text, '校对过的歌词');
+      expect(fixture.workflow.calls, 0);
+      final item = fixture.queue.current.items.single;
+      expect(item.projectId, existing.id);
+      expect(item.message, '这首歌已有歌词工程，没有重复创建');
+    });
+
+    test('without lyrics: the existing project is recognised', () async {
+      final fixture = await prepare(withLyrics: false);
+      final existing = (await fixture.repository.getAllProjects()).single;
+
+      await fixture.queue.enqueuePaths([fixture.audio.path]);
+      await _waitUntil(() => fixture.queue.current.completedCount == 1);
+
+      final projects = await fixture.repository.getAllProjects();
+      expect(projects.map((project) => project.id), [existing.id]);
+      expect(projects.single.hasLyrics, isTrue);
+      expect(fixture.workflow.calls, 1);
+      expect(fixture.queue.current.items.single.projectId, existing.id);
+    });
+  });
+}
+
+class _ExistingFixture {
+  _ExistingFixture(this.audio, this.repository, this.workflow, this.queue);
+
+  final File audio;
+  final FileProjectRepository repository;
+  final _FakeWorkflow workflow;
+  final FileBatchTranscriptionQueue queue;
 }
 
 Future<void> _waitUntil(bool Function() predicate) async {

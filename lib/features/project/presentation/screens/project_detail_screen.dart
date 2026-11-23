@@ -28,6 +28,7 @@ import '../widgets/project_detail_columns.dart';
 import '../widgets/production_steps.dart';
 import '../widgets/recognition_progress_card.dart';
 import '../widgets/project_audio_sources_section.dart';
+import '../widgets/project_deletion_flow.dart';
 import '../widgets/project_sung_language_selector.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
@@ -213,6 +214,20 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             : null,
       ),
     );
+  }
+
+  /// 删除工程 (D-063): back to where the project was opened from once it
+  /// is gone.
+  Future<void> _deleteProject(ProjectManifest project) async {
+    final service = widget.dependencies.deletionService;
+    if (service == null || _busy) return;
+    final outcome = await deleteProjectsWithConfirmation(
+      context,
+      service: service,
+      projects: [project],
+    );
+    if (!mounted || !outcome.deleted.contains(project.id)) return;
+    Navigator.of(context).maybePop();
   }
 
   Future<void> _startTranscription(ProjectManifest project) async {
@@ -611,6 +626,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             onCancelTranscription: _cancelTranscription,
             onConfigureTranscription: _configureTranscription,
             onOpenEditor: () => _openLyricEditor(project),
+            onDelete: widget.dependencies.deletionService == null
+                ? null
+                : () => _deleteProject(project),
+            deleteEnabled: !_busy,
           );
         },
       ),
@@ -662,6 +681,10 @@ class _ProjectDetailContent extends StatelessWidget {
   final VoidCallback onConfigureTranscription;
   final VoidCallback onOpenEditor;
 
+  /// Null hides 删除工程.
+  final VoidCallback? onDelete;
+  final bool deleteEnabled;
+
   const _ProjectDetailContent({
     required this.project,
     required this.onRefresh,
@@ -680,6 +703,8 @@ class _ProjectDetailContent extends StatelessWidget {
     required this.onCancelTranscription,
     required this.onConfigureTranscription,
     required this.onOpenEditor,
+    this.onDelete,
+    this.deleteEnabled = true,
   });
 
   @override
@@ -718,6 +743,22 @@ class _ProjectDetailContent extends StatelessWidget {
                   icon: const Icon(Icons.refresh_rounded),
                 ),
               ),
+              if (onDelete != null)
+                PopupMenuButton<String>(
+                  key: const ValueKey('project_detail_more'),
+                  tooltip: '更多',
+                  onSelected: (value) {
+                    if (value == 'delete') onDelete!();
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      key: const ValueKey('project_detail_delete'),
+                      value: 'delete',
+                      enabled: deleteEnabled,
+                      child: Text(deleteEnabled ? '删除工程' : '删除工程（处理中不可用）'),
+                    ),
+                  ],
+                ),
               SizedBox(width: spec.isCompact ? 4 : AppSpacing.sm),
             ],
           ),
