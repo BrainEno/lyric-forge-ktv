@@ -35,7 +35,7 @@ abstract final class LyricListStateText {
 
   /// After [reviewedCount] rows were confirmed.
   static String queueDoneMessage(int reviewedCount) =>
-      '已确认 $reviewedCount 行。若修改了歌词文本或时间轴，该行会自动重新进入待复核队列。请保存以保留确认记录。';
+      '已确认 $reviewedCount 行。若修改了歌词文本或时间轴，该行会自动重新列入建议复核。请保存以保留确认记录。';
 
   /// The list shows a search field from this many lines.
   static const int searchFromLines = 9;

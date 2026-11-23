@@ -249,7 +249,7 @@ void main() {
       host(
         document: _document(3),
         visibleIndices: const [],
-        filter: LyricReviewFilter.needsReview,
+        filter: LyricReviewFilter.suggested,
       ),
     );
 
@@ -272,7 +272,6 @@ void main() {
       host(
         document: _document(3),
         visibleIndices: const [],
-        filter: LyricReviewFilter.lowConfidence,
         onShowAllLines: () => showAll++,
       ),
     );
@@ -288,7 +287,7 @@ void main() {
       host(
         document: _document(3),
         visibleIndices: const [],
-        filter: LyricReviewFilter.needsReview,
+        filter: LyricReviewFilter.suggested,
         onShowAllLines: () => showAll++,
       ),
     );

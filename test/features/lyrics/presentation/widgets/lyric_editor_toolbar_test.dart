@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_review_queue.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart';
@@ -195,33 +196,100 @@ void main() {
     expect(tester.widgetList(_interactiveControls).length, 4);
   });
 
-  testWidgets('只有一个复核数字，筛选菜单里也都是同一套口径', (tester) async {
+  testWidgets('一个「建议复核」开关取代了全部 / 待复核 / 低置信度菜单', (tester) async {
     await pumpAt(tester, buildToolbar(), const Size(1280, 900));
 
-    // One number in the status line instead of 待复核/低置信度/智能复核.
-    expect(find.text('待复核 3'), findsOneWidget);
+    // One number, on the chip; no menu, no second spelling of the queue.
+    expect(find.text('建议复核 3'), findsOneWidget);
+    expect(find.textContaining('待复核'), findsNothing);
     expect(find.textContaining('低置信度'), findsNothing);
-    expect(find.textContaining('智能复核'), findsNothing);
+    expect(find.text('全部'), findsNothing);
+    expect(find.byIcon(Icons.filter_list_rounded), findsNothing);
 
-    Finder inMenu(String label) => find.descendant(
-      of: find.byType(MenuItemButton),
-      matching: find.text(label),
-    );
-
-    await tester.tap(find.text('全部'));
+    await tester.tap(find.byKey(LyricSuggestedReviewChip.chipKey));
     await tester.pumpAndSettle();
-
-    expect(inMenu('待复核 3'), findsOneWidget);
-    // Low confidence is the same queue's subset, not a second population.
-    expect(inMenu('低置信度 1'), findsOneWidget);
-    expect(find.text('引擎给出分数且低于 70 的行；是待复核的子集'), findsOneWidget);
-
-    await tester.tap(inMenu('低置信度 1'));
-    await tester.pumpAndSettle();
-    expect(selectedFilter, LyricReviewFilter.lowConfidence);
+    expect(selectedFilter, LyricReviewFilter.suggested);
   });
 
-  testWidgets('未评分的稿子不显示低置信度，而是说明引擎没给分数', (tester) async {
+  testWidgets('开着时再点一次回到全部歌词', (tester) async {
+    await pumpAt(
+      tester,
+      buildToolbar(filter: LyricReviewFilter.suggested),
+      const Size(1280, 900),
+    );
+
+    final chip = tester.widget<FilterChip>(
+      find.byKey(LyricSuggestedReviewChip.chipKey),
+    );
+    expect(chip.selected, isTrue);
+    expect(chip.tooltip, startsWith('正在只看建议复核的行；再点一次回到全部歌词'));
+
+    selectedFilter = LyricReviewFilter.suggested;
+    await tester.tap(find.byKey(LyricSuggestedReviewChip.chipKey));
+    await tester.pumpAndSettle();
+    expect(selectedFilter, LyricReviewFilter.all);
+  });
+
+  testWidgets('提示里按必看 / 留意分层，并列出主要原因', (tester) async {
+    final queue = LyricReviewQueue(
+      items: const [
+        LyricReviewPriority(
+          lineIndex: 4,
+          score: 70,
+          reasons: [
+            LyricReviewPriorityReason(
+              LyricReviewPriorityReasonCode.enginesDifferGreatly,
+            ),
+            LyricReviewPriorityReason(
+              LyricReviewPriorityReasonCode.confidenceVeryLow,
+              confidence: 31,
+            ),
+          ],
+        ),
+        LyricReviewPriority(
+          lineIndex: 1,
+          score: 30,
+          reasons: [
+            LyricReviewPriorityReason(
+              LyricReviewPriorityReasonCode.enginesDifferClearly,
+            ),
+          ],
+        ),
+        LyricReviewPriority(
+          lineIndex: 2,
+          score: 20,
+          reasons: [
+            LyricReviewPriorityReason(
+              LyricReviewPriorityReasonCode.overlapsNext,
+            ),
+          ],
+        ),
+      ],
+      lowConfidenceIndices: const {4},
+      totalLines: 8,
+      scoredLines: 8,
+      reviewedLines: 0,
+      confidenceThreshold: 70,
+    );
+
+    await pumpAt(tester, buildToolbar(review: queue), const Size(1280, 900));
+
+    final chip = tester.widget<FilterChip>(
+      find.byKey(LyricSuggestedReviewChip.chipKey),
+    );
+    // A low score is one reason among others, not a second filter.
+    expect(
+      chip.tooltip,
+      '只看建议复核的 3 行，最要紧的排在前面\n'
+      '必看 1 · 留意 2\n'
+      '主要原因：双引擎分歧 2、时间轴异常 1、置信度低 1',
+    );
+    // Strong evidence colours the icon as a caution.
+    final icon = tester.widget<Icon>(find.byIcon(Icons.fact_check_outlined));
+    expect(icon.color, AppColors.warning);
+  });
+
+  testWidgets('未评分的稿子在提示里说明只按结构证据排序', (tester) async {
     final unscored = LyricReviewQueue(
       items: const [
         LyricReviewPriority(
@@ -243,26 +311,41 @@ void main() {
 
     await pumpAt(tester, buildToolbar(review: unscored), const Size(1280, 900));
 
-    expect(find.text('待复核 1'), findsOneWidget);
-    // The whole point: say "unknown", not a red "低置信度 0".
+    expect(find.text('建议复核 1'), findsOneWidget);
+    // Say "unknown", not a red "低置信度 0".
     expect(find.text('未评分 42'), findsOneWidget);
-
-    Finder inMenu(String label) => find.descendant(
-      of: find.byType(MenuItemButton),
-      matching: find.text(label),
+    final chip = tester.widget<FilterChip>(
+      find.byKey(LyricSuggestedReviewChip.chipKey),
     );
+    expect(chip.tooltip, endsWith('本稿的识别引擎没有返回分数，只按结构与时间轴证据排序'));
+    final icon = tester.widget<Icon>(find.byIcon(Icons.fact_check_outlined));
+    expect(icon.color, isNull);
+  });
 
-    await tester.tap(find.text('全部'));
+  testWidgets('队列为空时开关停用，但开着时仍能关掉', (tester) async {
+    final empty = _queue(needsReview: 0, lowConfidence: 0);
+    await pumpAt(tester, buildToolbar(review: empty), const Size(1280, 900));
+
+    var chip = tester.widget<FilterChip>(
+      find.byKey(LyricSuggestedReviewChip.chipKey),
+    );
+    expect(find.text('建议复核 0'), findsOneWidget);
+    expect(chip.onSelected, isNull);
+    expect(chip.tooltip, '暂未发现需要复核的行');
+
+    await pumpAt(
+      tester,
+      buildToolbar(review: empty, filter: LyricReviewFilter.suggested),
+      const Size(1280, 900),
+    );
+    chip = tester.widget<FilterChip>(
+      find.byKey(LyricSuggestedReviewChip.chipKey),
+    );
+    expect(chip.onSelected, isNotNull);
+    selectedFilter = LyricReviewFilter.suggested;
+    await tester.tap(find.byKey(LyricSuggestedReviewChip.chipKey));
     await tester.pumpAndSettle();
-
-    final lowConfidenceEntry = tester.widget<MenuItemButton>(
-      find.ancestor(
-        of: inMenu('低置信度 0'),
-        matching: find.byType(MenuItemButton),
-      ),
-    );
-    expect(lowConfidenceEntry.onPressed, isNull);
-    expect(find.text('本稿的识别引擎没有返回分数，无从判断'), findsOneWidget);
+    expect(selectedFilter, LyricReviewFilter.all);
   });
 
   testWidgets('偏移按钮显示当前值，并按 100ms 步进', (tester) async {
@@ -320,13 +403,13 @@ void main() {
     expect(find.text('当前无偏移'), findsOneWidget);
   });
 
-  testWidgets('循环本行只在待复核列表下出现', (tester) async {
+  testWidgets('循环本行只在建议复核列表下出现', (tester) async {
     await pumpAt(tester, buildToolbar(), const Size(1280, 900));
     expect(find.text('循环本行'), findsNothing);
 
     await pumpAt(
       tester,
-      buildToolbar(filter: LyricReviewFilter.needsReview),
+      buildToolbar(filter: LyricReviewFilter.suggested),
       const Size(1280, 900),
     );
     expect(find.text('循环本行'), findsOneWidget);
@@ -337,7 +420,7 @@ void main() {
     await pumpAt(
       tester,
       buildToolbar(
-        filter: LyricReviewFilter.needsReview,
+        filter: LyricReviewFilter.suggested,
         loopCurrentLine: true,
         onLoopChanged: (value) => toggled = value,
       ),
@@ -421,14 +504,14 @@ void main() {
       expect(follow, isTrue);
     });
 
-    testWidgets('the status line counts the group queue', (tester) async {
+    testWidgets('the chip counts the group queue', (tester) async {
       await pumpAt(
         tester,
         buildToolbar(review: _queue(needsReview: 2)),
         const Size(1280, 900),
       );
 
-      expect(find.textContaining('待复核 2'), findsWidgets);
+      expect(find.text('建议复核 2'), findsOneWidget);
     });
   });
 

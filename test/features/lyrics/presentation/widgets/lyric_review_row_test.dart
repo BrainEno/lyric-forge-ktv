@@ -230,15 +230,19 @@ void main() {
       );
       expect(find.text('双引擎'), findsOneWidget);
       expect(find.text('建议补入'), findsOneWidget);
-      expect(find.text('优先 50'), findsOneWidget);
-      expect(find.byTooltip('歌词为空'), findsOneWidget);
+      // The tier, not the score: the score stays in the tooltip.
+      expect(find.text('必看'), findsOneWidget);
+      expect(find.text('优先 50'), findsNothing);
+      expect(find.byTooltip('必看 · 优先级 50\n歌词为空'), findsOneWidget);
       final badge = tester.widget<LyricTinyBadge>(
-        find.widgetWithText(LyricTinyBadge, '优先 50'),
+        find.widgetWithText(LyricTinyBadge, '必看'),
       );
       expect(badge.warning, isTrue);
     });
 
-    testWidgets('a low priority is not a warning', (tester) async {
+    testWidgets('a lower priority is worth a look, not a warning', (
+      tester,
+    ) async {
       await pump(
         tester,
         row(
@@ -250,7 +254,7 @@ void main() {
         ),
       );
       final badge = tester.widget<LyricTinyBadge>(
-        find.widgetWithText(LyricTinyBadge, '优先 30'),
+        find.widgetWithText(LyricTinyBadge, '留意'),
       );
       expect(badge.warning, isFalse);
     });
@@ -267,7 +271,7 @@ void main() {
       );
       expect(find.text('双擎'), findsOneWidget);
       expect(find.text('补入'), findsOneWidget);
-      expect(find.text('复核'), findsOneWidget);
+      expect(find.text('必看'), findsOneWidget);
       expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
     });
 
@@ -315,7 +319,7 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      expect(find.text('复核'), findsOneWidget);
+      expect(find.text('必看'), findsOneWidget);
     });
 
     testWidgets('a reviewed row only says so', (tester) async {
@@ -331,7 +335,7 @@ void main() {
       expect(find.text('已复核'), findsOneWidget);
       expect(find.text('双引擎'), findsNothing);
       expect(find.text('建议补入'), findsNothing);
-      expect(find.text('优先 50'), findsNothing);
+      expect(find.text('必看'), findsNothing);
     });
 
     testWidgets('a chorus line is marked on a wide layout', (tester) async {

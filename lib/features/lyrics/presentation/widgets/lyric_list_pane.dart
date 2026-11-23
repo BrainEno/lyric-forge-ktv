@@ -221,12 +221,12 @@ class _LyricListPaneState extends State<LyricListPane> {
           ),
           _filteredIndices,
         );
-    if (widget.filter == LyricReviewFilter.needsReview &&
+    if (widget.filter == LyricReviewFilter.suggested &&
         (oldWidget.filter != widget.filter ||
             visibleIndicesChanged ||
             searchChanged)) {
       _scheduleScrollToTop();
-    } else if (widget.filter != LyricReviewFilter.needsReview &&
+    } else if (widget.filter != LyricReviewFilter.suggested &&
         widget.followPlayback &&
         (!oldWidget.followPlayback ||
             oldWidget.currentPlaybackLine != widget.currentPlaybackLine ||
@@ -270,7 +270,7 @@ class _LyricListPaneState extends State<LyricListPane> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           !widget.followPlayback ||
-          widget.filter == LyricReviewFilter.needsReview ||
+          widget.filter == LyricReviewFilter.suggested ||
           !_scrollController.hasClients) {
         return;
       }
@@ -620,7 +620,7 @@ class _LyricListPaneState extends State<LyricListPane> {
     );
 
     if (widget.visibleIndices.isEmpty) {
-      final empty = widget.filter == LyricReviewFilter.needsReview
+      final empty = widget.filter == LyricReviewFilter.suggested
           ? LyricReviewQueueEmptyState(
               reviewedCount: reviewed.length,
               onShowAllLines: widget.onShowAllLines,
@@ -708,7 +708,7 @@ class _LyricListPaneState extends State<LyricListPane> {
     if (!_followPaused ||
         !_followMissed ||
         !widget.followPlayback ||
-        widget.filter == LyricReviewFilter.needsReview ||
+        widget.filter == LyricReviewFilter.suggested ||
         current == null ||
         !shown.contains(current)) {
       return null;

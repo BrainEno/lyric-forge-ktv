@@ -134,7 +134,7 @@ void main() {
       expect(
         label,
         '第 1 行，00:12.40 到 00:15.10，月亮代表我的心，副歌，正在播放，'
-        '待复核，优先级 60，有另一引擎的候选，建议补入，已手动修改',
+        '建议复核，必看，有另一引擎的候选，建议补入，已手动修改',
       );
     });
 
@@ -258,7 +258,7 @@ void main() {
         find.bySemanticsLabel(RegExp(r'^第 1 行，00:12\.40 到 00:15\.10，')),
         findsOneWidget,
       );
-      expect(find.bySemanticsLabel(RegExp(r'^第 2 行，.*待复核')), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp(r'^第 2 行，.*建议复核')), findsOneWidget);
       // The pieces are not read a second time on their own.
       expect(find.bySemanticsLabel('月亮代表我的心'), findsNothing);
       expect(find.bySemanticsLabel('00:12.40'), findsNothing);
@@ -336,7 +336,7 @@ void main() {
 
       final second = _semanticsStartingWith(tester, '第 2 行');
       expect(second.properties.label, endsWith('已复核'));
-      expect(second.properties.label, isNot(contains('待复核')));
+      expect(second.properties.label, isNot(contains('建议复核')));
       handle.dispose();
     });
 

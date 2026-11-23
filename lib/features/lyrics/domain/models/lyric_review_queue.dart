@@ -20,6 +20,12 @@ import '../services/lyric_review_priority_service.dart';
 ///   [needsReviewCount];
 /// * [unscoredLines] records lines the engine never scored, so the UI can say
 ///   "we do not know" instead of inventing a red badge.
+///
+/// Since D-068 the editor offers this queue as one filter, 建议复核, and
+/// explains it with [mustCheckCount] and [reasonKindCounts] instead of a
+/// separate low-confidence filter: a low score is one of the reasons, not a
+/// second list.
+///
 /// Score below which a line that actually has a score counts as low confidence.
 ///
 /// Lines without a score are never "low": see [LyricConfidenceSource.unscored].
@@ -106,7 +112,7 @@ class LyricReviewQueue {
 
   bool get isEmpty => items.isEmpty;
 
-  /// The single number the editor shows as "待复核".
+  /// The single number the editor shows as "建议复核".
   int get needsReviewCount => items.length;
 
   /// Lines surfaced because of a real, low engine score. Always a subset of
@@ -131,4 +137,30 @@ class LyricReviewQueue {
 
   bool isLowConfidence(int lineIndex) =>
       lowConfidenceIndices.contains(lineIndex);
+
+  /// Queued rows with strong evidence ([LyricReviewUrgency.mustCheck]).
+  int get mustCheckCount => items
+      .where((item) => item.urgency == LyricReviewUrgency.mustCheck)
+      .length;
+
+  /// Queued rows worth a listen when there is time.
+  int get worthCheckCount => items.length - mustCheckCount;
+
+  /// How many queued rows each kind of evidence explains, most common first;
+  /// a row counts once per kind. Ties keep the [LyricReviewReasonKind] order,
+  /// which runs from the most to the least serious.
+  List<({LyricReviewReasonKind kind, int count})> get reasonKindCounts {
+    final counts = <LyricReviewReasonKind, int>{};
+    for (final item in items) {
+      for (final kind in item.reasonKinds) {
+        counts[kind] = (counts[kind] ?? 0) + 1;
+      }
+    }
+    final kinds = counts.keys.toList()
+      ..sort((left, right) {
+        final byCount = counts[right]!.compareTo(counts[left]!);
+        return byCount != 0 ? byCount : left.index.compareTo(right.index);
+      });
+    return [for (final kind in kinds) (kind: kind, count: counts[kind]!)];
+  }
 }
