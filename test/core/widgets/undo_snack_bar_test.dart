@@ -7,9 +7,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(home: Scaffold(body: SizedBox.expand())),
     );
-    return tester.state<ScaffoldMessengerState>(
-      find.byType(ScaffoldMessenger),
-    );
+    return tester.state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger));
   }
 
   testWidgets('撤销 runs the undo and shows its result', (tester) async {
@@ -61,6 +59,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump(const Duration(seconds: 6));
     expect(find.text('已删除'), findsOneWidget);
-    expect(undoSnackBarDuration, greaterThanOrEqualTo(const Duration(seconds: 8)));
+    expect(
+      undoSnackBarDuration,
+      greaterThanOrEqualTo(const Duration(seconds: 8)),
+    );
   });
 }

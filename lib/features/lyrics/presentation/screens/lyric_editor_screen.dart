@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/diagnostics/best_effort.dart';
-import '../../../../core/widgets/undo_snack_bar.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../player/domain/services/playback_session_service.dart';
@@ -34,6 +33,7 @@ import '../widgets/lyric_editor_atoms.dart';
 import '../widgets/lyric_editor_content.dart';
 import '../widgets/lyric_editor_review_controls.dart';
 import '../widgets/lyric_editor_toolbar.dart';
+import '../widgets/lyric_line_delete_undo.dart';
 import '../widgets/lyric_proofread_dialog.dart';
 import '../widgets/project_save_conflict_dialog.dart';
 
@@ -721,19 +721,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     );
     _applyRowEdit(result);
     if (!result.applied || !mounted) return;
-    final revision = _editor.documentRevision;
-    final messenger = ScaffoldMessenger.of(context);
-    showUndoSnackBar(
-      messenger,
-      message: '已删除第 ${index + 1} 行',
-      onUndo: () async {
-        if (!mounted) return null;
-        if (_editor.documentRevision != revision) {
-          return '之后又有修改，请用工具栏的撤销或 Ctrl/Cmd+Z';
-        }
-        _undo();
-        return null;
-      },
+    offerLyricLineDeleteUndo(
+      context,
+      lineNumber: index + 1,
+      revision: () => _editor.documentRevision,
+      undo: _undo,
     );
   }
 

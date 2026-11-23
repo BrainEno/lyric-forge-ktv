@@ -803,9 +803,7 @@ void main() {
   });
 
   group('删除工程 (D-063, D-064)', () {
-    testWidgets('goes to 最近删除 at once, goes back, 撤销 restores', (
-      tester,
-    ) async {
+    testWidgets('goes to 最近删除 at once, goes back, 撤销 restores', (tester) async {
       final projects = _Projects(_project(stage: ProcessingStage.lyricsEdited));
       final deletion = FakeProjectDeletionService();
       await _showProject(

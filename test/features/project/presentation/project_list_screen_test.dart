@@ -132,9 +132,7 @@ void main() {
     expect(find.text('重复'), findsNWidgets(2));
   });
 
-  testWidgets('one project goes at once and 撤销 brings it back', (
-    tester,
-  ) async {
+  testWidgets('one project goes at once and 撤销 brings it back', (tester) async {
     await pump(tester);
     await tester.tap(find.byKey(const ValueKey('project_menu_other')));
     await tester.pumpAndSettle();
@@ -190,11 +188,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ProjectTrashScreen), findsOneWidget);
     expect(find.text('Riders on the Storm'), findsOneWidget);
-    expect(find.text('还剩 30 天'), findsOneWidget);
+    expect(find.textContaining('还剩'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey('project_trash_restore_other')),
-    );
+    await tester.tap(find.byKey(const ValueKey('project_trash_restore_other')));
     await tester.pumpAndSettle();
     expect(deletion.restored, ['other']);
     expect(

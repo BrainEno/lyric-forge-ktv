@@ -248,10 +248,7 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
         icon: Icons.library_music_outlined,
         text: '还没有歌词工程',
         action: _trashed > 0
-            ? TextButton(
-                onPressed: _openTrash,
-                child: Text('最近删除（$_trashed）'),
-              )
+            ? TextButton(onPressed: _openTrash, child: Text('最近删除（$_trashed）'))
             : null,
       );
     }
