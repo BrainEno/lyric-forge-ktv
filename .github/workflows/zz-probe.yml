@@ -29,6 +29,7 @@ jobs:
           flutter test --no-pub --reporter expanded > tests.txt 2>&1 || true
           grep -E '\[E\]|Expected:|Actual:|Which:|error:|Some tests failed|All tests passed|^\S+\.dart:[0-9]+' tests.txt | head -150 > testfail.txt || true
           tail -1 tests.txt >> testfail.txt
+          grep -n -A14 -E 'EXCEPTION CAUGHT BY' tests.txt | grep -v -E '^[0-9]+-\s*$' | head -220 >> testfail.txt || true
           tail -3 tests.txt
       - name: emit
         if: always()

@@ -81,11 +81,7 @@ List<GlobalSearchItem> globalSearchActions({required bool phone}) {
         '首页',
       ]),
       ...library,
-      _page('lyrics', '歌词', '有歌词的歌曲', Routes.review, [
-        'lyrics',
-        'geci',
-        'gc',
-      ]),
+      _page('lyrics', '歌词', '有歌词的歌曲', Routes.review, ['lyrics', 'geci', 'gc']),
       _page('from-computer', '从电脑获取', '连接电脑，下载或在线播放', Routes.remoteLibrary, [
         'transfer',
         'computer',

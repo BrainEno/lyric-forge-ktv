@@ -96,17 +96,11 @@ void main() {
     };
 
     test('逐行打轴 has the tap sync keys', () {
-      expect(
-        keysOf('逐行打轴'),
-        containsAll(hintKeys(LyricTapSyncStrings.keys)),
-      );
+      expect(keysOf('逐行打轴'), containsAll(hintKeys(LyricTapSyncStrings.keys)));
     });
 
     test('逐字打点 has the word tap keys', () {
-      expect(
-        keysOf('逐字打点'),
-        containsAll(hintKeys(LyricWordTapStrings.keys)),
-      );
+      expect(keysOf('逐字打点'), containsAll(hintKeys(LyricWordTapStrings.keys)));
     });
 
     test('逐字微调 has the word timing keys', () {
@@ -119,9 +113,9 @@ void main() {
     });
 
     test('the macOS list swaps find and replace and drops Ctrl+Y', () {
-      final apple = keyboardShortcutGroups(apple: true)
-          .singleWhere((group) => group.title == '歌词校对')
-          .shortcuts;
+      final apple = keyboardShortcutGroups(
+        apple: true,
+      ).singleWhere((group) => group.title == '歌词校对').shortcuts;
       final find = apple.singleWhere((item) => item.action == '查找和替换');
       expect(find.keys, ['⌘', 'Shift', 'H']);
       final redo = apple.singleWhere((item) => item.action == '重做');

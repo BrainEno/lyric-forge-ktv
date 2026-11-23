@@ -13,8 +13,6 @@ import '../../domain/global_search_source.dart';
 import '../global_search_dependencies.dart';
 import 'keyboard_shortcuts_panel.dart';
 
-bool _searchOpen = false;
-
 /// What was picked in the search: a result, and whether with the second
 /// action (Shift+Enter or the row's button).
 class GlobalSearchChoice {
@@ -30,20 +28,14 @@ Future<void> showGlobalSearch(
   BuildContext context,
   GlobalSearchDependencies dependencies,
 ) async {
-  if (_searchOpen) return;
-  _searchOpen = true;
-  final GlobalSearchChoice? choice;
-  try {
-    choice = await showDialog<GlobalSearchChoice>(
-      context: context,
-      builder: (_) => GlobalSearchPalette(
-        source: dependencies.source,
-        showKeyHints: !dependencies.phone,
-      ),
-    );
-  } finally {
-    _searchOpen = false;
-  }
+  if (GlobalSearchPalette.isOpen) return;
+  final choice = await showDialog<GlobalSearchChoice>(
+    context: context,
+    builder: (_) => GlobalSearchPalette(
+      source: dependencies.source,
+      showKeyHints: !dependencies.phone,
+    ),
+  );
   if (choice == null || !context.mounted) return;
   await runGlobalSearchChoice(context, dependencies, choice);
 }
@@ -112,6 +104,12 @@ class GlobalSearchPalette extends StatefulWidget {
 
   static const hint = '搜索工程、歌曲、歌单、歌词或操作';
 
+  static int _mounted = 0;
+
+  /// Whether a search box is on screen, so a second Ctrl+K does not stack
+  /// another. Counted by the box itself, so it can never stay stuck.
+  static bool get isOpen => _mounted > 0;
+
   final GlobalSearchSource source;
 
   /// The footer naming the keys; off on phones.
@@ -140,14 +138,21 @@ class _GlobalSearchPaletteState extends State<GlobalSearchPalette> {
   List<GlobalSearchHit> _hits = const [];
   int _selected = 0;
 
+  static const _queueKey = SingleActivator(
+    LogicalKeyboardKey.enter,
+    shift: true,
+  );
+
   @override
   void initState() {
     super.initState();
+    GlobalSearchPalette._mounted++;
     unawaited(_load());
   }
 
   @override
   void dispose() {
+    GlobalSearchPalette._mounted--;
     _controller.dispose();
     _scroll.dispose();
     super.dispose();
@@ -201,8 +206,7 @@ class _GlobalSearchPaletteState extends State<GlobalSearchPalette> {
   }
 
   void _choose(GlobalSearchHit hit, {bool secondary = false}) {
-    final second =
-        secondary && GlobalSearchPalette.secondaryLabel(hit) != null;
+    final second = secondary && GlobalSearchPalette.secondaryLabel(hit) != null;
     Navigator.of(context).pop(GlobalSearchChoice(hit, secondary: second));
   }
 
@@ -270,8 +274,7 @@ class _GlobalSearchPaletteState extends State<GlobalSearchPalette> {
                     _move(1),
                 const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
                     _move(-1),
-                const SingleActivator(LogicalKeyboardKey.enter, shift: true):
-                    () => _chooseSelected(secondary: true),
+                _queueKey: () => _chooseSelected(secondary: true),
               },
               child: TextField(
                 key: GlobalSearchPalette.fieldKey,

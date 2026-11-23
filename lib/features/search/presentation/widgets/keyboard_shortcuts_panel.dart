@@ -6,29 +6,44 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/keyboard_shortcut_catalog.dart';
 
-bool _panelOpen = false;
-
 /// Shows every keyboard shortcut (D-065). Does nothing while the panel is
 /// already open, so pressing ? twice does not stack two.
 Future<void> showKeyboardShortcuts(BuildContext context) async {
-  if (_panelOpen) return;
-  _panelOpen = true;
-  try {
-    await showDialog<void>(
-      context: context,
-      builder: (_) => const KeyboardShortcutsPanel(),
-    );
-  } finally {
-    _panelOpen = false;
-  }
+  if (KeyboardShortcutsPanel.isOpen) return;
+  await showDialog<void>(
+    context: context,
+    builder: (_) => const KeyboardShortcutsPanel(),
+  );
 }
 
 /// The shortcut panel: one card per place in the app, two columns on wide
 /// windows.
-class KeyboardShortcutsPanel extends StatelessWidget {
+class KeyboardShortcutsPanel extends StatefulWidget {
   const KeyboardShortcutsPanel({super.key});
 
   static const panelKey = ValueKey('keyboard-shortcuts-panel');
+
+  static int _mounted = 0;
+
+  /// Whether the panel is on screen, counted by the panel itself.
+  static bool get isOpen => _mounted > 0;
+
+  @override
+  State<KeyboardShortcutsPanel> createState() => _KeyboardShortcutsPanelState();
+}
+
+class _KeyboardShortcutsPanelState extends State<KeyboardShortcutsPanel> {
+  @override
+  void initState() {
+    super.initState();
+    KeyboardShortcutsPanel._mounted++;
+  }
+
+  @override
+  void dispose() {
+    KeyboardShortcutsPanel._mounted--;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +107,7 @@ class KeyboardShortcutsPanel extends StatelessWidget {
       },
     );
     final content = Column(
-      key: panelKey,
+      key: KeyboardShortcutsPanel.panelKey,
       mainAxisSize: MainAxisSize.min,
       children: [
         header,

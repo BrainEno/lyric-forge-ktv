@@ -138,9 +138,7 @@ class GlobalSearchResults {
   final List<GlobalSearchGroup> groups;
 
   /// The rows in display order, for moving the selection with the arrows.
-  List<GlobalSearchHit> get hits => [
-    for (final group in groups) ...group.hits,
-  ];
+  List<GlobalSearchHit> get hits => [for (final group in groups) ...group.hits];
 
   bool get isEmpty => groups.every((group) => group.hits.isEmpty);
 }

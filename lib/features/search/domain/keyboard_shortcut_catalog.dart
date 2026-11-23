@@ -2,6 +2,9 @@
 /// on Apple platforms and Ctrl elsewhere.
 const String commandKey = 'mod';
 
+const List<String> _redo = [commandKey, 'Shift', 'Z'];
+const List<String> _ctrlY = ['Ctrl', 'Y'];
+
 /// One shortcut: the keys pressed together, and what they do.
 class KeyboardShortcut {
   const KeyboardShortcut(this.action, this.keys, {this.alternative});
@@ -74,11 +77,7 @@ List<KeyboardShortcutGroup> keyboardShortcutGroups({required bool apple}) => [
     shortcuts: [
       const KeyboardShortcut('保存', [commandKey, 'S']),
       const KeyboardShortcut('撤销', [commandKey, 'Z']),
-      KeyboardShortcut(
-        '重做',
-        const [commandKey, 'Shift', 'Z'],
-        alternative: apple ? null : const ['Ctrl', 'Y'],
-      ),
+      KeyboardShortcut('重做', _redo, alternative: apple ? null : _ctrlY),
       KeyboardShortcut(
         '查找和替换',
         apple ? const ['⌘', 'Shift', 'H'] : const ['Ctrl', 'H'],

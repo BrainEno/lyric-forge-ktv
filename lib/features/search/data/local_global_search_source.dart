@@ -90,16 +90,11 @@ class LocalGlobalSearchSource implements GlobalSearchSource {
     kind: GlobalSearchKind.playlist,
     id: playlist.id,
     title: playlist.name,
-    subtitle: _join([
-      '${playlist.sourcePaths.length} 首',
-      playlist.description,
-    ]),
+    subtitle: _join(['${playlist.sourcePaths.length} 首', playlist.description]),
     target: OpenPlaylistTarget(
       playlistId: playlist.id,
       route: playlistRoute(playlist.id),
-      songs: [
-        for (final path in playlist.sourcePaths) ?songs[pathKey(path)],
-      ],
+      songs: [for (final path in playlist.sourcePaths) ?songs[pathKey(path)]],
     ),
   );
 
@@ -149,7 +144,8 @@ class LocalGlobalSearchSource implements GlobalSearchSource {
     return PlaybackItem(
       id: 'local:${entry.sourcePath}',
       title: override?.resolvedTitle(fallback) ?? fallback,
-      artist: override?.resolvedArtist(entry.embeddedArtist) ??
+      artist:
+          override?.resolvedArtist(entry.embeddedArtist) ??
           entry.embeddedArtist,
       artworkPath: artwork,
       audioAsset: AudioAsset(

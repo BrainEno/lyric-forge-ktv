@@ -118,9 +118,7 @@ void main() {
     expect(session.queued.single.map((item) => item.title), ['Fire']);
   });
 
-  testWidgets('arrows move the selection, Shift+Enter queues', (
-    tester,
-  ) async {
+  testWidgets('arrows move the selection, Shift+Enter queues', (tester) async {
     await pump(tester);
     await type(tester, 'fire');
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);

@@ -68,10 +68,7 @@ void main() {
         AppSearchButton.tooltipFor(TargetPlatform.macOS),
         endsWith('（⌘K）'),
       );
-      expect(
-        AppSearchButton.tooltipFor(TargetPlatform.iOS),
-        '搜索工程、歌曲、歌单和操作',
-      );
+      expect(AppSearchButton.tooltipFor(TargetPlatform.iOS), '搜索工程、歌曲、歌单和操作');
     });
   });
 

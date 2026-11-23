@@ -163,9 +163,7 @@ class AppRouter {
 
       case Routes.projectTrash:
         return _fadeRoute(
-          ProjectTrashScreen(
-            service: assembleProjectDeletionService(services),
-          ),
+          ProjectTrashScreen(service: assembleProjectDeletionService(services)),
           settings,
         );
 
