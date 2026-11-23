@@ -1,7 +1,10 @@
 import '../features/import/presentation/transcription_import_dependencies.dart';
 import '../features/player/domain/services/playback_session_service.dart';
-import '../features/project/presentation/project_detail_dependencies.dart';
 import '../features/project/data/services/file_project_accompaniment_importer.dart';
+import '../features/project/data/services/local_project_deletion_service.dart';
+import '../features/project/domain/services/project_deletion_service.dart';
+import '../features/project/presentation/project_detail_dependencies.dart';
+import '../features/project/presentation/project_list_dependencies.dart';
 import 'app_services.dart';
 import 'transcription_assembly.dart';
 
@@ -23,6 +26,23 @@ ProjectDetailDependencies assembleProjectDetailDependencies(
         : null,
     transcriptionWorkflow: services.createProjectTranscriptionWorkflow(),
     asrRuntimeSetupDependencies: assembleAsrRuntimeSetupDependencies(services),
+    deletionService: assembleProjectDeletionService(services),
+  );
+}
+
+/// Deletes projects, checking the playback and recognition queue (D-063).
+ProjectDeletionService assembleProjectDeletionService(AppServices services) =>
+    LocalProjectDeletionService(
+      projectRepository: services.projectRepository,
+      playbackSession: services.playbackSessionService,
+      transcriptionQueue: services.transcriptionQueue,
+    );
+
+ProjectListDependencies assembleProjectListDependencies(AppServices services) {
+  return ProjectListDependencies(
+    projectRepository: services.projectRepository,
+    deletionService: assembleProjectDeletionService(services),
+    canonicalizeAudioPath: services.audioPathCanonicalizer.canonicalize,
   );
 }
 

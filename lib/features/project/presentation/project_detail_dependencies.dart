@@ -1,5 +1,6 @@
 import '../../player/domain/services/playback_session_service.dart';
 import '../domain/repositories/project_repository.dart';
+import '../domain/services/project_deletion_service.dart';
 import '../domain/services/project_accompaniment_importer.dart';
 import '../domain/services/project_vocal_importer.dart';
 import '../../transcription/domain/services/asr_runtime_manager.dart';
@@ -16,6 +17,9 @@ class ProjectDetailDependencies {
   final ProjectTranscriptionWorkflow transcriptionWorkflow;
   final AsrRuntimeSetupDependencies asrRuntimeSetupDependencies;
 
+  /// Offers 删除工程 when set (D-063).
+  final ProjectDeletionService? deletionService;
+
   TranscriptionSettingsStore get transcriptionSettingsStore =>
       asrRuntimeSetupDependencies.transcriptionSettingsStore;
   AsrRuntimeManager get asrRuntimeManager =>
@@ -28,5 +32,6 @@ class ProjectDetailDependencies {
     this.playbackSourceUpdater,
     required this.transcriptionWorkflow,
     required this.asrRuntimeSetupDependencies,
+    this.deletionService,
   });
 }

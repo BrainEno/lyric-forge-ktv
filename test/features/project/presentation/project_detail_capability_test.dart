@@ -10,6 +10,7 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 import 'package:lyric_forge_ktv/features/project/domain/services/project_accompaniment_importer.dart';
+import 'package:lyric_forge_ktv/features/project/domain/services/project_deletion_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/services/project_vocal_importer.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/project_detail_dependencies.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/screens/project_detail_screen.dart';
@@ -56,8 +57,10 @@ Future<void> _showProject(
   ActiveProjectPlaybackSourceUpdater? updater,
   ProjectTranscriptionWorkflow? workflow,
   TranscriptionSettingsStore? settings,
+  ProjectDeletionService? deletionService,
   double textScale = 1,
   bool openAudioSources = true,
+  bool pushed = false,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -82,6 +85,11 @@ Future<void> _showProject(
         downloadProxyStore: _Proxy(),
       ),
     ),
+    deletionService: deletionService,
+  );
+  final screen = ProjectDetailScreen(
+    projectId: project.id,
+    dependencies: dependencies,
   );
   await tester.pumpWidget(
     MaterialApp(
@@ -91,13 +99,26 @@ Future<void> _showProject(
         ).copyWith(textScaler: TextScaler.linear(textScale)),
         child: child!,
       ),
-      home: ProjectDetailScreen(
-        projectId: project.id,
-        dependencies: dependencies,
-      ),
+      home: pushed
+          ? Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(builder: (_) => screen),
+                  ),
+                  child: const Text('open project'),
+                ),
+              ),
+            )
+          : screen,
     ),
   );
   await tester.pumpAndSettle();
+  if (pushed) {
+    await tester.tap(find.text('open project'));
+    await tester.pumpAndSettle();
+  }
   // The track imports are folded behind 伴奏与人声 (desktop only).
   final toggle = find.byKey(ProjectAudioSourcesSection.toggleKey);
   if (openAudioSources && toggle.evaluate().isNotEmpty) {
@@ -779,6 +800,68 @@ void main() {
     }
   });
 
+  group('删除工程 (D-063)', () {
+    testWidgets('deletes after confirming and goes back', (tester) async {
+      final projects = _Projects(_project(stage: ProcessingStage.lyricsEdited));
+      final deletion = _Deletion(projects);
+      await _showProject(
+        tester,
+        projects.project,
+        const Size(1366, 768),
+        projects: projects,
+        deletionService: deletion,
+        openAudioSources: false,
+        pushed: true,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('project_detail_more')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('project_detail_delete')));
+      await tester.pumpAndSettle();
+      expect(find.text('删除工程“Test song”？'), findsOneWidget);
+      expect(find.textContaining('歌曲的音频文件不会删除'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('project_delete_confirm')));
+      await tester.pumpAndSettle();
+
+      expect(deletion.deleted, ['project']);
+      expect(find.byType(ProjectDetailScreen), findsNothing);
+      expect(find.text('open project'), findsOneWidget);
+      expect(find.text('工程已删除'), findsOneWidget);
+    });
+
+    testWidgets('cancelling keeps the project open', (tester) async {
+      final projects = _Projects(_project(stage: ProcessingStage.lyricsEdited));
+      final deletion = _Deletion(projects);
+      await _showProject(
+        tester,
+        projects.project,
+        const Size(1366, 768),
+        projects: projects,
+        deletionService: deletion,
+        openAudioSources: false,
+        pushed: true,
+      );
+      await tester.tap(find.byKey(const ValueKey('project_detail_more')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('project_detail_delete')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('project_delete_cancel')));
+      await tester.pumpAndSettle();
+
+      expect(deletion.deleted, isEmpty);
+      expect(find.byType(ProjectDetailScreen), findsOneWidget);
+    });
+
+    testWidgets('without the service there is no delete menu', (tester) async {
+      await _showProject(
+        tester,
+        _project(stage: ProcessingStage.lyricsEdited),
+        const Size(1366, 768),
+      );
+      expect(find.byKey(const ValueKey('project_detail_more')), findsNothing);
+    });
+  });
+
   group('演唱语言 (D-062)', () {
     ProjectManifest songWithAudio({Map<String, dynamic> metadata = const {}}) =>
         _project(
@@ -943,6 +1026,26 @@ class _Projects extends Fake implements ProjectRepository {
   ProjectManifest project;
   @override
   Future<ProjectManifest?> getProjectById(String id) async => project;
+}
+
+class _Deletion implements ProjectDeletionService {
+  _Deletion(this.projects);
+
+  final _Projects projects;
+  final deleted = <String>[];
+
+  @override
+  Future<ProjectDeletionCheck> check(ProjectManifest project) async =>
+      const ProjectDeletionCheck();
+
+  @override
+  Future<ProjectDeletionResult> delete(
+    ProjectManifest project, {
+    bool removeFiles = true,
+  }) async {
+    deleted.add(project.id);
+    return const ProjectDeletionResult();
+  }
 }
 
 /// Saves conditional updates like the real repository: by revision.

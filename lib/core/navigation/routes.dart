@@ -23,6 +23,10 @@ abstract class Routes {
   static const String lyricEditor = '/project/:id/lyrics';
   static const String player = '/project/:id/player';
   static const String review = '/review';
+
+  /// 全部工程: every lyric project, deleting and duplicate cleanup (D-063).
+  static const String projects = '/projects';
+
   static const String settings = '/settings';
   static const String mediaSharing = '/media-sharing';
   static const String remoteLibrary = '/remote-library';

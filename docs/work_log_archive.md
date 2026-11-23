@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-19 09:30] Untimed reference lyrics ([entry](log/entries/2026-12-19-0930-untimed-reference-lyrics.md))
 - [2026-12-18 09:30] Simplify the proofreading menu ([entry](log/entries/2026-12-18-0930-simplify-the-proofreading-menu.md))
 - [2026-12-17 09:30] One-click proofreading with online lyrics ([entry](log/entries/2026-12-17-0930-one-click-proofread-with-online-lyrics.md))
 - [2026-12-16 10:30] Resume downloads from the break point and recover the runtime install ([entry](log/entries/2026-12-16-1030-resume-downloads-and-recover-runtime-install.md))
