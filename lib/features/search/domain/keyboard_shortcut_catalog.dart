@@ -83,6 +83,7 @@ List<KeyboardShortcutGroup> keyboardShortcutGroups({required bool apple}) => [
         apple ? const ['⌘', 'Shift', 'H'] : const ['Ctrl', 'H'],
       ),
       const KeyboardShortcut('在歌词列表里搜索', [commandKey, 'F']),
+      const KeyboardShortcut('跳到第几行（也可以输入时间）', [commandKey, 'G']),
       const KeyboardShortcut('选择上一行 / 下一行', ['↑'], alternative: ['↓']),
       const KeyboardShortcut('编辑选中的行', ['Enter'], alternative: ['F2']),
       const KeyboardShortcut(

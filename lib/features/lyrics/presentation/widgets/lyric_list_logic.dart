@@ -228,20 +228,62 @@ abstract final class LyricListNavigation {
   /// Closer than this, following does not scroll.
   static const double followSlack = 20;
 
-  /// The scroll offset that puts the row at [position] among the shown rows
-  /// near [followAnchor] of the viewport, or null when the list is already
-  /// within [followSlack] of it.
-  static double? followTarget({
+  /// How long following playback waits after the person last scrolled the
+  /// list, moved with the arrow keys or jumped to a row (D-067).
+  static const Duration followPause = Duration(seconds: 5);
+
+  /// How long a row jumped to stays highlighted.
+  static const Duration jumpFlash = Duration(milliseconds: 1400);
+
+  /// How many times a jump re-estimates the offset of a row not built yet
+  /// before giving up.
+  static const int revealAttempts = 4;
+
+  /// The average row height of a list whose scroll range is [maxExtent]
+  /// for [rows] rows in a [viewport]-tall window; [estimatedRowExtent]
+  /// before anything was laid out.
+  static double averageRowExtent({
+    required double maxExtent,
+    required double viewport,
+    required int rows,
+  }) {
+    if (rows <= 0) return estimatedRowExtent;
+    final average = (maxExtent + viewport) / rows;
+    return average.isFinite && average > 0 ? average : estimatedRowExtent;
+  }
+
+  /// A first guess at the offset that shows the row at [position], used
+  /// to get it built so its real place can be measured.
+  static double revealEstimate({
     required int position,
+    required double rowExtent,
     required double viewport,
     required double minExtent,
     required double maxExtent,
-    required double offset,
   }) {
-    if (position < 0) return null;
-    final raw = position * estimatedRowExtent - viewport * followAnchor;
-    final target = raw.clamp(minExtent, maxExtent).toDouble();
-    if ((offset - target).abs() < followSlack) return null;
-    return target;
+    final raw = position * rowExtent - viewport * followAnchor;
+    return raw.clamp(minExtent, maxExtent).toDouble();
+  }
+
+  /// Where to scroll so a row is fully on screen after an arrow key, or
+  /// null when it already is. [top] is the offset that puts the row at the
+  /// top edge, [bottom] the one that puts it at the bottom edge.
+  static double? keepVisibleOffset({
+    required double offset,
+    required double top,
+    required double bottom,
+    required double minExtent,
+    required double maxExtent,
+  }) {
+    double? target;
+    // A row taller than the window shows its start.
+    if (offset > top || bottom >= top) {
+      target = top;
+    } else if (offset < bottom) {
+      target = bottom;
+    }
+    if (target == null) return null;
+    final clamped = target.clamp(minExtent, maxExtent).toDouble();
+    return (clamped - offset).abs() < 1 ? null : clamped;
   }
 }
