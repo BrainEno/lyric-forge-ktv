@@ -26,11 +26,9 @@ jobs:
       - name: tests
         if: always()
         run: |
-          flutter test --no-pub --reporter expanded test/features/lyrics/presentation/screens/chunk_project_editor_review_integration_test.dart test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart > tests.txt 2>&1 || true
-          grep -v -E '^\s*$' tests.txt | grep -n -i -E 'warning|hit test|offset|chorus|删除|tap|\[E\]|EXCEPTION|Expected|Actual|failed|passed' | head -150 > testfail.txt || true
-          cp testfail.txt keep.txt
+          flutter test --no-pub --reporter expanded > tests.txt 2>&1 || true
           grep -E '\[E\]|Expected:|Actual:|Which:|error:|Some tests failed|All tests passed|^\S+\.dart:[0-9]+' tests.txt | head -150 > testfail.txt || true
-          cp keep.txt testfail.txt; tail -1 tests.txt >> testfail.txt
+          tail -1 tests.txt >> testfail.txt
           grep -n -A14 -E 'EXCEPTION CAUGHT BY' tests.txt | grep -v -E '^[0-9]+-\s*$' | head -220 >> testfail.txt || true
           tail -3 tests.txt
       - name: emit
