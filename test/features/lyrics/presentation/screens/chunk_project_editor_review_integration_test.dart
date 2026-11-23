@@ -196,14 +196,14 @@ void main() {
             .first,
       );
       // ignore: avoid_print
-      print('DBG inspector=${tester.getRect(find.byType(LineInspector))} '
+      print('DBG 删除 tap inspector=${tester.getRect(find.byType(LineInspector))} '
           'btn=${tester.getRect(find.text('删除这一行'))} '
           'scrollables=${find.descendant(of: find.byType(LineInspector), matching: find.byType(Scrollable)).evaluate().map((e) => tester.getRect(find.byWidget(e.widget))).toList()} '
           'snack=${find.byType(SnackBar).evaluate().length} '
           'chips=${find.byType(FilterChip).evaluate().map((e) => tester.getRect(find.byWidget(e.widget))).toList()}');
       for (final e in find.byType(SnackBar).evaluate()) {
         // ignore: avoid_print
-        print('DBG snack ${(e.widget as SnackBar).content}');
+        print('DBG 删除 tap snack ${(e.widget as SnackBar).content}');
       }
       await tester.tap(find.text('删除这一行'));
       await tester.pumpAndSettle();
