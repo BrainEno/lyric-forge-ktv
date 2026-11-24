@@ -9,7 +9,9 @@
   - Changed: `lib/features/player/presentation/screens/player_screen.dart`, `docs/decisions.md`, `docs/handoff.md`, `docs/work_log.md`, `docs/work_log_archive.md`.
 - Validation:
   - `git diff --check` => passed.
-  - Existing `player_reference_lyrics_test.dart` and `project_player_live_sources_test.dart` remain the behavior coverage; final PR CI is pending.
-  - Local Flutter/Dart SDK is unavailable.
-- Notes: structural move only; verify the full Flutter quality gate before merging PR #521.
+  - PR #521 final head `9c206ce`: format check, work-log preflight, analysis, full test suite, KTV history/recovery and KTV take-lock workflows => passed.
+  - The first CI runs caught missing imports after moving the lyric widgets; the required model/API imports were restored or relocated, and the final head passed.
+  - Existing `player_reference_lyrics_test.dart` and `project_player_live_sources_test.dart` cover the moved pane's existing behavior.
+  - Local Flutter/Dart SDK is unavailable; validation used GitHub Actions.
+- Notes: structural move only; PR #521 remains open for review.
 - Commit: `Split player lyrics pane`

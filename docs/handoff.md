@@ -13,7 +13,8 @@
 ## Git 现场
 
 - 分支：`arena/3ba64e05-lyric-forge-ktv`，基于 PR #520 合并后的 main 提交 `7c6ebfc8d2783a0bec06d2abd7f38118f7c6b086`。
-- PR #521：<https://github.com/BrainEno/lyric-forge-ktv/pull/521>；当前会继续包含 D-075、D-076 两轮，尚未合并。
+- PR #521：<https://github.com/BrainEno/lyric-forge-ktv/pull/521>；当前包含 D-075、D-076 两轮，尚未合并。
+- D-076 最终提交：`9c206cee29c77a08847df13c50ec9c3ae73cdec9`。
 
 ## 已改文件
 
@@ -22,8 +23,9 @@
 ## 检查结果
 
 - 本地没有 Flutter/Dart SDK；`git diff --check` 通过。
-- D-075 的最终 CI 已通过：`format-analyze-test-worklog`、`flutter`。
-- D-076 的格式、分析、全量测试和 KTV 检查待本轮 PR CI 验证。
+- D-075 最终提交 `375d784` 的 `format-analyze-test-worklog`、`flutter` 均通过。
+- D-076 最终提交 `9c206ce` 的 `format-analyze-test-worklog`、`flutter`、`ktv-take-locks` 均通过，含格式、work-log、分析、全量测试、KTV 历史／恢复及操作锁检查。
+- 首次 CI 暴露歌词视图抽取后的类型和模型导入问题；已修复并通过最终检查。
 
 ## 下一步
 
