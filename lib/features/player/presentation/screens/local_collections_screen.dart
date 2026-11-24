@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/widgets/app_catalog_card.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../../core/widgets/undo_snack_bar.dart';
 import '../../domain/models/local_media_library_entry.dart';
