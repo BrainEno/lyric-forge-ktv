@@ -17,7 +17,7 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
-import '../domain/models/ktv_backing_mode.dart';
+import '../../domain/models/ktv_backing_mode.dart';
 import '../playback_screen_dependencies.dart';
 import '../widgets/ktv_entry_sheet.dart';
 import '../widgets/lyrics_source_sheet.dart';

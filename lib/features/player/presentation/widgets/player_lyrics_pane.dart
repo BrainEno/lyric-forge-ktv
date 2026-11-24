@@ -6,7 +6,6 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_tap_target.dart';
 import '../../../project/domain/models/lyric_document.dart';
-import '../../../project/domain/models/lyric_timing.dart';
 import 'lyrics_source_sheet.dart';
 import 'player_lyric_semantics.dart';
 import 'reference_lyrics_view.dart';
