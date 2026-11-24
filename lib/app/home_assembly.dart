@@ -1,5 +1,6 @@
 import '../features/home/presentation/dashboard_dependencies.dart';
 import 'app_services.dart';
+import 'screen_assembly.dart';
 import 'transcription_assembly.dart';
 
 DashboardDependencies assembleDashboardDependencies(AppServices services) {
@@ -14,5 +15,7 @@ DashboardDependencies assembleDashboardDependencies(AppServices services) {
       services,
     ),
     projectChanges: services.projectDeletionService.changes,
+    gettingStartedStore: services.gettingStartedStore,
+    reviewCounter: countProjectLyricReview,
   );
 }

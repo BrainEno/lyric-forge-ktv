@@ -10,6 +10,7 @@ import '../widgets/ai_transcription_settings_section.dart';
 import '../widgets/appearance_settings_card.dart';
 import '../widgets/asr_end_to_end_smoke_test_card.dart';
 import '../widgets/diagnostics_settings_card.dart';
+import '../widgets/getting_started_settings_card.dart';
 import '../widgets/library_folder_settings_card.dart';
 import '../widgets/settings_section_card.dart';
 import '../widgets/settings_columns.dart';
@@ -32,6 +33,7 @@ class SettingsScreen extends StatelessWidget {
     final layout = AppResponsive.of(context);
     final libraryFolder = dependencies.libraryFolder;
     final appearance = dependencies.appearance;
+    final showGettingStarted = dependencies.showGettingStarted;
     // A phone cannot run the recognition models (D-058): no AI 识别 group
     // and no trial recognition.
     final recognition = AppCapabilities.lyricWorkbench;
@@ -140,6 +142,23 @@ class SettingsScreen extends StatelessWidget {
                           const SizedBox(height: AppSpacing.lg),
                           AsrEndToEndSmokeTestCard(
                             smokeTestService: dependencies.smokeTestService,
+                          ),
+                        ],
+                        // The checklist lives on the desktop dashboard; a
+                        // phone opens on the listening home instead.
+                        if (recognition && showGettingStarted != null) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          const SettingsGroupLabel(
+                            key: ValueKey('settings-group:help'),
+                            label: GettingStartedSettingsText.group,
+                          ),
+                          SettingsSectionCard(
+                            icon: Icons.flag_outlined,
+                            title: GettingStartedSettingsText.title,
+                            subtitle: GettingStartedSettingsText.subtitle,
+                            child: GettingStartedSettingsCard(
+                              onShow: showGettingStarted,
+                            ),
                           ),
                         ],
                       ],
