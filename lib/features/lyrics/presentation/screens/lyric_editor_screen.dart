@@ -210,8 +210,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
       editor: _editor,
       context: () => context,
       isMounted: () => mounted,
-      onProjectChanged: (project) =>
-          setState(() => _projectFuture = Future.value(project)),
+      // A block, not an arrow: setState must not be handed a Future.
+      onProjectChanged: (project) => setState(() {
+        _projectFuture = Future.value(project);
+      }),
       onSavingChanged: () => setState(() {}),
     );
     _audio = LyricEditorAuditionFlow(
