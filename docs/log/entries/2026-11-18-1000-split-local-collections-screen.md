@@ -12,7 +12,8 @@
   - Changed: `local_collections_screen.dart`, `screen_size_budget_test.dart`, `catalog_card_contract_test.dart`, `docs/decisions.md`, `docs/handoff.md`, `docs/work_log.md`, `docs/work_log_archive.md`.
 - Validation:
   - `git diff --check` => passed.
-  - Local Flutter/Dart SDK is unavailable; formatting, analysis and tests are pending the PR quality gate.
-  - Screen is 590 lines; all screen files will be checked by the updated architecture test.
-- Notes: UI text, order, callbacks and playback behavior were moved without intended changes. Verify CI before merge.
+  - PR #521 final head `ad000e0`: Flutter format check, work-log preflight, repository quality gate and KTV history/recovery workflow => passed.
+  - The first CI pass caught the moved screen's shared grid import and a catalog contract still targeting the old card location; both were corrected and the final head passed.
+  - Screen is 590 physical lines; all screens are checked by the updated architecture test.
+- Notes: UI text, order, callbacks and playback behavior were moved without intended changes. Local Flutter/Dart SDK is unavailable, so validation used GitHub Actions.
 - Commit: `Split local collections screen`

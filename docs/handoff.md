@@ -11,7 +11,8 @@
 ## Git 现场
 
 - 分支：`arena/3ba64e05-lyric-forge-ktv`，起点为 PR #520 的合并提交 `7c6ebfc8d2783a0bec06d2abd7f38118f7c6b086`。
-- PR #520 已合并；本轮在同一 Arena 分支继续，推送时需要把已合并的旧分支头更新到 main 后的新提交。
+- PR #521：<https://github.com/BrainEno/lyric-forge-ktv/pull/521>，当前头提交 `ad000e0621284ca9db33588b0ccd2883cd2b0290`。
+- PR #520 已合并；本轮在同一 Arena 分支继续，已将旧分支头更新到 main 后的新提交。
 
 ## 已改文件
 
@@ -19,13 +20,14 @@
 
 ## 检查结果
 
-- 本地没有 Flutter/Dart SDK。
-- `git diff --check` 通过；本轮 Dart 格式、分析和全量测试待 PR CI 验证。
+- 本地没有 Flutter/Dart SDK；`git diff --check` 通过。
+- PR #521 最终提交 `ad000e0` 的 `format-analyze-test-worklog` 和 `flutter` 检查均通过，包含格式、work-log、分析、完整测试及 KTV 历史／恢复检查。
+- 首次 CI 发现两个问题（页面移出后仍需 `AppCatalogCard` 网格委派器导入、目录卡片契约仍检查旧路径）；已修复，最终提交通过。
 
 ## 下一步
 
-- 推送本轮提交并打开 PR，检查 Flutter quality gate 和 work-log 检查。
-- 如 CI 有格式、分析或测试失败，修复后重跑；合并仍需用户明确要求。
+- 本轮已提交并推送，PR #521 等待评审／合并；除非用户明确要求，不自动合并。
+- 后续可继续检查其他接近 1200 行预算的页面。
 
 ## 已知风险
 
