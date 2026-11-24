@@ -10,8 +10,10 @@
   - `docs/decisions.md` (D-073), `docs/handoff.md`.
 - Validation:
   - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
-  - Probe results: see handoff.
+  - First probe: format and analyze clean, 9 save tests failed (`lyric_editor_save_and_return_test`, `chunk_project_editor_review_integration_test`): `onProjectChanged` was `setState(() => _projectFuture = …)`, and an arrow that assigns a Future hands `setState` a Future, which Flutter rejects. Fixed with a block body.
+  - Second probe: all 5452 tests passed (5447 + 5 new). Probe removed.
 - Notes:
+  - `setState(() => field = someFuture)` throws; use `setState(() { field = someFuture; })`.
   - The editor's existing widget tests (save, save conflict, audition, proofreading previews) are unchanged and act as the regression check.
   - Built on the same branch as round 52 (PR #520 not yet merged), so the PR now carries both rounds.
 - Commit: `Move the lyric editor's save and audition out of the screen`
