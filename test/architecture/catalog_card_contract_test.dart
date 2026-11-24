@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 const _catalogScreens = <String>[
   'lib/features/player/presentation/screens/local_library_explorer_screen.dart',
   'lib/features/player/presentation/screens/local_artist_album_browser_screen.dart',
-  'lib/features/player/presentation/widgets/local_collection_widgets.dart',
+  'lib/features/player/presentation/screens/local_collections_screen.dart',
   'lib/features/transfer/presentation/screens/mobile_remote_grouped_library_screen.dart',
 ];
 
@@ -118,6 +118,18 @@ void main() {
       expect(material, greaterThan(0));
       expect(ink, greaterThan(material));
       expect(source, isNot(contains('BoxDecoration(')));
+    });
+
+    test('the local playlist card uses the shared catalog card', () {
+      final source = _read(
+        'lib/features/player/presentation/widgets/local_collection_widgets.dart',
+      );
+      final start = source.indexOf('class LocalPlaylistCard ');
+      expect(start, greaterThanOrEqualTo(0));
+      final next = source.indexOf('\nclass ', start + 1);
+      final body = source.substring(start, next < 0 ? source.length : next);
+      expect(body, contains('AppCatalogCard('));
+      expect(body, isNot(contains('BoxDecoration(')));
     });
 
     test('the grid cards no longer paint their own surface', () {
