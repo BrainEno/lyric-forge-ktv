@@ -16,7 +16,7 @@
   - `docs/decisions.md` (D-071), `docs/handoff.md`.
 - Validation:
   - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
-  - Probe results: see handoff.
+  - Probe: `flutter analyze` clean and all 5439 tests passed on the first run; `dart format` asked to join one test title line (applied by hand). Probe removed.
 - Notes:
   - Player must not import home (`home -> player` exists), hence the move to core rather than reusing the home files.
   - The checklist reads the metadata overrides only while it is shown, so pages and tests without a store do not touch them.

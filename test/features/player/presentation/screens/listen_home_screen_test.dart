@@ -750,9 +750,7 @@ void main() {
         expect(pushed.last, Routes.review);
       });
 
-      testWidgets('a song with lyrics is played from the card', (
-        tester,
-      ) async {
+      testWidgets('a song with lyrics is played from the card', (tester) async {
         guideStore = MemoryGettingStartedStore(
           const GettingStartedPreferences(
             visibility: GettingStartedVisibility.active,
