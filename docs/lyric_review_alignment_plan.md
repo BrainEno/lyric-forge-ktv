@@ -88,7 +88,7 @@
 - `ReferenceAlignmentApplier` 增加 `acceptedReferenceIndices`：非 null 时按逐行选择应用，允许显式采纳低于阈值的行；`protectedLineIndices` 仍生效；新增 `skippedBySelectionIndices` 区分"用户跳过"与"低置信"。
 - 时间轴是整体开关，与逐行文字选择独立；仍要求参考与草稿一一对应、全部行带时间戳且本次无手动编辑。
 - 应用规则：只改 `text`、`confidence = 100`、保留原时间戳、多余行不动；应用前写单槽备份 `metadata['referenceAlignmentBackup']`，应用后写 `metadata['referenceAlignment']`（新增 `acceptedReferenceCount`、`overriddenManuallyEditedCount`、`skippedBySelectionCount`）。C3 时漏行只列入待处理清单、不自动插入；C4 起由用户在逐行确认里显式勾选补入。
-- 确认完成后仍走既有 `_saveChanges` 整文档保存；用户取消则不写入。
+- 确认完成后仍走既有的整文档保存（`LyricEditorSaveFlow.save`，D-073）；用户取消则不写入。
 - widget 测试覆盖 390×844 下的默认勾选、低置信跳过、手动编辑行解锁确认与返回结果。
 
 验收：粘贴正确歌词 → 逐行确认 → 错字被纠正且时间轴不变；C3 时漏行进入待处理清单，C4 起可勾选补全；用户已改过的行不被静默覆盖；保存重开后溯源信息仍在。

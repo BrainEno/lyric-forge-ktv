@@ -1279,3 +1279,16 @@
 - 影响：区块组件都改为公开类（`ListenHome…`），子组件不再反过来引用页面文件。新增 `ListenHomeGuide` 的单元测试，原有听歌页测试不改动。
 - 状态：生效
 - 来源：第 52 轮；[工作日志](log/entries/2027-01-05-1000-split-listen-home-screen.md)
+
+## D-073 歌词编辑器的保存和试听移出页面
+
+- 日期：2027-01-06
+- 背景：歌词编辑器页面（`lyric_editor_screen.dart`）有 1198 行，`lyric_editor_orchestration_contract_test` 要求它少于 1200 行，再加任何功能都会超出。页面里最大的两块是保存（并发保存合并、按版本号写入、冲突对话框、载入最新版、覆盖）和试听（单行试听、校对提案的试听、按词试听、播放 / 暂停、跳转）。其中“这首歌多长、试听窗口从哪到哪”的计算复制了三份。
+- 决定：
+  - 保存移到 `controllers/lyric_editor_save_flow.dart`（`LyricEditorSaveFlow`），由它记住工程的版本号和正在进行的保存。页面只调用 `save`，在拿到新的工程时刷新界面。
+  - 试听移到 `controllers/lyric_editor_audition_flow.dart`（`LyricEditorAuditionFlow`）。三处重复的计算合并成 `windowFor`，“用哪个时长”单独写成 `audioDurationFor`：播放器正在播这个工程时用播放器测到的时长，否则用工程保存的时长。播放用的队列项写成 `playbackItemFor`，有人声分轨时优先用人声。
+  - 页面从 1198 行减到 783 行，只保留状态、文档编辑、校对入口和布局。
+  - 提示文字、对话框、按钮和行为都不变。
+- 影响：校对协调器仍然通过页面实现的 `LyricEditorProofreadFlowHost` 调用试听，接口不变。新增 `audioDurationFor`、`playbackItemFor` 的单元测试。保存和冲突处理继续由原有的编辑器测试覆盖（包括 `lyric_editor_save_conflict_test`）。
+- 状态：生效
+- 来源：第 53 轮；[工作日志](log/entries/2027-01-06-1000-move-editor-save-and-audition-out-of-the-screen.md)
