@@ -28,7 +28,11 @@ void main() {
       final name = path.split('/').last;
 
       test('$name draws its grid cards with AppCatalogCard', () {
-        final source = _read(path);
+        final cardPath = path.endsWith('local_collections_screen.dart')
+            ? 'lib/features/player/presentation/widgets/'
+                  'local_collection_widgets.dart'
+            : path;
+        final source = _read(cardPath);
         expect(source, contains("core/widgets/app_catalog_card.dart'"));
         expect(source, contains('AppCatalogCard('));
       });
@@ -118,6 +122,18 @@ void main() {
       expect(material, greaterThan(0));
       expect(ink, greaterThan(material));
       expect(source, isNot(contains('BoxDecoration(')));
+    });
+
+    test('the local playlist card uses the shared catalog card', () {
+      final source = _read(
+        'lib/features/player/presentation/widgets/local_collection_widgets.dart',
+      );
+      final start = source.indexOf('class LocalPlaylistCard ');
+      expect(start, greaterThanOrEqualTo(0));
+      final next = source.indexOf('\nclass ', start + 1);
+      final body = source.substring(start, next < 0 ? source.length : next);
+      expect(body, contains('AppCatalogCard('));
+      expect(body, isNot(contains('BoxDecoration(')));
     });
 
     test('the grid cards no longer paint their own surface', () {

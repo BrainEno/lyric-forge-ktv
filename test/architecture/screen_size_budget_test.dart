@@ -7,13 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 /// both (D-074).
 const _budget = 1200;
 
-/// Screens already over the budget, at their size when the check came in.
-/// They may only shrink; drop an entry once its screen is back under.
-const _frozen = <String, int>{
-  'lib/features/player/presentation/screens/local_collections_screen.dart':
-      1249,
-};
-
 int _linesOf(File file) => file.readAsStringSync().split('\n').length;
 
 String _pathOf(File file) => file.uri.pathSegments.join('/');
@@ -39,8 +32,7 @@ void main() {
   test('screens stay under $_budget lines', () {
     final over = <String>[
       for (final file in screens)
-        if (!_frozen.containsKey(_pathOf(file)) && _linesOf(file) >= _budget)
-          '${_pathOf(file)}: ${_linesOf(file)}',
+        if (_linesOf(file) >= _budget) '${_pathOf(file)}: ${_linesOf(file)}',
     ];
     expect(
       over,
@@ -49,17 +41,5 @@ void main() {
           'Move parts into widgets/ or flows into controllers/ (see '
           'D-072 to D-074).',
     );
-  });
-
-  test('frozen screens only shrink, and leave the list once under', () {
-    for (final entry in _frozen.entries) {
-      final lines = _linesOf(File(entry.key));
-      expect(lines, lessThanOrEqualTo(entry.value), reason: entry.key);
-      expect(
-        lines,
-        greaterThanOrEqualTo(_budget),
-        reason: '${entry.key} is under budget now; remove it from _frozen.',
-      );
-    }
   });
 }
