@@ -2,36 +2,38 @@
 
 ## 目标
 
-第五十五轮：拆分本地收藏与播放列表页面，取消其页面行数冻结项（D-075）。
+第五十六轮：将播放器歌词显示区从页面拆出（D-076），接续第五十五轮的屏幕拆分工作。
 
-- `local_collections_screen.dart` 从 1248 行减到约 590 行，保留数据加载、变更操作及页面布局。
-- 歌曲行数据与播放映射移到 `widgets/local_collection_song.dart`；共用歌曲行移到 `widgets/local_collection_song_tile.dart`；操作菜单、头部、播放列表卡片和空状态移到 `widgets/local_collection_widgets.dart`。
-- 移除 `screen_size_budget_test.dart` 对本地收藏页面的冻结例外，恢复所有页面都必须少于 1200 行的要求。
+- `player_screen.dart` 从 1138 行减到约 686 行，保留工程加载、播放器操作、播放会话、KTV 入口及布局组合。
+- 普通同步歌词、KTV 聚焦歌词、参考歌词入口、无歌词状态和滚动跟随移至 `widgets/player_lyrics_pane.dart`，由 `PlayerLyricsPane` 接收数据和回调。
+- 不改变用户可见文本或播放行为；保留已有参考歌词及实时音源测试。
+
+第五十五轮 D-075（本地收藏／播放列表拆分）也在当前 PR #521 中。
 
 ## Git 现场
 
-- 分支：`arena/3ba64e05-lyric-forge-ktv`，起点为 PR #520 的合并提交 `7c6ebfc8d2783a0bec06d2abd7f38118f7c6b086`。
-- PR #521：<https://github.com/BrainEno/lyric-forge-ktv/pull/521>，当前头提交 `ad000e0621284ca9db33588b0ccd2883cd2b0290`。
-- PR #520 已合并；本轮在同一 Arena 分支继续，已将旧分支头更新到 main 后的新提交。
+- 分支：`arena/3ba64e05-lyric-forge-ktv`，基于 PR #520 合并后的 main 提交 `7c6ebfc8d2783a0bec06d2abd7f38118f7c6b086`。
+- PR #521：<https://github.com/BrainEno/lyric-forge-ktv/pull/521>；当前会继续包含 D-075、D-076 两轮，尚未合并。
 
 ## 已改文件
 
-见工作日志 `2026-11-18-1000`（D-075）。
+见工作日志 `2026-11-18-2200`（D-076）和 `2026-11-18-1000`（D-075）。
 
 ## 检查结果
 
 - 本地没有 Flutter/Dart SDK；`git diff --check` 通过。
-- PR #521 最终提交 `ad000e0` 的 `format-analyze-test-worklog` 和 `flutter` 检查均通过，包含格式、work-log、分析、完整测试及 KTV 历史／恢复检查。
-- 首次 CI 发现两个问题（页面移出后仍需 `AppCatalogCard` 网格委派器导入、目录卡片契约仍检查旧路径）；已修复，最终提交通过。
+- D-075 的最终 CI 已通过：`format-analyze-test-worklog`、`flutter`。
+- D-076 的格式、分析、全量测试和 KTV 检查待本轮 PR CI 验证。
 
 ## 下一步
 
-- 本轮已提交并推送，PR #521 等待评审／合并；除非用户明确要求，不自动合并。
-- 后续可继续检查其他接近 1200 行预算的页面。
+- 更新 PR #521 的标题和说明，推送本轮后等待 CI。
+- 如最终检查通过，PR 等待评审／合并；除非用户明确要求，不自动合并。
+- 可继续评估接近行数预算的 `local_library_explorer_screen.dart`（约 1124 行）。
 
 ## 已知风险
 
-- 结构拆分是等价搬移，现有页面没有单独的收藏／播放列表屏幕测试；目录契约和页面预算测试会验证共享卡片及行数。
-- 视觉与真实播放行为仍由原交互路径覆盖，需依赖全量测试确认没有遗漏。
+- 主要为 UI 组件等价搬移；重点由现有 `player_reference_lyrics_test.dart` 和 `project_player_live_sources_test.dart` 兜底。
+- 真实设备上的长歌词滚动、窗口尺寸和 KTV 显示仍需依靠自动化及实际使用验证。
 
-最后更新：2026-11-18 10:00（UTC）
+最后更新：2026-11-18 22:00（UTC）

@@ -188,6 +188,7 @@
 - [2026-11-18 23:17] Add a shared empty-state widget ([entry](log/entries/2026-11-18-2317-add-shared-empty-state.md))
 - [2026-11-18 23:12] Group the proofreading menu into labelled sections ([entry](log/entries/2026-11-18-2312-group-proofread-menu.md))
 - [2026-11-18 23:00] Restore Elysium Player as the product name ([entry](log/entries/2026-11-18-2300-restore-elysium-player-name.md))
+- [2026-11-18 22:00] Split the player lyrics pane ([entry](log/entries/2026-11-18-2200-split-player-lyrics-pane.md))
 - [2026-11-18 21:10] Raise theme text contrast and drop the unbundled Inter declaration ([entry](log/entries/2026-11-18-2110-raise-theme-text-contrast.md))
 - [2026-11-18 21:00] Rename the user-facing product name to LyricForge KTV ([entry](log/entries/2026-11-18-2100-rename-user-facing-product-name.md))
 - [2026-11-18 12:00] Keep word timing and add a recognition loop check ([entry](log/entries/2026-11-18-1200-keep-word-timing-and-add-loop-check.md))
