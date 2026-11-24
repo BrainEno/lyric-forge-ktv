@@ -10,6 +10,8 @@ import '../../../../core/navigation/app_chrome_scope.dart';
 import '../../../../core/navigation/playback_destination.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/navigation/transfer_entry.dart';
+import '../../../../core/onboarding/getting_started.dart';
+import '../../../../core/onboarding/getting_started_card.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -18,13 +20,16 @@ import '../../../../core/widgets/app_button_spinner.dart';
 import '../../../../core/widgets/app_song_row.dart';
 import '../../../../core/widgets/app_tap_target.dart';
 import '../../../../core/widgets/app_vinyl_disc.dart';
+import '../../../../core/widgets/undo_snack_bar.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
+import '../../domain/models/mobile_getting_started.dart';
 import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/media_file_names.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
+import '../widgets/listen_home_getting_started_card.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
 import '../widgets/local_store_integrity_banner.dart';
 import '../widgets/media_import_action.dart';
@@ -33,6 +38,7 @@ import '../widgets/playback_action_feedback.dart';
 import '../widgets/playback_artwork.dart';
 import '../widgets/player_bar_semantics.dart';
 import '../widgets/seekable_progress_bar.dart';
+import 'mobile_lyrics_screen.dart';
 
 /// The phone's home: 听歌 (decision D-041).
 ///
@@ -44,6 +50,7 @@ import '../widgets/seekable_progress_bar.dart';
 ///    own colours; or, with nothing playing, a still record and a way to
 ///    start;
 ///  * 播放全部 and 随机播放 over the whole local library;
+///  * for someone new, the 开始使用 checklist (D-071);
 ///  * a nudge to import lyrics when the song playing has none — lyric import
 ///    is the phone's second job, offered where it is needed;
 ///  * 最近播放, as song rows that mark the one playing;
@@ -156,6 +163,11 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
   bool _loading = true;
   String? _error;
 
+  /// The 开始使用 checklist (D-071); null while it is hidden.
+  MobileGettingStartedProgress? _guide;
+  GettingStartedPreferences _guidePreferences =
+      const GettingStartedPreferences();
+
   @override
   void initState() {
     super.initState();
@@ -190,6 +202,7 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
         _loading = false;
         _error = null;
       });
+      await _loadGuide(histories);
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -197,6 +210,97 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
         _error = describeLocalLibraryError(error);
       });
     }
+  }
+
+  /// Reads the checklist state and works out the progress from the library,
+  /// the lyric pairings and [histories]. The first time, someone with no
+  /// songs gets the card and someone who already has some does not (D-071).
+  /// Never fails: a broken checklist must not cost the user the page.
+  Future<void> _loadGuide(List<PlayHistory> histories) async {
+    final store = widget.dependencies.gettingStartedStore;
+    if (store == null) return;
+    MobileGettingStartedProgress? progress;
+    try {
+      final saved = await store.load() ?? const GettingStartedPreferences();
+      final preferences = saved.decidedFor(hasContent: _availableCount > 0);
+      if (preferences.visibility != saved.visibility) {
+        await store.save(preferences);
+      }
+      _guidePreferences = preferences;
+      if (preferences.showsCard) {
+        final overrides = await widget.dependencies.metadataRepository.getAll();
+        final withLyrics = [
+          for (final song in MobileLyricsSong.from(_entries, overrides))
+            if (song.hasLyrics) song,
+        ];
+        final lyricPaths = {
+          for (final song in withLyrics) NowPlaying.pathKey(song.path),
+        };
+        progress = MobileGettingStartedProgress(
+          songCount: _availableCount,
+          lyricSongCount: withLyrics.length,
+          lyricSong: withLyrics.isEmpty ? null : withLyrics.first.playbackItem,
+          playedWithLyrics: histories.any(
+            (history) =>
+                lyricPaths.contains(NowPlaying.pathKey(history.filePath)),
+          ),
+        );
+      }
+    } on Object {
+      progress = null;
+    }
+    if (mounted) setState(() => _guide = progress);
+  }
+
+  Future<void> _saveGuide(GettingStartedPreferences preferences) async {
+    _guidePreferences = preferences;
+    final store = widget.dependencies.gettingStartedStore;
+    if (store == null) return;
+    try {
+      await store.save(preferences);
+    } on Object {
+      // Kept in memory for this session; the card still behaves.
+    }
+  }
+
+  /// The close button: hides the card, with an undo and a pointer to 设置.
+  Future<void> _dismissGuide() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _guide = null);
+    await _saveGuide(
+      _guidePreferences.copyWith(
+        visibility: GettingStartedVisibility.dismissed,
+      ),
+    );
+    showUndoSnackBar(
+      messenger,
+      message: GettingStartedCardText.dismissedNotice,
+      onUndo: () async {
+        await _saveGuide(
+          _guidePreferences.copyWith(
+            visibility: GettingStartedVisibility.active,
+          ),
+        );
+        if (mounted) await _load();
+        return null;
+      },
+    );
+  }
+
+  /// 收起 after all three steps.
+  Future<void> _finishGuide() async {
+    setState(() => _guide = null);
+    await _saveGuide(
+      _guidePreferences.copyWith(
+        visibility: GettingStartedVisibility.completed,
+      ),
+    );
+  }
+
+  /// 跟着歌词播放一首: plays the song and opens the page with its lyrics.
+  Future<void> _playWithLyrics(PlaybackItem item) async {
+    await runPlaybackActionWithFeedback(context, () => _session.playItem(item));
+    if (mounted) _openNowPlaying();
   }
 
   /// Reads 最近播放 again. On failure the shelf keeps what it showed; a
@@ -355,6 +459,31 @@ class _ListenHomeScreenState extends State<ListenHomeScreen> {
                     onShuffle: () => _playLibrary(shuffle: true),
                   ),
                 ),
+                if (_guide case final guide?)
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      gutter,
+                      AppSpacing.md,
+                      gutter,
+                      0,
+                    ),
+                    child: ListenHomeGettingStartedCard(
+                      progress: guide.whilePlaying(current),
+                      onImport: widget.dependencies.mediaImport == null
+                          ? null
+                          : _importMedia,
+                      onOpenLibrary: () => _open(Routes.library),
+                      onTransfer: () =>
+                          TransferEntry.open(context, desktop: false),
+                      onAddLyrics: () => _open(Routes.review),
+                      onPlay: () {
+                        final song = guide.lyricSong;
+                        if (song != null) unawaited(_playWithLyrics(song));
+                      },
+                      onDismiss: _dismissGuide,
+                      onFinish: _finishGuide,
+                    ),
+                  ),
                 if (needsLyrics)
                   Padding(
                     padding: EdgeInsets.fromLTRB(

@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lyric_forge_ktv/features/home/data/services/file_getting_started_store.dart';
-import 'package:lyric_forge_ktv/features/home/domain/models/getting_started.dart';
+import 'package:lyric_forge_ktv/core/onboarding/file_getting_started_store.dart';
+import 'package:lyric_forge_ktv/core/onboarding/getting_started.dart';
 
 void main() {
   late Directory root;

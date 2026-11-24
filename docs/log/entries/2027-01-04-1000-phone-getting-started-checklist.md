@@ -1,0 +1,23 @@
+# [2027-01-04 10:00] Phone 开始使用 checklist on 听歌
+
+- Scope: round 51, user request: first-run hints on the phone (D-071), following D-070.
+  - Shared (`lib/core/onboarding/`): `getting_started.dart` (`GettingStartedVisibility`, `GettingStartedPreferences` with `decidedFor(hasContent:)`, `GettingStartedStepState`), `getting_started_store.dart` and `file_getting_started_store.dart` (moved from `features/home`), and the new `getting_started_card.dart` (`GettingStartedCard`, `GettingStartedItem` with an optional secondary button, `GettingStartedCardText`).
+  - Desktop: `DashboardGettingStartedCard` now builds a `GettingStartedCard`; its words, keys and behaviour are unchanged. The home domain keeps only `GettingStartedStep` / `GettingStartedProgress`.
+  - Phone domain: `MobileGettingStartedStep` (addSongs, addLyrics, playWithLyrics) and `MobileGettingStartedProgress` (`whilePlaying` counts a song with lyrics that is playing now).
+  - Phone page: `ListenHomeScreen._loadGuide` runs after a successful load, decides on first use from the library size, reads the lyric pairings through `MobileLyricsSong.from` and matches recent plays by `NowPlaying.pathKey`. The card sits under 播放全部 / 随机播放. Its buttons: 导入歌曲 (or 打开音乐库) plus 从电脑传歌, 去配歌词 (`Routes.review`), and 播放 (`playItem`, then now playing). Closing offers an undo; 收起 finishes it.
+  - Card: `ListenHomeGettingStartedCard` and `ListenHomeGettingStartedText`, keys `listen-home:getting-started[:<step>[:action]|:dismiss|:finish|:transfer]`.
+  - Settings: the 帮助 group is shown on both platforms, with `GettingStartedSettingsText.mobileSubtitle` on the phone.
+  - Assembly: `LocalLibraryDependencies.gettingStartedStore` gets `services.gettingStartedStore`.
+- Files:
+  - New: `lib/core/onboarding/getting_started.dart`, `lib/core/onboarding/getting_started_card.dart`, `lib/features/player/domain/models/mobile_getting_started.dart`, `lib/features/player/presentation/widgets/listen_home_getting_started_card.dart`.
+  - Moved: `lib/core/onboarding/{getting_started_store,file_getting_started_store}.dart`, `test/core/onboarding/file_getting_started_store_test.dart`.
+  - Changed: `lib/app/{app_services,local_library_assembly,transcription_assembly}.dart`, `lib/features/home/{domain/models/getting_started,presentation/dashboard_dependencies,presentation/screens/dashboard_screen,presentation/widgets/dashboard_getting_started_card}.dart`, `lib/features/player/presentation/{local_library_dependencies,screens/listen_home_screen}.dart`, `lib/features/settings/presentation/{screens/settings_screen,widgets/getting_started_settings_card}.dart`.
+  - Tests: new `test/core/onboarding/getting_started_test.dart` (the preference tests moved there) and `test/features/player/domain/mobile_getting_started_test.dart`; a 7-test group in `test/features/player/presentation/screens/listen_home_screen_test.dart`. Import updates in the home tests.
+  - `docs/decisions.md` (D-071), `docs/handoff.md`.
+- Validation:
+  - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
+  - Probe: `flutter analyze` clean and all 5439 tests passed on the first run; `dart format` asked to join one test title line (applied by hand). Probe removed.
+- Notes:
+  - Player must not import home (`home -> player` exists), hence the move to core rather than reusing the home files.
+  - The checklist reads the metadata overrides only while it is shown, so pages and tests without a store do not touch them.
+- Commit: `Add the phone getting-started checklist`

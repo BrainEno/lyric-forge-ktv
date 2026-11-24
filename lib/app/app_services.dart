@@ -6,9 +6,9 @@ import 'ktv_recording_assembly.dart';
 
 import '../core/diagnostics/app_diagnostics.dart';
 import '../core/diagnostics/app_logger.dart';
+import '../core/onboarding/file_getting_started_store.dart';
+import '../core/onboarding/getting_started_store.dart';
 import '../core/theme/app_appearance.dart';
-import '../features/home/data/services/file_getting_started_store.dart';
-import '../features/home/domain/services/getting_started_store.dart';
 import '../features/lyrics/data/services/local_lyric_file_export_service.dart';
 import '../features/lyrics/data/services/local_lyric_file_import_service.dart';
 import '../features/lyrics/domain/services/lyric_file_export_service.dart';

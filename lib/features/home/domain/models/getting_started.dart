@@ -1,85 +1,9 @@
+import '../../../../core/onboarding/getting_started.dart';
 import '../../../project/domain/models/lyric_review_overview.dart';
 import '../../../project/domain/models/project_manifest.dart';
 
-/// Whether the dashboard shows the 开始使用 checklist (D-070).
-enum GettingStartedVisibility {
-  /// Nothing saved yet: decided on the first dashboard load.
-  undecided,
-
-  /// The card is on the dashboard.
-  active,
-
-  /// The user closed it; 设置 can bring it back.
-  dismissed,
-
-  /// The user finished all three steps and put it away.
-  completed;
-
-  static GettingStartedVisibility fromId(Object? id) {
-    for (final value in values) {
-      if (value.name == id) return value;
-    }
-    return undecided;
-  }
-}
-
-/// What the app remembers about the checklist between launches.
-///
-/// Only what cannot be read from the projects is saved: whether the card is
-/// shown, and whether the user has opened KTV from it. Importing and review
-/// are worked out from the projects every time.
-class GettingStartedPreferences {
-  final GettingStartedVisibility visibility;
-
-  /// The user opened a project's player from the 用 KTV 模式唱一遍 step.
-  final bool openedKtv;
-
-  const GettingStartedPreferences({
-    this.visibility = GettingStartedVisibility.undecided,
-    this.openedKtv = false,
-  });
-
-  bool get showsCard => visibility == GettingStartedVisibility.active;
-
-  /// The first decision: someone with no projects is new and gets the card;
-  /// someone who already has projects knows the app and does not.
-  GettingStartedPreferences decidedFor({required bool hasProjects}) {
-    if (visibility != GettingStartedVisibility.undecided) return this;
-    return copyWith(
-      visibility: hasProjects
-          ? GettingStartedVisibility.dismissed
-          : GettingStartedVisibility.active,
-    );
-  }
-
-  GettingStartedPreferences copyWith({
-    GettingStartedVisibility? visibility,
-    bool? openedKtv,
-  }) {
-    return GettingStartedPreferences(
-      visibility: visibility ?? this.visibility,
-      openedKtv: openedKtv ?? this.openedKtv,
-    );
-  }
-}
-
 /// The three steps from a song to singing it.
 enum GettingStartedStep { importSong, reviewLyrics, singKtv }
-
-/// Where one step stands.
-enum GettingStartedStepState {
-  /// Finished.
-  done,
-
-  /// Started and running on its own (recognition in progress).
-  inProgress,
-
-  /// Can be done now.
-  ready,
-
-  /// Waits for an earlier step.
-  locked,
-}
 
 /// How far the user has got, worked out from their projects.
 class GettingStartedProgress {

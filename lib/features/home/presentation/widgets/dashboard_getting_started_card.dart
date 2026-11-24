@@ -1,23 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/theme/color_tokens.dart';
-import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../core/onboarding/getting_started.dart';
+import '../../../../core/onboarding/getting_started_card.dart';
 import '../../domain/models/getting_started.dart';
-import 'dashboard_surfaces.dart';
 
 /// The words of the 开始使用 checklist (D-070), kept together for tests.
 abstract final class GettingStartedText {
-  static const String eyebrow = '开始使用';
   static const String title = '三步做出第一首 KTV 歌词';
   static const String doneTitle = '三步都完成了';
   static const String doneMessage = '以后从“最近工程”继续识别、校对和唱歌。这张卡片收起后，可以在设置里重新打开。';
-  static const String finish = '收起';
-  static const String dismissTooltip = '收起开始指南';
-  static const String dismissedNotice = '已收起开始指南，可以在设置里重新打开。';
-  static const String doneLabel = '已完成';
+  static const String dismissedNotice = GettingStartedCardText.dismissedNotice;
 
-  static String progress(int done, int total) => '已完成 $done / $total';
+  static String progress(int done, int total) =>
+      GettingStartedCardText.progress(done, total);
 
   static String stepTitle(GettingStartedStep step) => switch (step) {
     GettingStartedStep.importSong => '导入一首歌，自动识别歌词',
@@ -71,24 +66,6 @@ abstract final class GettingStartedText {
       GettingStartedStep.singKtv => '去唱歌',
     };
   }
-
-  static String stateLabel(GettingStartedStepState state) => switch (state) {
-    GettingStartedStepState.done => '已完成',
-    GettingStartedStepState.inProgress => '进行中',
-    GettingStartedStepState.ready => '可以开始',
-    GettingStartedStepState.locked => '等前面的步骤完成',
-  };
-
-  /// What a screen reader says for a step, before its button.
-  static String stepSemantics(
-    GettingStartedStep step,
-    GettingStartedProgress progress,
-  ) {
-    final number = step.index + 1;
-    final state = stateLabel(progress.stateOf(step));
-    return '第 $number 步，${stepTitle(step)}，$state。'
-        '${stepDetail(step, progress)}';
-  }
 }
 
 /// The dashboard's 开始使用 checklist (D-070): import a song, review its
@@ -120,256 +97,30 @@ class DashboardGettingStartedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layout = AppResponsive.of(context);
-    final text = Theme.of(context).textTheme;
-    final total = GettingStartedStep.values.length;
-    final done = progress.doneCount;
-    final next = progress.next;
-
-    return Container(
+    return GettingStartedCard(
       key: cardKey,
-      padding: EdgeInsets.all(layout.isCompact ? AppSpacing.md : AppSpacing.lg),
-      decoration: dashboardCardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const DashboardEyebrow(GettingStartedText.eyebrow),
-                    const SizedBox(height: AppSpacing.xs),
-                    Semantics(
-                      header: true,
-                      child: Text(
-                        progress.allDone
-                            ? GettingStartedText.doneTitle
-                            : GettingStartedText.title,
-                        style: text.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      GettingStartedText.progress(done, total),
-                      style: dashboardMutedLabel(context),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                key: dismissKey,
-                tooltip: GettingStartedText.dismissTooltip,
-                onPressed: onDismiss,
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
+      title: GettingStartedText.title,
+      doneTitle: GettingStartedText.doneTitle,
+      doneMessage: GettingStartedText.doneMessage,
+      dismissKey: dismissKey,
+      finishKey: finishKey,
+      onDismiss: onDismiss,
+      onFinish: onFinish,
+      items: [
+        for (final step in GettingStartedStep.values)
+          GettingStartedItem(
+            key: stepKey(step),
+            title: GettingStartedText.stepTitle(step),
+            detail: GettingStartedText.stepDetail(step, progress),
+            state: progress.stateOf(step),
+            actionLabel: GettingStartedText.action(
+              step,
+              progress.stateOf(step),
+            ),
+            onAction: () => onOpenStep(step),
+            actionKey: actionKey(step),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          ExcludeSemantics(
-            child: LinearProgressIndicator(
-              value: done / total,
-              minHeight: AppSpacing.progressBarHeight,
-              color: AppColors.success,
-              backgroundColor: AppColors.borderMuted,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          for (final step in GettingStartedStep.values) ...[
-            if (step.index > 0) const SizedBox(height: AppSpacing.sm),
-            _StepTile(
-              step: step,
-              progress: progress,
-              prominent: step == next,
-              onOpen: () => onOpenStep(step),
-            ),
-          ],
-          if (progress.allDone) ...[
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              GettingStartedText.doneMessage,
-              style: text.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: FilledButton(
-                key: finishKey,
-                style: FilledButton.styleFrom(
-                  minimumSize: Size(
-                    layout.minimumInteractiveExtent,
-                    layout.minimumInteractiveExtent,
-                  ),
-                ),
-                onPressed: onFinish,
-                child: const Text(GettingStartedText.finish),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _StepTile extends StatelessWidget {
-  final GettingStartedStep step;
-  final GettingStartedProgress progress;
-  final bool prominent;
-  final VoidCallback onOpen;
-
-  const _StepTile({
-    required this.step,
-    required this.progress,
-    required this.prominent,
-    required this.onOpen,
-  });
-
-  /// The number or tick in front of a step.
-  static const double markerExtent = 28;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final state = progress.stateOf(step);
-    final done = state == GettingStartedStepState.done;
-    final locked = state == GettingStartedStepState.locked;
-    final label = GettingStartedText.action(step, state);
-
-    final marker = SizedBox(
-      width: markerExtent,
-      height: markerExtent,
-      child: done
-          ? Icon(Icons.check_circle_rounded, color: AppColors.success)
-          : DecoratedBox(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: locked ? AppColors.borderMuted : AppColors.accent,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  '${step.index + 1}',
-                  style: text.labelMedium?.copyWith(
-                    color: locked
-                        ? AppColors.textTertiary
-                        : AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-    );
-
-    final words = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          GettingStartedText.stepTitle(step),
-          style: text.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: locked || done
-                ? AppColors.textSecondary
-                : AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          GettingStartedText.stepDetail(step, progress),
-          style: text.bodySmall?.copyWith(color: AppColors.textSecondary),
-        ),
       ],
-    );
-
-    final trailing = _trailing(context, label: label, done: done);
-
-    final described = Semantics(
-      container: true,
-      label: GettingStartedText.stepSemantics(step, progress),
-      child: ExcludeSemantics(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            marker,
-            const SizedBox(width: AppSpacing.md),
-            Expanded(child: words),
-          ],
-        ),
-      ),
-    );
-
-    return LayoutBuilder(
-      key: DashboardGettingStartedCard.stepKey(step),
-      builder: (context, constraints) {
-        // Narrow cards put the button under the words instead of squeezing
-        // them into a sliver beside it.
-        final stacked = constraints.maxWidth < 520;
-        if (trailing == null) return described;
-        if (stacked) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              described,
-              const SizedBox(height: AppSpacing.sm),
-              Padding(
-                padding: const EdgeInsetsDirectional.only(
-                  start: markerExtent + AppSpacing.md,
-                ),
-                child: trailing,
-              ),
-            ],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(child: described),
-            const SizedBox(width: AppSpacing.md),
-            trailing,
-          ],
-        );
-      },
-    );
-  }
-
-  /// The step's button, 已完成 once it is done, or nothing while locked.
-  Widget? _trailing(
-    BuildContext context, {
-    required String? label,
-    required bool done,
-  }) {
-    if (label == null) {
-      if (!done) return null;
-      return ExcludeSemantics(
-        child: Text(
-          GettingStartedText.doneLabel,
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: AppColors.success),
-        ),
-      );
-    }
-    final extent = AppResponsive.of(context).minimumInteractiveExtent;
-    final size = Size(extent, extent);
-    final key = DashboardGettingStartedCard.actionKey(step);
-    if (prominent) {
-      return FilledButton(
-        key: key,
-        style: FilledButton.styleFrom(minimumSize: size),
-        onPressed: onOpen,
-        child: Text(label),
-      );
-    }
-    return OutlinedButton(
-      key: key,
-      style: OutlinedButton.styleFrom(minimumSize: size),
-      onPressed: onOpen,
-      child: Text(label),
     );
   }
 }

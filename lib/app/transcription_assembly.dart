@@ -1,4 +1,4 @@
-import '../features/home/domain/services/getting_started_store.dart';
+import '../core/onboarding/getting_started_store.dart';
 import '../features/player/presentation/widgets/library_lyrics_link_text.dart';
 import '../features/settings/presentation/settings_screen_dependencies.dart';
 import '../features/transcription/presentation/transcription_screen_dependencies.dart';
