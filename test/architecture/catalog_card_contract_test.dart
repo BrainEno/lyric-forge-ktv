@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 const _catalogScreens = <String>[
   'lib/features/player/presentation/screens/local_library_explorer_screen.dart',
   'lib/features/player/presentation/screens/local_artist_album_browser_screen.dart',
-  'lib/features/player/presentation/screens/local_collections_screen.dart',
+  'lib/features/player/presentation/widgets/local_collection_widgets.dart',
   'lib/features/transfer/presentation/screens/mobile_remote_grouped_library_screen.dart',
 ];
 
@@ -127,6 +127,7 @@ void main() {
           'class _CatalogCard ',
           'class _ExplorerCard ',
           'class _PlaylistCard ',
+          'class LocalPlaylistCard ',
           'class _CatalogGroupCard ',
         ]) {
           final start = source.indexOf(name);

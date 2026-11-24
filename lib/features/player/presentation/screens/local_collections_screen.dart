@@ -6,13 +6,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../../../core/widgets/app_artwork.dart';
-import '../../../../core/widgets/app_catalog_card.dart';
-import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
-import '../../../../core/widgets/app_song_row.dart';
 import '../../../../core/widgets/undo_snack_bar.dart';
-import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
 import '../../domain/models/local_playlist.dart';
@@ -21,10 +16,11 @@ import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
-import '../widgets/local_store_integrity_banner.dart';
 import '../widgets/local_collection_actions.dart';
-import '../widgets/local_library_semantics.dart';
-import '../widgets/now_playing_listener.dart';
+import '../widgets/local_collection_song.dart';
+import '../widgets/local_collection_song_tile.dart';
+import '../widgets/local_collection_widgets.dart';
+import '../widgets/local_store_integrity_banner.dart';
 
 enum LocalCollectionView { favorites, playlists }
 
@@ -156,16 +152,16 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     }
   }
 
-  _CollectionSong _song(String sourcePath) {
+  LocalCollectionSong _song(String sourcePath) {
     final key = _pathKey(sourcePath);
-    return _CollectionSong(
+    return LocalCollectionSong(
       sourcePath: sourcePath,
       entry: _entryByPath[key],
       override: _metadataByPath[key],
     );
   }
 
-  List<_CollectionSong> get _favoriteSongs {
+  List<LocalCollectionSong> get _favoriteSongs {
     final songs = _favoritePaths.map(_song).toList(growable: false);
     songs.sort(
       (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
@@ -183,7 +179,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
   }
 
   Future<void> _playSongs(
-    List<_CollectionSong> songs, {
+    List<LocalCollectionSong> songs, {
     int requestedIndex = 0,
   }) async {
     if (songs.isEmpty) return;
@@ -204,13 +200,13 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     await _session.setQueue(playable, startIndex: startIndex);
   }
 
-  Future<void> _enqueue(_CollectionSong song) async {
+  Future<void> _enqueue(LocalCollectionSong song) async {
     final item = song.playbackItem;
     if (item == null) return;
     await _session.enqueue(item);
   }
 
-  Future<void> _removeFavorite(_CollectionSong song) async {
+  Future<void> _removeFavorite(LocalCollectionSong song) async {
     final messenger = ScaffoldMessenger.of(context);
     var removed = false;
     await _withWork(() async {
@@ -230,7 +226,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     );
   }
 
-  Future<void> _addFavoriteToPlaylist(_CollectionSong song) async {
+  Future<void> _addFavoriteToPlaylist(LocalCollectionSong song) async {
     await showAddToLocalPlaylistDialog(
       context,
       sourcePath: song.sourcePath,
@@ -305,7 +301,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
 
   Future<void> _removeFromPlaylist(
     LocalPlaylist playlist,
-    _CollectionSong song,
+    LocalCollectionSong song,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     final position = playlist.sourcePaths.indexOf(song.sourcePath);
@@ -427,7 +423,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
   Widget _buildFavorites(AppLayoutSpec spec) {
     final songs = _favoriteSongs;
     if (songs.isEmpty) {
-      return const _CollectionEmptyState(
+      return const CollectionEmptyState(
         icon: Icons.favorite_border_rounded,
         title: '还没有收藏歌曲',
         message: '播放本地音乐时点击心形按钮，歌曲会出现在这里。',
@@ -439,7 +435,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
         .length;
     return Column(
       children: [
-        _CollectionHero(
+        CollectionHero(
           icon: Icons.favorite_rounded,
           title: '喜欢的歌曲',
           subtitle: '${songs.length} 首 · $playableCount 首当前可播放',
@@ -458,13 +454,13 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
             separatorBuilder: (_, _) => const SizedBox(height: 2),
             itemBuilder: (context, index) {
               final song = songs[index];
-              return _CollectionSongTile(
+              return LocalCollectionSongTile(
                 song: song,
                 dependencies: widget.dependencies,
                 onTap: song.playbackItem == null
                     ? null
                     : () => _playSongs(songs, requestedIndex: index),
-                trailing: _FavoriteActions(
+                trailing: FavoriteCollectionSongActions(
                   compact: spec.isCompactOrMedium,
                   canPlay: song.playbackItem != null,
                   onEnqueue: () => _enqueue(song),
@@ -484,7 +480,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     if (selected != null) return _buildPlaylistDetail(selected, spec);
 
     if (_playlists.isEmpty) {
-      return _CollectionEmptyState(
+      return CollectionEmptyState(
         icon: Icons.queue_music_rounded,
         title: '建立你的第一个播放列表',
         message: '播放列表只保存本地歌曲引用，不会复制、移动或修改原音频文件。',
@@ -506,7 +502,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
             .whereType<String>()
             .firstOrNull;
 
-        return _PlaylistCard(
+        return LocalPlaylistCard(
           playlist: playlist,
           artworkPath: artwork,
           missing: missing,
@@ -528,7 +524,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
 
     return Column(
       children: [
-        _PlaylistDetailHeader(
+        PlaylistDetailHeader(
           name: playlist.name,
           subtitle: '${songs.length} 首歌曲 · $playableCount 首当前可播放',
           canPlay: playableCount > 0,
@@ -542,7 +538,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
         const Divider(height: 1),
         Expanded(
           child: songs.isEmpty
-              ? const _CollectionEmptyState(
+              ? const CollectionEmptyState(
                   icon: Icons.music_note_rounded,
                   title: '这个播放列表还是空的',
                   message: '播放一首本地歌曲后，可以使用“加入当前歌曲”。',
@@ -562,14 +558,14 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
                     final song = songs[index];
                     return Container(
                       key: ValueKey('${playlist.id}:${song.sourcePath}'),
-                      child: _CollectionSongTile(
+                      child: LocalCollectionSongTile(
                         song: song,
                         dependencies: widget.dependencies,
                         leadingIndex: index + 1,
                         onTap: song.playbackItem == null
                             ? null
                             : () => _playSongs(songs, requestedIndex: index),
-                        trailing: _PlaylistSongActions(
+                        trailing: PlaylistCollectionSongActions(
                           index: index,
                           compact: spec.isCompactOrMedium,
                           canPlay: song.playbackItem != null,
@@ -581,660 +577,6 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
                   },
                 ),
         ),
-      ],
-    );
-  }
-}
-
-class _FavoriteActions extends StatelessWidget {
-  final bool compact;
-  final bool canPlay;
-  final VoidCallback onEnqueue;
-  final VoidCallback onRemoveFavorite;
-  final VoidCallback onAddToPlaylist;
-
-  const _FavoriteActions({
-    required this.compact,
-    required this.canPlay,
-    required this.onEnqueue,
-    required this.onRemoveFavorite,
-    required this.onAddToPlaylist,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (compact) {
-      return PopupMenuButton<String>(
-        tooltip: '歌曲操作',
-        onSelected: (value) {
-          if (value == 'queue' && canPlay) onEnqueue();
-          if (value == 'unfavorite') onRemoveFavorite();
-          if (value == 'playlist') onAddToPlaylist();
-        },
-        itemBuilder: (_) => [
-          PopupMenuItem(
-            value: 'queue',
-            enabled: canPlay,
-            child: const Text('加入播放队列'),
-          ),
-          const PopupMenuItem(value: 'playlist', child: Text('加入播放列表')),
-          const PopupMenuDivider(),
-          const PopupMenuItem(value: 'unfavorite', child: Text('取消收藏')),
-        ],
-      );
-    }
-
-    return Wrap(
-      spacing: AppSpacing.xs,
-      children: [
-        IconButton(
-          tooltip: '加入播放队列',
-          onPressed: canPlay ? onEnqueue : null,
-          icon: const Icon(Icons.queue_music_rounded),
-        ),
-        IconButton(
-          tooltip: '取消收藏',
-          onPressed: onRemoveFavorite,
-          icon: const Icon(Icons.favorite_rounded),
-        ),
-        IconButton(
-          tooltip: '加入播放列表',
-          onPressed: onAddToPlaylist,
-          icon: const Icon(Icons.playlist_add_rounded),
-        ),
-      ],
-    );
-  }
-}
-
-class _PlaylistSongActions extends StatelessWidget {
-  final int index;
-  final bool compact;
-  final bool canPlay;
-  final VoidCallback onEnqueue;
-  final VoidCallback onRemove;
-
-  const _PlaylistSongActions({
-    required this.index,
-    required this.compact,
-    required this.canPlay,
-    required this.onEnqueue,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final dragHandle = Tooltip(
-      message: '拖动排序',
-      child: ReorderableDragStartListener(
-        index: index,
-        child: const SizedBox(
-          width: 48,
-          height: 48,
-          child: Icon(Icons.drag_handle_rounded),
-        ),
-      ),
-    );
-
-    if (compact) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          PopupMenuButton<String>(
-            tooltip: '歌曲操作',
-            onSelected: (value) {
-              if (value == 'queue' && canPlay) onEnqueue();
-              if (value == 'remove') onRemove();
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'queue',
-                enabled: canPlay,
-                child: const Text('加入播放队列'),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(value: 'remove', child: Text('从播放列表移除')),
-            ],
-          ),
-          dragHandle,
-        ],
-      );
-    }
-
-    return Wrap(
-      spacing: AppSpacing.xs,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        IconButton(
-          tooltip: '加入播放队列',
-          onPressed: canPlay ? onEnqueue : null,
-          icon: const Icon(Icons.queue_music_rounded),
-        ),
-        IconButton(
-          tooltip: '从播放列表移除',
-          onPressed: onRemove,
-          icon: const Icon(Icons.remove_circle_outline_rounded),
-        ),
-        dragHandle,
-      ],
-    );
-  }
-}
-
-class _CollectionSong {
-  final String sourcePath;
-  final LocalMediaLibraryEntry? entry;
-  final LocalMediaMetadata? override;
-
-  const _CollectionSong({
-    required this.sourcePath,
-    required this.entry,
-    required this.override,
-  });
-
-  String get fileName => sourcePath.split(Platform.pathSeparator).last;
-
-  String get fallbackTitle => fileName.replaceAll(
-    RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
-    '',
-  );
-
-  String get embeddedTitle => entry?.embeddedTitle?.trim().isNotEmpty == true
-      ? entry!.embeddedTitle!
-      : fallbackTitle;
-
-  String get title => override?.resolvedTitle(embeddedTitle) ?? embeddedTitle;
-
-  String? get artist =>
-      override?.resolvedArtist(entry?.embeddedArtist) ?? entry?.embeddedArtist;
-
-  String? get album =>
-      override?.resolvedAlbum(entry?.embeddedAlbum) ?? entry?.embeddedAlbum;
-
-  String? get artworkPath =>
-      override?.resolvedArtwork(entry?.embeddedArtworkPath) ??
-      entry?.embeddedArtworkPath;
-
-  bool get sourceExists => File(sourcePath).existsSync();
-
-  bool get canPlay => entry?.isMissing != true && sourceExists;
-
-  String get format {
-    if (entry?.format.trim().isNotEmpty == true) return entry!.format;
-    final dot = sourcePath.lastIndexOf('.');
-    return dot < 0 ? '' : sourcePath.substring(dot + 1).toLowerCase();
-  }
-
-  String get secondary {
-    if (!canPlay) return '文件不可用 · 引用仍保留';
-    return [
-      if (artist?.trim().isNotEmpty == true) artist!,
-      if (album?.trim().isNotEmpty == true) album!,
-      if (format.isNotEmpty) format.toUpperCase(),
-    ].join(' · ');
-  }
-
-  PlaybackItem? get playbackItem {
-    if (!canPlay) return null;
-    return PlaybackItem(
-      id: 'local:$sourcePath',
-      title: title,
-      artist: artist,
-      artworkPath: artworkPath,
-      hasLyrics: override?.metadata['linkedProjectId'] is String,
-      audioAsset: AudioAsset(
-        originalPath: sourcePath,
-        format: format,
-        thumbnailPath: artworkPath,
-      ),
-      preferredSource: AudioSourceType.original,
-    );
-  }
-}
-
-class _CollectionHero extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String primaryLabel;
-  final VoidCallback? onPrimary;
-
-  const _CollectionHero({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.primaryLabel,
-    required this.onPrimary,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    final compact = spec.isCompactOrMedium || spec.isShort;
-    final extent = spec.isCompact ? 56.0 : 72.0;
-    final button = FilledButton.icon(
-      onPressed: onPrimary,
-      icon: const Icon(Icons.play_arrow_rounded),
-      label: Text(primaryLabel),
-      style: FilledButton.styleFrom(
-        minimumSize: Size(0, spec.minimumInteractiveExtent),
-      ),
-    );
-
-    return Padding(
-      padding: EdgeInsets.all(spec.pageGutter),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(spec.isCompact ? AppSpacing.md : AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-          border: Border.all(color: AppColors.borderMuted),
-        ),
-        child: compact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _HeroIcon(icon: icon, extent: extent),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: _HeroText(
-                          title: title,
-                          subtitle: subtitle,
-                          compact: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  SizedBox(width: double.infinity, child: button),
-                ],
-              )
-            : Row(
-                children: [
-                  _HeroIcon(icon: icon, extent: extent),
-                  const SizedBox(width: AppSpacing.lg),
-                  Expanded(
-                    child: _HeroText(title: title, subtitle: subtitle),
-                  ),
-                  const SizedBox(width: AppSpacing.lg),
-                  button,
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-class _HeroIcon extends StatelessWidget {
-  final IconData icon;
-  final double extent;
-
-  const _HeroIcon({required this.icon, required this.extent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: extent,
-      height: extent,
-      decoration: BoxDecoration(
-        color: AppColors.bgHighlight,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      ),
-      child: Icon(icon, size: extent * 0.52),
-    );
-  }
-}
-
-class _HeroText extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final bool compact;
-
-  const _HeroText({
-    required this.title,
-    required this.subtitle,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style:
-              (compact
-                      ? Theme.of(context).textTheme.titleLarge
-                      : Theme.of(context).textTheme.headlineSmall)
-                  ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-      ],
-    );
-  }
-}
-
-class _PlaylistDetailHeader extends StatelessWidget {
-  final String name;
-  final String subtitle;
-  final bool canPlay;
-  final bool canAddCurrent;
-  final VoidCallback onBack;
-  final VoidCallback onPlay;
-  final VoidCallback onAddCurrent;
-  final VoidCallback onRename;
-  final VoidCallback onDelete;
-
-  const _PlaylistDetailHeader({
-    required this.name,
-    required this.subtitle,
-    required this.canPlay,
-    required this.canAddCurrent,
-    required this.onBack,
-    required this.onPlay,
-    required this.onAddCurrent,
-    required this.onRename,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    final compact = spec.isCompactOrMedium || spec.isShort;
-
-    final menu = PopupMenuButton<String>(
-      tooltip: '播放列表操作',
-      onSelected: (value) {
-        if (value == 'rename') onRename();
-        if (value == 'delete') onDelete();
-      },
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: 'rename', child: Text('重命名')),
-        PopupMenuDivider(),
-        PopupMenuItem(value: 'delete', child: Text('删除播放列表')),
-      ],
-    );
-
-    final playButton = FilledButton.icon(
-      onPressed: canPlay ? onPlay : null,
-      icon: const Icon(Icons.play_arrow_rounded),
-      label: const Text('播放'),
-      style: FilledButton.styleFrom(
-        minimumSize: Size(0, spec.minimumInteractiveExtent),
-      ),
-    );
-    final addButton = OutlinedButton.icon(
-      onPressed: canAddCurrent ? onAddCurrent : null,
-      icon: const Icon(Icons.add_rounded),
-      label: const Text('加入当前歌曲'),
-      style: OutlinedButton.styleFrom(
-        minimumSize: Size(0, spec.minimumInteractiveExtent),
-      ),
-    );
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        spec.pageGutter,
-        AppSpacing.sm,
-        spec.pageGutter,
-        AppSpacing.sm,
-      ),
-      child: compact
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    SizedBox(
-                      width: spec.minimumInteractiveExtent,
-                      height: spec.minimumInteractiveExtent,
-                      child: IconButton(
-                        tooltip: '返回播放列表',
-                        onPressed: onBack,
-                        icon: const Icon(Icons.arrow_back_rounded),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: _PlaylistTitleBlock(
-                        name: name,
-                        subtitle: subtitle,
-                        compact: true,
-                      ),
-                    ),
-                    menu,
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(child: playButton),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: addButton),
-                  ],
-                ),
-              ],
-            )
-          : Row(
-              children: [
-                IconButton(
-                  tooltip: '返回播放列表',
-                  onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back_rounded),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: _PlaylistTitleBlock(name: name, subtitle: subtitle),
-                ),
-                playButton,
-                const SizedBox(width: AppSpacing.sm),
-                addButton,
-                menu,
-              ],
-            ),
-    );
-  }
-}
-
-class _PlaylistTitleBlock extends StatelessWidget {
-  final String name;
-  final String subtitle;
-  final bool compact;
-
-  const _PlaylistTitleBlock({
-    required this.name,
-    required this.subtitle,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style:
-              (compact
-                      ? Theme.of(context).textTheme.titleLarge
-                      : Theme.of(context).textTheme.headlineSmall)
-                  ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-      ],
-    );
-  }
-}
-
-class _CollectionSongTile extends StatelessWidget {
-  final _CollectionSong song;
-  final LocalLibraryDependencies dependencies;
-  final VoidCallback? onTap;
-  final Widget trailing;
-  final int? leadingIndex;
-
-  const _CollectionSongTile({
-    required this.song,
-    required this.dependencies,
-    required this.onTap,
-    required this.trailing,
-    this.leadingIndex,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final index = leadingIndex;
-    return NowPlayingListener(
-      playbackSession: dependencies.playbackSession,
-      audioPlayer: dependencies.audioPlayer,
-      builder: (context, nowPlaying) => AppSongRow(
-        title: song.title,
-        subtitle: song.secondary,
-        unavailable: !song.canPlay,
-        unavailableLabel: song.secondary,
-        index: index?.toString(),
-        artwork: song.canPlay
-            ? AppArtwork(
-                path: song.artworkPath,
-                borderRadius: AppArtwork.rowRadius,
-              )
-            : AppArtwork.missing(
-                path: song.artworkPath,
-                borderRadius: AppArtwork.rowRadius,
-              ),
-        playback: song.canPlay
-            ? nowPlaying.playbackForPath(song.sourcePath)
-            : AppSongRowPlayback.none,
-        onTap: onTap,
-        trailing: trailing,
-      ),
-    );
-  }
-}
-
-class _PlaylistCard extends StatelessWidget {
-  final LocalPlaylist playlist;
-  final String? artworkPath;
-  final int missing;
-  final VoidCallback onOpen;
-  final VoidCallback onRename;
-  final VoidCallback onDelete;
-
-  const _PlaylistCard({
-    required this.playlist,
-    required this.artworkPath,
-    required this.missing,
-    required this.onOpen,
-    required this.onRename,
-    required this.onDelete,
-  });
-
-  /// 12 首歌曲 · 2 首不可用.
-  String get summary => [
-    '${playlist.sourcePaths.length} 首歌曲',
-    if (missing > 0) '$missing 首不可用',
-  ].join(' · ');
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-
-    return AppCatalogCard(
-      semanticLabel: LocalLibrarySemantics.playlistCard(
-        name: playlist.name,
-        songs: playlist.sourcePaths.length,
-        missing: missing,
-      ),
-      semanticHint: LocalLibrarySemantics.openPlaylistHint,
-      onTap: onOpen,
-      semanticActions: {'重命名': onRename, '删除播放列表': onDelete},
-      compact: spec.isCompact,
-      artwork: AppArtwork(
-        path: artworkPath,
-        borderRadius: AppArtwork.tileRadius,
-        placeholderIcon: Icons.queue_music_rounded,
-      ),
-      artworkOverlay: Material(
-        color: AppColors.pureBlack.withAlpha(90),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-        child: PopupMenuButton<String>(
-          tooltip: '播放列表操作',
-          // White on the dimmed cover in either theme.
-          iconColor: AppColors.pureWhite,
-          onSelected: (value) {
-            if (value == 'rename') onRename();
-            if (value == 'delete') onDelete();
-          },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'rename', child: Text('重命名')),
-            PopupMenuDivider(),
-            PopupMenuItem(value: 'delete', child: Text('删除播放列表')),
-          ],
-        ),
-      ),
-      title: playlist.name,
-      subtitle: summary,
-      subtitleIsAlert: missing > 0,
-    );
-  }
-}
-
-class _CollectionEmptyState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  const _CollectionEmptyState({
-    required this.icon,
-    required this.title,
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final label = actionLabel;
-    final action = onAction;
-    return AppEmptyState(
-      icon: icon,
-      title: title,
-      message: message,
-      actions: [
-        if (label != null && action != null)
-          FilledButton.icon(
-            onPressed: action,
-            icon: const Icon(Icons.add_rounded),
-            label: Text(label),
-            style: FilledButton.styleFrom(
-              minimumSize: Size(
-                0,
-                AppResponsive.of(context).minimumInteractiveExtent,
-              ),
-            ),
-          ),
       ],
     );
   }

@@ -1309,3 +1309,17 @@
 - 影响：两条源码检查（封面要用 `AppArtwork`、“识别环境与高级设置”按钮）随代码改查新文件。跨模块引用识别环境对话框的旧例外仍留在页面文件里，新文件没有新增这类引用。新增复核说明文字的单元测试，以及“刷新界面不重数”的页面测试。
 - 状态：生效
 - 来源：第 54 轮；[工作日志](log/entries/2027-01-07-1000-split-project-detail-and-budget-screens.md)
+
+## D-075 本地收藏与播放列表页面拆分
+
+- 日期：2026-11-18
+- 背景：`local_collections_screen.dart` 有 1248 行，状态加载和收藏／播放列表操作与歌曲行、封面头部、播放列表卡片等多个私有组件混在一起；D-074 的页面预算因此只能把它列为冻结项目，无法要求所有页面都低于 1200 行。
+- 决定：
+  - 页面文件保留加载状态、收藏／播放列表操作和区块布局，减到约 590 行。
+  - 将歌曲展示数据抽到 `widgets/local_collection_song.dart`，共用歌曲行抽到 `widgets/local_collection_song_tile.dart`；操作菜单、头部、列表卡片和空状态移到 `widgets/local_collection_widgets.dart`。
+  - 从 `screen_size_budget_test.dart` 移除冻结条目，恢复所有页面必须少于 1200 行的统一检查。
+  - 更新目录卡片源码契约，检查移动后的播放列表卡片组件。
+  - 界面和行为不变；新增组件仍由页面传入依赖和回调，不建立对页面的反向引用。
+- 影响：`LocalCollectionSong` 成为公开的呈现数据类型；新拆出的公开组件构造器接受 `key`。无需改播放列表仓储或播放行为。
+- 状态：生效
+- 来源：第五十五轮；[工作日志](log/entries/2026-11-18-1000-split-local-collections-screen.md)

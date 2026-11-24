@@ -191,6 +191,7 @@
 - [2026-11-18 21:10] Raise theme text contrast and drop the unbundled Inter declaration ([entry](log/entries/2026-11-18-2110-raise-theme-text-contrast.md))
 - [2026-11-18 21:00] Rename the user-facing product name to LyricForge KTV ([entry](log/entries/2026-11-18-2100-rename-user-facing-product-name.md))
 - [2026-11-18 12:00] Keep word timing and add a recognition loop check ([entry](log/entries/2026-11-18-1200-keep-word-timing-and-add-loop-check.md))
+- [2026-11-18 10:00] Split the local collections screen ([entry](log/entries/2026-11-18-1000-split-local-collections-screen.md))
 - [2026-11-17 18:00] Add tap-to-sync, pace check and karaoke export ([entry](log/entries/2026-11-17-1800-add-tap-sync-pace-check-and-karaoke-export.md))
 - [2026-11-16 18:00] Add timeline repair, timing shift and multi-format export ([entry](log/entries/2026-11-16-1800-add-timing-tools-and-export-formats.md))
 - [2026-11-16 12:30] Add line split/merge editing and the line-structure tool ([entry](log/entries/2026-11-16-1230-add-line-structure-editing.md))
