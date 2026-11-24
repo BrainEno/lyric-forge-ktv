@@ -12,7 +12,7 @@
   - `docs/decisions.md` (D-072), `docs/handoff.md`.
 - Validation:
   - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
-  - Probe results: see handoff.
+  - Probe: `dart format` and `flutter analyze` clean, all 5447 tests passed on the first run (5439 + 8 new). Probe removed.
 - Notes:
   - The existing listen home widget tests are unchanged and act as the regression check for the split.
   - 最近播放 is now one `Column` inside the page's `ListView` instead of one child per row; the rows, keys and padding are the same.
