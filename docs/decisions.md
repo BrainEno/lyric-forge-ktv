@@ -1292,3 +1292,20 @@
 - 影响：校对协调器仍然通过页面实现的 `LyricEditorProofreadFlowHost` 调用试听，接口不变。新增 `audioDurationFor`、`playbackItemFor` 的单元测试。保存和冲突处理继续由原有的编辑器测试覆盖（包括 `lyric_editor_save_conflict_test`）。
 - 状态：生效
 - 来源：第 53 轮；[工作日志](log/entries/2027-01-06-1000-move-editor-save-and-audition-out-of-the-screen.md)
+
+## D-074 工程详情页按区块拆分，并加页面行数检查
+
+- 日期：2027-01-07
+- 背景：工程详情页（`project_detail_screen.dart`）有 1600 行，是最大的页面：前 600 行是页面状态和识别、导入分轨、生成伴奏等操作，后面 950 行是十几个界面组件。D-072、D-073 拆了听歌页和歌词编辑器，但只有编辑器有行数测试，别的页面可以悄悄变长。另外，这个页面每次刷新界面都会重新计算一遍复核数量（D-069）。识别进行中，进度每秒更新几次，每次都要把所有歌词行过一遍。
+- 决定：
+  - 界面组件移到 `widgets/` 下，页面从 1600 行减到 646 行，只保留状态和操作：
+    - `project_detail_content.dart`：页面布局、加载中、加载失败。
+    - `project_detail_hero.dart`：顶部封面、歌名和状态标签。
+    - `project_detail_cards.dart`：制作进度、歌词草稿、工程信息三张卡片和共用的卡片外框。
+    - `project_detail_action_panel.dart`：“下一步”面板。
+  - 复核数量按读到的那份工程缓存：同一份工程只算一次，读到新的一份（例如从编辑器保存后返回）时再算。
+  - 新增 `test/architecture/screen_size_budget_test.dart`：所有 `screens/` 下的文件都要少于 1200 行。已经超过的 `local_collections_screen.dart`（1249 行）先登记，只能变短；降到 1200 行以下后，测试会提醒把它从名单里删掉。
+  - 界面、文字、按钮和行为都不变。
+- 影响：两条源码检查（封面要用 `AppArtwork`、“识别环境与高级设置”按钮）随代码改查新文件。跨模块引用识别环境对话框的旧例外仍留在页面文件里，新文件没有新增这类引用。新增复核说明文字的单元测试，以及“刷新界面不重数”的页面测试。
+- 状态：生效
+- 来源：第 54 轮；[工作日志](log/entries/2027-01-07-1000-split-project-detail-and-budget-screens.md)

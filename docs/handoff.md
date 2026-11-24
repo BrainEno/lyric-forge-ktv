@@ -2,12 +2,13 @@
 
 ## 目标
 
-第五十三轮：把歌词编辑器的保存和试听移出页面（D-073）。`lyric_editor_screen.dart` 从 1198 行减到 783 行，界面和行为不变。
+第五十四轮：拆分工程详情页，并给所有页面加行数检查（D-074）。
 
-- 保存：`controllers/lyric_editor_save_flow.dart`（`LyricEditorSaveFlow`）。
-- 试听：`controllers/lyric_editor_audition_flow.dart`（`LyricEditorAuditionFlow`），三处重复的时长和试听窗口计算合并成一处。
+- `project_detail_screen.dart` 从 1600 行减到 646 行，界面组件移到 `widgets/project_detail_{content,hero,cards,action_panel}.dart`。
+- 复核数量按读到的那份工程缓存，不再每次刷新界面都重算。
+- `test/architecture/screen_size_budget_test.dart`：`screens/` 下的文件都要少于 1200 行；`local_collections_screen.dart`（1249 行）先登记，只能变短。
 
-第五十二轮（D-072，拆分听歌页）在同一分支上，PR #520 尚未合并，现在包含两轮。
+第五十二、五十三轮（D-072、D-073）也在这个分支上，PR #520 尚未合并，现在包含三轮。
 
 ## Git 现场
 
@@ -15,21 +16,20 @@
 
 ## 已改文件
 
-见工作日志 `2027-01-06-1000`（D-073）和 `2027-01-05-1000`（D-072）。
+见工作日志 `2027-01-07-1000`（D-074）、`2027-01-06-1000`（D-073）、`2027-01-05-1000`（D-072）。
 
 ## 检查结果
 
-- 沙箱里没有 Dart SDK，用临时 CI 探针在分支上跑了格式、分析和测试。
-- 第一次：格式和分析无问题，9 个保存相关测试失败。原因是保存后刷新页面时写成了 `setState(() => _projectFuture = …)`，箭头函数把 Future 交给了 `setState`，Flutter 会直接报错。改成代码块后修好。
-- 第二次：5447 个原有测试加 5 个新测试，共 5452 个全部通过；探针已删除。
+- 沙箱里没有 Dart SDK，用临时 CI 探针在分支上跑格式、分析和测试（结果待补）。
 
 ## 下一步
 
+- 拆分 `local_collections_screen.dart`（1249 行），拆完把它从行数检查的名单里删掉。
 - 后续候选：空状态和出错提示统一打磨、批量标记副歌、KTV 彻底删除时检查锁定状态并补撤销测试。
-- 超过 1200 行的页面还有 `project_detail_screen.dart`（1600 行）和 `local_collections_screen.dart`（1248 行），目前没有测试限制它们的行数，可以按同样方式拆分。
 
 ## 已知风险
 
-- 纯结构调整，靠原有编辑器测试（保存、冲突、试听、校对试听）兜底。
+- 结构调整为主，靠原有工程详情页测试（导入分轨、生成伴奏、演唱语言、删除、复核数量）兜底。
+- 复核数量的缓存按对象是否相同判断；仓库每次读取都返回新对象，工程有改动时一定会重算。
 
-最后更新：2027-01-06 10:00（Asia/Taipei）
+最后更新：2027-01-07 10:00（Asia/Taipei）

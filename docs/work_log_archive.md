@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-30 10:00] Batch selection and batch edits in the lyric editor ([entry](log/entries/2026-12-30-1000-batch-line-editing.md))
 - [2026-12-29 10:00] Global search and the shortcut panel ([entry](log/entries/2026-12-29-1000-global-search-and-shortcuts.md))
 - [2026-12-28 10:00] Undoable deletions and 最近删除 ([entry](log/entries/2026-12-28-1000-undoable-deletions.md))
 - [2026-12-27 10:00] Delete projects and clean up duplicates ([entry](log/entries/2026-12-27-1000-delete-and-dedupe-projects.md))

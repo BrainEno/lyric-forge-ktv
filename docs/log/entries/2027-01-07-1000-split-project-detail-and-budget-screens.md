@@ -1,0 +1,21 @@
+# [2027-01-07 10:00] Split the project page and budget every screen
+
+- Scope: round 54, the next round after the editor split (D-074).
+  - `project_detail_screen.dart` 1600 → 646 lines: state, loading, recognition, stem import, accompaniment generation, sung language, delete. The widgets moved, made public and given `super.key`:
+    - `widgets/project_detail_content.dart`: `ProjectDetailContent`, `ProjectDetailLoadingState`, `ProjectDetailErrorState`.
+    - `widgets/project_detail_hero.dart`: `ProjectDetailHero` (+ private artwork, status and mini pills, status label / colour).
+    - `widgets/project_detail_cards.dart`: `ProjectDetailSurfaceCard`, `ProjectDetailProgressCard`, `ProjectDetailLyricStatusCard` (public `reviewSentence`), `ProjectDetailMetadataCard`.
+    - `widgets/project_detail_action_panel.dart`: `ProjectDetailActionPanel` (+ private desktop-required notice).
+  - The review overview is memoised per loaded `ProjectManifest` instance (`_reviewOf`), closing the "recomputes the review queue on every build" follow-up.
+  - `test/architecture/screen_size_budget_test.dart`: every file under a `screens/` directory stays under 1200 lines (counted like the editor contract: `split('\n').length`). `local_collections_screen.dart` is frozen at 1249 and may only shrink.
+- Files:
+  - New: the four widget files above, `test/architecture/screen_size_budget_test.dart`, `test/features/project/presentation/widgets/project_detail_cards_test.dart` (4 tests).
+  - Changed: `lib/features/project/presentation/screens/project_detail_screen.dart`; `test/architecture/artwork_convergence_test.dart` and `test/features/settings/transcription_settings_contract_test.dart` (follow the moved code); `test/features/project/presentation/project_detail_capability_test.dart` (+1 test: counted once per copy).
+  - `docs/decisions.md` (D-074), `docs/handoff.md`.
+- Validation:
+  - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
+  - Probe results: see handoff.
+- Notes:
+  - The `asr_runtime_setup_dialog` import stays in the screen: it is a baselined cross-feature presentation import, and the new files must not add one.
+  - Same branch as rounds 52–53 (PR #520 still open).
+- Commit: `Split the project page and budget every screen`

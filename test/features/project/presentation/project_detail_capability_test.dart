@@ -1060,6 +1060,38 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('每份读到的工程只数一次，刷新界面不重数', (tester) async {
+      final projects = _Projects(withFrozenCounts());
+      var counts = 0;
+      await _showProject(
+        tester,
+        projects.project,
+        const Size(1366, 768),
+        projects: projects,
+        reviewCounter: (_) {
+          counts++;
+          return const ProjectLyricReviewOverview(
+            suggested: 3,
+            mustCheck: 0,
+            reviewed: 0,
+          );
+        },
+      );
+      expect(counts, 1);
+
+      // The same copy again: the page rebuilds, the counts are reused.
+      await tester.tap(find.byTooltip('刷新工程'));
+      await tester.pumpAndSettle();
+      expect(counts, 1);
+
+      // A newer copy (say, saved in the editor) is counted again.
+      projects.project = projects.project.copyWith(revision: 2);
+      await tester.tap(find.byTooltip('刷新工程'));
+      await tester.pumpAndSettle();
+      expect(counts, 2);
+      expect(find.text('建议复核 · 3 行'), findsOneWidget);
+    });
+
     testWidgets('没有计数时只显示行数和语言', (tester) async {
       await _showProject(tester, withFrozenCounts(), const Size(1366, 768));
 
