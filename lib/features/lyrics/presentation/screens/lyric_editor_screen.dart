@@ -7,13 +7,11 @@ import '../../../../core/diagnostics/best_effort.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../player/domain/services/playback_session_service.dart';
-import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/proofreading/proofread_result.dart';
-import '../../domain/services/lyric_audition_window_service.dart';
 import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
@@ -22,9 +20,11 @@ import '../../domain/services/reference_lyric_text_parser.dart';
 import '../widgets/reference_alignment_backup_dialog.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../controllers/line_audition_controller.dart';
+import '../controllers/lyric_editor_audition_flow.dart';
 import '../controllers/lyric_editor_document_controller.dart';
 import '../controllers/lyric_editor_proofreading_coordinator.dart';
 import '../controllers/lyric_batch_text_tools_coordinator.dart';
+import '../controllers/lyric_editor_save_flow.dart';
 import '../controllers/lyric_export_coordinator.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
@@ -35,7 +35,6 @@ import '../widgets/lyric_editor_review_controls.dart';
 import '../widgets/lyric_editor_toolbar.dart';
 import '../widgets/lyric_line_delete_undo.dart';
 import '../widgets/lyric_proofread_dialog.dart';
-import '../widgets/project_save_conflict_dialog.dart';
 
 class LyricEditorScreen extends StatefulWidget {
   final String projectId;
@@ -74,8 +73,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
       );
   final LyricExportCoordinator _lyricExport = LyricExportCoordinator();
   late Future<ProjectManifest?> _projectFuture;
-  int? _projectRevision;
-  Future<bool>? _saveInFlight;
+  late final LyricEditorSaveFlow _save;
+  late final LyricEditorAuditionFlow _audio;
 
   /// Owns the document, its dirty flag, the selected row, the manual-edit marks
   /// and the undo history; this screen only decides what to show.
@@ -205,11 +204,38 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
       referenceParser: _referenceParser,
       host: this,
     );
+    _save = LyricEditorSaveFlow(
+      repository: _repository,
+      projectId: widget.projectId,
+      editor: _editor,
+      context: () => context,
+      isMounted: () => mounted,
+      // A block, not an arrow: setState must not be handed a Future.
+      onProjectChanged: (project) => setState(() {
+        _projectFuture = Future.value(project);
+      }),
+      onSavingChanged: () => setState(() {}),
+    );
+    _audio = LyricEditorAuditionFlow(
+      audition: _audition,
+      audioService: _audioService,
+      playbackSession: _playbackSession,
+      document: () => _editingDocument,
+      isMounted: () => mounted,
+      selectLine: _editor.select,
+      showMessage: _showMessage,
+    );
     _loadProject();
   }
 
   void _handleAuditionChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showAuditionError(Object error) {
@@ -226,7 +252,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
       project,
     ) {
       if (!mounted) return project;
-      if (project != null) _projectRevision = project.revision;
+      if (project != null) _save.projectRevision = project.revision;
       if (project == null || _editor.document != null) return project;
       _editor.load(
         project.lyricDocument ??
@@ -234,158 +260,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
       );
       return project;
     });
-  }
-
-  /// Saves the current draft. Completes with `true` only when the document the
-  /// user is looking at has been persisted and nothing newer is pending, so a
-  /// caller such as "保存并返回" may leave the editor. Concurrent requests (a
-  /// second click, Ctrl+S during the back dialog) share the in-flight save.
-  Future<bool> _saveChanges(ProjectManifest project) {
-    final inFlight = _saveInFlight;
-    if (inFlight != null) return inFlight;
-    final save = _performSave(project);
-    _saveInFlight = save;
-    setState(() {});
-    unawaited(_clearSaveWhenDone(save));
-    return save;
-  }
-
-  Future<void> _clearSaveWhenDone(Future<bool> save) async {
-    try {
-      await save;
-    } catch (_) {
-      // The caller of _saveChanges observes and reports the failure.
-    } finally {
-      if (identical(_saveInFlight, save)) _saveInFlight = null;
-      if (mounted) setState(() {});
-    }
-  }
-
-  Future<bool> _performSave(ProjectManifest project) async {
-    if (_editingDocument == null) return false;
-    final editorRevision = _editor.documentRevision;
-    final updated = project.copyWith(
-      lyricDocument: _editor.documentForSave(),
-      status: ProjectStatus.editing,
-      currentStage: ProcessingStage.lyricsEdited,
-    );
-    try {
-      final saved = await _repository.updateProjectIfUnchanged(
-        updated,
-        expectedRevision: _projectRevision ?? project.revision,
-      );
-      return _finishProjectSave(saved, editorRevision: editorRevision);
-    } on ProjectUpdateConflictException catch (conflict) {
-      return _resolveSaveConflictSafely(conflict);
-    } catch (error) {
-      _showSaveFailure(error);
-      return false;
-    }
-  }
-
-  Future<bool> _resolveSaveConflictSafely(
-    ProjectUpdateConflictException conflict,
-  ) async {
-    try {
-      return await _resolveProjectSaveConflict(conflict);
-    } catch (error) {
-      _showSaveFailure(error);
-      return false;
-    }
-  }
-
-  void _showSaveFailure(Object error) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('保存失败：$error。当前编辑仍保留，未保存。')));
-  }
-
-  /// Records a completed write. Returns whether the editor is now clean: an
-  /// edit made while the write was pending is newer than what reached disk and
-  /// must stay marked unsaved.
-  bool _finishProjectSave(
-    ProjectManifest saved, {
-    required int editorRevision,
-  }) {
-    if (!mounted) return false;
-    _projectRevision = saved.revision;
-    _projectFuture = Future<ProjectManifest?>.value(saved);
-    final clean = _editor.markSavedIfUnchanged(editorRevision);
-    setState(() {});
-    // Saving answers at once, even over an undo offer for a deleted row.
-    ScaffoldMessenger.of(context)
-      ..removeCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(clean ? '歌词已保存' : '已保存，但保存期间的新修改尚未保存。'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    return clean;
-  }
-
-  Future<bool> _resolveProjectSaveConflict(
-    ProjectUpdateConflictException conflict,
-  ) async {
-    final latest =
-        conflict.currentProject ??
-        await _repository.getProjectById(widget.projectId);
-    if (!mounted) return false;
-    if (latest == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('工程已不存在；当前编辑仍保留，未保存。')));
-      return false;
-    }
-
-    final choice = await showProjectSaveConflictDialog(
-      context,
-      latestRevision: latest.revision,
-    );
-    if (!mounted) return false;
-
-    switch (choice) {
-      case ProjectSaveConflictChoice.keepEditing:
-        return false;
-      case ProjectSaveConflictChoice.reloadLatest:
-        final reloaded = await _repository.getProjectById(widget.projectId);
-        if (!mounted) return false;
-        if (reloaded == null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('工程已不存在；当前编辑仍保留，未保存。')));
-          return false;
-        }
-        _projectRevision = reloaded.revision;
-        _projectFuture = Future<ProjectManifest?>.value(reloaded);
-        _editor.load(
-          reloaded.lyricDocument ??
-              const LyricDocument(language: 'zh', lines: <LyricLine>[]),
-        );
-        setState(() {});
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('已载入最新版工程。')));
-        // The user chose to see the latest version, not to leave with it.
-        return false;
-      case ProjectSaveConflictChoice.overwriteLatest:
-        final editorRevision = _editor.documentRevision;
-        final replacement = latest.copyWith(
-          lyricDocument: _editor.documentForSave(),
-          status: ProjectStatus.editing,
-          currentStage: ProcessingStage.lyricsEdited,
-        );
-        try {
-          final saved = await _repository.updateProjectIfUnchanged(
-            replacement,
-            expectedRevision: latest.revision,
-          );
-          return _finishProjectSave(saved, editorRevision: editorRevision);
-        } on ProjectUpdateConflictException catch (newConflict) {
-          return _resolveProjectSaveConflict(newConflict);
-        }
-    }
   }
 
   Future<void> _exportLyrics(ProjectManifest project) => _lyricExport.export(
@@ -411,7 +285,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
         project: project,
         document: document,
         revision: revision,
-        projectRevision: _projectRevision ?? project.revision,
+        projectRevision: _save.projectRevision ?? project.revision,
       ),
     );
   }
@@ -479,7 +353,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
 
   @override
   Future<void> previewProofreadLine(ProjectManifest project, int index) =>
-      _previewLine(project, index);
+      _audio.previewLine(project, index);
 
   @override
   Future<ProofreadTimedLinePreviewResult> previewProofreadTimedLine(
@@ -487,14 +361,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     int index,
     LyricLine line,
     Duration globalOffset,
-  ) => _previewTimedLine(project, index, line, globalOffset);
+  ) => _audio.previewTimedLine(project, index, line, globalOffset);
 
   @override
   Future<void> previewProofreadToken(
     ProjectManifest project,
     int index,
     TimedLyricToken token,
-  ) => _previewProofreadToken(project, index, token);
+  ) => _audio.previewToken(project, index, token);
 
   @override
   void applyProofreadDocument({
@@ -538,7 +412,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
       context,
       before: before,
       after: after,
-      onPreviewLine: (index) => _previewLine(project, index),
+      onPreviewLine: (index) => _audio.previewLine(project, index),
     );
   }
 
@@ -611,24 +485,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
         duration: const Duration(seconds: 2),
       ),
     );
-  }
-
-  /// 编辑器内跳转：先暂停，避免拖动后仍在播放而错过目标位置。
-  Future<void> _seekPlayback(Duration position) async {
-    try {
-      if (_audition.isActive && mounted) {
-        _audition.clear();
-      }
-      if (_audioService.currentState.isPlaying) {
-        await _audioService.pause();
-      }
-      await _playbackSession.seek(position);
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('无法跳转试听：$error')));
-    }
   }
 
   void _updateLine(int index, LyricLine updatedLine) => _applyRowEdit(
@@ -736,278 +592,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
-  Future<ProofreadTimedLinePreviewResult> _previewTimedLine(
-    ProjectManifest project,
-    int index,
-    LyricLine line,
-    Duration globalOffset,
-  ) async {
-    final document = _editingDocument;
-    final audioAsset = project.audioAsset;
-    if (document == null ||
-        audioAsset == null ||
-        index < 0 ||
-        index >= document.lines.length) {
-      return const ProofreadTimedLinePreviewResult.failure('工程音频或原始歌词行不可用。');
-    }
-
-    final currentItem = _playbackSession.currentState.currentItem;
-    final audioDuration = currentItem?.projectId == project.id
-        ? (_audioService.currentState.duration ?? audioAsset.duration)
-        : audioAsset.duration;
-    final window = const LyricAuditionWindowService().calculate(
-      lineStart: line.startTime,
-      lineEnd: line.endTime,
-      globalOffset: globalOffset,
-      audioDuration: audioDuration,
-    );
-    if (!window.canAudition) {
-      final error = await _startAuditionWindow(
-        project,
-        index,
-        document,
-        audioAsset,
-        window,
-        showError: false,
-      );
-      return ProofreadTimedLinePreviewResult.failure(
-        error ?? '该时间范围超出音频有效时长或时间区间无效，无法试听。',
-      );
-    }
-
-    try {
-      final result = await _audition.toggle(
-        request: LineAuditionRequest(
-          projectId: project.id,
-          lineIndex: index,
-          lineId: document.lines[index].id,
-          window: window,
-        ),
-        prepare: () => _prepareProjectPlayback(project, audioAsset),
-      );
-      return switch (result.action) {
-        LineAuditionAction.paused =>
-          const ProofreadTimedLinePreviewResult.success(message: '已暂停试听。'),
-        LineAuditionAction.resumed =>
-          _audioService.currentState.isPlaying
-              ? const ProofreadTimedLinePreviewResult.success()
-              : const ProofreadTimedLinePreviewResult.failure(
-                  '播放器未恢复播放状态；请检查音频文件与播放器日志。',
-                ),
-        LineAuditionAction.invalid => ProofreadTimedLinePreviewResult.failure(
-          LyricReviewStrings.auditionInvalidStart,
-        ),
-        LineAuditionAction.failed => ProofreadTimedLinePreviewResult.failure(
-          result.error ?? '该时间范围超出音频有效时长或时间区间无效，无法试听。',
-        ),
-        LineAuditionAction.started =>
-          result.error == null
-              ? const ProofreadTimedLinePreviewResult.success()
-              : ProofreadTimedLinePreviewResult.failure(result.error!),
-      };
-    } catch (error) {
-      return ProofreadTimedLinePreviewResult.failure(error.toString());
-    }
-  }
-
-  Future<void> _previewLine(ProjectManifest project, int index) async {
-    final document = _editingDocument;
-    final audioAsset = project.audioAsset;
-    if (document == null ||
-        audioAsset == null ||
-        index < 0 ||
-        index >= document.lines.length) {
-      return;
-    }
-
-    final currentItem = _playbackSession.currentState.currentItem;
-    final audioDuration = currentItem?.projectId == project.id
-        ? (_audioService.currentState.duration ?? audioAsset.duration)
-        : audioAsset.duration;
-    final window = const LyricAuditionWindowService().calculate(
-      lineStart: document.lines[index].startTime,
-      lineEnd: document.lines[index].endTime,
-      globalOffset: document.globalOffset ?? Duration.zero,
-      audioDuration: audioDuration,
-    );
-
-    try {
-      final result = await _audition.toggle(
-        request: LineAuditionRequest(
-          projectId: project.id,
-          lineIndex: index,
-          lineId: document.lines[index].id,
-          window: window,
-        ),
-        prepare: () => _prepareProjectPlayback(project, audioAsset),
-      );
-      if (!mounted) return;
-      switch (result.action) {
-        case LineAuditionAction.started:
-          _editor.select(index);
-        case LineAuditionAction.invalid:
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(LyricReviewStrings.auditionInvalidStart),
-            ),
-          );
-        case LineAuditionAction.failed:
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${LyricReviewStrings.auditionErrorPrefix}${result.error}',
-              ),
-            ),
-          );
-        case LineAuditionAction.paused:
-        case LineAuditionAction.resumed:
-          break;
-      }
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${LyricReviewStrings.auditionErrorPrefix}$error'),
-        ),
-      );
-    }
-  }
-
-  /// Loads [project] into the queue when the queue is showing something else,
-  /// so an audition seeks inside the right audio.
-  Future<void> _prepareProjectPlayback(
-    ProjectManifest project,
-    AudioAsset audioAsset,
-  ) async {
-    final preferredSource = audioAsset.vocalPath != null
-        ? AudioSourceType.vocals
-        : AudioSourceType.original;
-    await _playbackSession.playItem(
-      PlaybackItem(
-        id: 'project:${project.id}',
-        title: project.name,
-        artist: project.artist,
-        projectId: project.id,
-        artworkPath: audioAsset.thumbnailPath,
-        hasLyrics: project.hasLyrics,
-        audioAsset: audioAsset,
-        preferredSource: preferredSource,
-      ),
-    );
-  }
-
-  Future<void> _previewProofreadToken(
-    ProjectManifest project,
-    int lineIndex,
-    TimedLyricToken token,
-  ) async {
-    final document = _editingDocument;
-    final audioAsset = project.audioAsset;
-    if (document == null ||
-        audioAsset == null ||
-        lineIndex < 0 ||
-        lineIndex >= document.lines.length) {
-      return;
-    }
-
-    final currentItem = _playbackSession.currentState.currentItem;
-    final audioDuration = currentItem?.projectId == project.id
-        ? (_audioService.currentState.duration ?? audioAsset.duration)
-        : audioAsset.duration;
-    final window = const LyricAuditionWindowService().calculate(
-      lineStart: token.interval.start,
-      lineEnd: token.interval.end,
-      globalOffset: document.globalOffset ?? Duration.zero,
-      audioDuration: audioDuration,
-      // Keep a small lead-in so users can hear the word's onset in context.
-      preRoll: const Duration(milliseconds: 250),
-    );
-    await _startAuditionWindow(
-      project,
-      lineIndex,
-      document,
-      audioAsset,
-      window,
-    );
-  }
-
-  Future<String?> _startAuditionWindow(
-    ProjectManifest project,
-    int index,
-    LyricDocument document,
-    AudioAsset audioAsset,
-    LyricAuditionWindow window, {
-    bool showError = true,
-  }) async {
-    final result = await _audition.start(
-      request: LineAuditionRequest(
-        projectId: project.id,
-        lineIndex: index,
-        lineId: document.lines[index].id,
-        window: window,
-      ),
-      prepare: () => _prepareProjectPlayback(project, audioAsset),
-    );
-    if (!mounted) return result.error ?? '校对页面已关闭。';
-
-    switch (result.action) {
-      case LineAuditionAction.started:
-        _editor.select(index);
-        return null;
-      case LineAuditionAction.invalid:
-        if (showError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(LyricReviewStrings.auditionInvalidStart),
-            ),
-          );
-        }
-        return LyricReviewStrings.auditionInvalidStart;
-      case LineAuditionAction.failed:
-        if (showError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${LyricReviewStrings.auditionErrorPrefix}${result.error}',
-              ),
-            ),
-          );
-        }
-        return result.error;
-      case LineAuditionAction.paused:
-      case LineAuditionAction.resumed:
-        return null;
-    }
-  }
-
-  Future<void> _togglePlayback(ProjectManifest project) async {
-    try {
-      final currentItem = _playbackSession.currentState.currentItem;
-      if (currentItem?.projectId != project.id) {
-        final index = _selectedLineIndex ?? 0;
-        await _previewLine(project, index);
-        return;
-      }
-
-      final active = _audition.active;
-      final playback = _audioService.currentState;
-      if (active != null &&
-          !playback.isPlaying &&
-          active.window.endAt != null &&
-          playback.position >= active.window.endAt!) {
-        // The editor-wide transport resumes the whole track after a bounded
-        // line audition has completed; the row button remains the replay action.
-        _audition.clear();
-      }
-      await _playbackSession.togglePlayPause();
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('无法控制试听：$error')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<ProjectManifest?>(
@@ -1076,13 +660,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                         project: project,
                         document: document,
                         hasChanges: editorState.hasChanges,
-                        onSave: () => _saveChanges(project),
-                        isSaving: _saveInFlight != null,
+                        onSave: () => _save.save(project),
+                        isSaving: _save.isSaving,
                         player: LyricPlaybackControls(
                           state: playback,
                           belongsToProject: playbackBelongsToProject,
-                          onSeek: _seekPlayback,
-                          onToggle: () => _togglePlayback(project),
+                          onSeek: _audio.seek,
+                          onToggle: () => _audio.togglePlayback(
+                            project,
+                            selectedLineIndex: _selectedLineIndex,
+                          ),
                         ),
                         review: _reviewControls(project),
                         history: LyricUndoRedoControls(
@@ -1112,7 +699,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                         edits: _lineEditActions,
                         audition: LyricAuditionControls(
                           onPreviewLine: (index) =>
-                              _previewLine(project, index),
+                              _audio.previewLine(project, index),
                           activeLineIndex: _activeAuditionLineIndex,
                           playing:
                               playbackBelongsToProject && playback.isPlaying,
