@@ -28,7 +28,11 @@ void main() {
       final name = path.split('/').last;
 
       test('$name draws its grid cards with AppCatalogCard', () {
-        final source = _read(path);
+        final cardPath = path.endsWith('local_collections_screen.dart')
+            ? 'lib/features/player/presentation/widgets/'
+                  'local_collection_widgets.dart'
+            : path;
+        final source = _read(cardPath);
         expect(source, contains("core/widgets/app_catalog_card.dart'"));
         expect(source, contains('AppCatalogCard('));
       });
@@ -139,7 +143,6 @@ void main() {
           'class _CatalogCard ',
           'class _ExplorerCard ',
           'class _PlaylistCard ',
-          'class LocalPlaylistCard ',
           'class _CatalogGroupCard ',
         ]) {
           final start = source.indexOf(name);
