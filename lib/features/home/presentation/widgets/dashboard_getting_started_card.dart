@@ -11,8 +11,7 @@ abstract final class GettingStartedText {
   static const String eyebrow = '开始使用';
   static const String title = '三步做出第一首 KTV 歌词';
   static const String doneTitle = '三步都完成了';
-  static const String doneMessage =
-      '以后从“最近工程”继续识别、校对和唱歌。这张卡片收起后，可以在设置里重新打开。';
+  static const String doneMessage = '以后从“最近工程”继续识别、校对和唱歌。这张卡片收起后，可以在设置里重新打开。';
   static const String finish = '收起';
   static const String dismissTooltip = '收起开始指南';
   static const String dismissedNotice = '已收起开始指南，可以在设置里重新打开。';

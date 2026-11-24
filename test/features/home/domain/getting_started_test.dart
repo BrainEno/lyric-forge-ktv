@@ -103,10 +103,10 @@ void main() {
     });
 
     test('lyrics finish the first step and unlock the other two', () {
-      final progress = GettingStartedProgress.from(
-        [_project('new'), _project('old', lyrics: true)],
-        countReview: _reviewed(const {}),
-      );
+      final progress = GettingStartedProgress.from([
+        _project('new'),
+        _project('old', lyrics: true),
+      ], countReview: _reviewed(const {}));
 
       expect(progress.lyricsProject?.id, 'old');
       expect(progress.recognizing, isNull);
@@ -126,10 +126,10 @@ void main() {
     });
 
     test('a confirmed line in any project finishes review', () {
-      final progress = GettingStartedProgress.from(
-        [_project('a', lyrics: true), _project('b', lyrics: true)],
-        countReview: _reviewed(const {'b'}),
-      );
+      final progress = GettingStartedProgress.from([
+        _project('a', lyrics: true),
+        _project('b', lyrics: true),
+      ], countReview: _reviewed(const {'b'}));
 
       expect(progress.reviewed, isTrue);
       expect(progress.next, GettingStartedStep.singKtv);

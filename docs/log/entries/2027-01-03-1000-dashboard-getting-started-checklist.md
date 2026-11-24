@@ -14,7 +14,7 @@
   - `docs/decisions.md` (D-070), `docs/handoff.md`.
 - Validation:
   - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
-  - Probe results: see handoff.
+  - Probe: `flutter analyze` clean and all 5427 tests passed on the first run; `dart format` asked for three line joins/splits (applied by hand). Probe removed.
 - Notes:
   - No new feature dependency: settings gets a callback, the store lives in the home feature and is wired in `lib/app`.
   - The phone opens on the listening home and cannot recognise; no checklist there this round.

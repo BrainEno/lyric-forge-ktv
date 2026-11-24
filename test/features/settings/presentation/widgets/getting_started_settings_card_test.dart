@@ -7,9 +7,7 @@ void main() {
     home: Scaffold(body: GettingStartedSettingsCard(onShow: onShow)),
   );
 
-  testWidgets('在首页重新显示 brings the checklist back (D-070)', (
-    tester,
-  ) async {
+  testWidgets('在首页重新显示 brings the checklist back (D-070)', (tester) async {
     var calls = 0;
     await tester.pumpWidget(host(() async => calls++));
 
