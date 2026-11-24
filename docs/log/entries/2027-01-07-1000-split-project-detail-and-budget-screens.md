@@ -14,7 +14,7 @@
   - `docs/decisions.md` (D-074), `docs/handoff.md`.
 - Validation:
   - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
-  - Probe results: see handoff.
+  - Probe on `3ebd5465`: format and analyze clean; all 5460 tests passed (+8 over 5452).
 - Notes:
   - The `asr_runtime_setup_dialog` import stays in the screen: it is a baselined cross-feature presentation import, and the new files must not add one.
   - Same branch as rounds 52–53 (PR #520 still open).

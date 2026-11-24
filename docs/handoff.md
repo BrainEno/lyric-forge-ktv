@@ -20,7 +20,9 @@
 
 ## 检查结果
 
-- 沙箱里没有 Dart SDK，用临时 CI 探针在分支上跑格式、分析和测试（结果待补）。
+- 沙箱里没有 Dart SDK，用临时 CI 探针在分支上跑格式、分析和测试。
+- 提交 `3ebd5465`：`dart format`、`flutter analyze` 通过；`flutter test` 全部通过，共 5460 个（上一轮 5452，+4 卡片文案、+1 复核计数缓存、+3 页面行数预算）。
+- 正式 CI（flutter、format-analyze-test-worklog）同样通过。
 
 ## 下一步
 
