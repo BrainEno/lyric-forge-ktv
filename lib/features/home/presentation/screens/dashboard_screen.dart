@@ -11,6 +11,7 @@ import '../dashboard_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_search_button.dart';
+import '../../../../core/widgets/undo_snack_bar.dart';
 import '../../../player/domain/models/play_history.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/repositories/play_history_repository.dart';
@@ -23,7 +24,10 @@ import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/batch_transcription_queue.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
 import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
+import '../../domain/models/getting_started.dart';
+import '../../domain/services/getting_started_store.dart';
 import '../widgets/dashboard_background_work_card.dart';
+import '../widgets/dashboard_getting_started_card.dart';
 import '../widgets/dashboard_now_playing.dart';
 import '../widgets/dashboard_shelves.dart';
 
@@ -45,6 +49,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late final TranscriptionSettingsStore _transcriptionSettingsStore;
   late Future<List<ProjectManifest>> _projectsFuture;
   late Future<List<PlayHistory>> _historyFuture;
+
+  /// The 开始使用 checklist (D-070); completes with null while it is hidden.
+  late Future<GettingStartedProgress?> _guideFuture;
+  GettingStartedPreferences _guidePreferences =
+      const GettingStartedPreferences();
   StreamSubscription<void>? _projectChanges;
 
   @override
@@ -68,6 +77,111 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _historyFuture = _observeUntilBuild(
       _history.getRecentPlayHistory(limit: 10),
     );
+    _guideFuture = _loadGuide(_projectsFuture);
+  }
+
+  /// Reads the checklist state and works out the progress from the recent
+  /// projects. The first time, someone with no projects gets the card and
+  /// someone who already has some does not (D-070). Never fails: a broken
+  /// checklist must not cost the user the dashboard.
+  Future<GettingStartedProgress?> _loadGuide(
+    Future<List<ProjectManifest>> projectsFuture,
+  ) async {
+    final store = widget.dependencies.gettingStartedStore;
+    if (store == null) return null;
+    try {
+      final projects = await projectsFuture;
+      final saved = await store.load() ?? const GettingStartedPreferences();
+      final preferences = saved.decidedFor(hasProjects: projects.isNotEmpty);
+      if (preferences.visibility != saved.visibility) {
+        await store.save(preferences);
+      }
+      _guidePreferences = preferences;
+      if (!preferences.showsCard) return null;
+      return GettingStartedProgress.from(
+        projects,
+        countReview: widget.dependencies.reviewCounter,
+        openedKtv: preferences.openedKtv,
+      );
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<void> _saveGuide(
+    GettingStartedStore store,
+    GettingStartedPreferences preferences,
+  ) async {
+    _guidePreferences = preferences;
+    try {
+      await store.save(preferences);
+    } on Object {
+      // Kept in memory for this session; the card still behaves.
+    }
+  }
+
+  /// A step's button: straight to the page where the step is done.
+  Future<void> _openGuideStep(
+    GettingStartedStep step,
+    GettingStartedProgress progress,
+  ) async {
+    final song = progress.lyricsProject;
+    switch (step) {
+      case GettingStartedStep.importSong:
+        await _openRoute(Routes.import);
+      case GettingStartedStep.reviewLyrics:
+        if (song == null) return;
+        await _openRoute(Routes.lyricEditorPath(song.id));
+      case GettingStartedStep.singKtv:
+        if (song == null) return;
+        final store = widget.dependencies.gettingStartedStore;
+        if (store != null) {
+          await _saveGuide(store, _guidePreferences.copyWith(openedKtv: true));
+        }
+        if (!mounted) return;
+        await _openRoute(Routes.playerPath(song.id));
+    }
+  }
+
+  /// The close button: hides the card, with an undo and a pointer to 设置.
+  Future<void> _dismissGuide() async {
+    final store = widget.dependencies.gettingStartedStore;
+    if (store == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final before = _guidePreferences;
+    await _saveGuide(
+      store,
+      before.copyWith(visibility: GettingStartedVisibility.dismissed),
+    );
+    if (!mounted) return;
+    await _refresh();
+    showUndoSnackBar(
+      messenger,
+      message: GettingStartedText.dismissedNotice,
+      onUndo: () async {
+        await _saveGuide(
+          store,
+          _guidePreferences.copyWith(
+            visibility: GettingStartedVisibility.active,
+          ),
+        );
+        if (mounted) await _refresh();
+        return null;
+      },
+    );
+  }
+
+  /// 收起 after all three steps.
+  Future<void> _finishGuide() async {
+    final store = widget.dependencies.gettingStartedStore;
+    if (store == null) return;
+    await _saveGuide(
+      store,
+      _guidePreferences.copyWith(
+        visibility: GettingStartedVisibility.completed,
+      ),
+    );
+    if (mounted) await _refresh();
   }
 
   Future<T> _observeUntilBuild<T>(Future<T> future) {
@@ -223,6 +337,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       context,
                                       Routes.settings,
                                     ),
+                                  ),
+                                  FutureBuilder<GettingStartedProgress?>(
+                                    future: _guideFuture,
+                                    builder: (context, snapshot) {
+                                      final progress = snapshot.data;
+                                      if (progress == null) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      return Padding(
+                                        padding: EdgeInsets.only(
+                                          top: layout.sectionGap,
+                                        ),
+                                        child: DashboardGettingStartedCard(
+                                          progress: progress,
+                                          onOpenStep: (step) =>
+                                              _openGuideStep(step, progress),
+                                          onDismiss: _dismissGuide,
+                                          onFinish: _finishGuide,
+                                        ),
+                                      );
+                                    },
                                   ),
                                   SizedBox(height: layout.sectionGap),
                                   DashboardNowPlayingArea(

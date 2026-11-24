@@ -6,14 +6,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/core/navigation/transfer_entry.dart';
 import 'package:lyric_forge_ktv/core/theme/color_tokens.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_empty_state.dart';
+import 'package:lyric_forge_ktv/core/navigation/routes.dart';
+import 'package:lyric_forge_ktv/features/home/domain/models/getting_started.dart';
+import 'package:lyric_forge_ktv/features/home/domain/services/getting_started_store.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/dashboard_dependencies.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/screens/dashboard_screen.dart';
+import 'package:lyric_forge_ktv/features/home/presentation/widgets/dashboard_getting_started_card.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/play_history.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/play_history_repository.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/audio_player_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/lyric_review_overview.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
@@ -32,6 +38,8 @@ void main() {
   late _TestTranscriptionQueue transcriptionQueue;
   late _TestTranscriptionSettingsStore transcriptionSettingsStore;
   late List<RouteSettings> pushed;
+  GettingStartedStore? guideStore;
+  ProjectLyricReviewCounter? reviewCounter;
 
   setUp(() {
     projects = _TestProjectRepository();
@@ -41,6 +49,8 @@ void main() {
     transcriptionQueue = _TestTranscriptionQueue();
     transcriptionSettingsStore = _TestTranscriptionSettingsStore();
     pushed = [];
+    guideStore = null;
+    reviewCounter = null;
   });
 
   Widget buildScreen() => MaterialApp(
@@ -64,6 +74,8 @@ void main() {
           downloadConnectionChecker: _UnusedAsrDownloadConnectionChecker(),
           downloadProxyStore: _UnusedDownloadProxyStore(),
         ),
+        gettingStartedStore: guideStore,
+        reviewCounter: reviewCounter,
       ),
     ),
   );
@@ -424,11 +436,206 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
   });
+
+  group('开始使用 checklist (D-070)', () {
+    ProjectManifest project(String id, {bool lyrics = false}) =>
+        ProjectManifest(
+          id: id,
+          name: '晴天',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+          lyricDocument: lyrics
+              ? const LyricDocument(
+                  language: 'zh',
+                  lines: [
+                    LyricLine(
+                      text: '故事的小黄花',
+                      startTime: Duration.zero,
+                      endTime: Duration(seconds: 3),
+                    ),
+                  ],
+                )
+              : null,
+        );
+
+    ProjectLyricReviewCounter reviewedLines(int count) =>
+        (_) => ProjectLyricReviewOverview(
+          suggested: 1,
+          mustCheck: 0,
+          reviewed: count,
+        );
+
+    Finder action(GettingStartedStep step) =>
+        find.byKey(DashboardGettingStartedCard.actionKey(step));
+
+    testWidgets('a new user sees it and starts by importing', (tester) async {
+      final store = MemoryGettingStartedStore();
+      guideStore = store;
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(DashboardGettingStartedCard.cardKey), findsOneWidget);
+      expect(find.text(GettingStartedText.title), findsOneWidget);
+      expect(find.text(GettingStartedText.progress(0, 3)), findsOneWidget);
+      expect(store.saved?.visibility, GettingStartedVisibility.active);
+      // Only the first step has a button until there are lyrics.
+      expect(action(GettingStartedStep.reviewLyrics), findsNothing);
+      expect(action(GettingStartedStep.singKtv), findsNothing);
+      expect(find.text(GettingStartedText.lockedDetail), findsNWidgets(2));
+
+      await tester.tap(action(GettingStartedStep.importSong));
+      await tester.pumpAndSettle();
+
+      expect(pushed.last.name, Routes.import);
+    });
+
+    testWidgets('someone who already has projects does not see it', (
+      tester,
+    ) async {
+      final store = MemoryGettingStartedStore();
+      guideStore = store;
+      projects.items = [project('a', lyrics: true)];
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(DashboardGettingStartedCard.cardKey), findsNothing);
+      expect(store.saved?.visibility, GettingStartedVisibility.dismissed);
+    });
+
+    testWidgets('while recognising, the first step shows the progress', (
+      tester,
+    ) async {
+      guideStore = MemoryGettingStartedStore(
+        const GettingStartedPreferences(
+          visibility: GettingStartedVisibility.active,
+        ),
+      );
+      projects.items = [project('a')];
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('正在识别「晴天」'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: action(GettingStartedStep.importSong),
+          matching: find.text('查看进度'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('with lyrics, review and KTV go to that project', (
+      tester,
+    ) async {
+      final store = MemoryGettingStartedStore(
+        const GettingStartedPreferences(
+          visibility: GettingStartedVisibility.active,
+        ),
+      );
+      guideStore = store;
+      reviewCounter = reviewedLines(0);
+      projects.items = [project('p1', lyrics: true)];
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(find.text(GettingStartedText.progress(1, 3)), findsOneWidget);
+      expect(action(GettingStartedStep.importSong), findsNothing);
+      // The next step is the filled button, the later one outlined.
+      expect(
+        find.descendant(
+          of: find.byKey(
+            DashboardGettingStartedCard.stepKey(
+              GettingStartedStep.reviewLyrics,
+            ),
+          ),
+          matching: find.byType(FilledButton),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(action(GettingStartedStep.reviewLyrics));
+      await tester.pumpAndSettle();
+      expect(pushed.last.name, Routes.lyricEditorPath('p1'));
+
+      Navigator.of(tester.element(find.text('pushed page'))).pop();
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(action(GettingStartedStep.singKtv));
+      await tester.pumpAndSettle();
+      await tester.tap(action(GettingStartedStep.singKtv));
+      await tester.pumpAndSettle();
+      expect(pushed.last.name, Routes.playerPath('p1'));
+      expect(store.saved?.openedKtv, isTrue);
+    });
+
+    testWidgets('closing it offers an undo', (tester) async {
+      final store = MemoryGettingStartedStore();
+      guideStore = store;
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(DashboardGettingStartedCard.dismissKey));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(DashboardGettingStartedCard.cardKey), findsNothing);
+      expect(store.saved?.visibility, GettingStartedVisibility.dismissed);
+      expect(find.text(GettingStartedText.dismissedNotice), findsOneWidget);
+
+      await tester.tap(find.text('撤销'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(DashboardGettingStartedCard.cardKey), findsOneWidget);
+      expect(store.saved?.visibility, GettingStartedVisibility.active);
+    });
+
+    testWidgets('after all three steps it can be put away', (tester) async {
+      final store = MemoryGettingStartedStore(
+        const GettingStartedPreferences(
+          visibility: GettingStartedVisibility.active,
+          openedKtv: true,
+        ),
+      );
+      guideStore = store;
+      reviewCounter = reviewedLines(2);
+      projects.items = [project('p1', lyrics: true)];
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(find.text(GettingStartedText.doneTitle), findsOneWidget);
+      expect(find.text(GettingStartedText.progress(3, 3)), findsOneWidget);
+
+      await tester.ensureVisible(
+        find.byKey(DashboardGettingStartedCard.finishKey),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(DashboardGettingStartedCard.finishKey));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(DashboardGettingStartedCard.cardKey), findsNothing);
+      expect(store.saved?.visibility, GettingStartedVisibility.completed);
+    });
+
+    testWidgets('a step reads as one sentence to a screen reader', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      guideStore = MemoryGettingStartedStore();
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      expect(
+        find.bySemanticsLabel(RegExp(r'^第 1 步，导入一首歌，自动识别歌词，可以开始。')),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+  });
 }
 
 class _TestProjectRepository implements ProjectRepository {
   int calls = 0;
   int failuresRemaining = 0;
+  List<ProjectManifest> items = const [];
 
   @override
   Future<List<ProjectManifest>> getRecentProjects({int limit = 10}) async {
@@ -437,7 +644,7 @@ class _TestProjectRepository implements ProjectRepository {
       failuresRemaining--;
       throw StateError('fixture read failure');
     }
-    return const <ProjectManifest>[];
+    return items;
   }
 
   @override

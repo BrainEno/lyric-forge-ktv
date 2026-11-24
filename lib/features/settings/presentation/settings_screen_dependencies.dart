@@ -24,6 +24,10 @@ class SettingsScreenDependencies {
   /// The theme choice of 外观 (decision D-042); null hides the card.
   final AppAppearanceController? appearance;
 
+  /// Puts the dashboard's 开始使用 checklist back (D-070); null hides the
+  /// card that offers it.
+  final Future<void> Function()? showGettingStarted;
+
   const SettingsScreenDependencies({
     required this.asrRuntimeSetupDependencies,
     required this.smokeTestService,
@@ -32,5 +36,6 @@ class SettingsScreenDependencies {
     this.findLibraryLyrics,
     this.countAutoPairedLyrics,
     this.appearance,
+    this.showGettingStarted,
   });
 }

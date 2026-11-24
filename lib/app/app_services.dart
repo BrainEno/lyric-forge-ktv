@@ -7,6 +7,8 @@ import 'ktv_recording_assembly.dart';
 import '../core/diagnostics/app_diagnostics.dart';
 import '../core/diagnostics/app_logger.dart';
 import '../core/theme/app_appearance.dart';
+import '../features/home/data/services/file_getting_started_store.dart';
+import '../features/home/domain/services/getting_started_store.dart';
 import '../features/lyrics/data/services/local_lyric_file_export_service.dart';
 import '../features/lyrics/data/services/local_lyric_file_import_service.dart';
 import '../features/lyrics/domain/services/lyric_file_export_service.dart';
@@ -143,6 +145,10 @@ class AppServices {
     store: MemoryAppearanceStore(),
   );
 
+  /// Where the dashboard's 开始使用 checklist is remembered (D-070). In
+  /// memory before [initialize], a small file after it.
+  GettingStartedStore gettingStartedStore = MemoryGettingStartedStore();
+
   /// Local logs, crash records, operation timings and the exportable
   /// diagnostics report. Built first so the rest of start-up is measured.
   late final AppDiagnostics diagnostics;
@@ -211,6 +217,7 @@ class AppServices {
     // to the saved one as soon as the small file is read.
     _appearance = AppAppearanceController(store: const FileAppearanceStore());
     unawaited(_appearance.restore());
+    gettingStartedStore = const FileGettingStartedStore();
     // Connection state and discovery exist before the player is built so a
     // restored remote session can recover a moved/restarted desktop from its
     // stable paired device identity at the lowest audio-load layer.
