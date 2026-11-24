@@ -1265,3 +1265,17 @@
 - 影响：`LocalLibraryDependencies` 新增可选的 `gettingStartedStore`，不传时卡片不出现。桌面清单的存储和状态类从 `features/home` 移到 `core/onboarding`；`decidedFor` 的参数改为 `hasContent`。桌面卡片改用共用的 `GettingStartedCard`，文字和按键标识不变。
 - 状态：生效
 - 来源：第 51 轮；[工作日志](log/entries/2027-01-04-1000-phone-getting-started-checklist.md)
+
+## D-072 听歌页按区块拆分
+
+- 日期：2027-01-05
+- 背景：听歌页（`listen_home_screen.dart`）在 D-071 之后有 1115 行，接近页面文件 1200 行的预算。页面状态、清单的读写逻辑、头部、两种唱片区、快捷播放、歌词提示、最近播放和音乐库入口都写在同一个文件里，以后再加内容就要超出预算。
+- 决定：
+  - 页面文件只保留状态、数据加载、操作和区块顺序，减到 493 行。
+  - 区块移到 `widgets/` 下：`listen_home_hero.dart`（头部、正在播放的唱片区、没在播放时的唱片区）和 `listen_home_sections.dart`（播放全部 / 随机播放、歌词提示、最近播放、区块标题、音乐库入口）。“最近播放”原来是页面里的一段列表，现在成为独立的 `ListenHomeRecentShelf`。
+  - 文字和按键标识集中到 `listen_home_text.dart`（`ListenHomeText`、`ListenHomeKeys`）。页面上原有的 `ListenHomeScreen.title`、`playAllKey` 等常量保留，直接指向这里，所以调用方和测试不用改。
+  - “开始使用”清单的读取、首次判断、保存和进度计算移到 `presentation/listen_home_guide.dart`（`ListenHomeGuide`），可以不启动页面单独测试。
+  - 界面、文字、按键标识和行为都不变。
+- 影响：区块组件都改为公开类（`ListenHome…`），子组件不再反过来引用页面文件。新增 `ListenHomeGuide` 的单元测试，原有听歌页测试不改动。
+- 状态：生效
+- 来源：第 52 轮；[工作日志](log/entries/2027-01-05-1000-split-listen-home-screen.md)
