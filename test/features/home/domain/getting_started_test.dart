@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/onboarding/getting_started.dart';
 import 'package:lyric_forge_ktv/features/home/domain/models/getting_started.dart';
-import 'package:lyric_forge_ktv/features/home/domain/services/getting_started_store.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_review_overview.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
@@ -32,45 +32,6 @@ ProjectLyricReviewCounter _reviewed(Set<String> ids) =>
     );
 
 void main() {
-  group('first decision (D-070)', () {
-    test('someone with no projects gets the checklist', () {
-      final decided = const GettingStartedPreferences().decidedFor(
-        hasProjects: false,
-      );
-      expect(decided.visibility, GettingStartedVisibility.active);
-      expect(decided.showsCard, isTrue);
-    });
-
-    test('someone who already has projects does not', () {
-      final decided = const GettingStartedPreferences().decidedFor(
-        hasProjects: true,
-      );
-      expect(decided.visibility, GettingStartedVisibility.dismissed);
-      expect(decided.showsCard, isFalse);
-    });
-
-    test('a saved choice is never decided again', () {
-      const closed = GettingStartedPreferences(
-        visibility: GettingStartedVisibility.dismissed,
-      );
-      expect(
-        closed.decidedFor(hasProjects: false).visibility,
-        GettingStartedVisibility.dismissed,
-      );
-    });
-
-    test('unknown saved values read as undecided', () {
-      expect(
-        GettingStartedVisibility.fromId('later'),
-        GettingStartedVisibility.undecided,
-      );
-      expect(
-        GettingStartedVisibility.fromId('completed'),
-        GettingStartedVisibility.completed,
-      );
-    });
-  });
-
   group('progress from the projects', () {
     test('no projects: only importing can start', () {
       final progress = GettingStartedProgress.from(const []);
@@ -153,19 +114,5 @@ void main() {
       expect(progress.allDone, isTrue);
       expect(progress.next, isNull);
     });
-  });
-
-  test('设置 brings the card back and keeps what was done', () async {
-    final store = MemoryGettingStartedStore(
-      const GettingStartedPreferences(
-        visibility: GettingStartedVisibility.completed,
-        openedKtv: true,
-      ),
-    );
-
-    await showGettingStartedAgain(store);
-
-    expect(store.saved?.visibility, GettingStartedVisibility.active);
-    expect(store.saved?.openedKtv, isTrue);
   });
 }

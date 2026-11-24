@@ -25,6 +25,7 @@ LocalLibraryDependencies assembleLocalLibraryDependencies(
     lyricsImport: assembleLyricsImportDependencies(services),
     lyricsAutoLinker: services.libraryLyricsAutoLinker,
     mediaImport: services.mediaImportService,
+    gettingStartedStore: services.gettingStartedStore,
   );
 }
 

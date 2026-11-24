@@ -5,10 +5,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/core/navigation/routes.dart';
+import 'package:lyric_forge_ktv/core/onboarding/getting_started.dart';
+import 'package:lyric_forge_ktv/core/onboarding/getting_started_card.dart';
+import 'package:lyric_forge_ktv/core/onboarding/getting_started_store.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_song_row.dart';
 import 'package:lyric_forge_ktv/core/widgets/app_vinyl_disc.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_import_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_library_entry.dart';
+import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
+import 'package:lyric_forge_ktv/features/player/domain/models/mobile_getting_started.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/play_history.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_collection_repository.dart';
@@ -23,6 +28,7 @@ import 'package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/local_library_dependencies.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/screens/listen_home_screen.dart';
+import 'package:lyric_forge_ktv/features/player/presentation/widgets/listen_home_getting_started_card.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/widgets/transport_bar.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 
@@ -230,9 +236,13 @@ void main() {
     late _History history;
     late List<String> pushed;
     MediaImportService? mediaImport;
+    GettingStartedStore? guideStore;
+    late List<LocalMediaMetadata> overrides;
 
     setUp(() {
       mediaImport = null;
+      guideStore = null;
+      overrides = [];
       session = _Session(const PlaybackSessionState());
       audio = _Audio(_audio());
       library = _Library([
@@ -262,7 +272,7 @@ void main() {
     LocalLibraryDependencies dependencies() => LocalLibraryDependencies(
       libraryRepository: library,
       collectionRepository: _Collections(),
-      metadataRepository: _Metadata(),
+      metadataRepository: _Metadata(overrides),
       playHistoryRepository: history,
       relinkService: _Relink(),
       libraryImportService: _LibraryImport(),
@@ -273,6 +283,7 @@ void main() {
         importer: _LyricImporter(),
       ),
       mediaImport: mediaImport,
+      gettingStartedStore: guideStore,
     );
 
     Future<void> pumpHome(
@@ -638,6 +649,206 @@ void main() {
       expect(pushed, [Routes.nowPlaying]);
       handle.dispose();
     });
+
+    group('开始使用 checklist (D-071)', () {
+      LocalMediaMetadata linked(String path) => LocalMediaMetadata(
+        sourcePath: path,
+        updatedAt: _added,
+        metadata: const {'linkedProjectId': 'lyrics-1'},
+      );
+
+      Finder action(MobileGettingStartedStep step) =>
+          find.byKey(ListenHomeGettingStartedCard.actionKey(step));
+
+      Future<void> showCard(WidgetTester tester, Finder finder) async {
+        await tester.scrollUntilVisible(
+          finder,
+          120,
+          scrollable: find
+              .descendant(
+                of: find.byType(ListView),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('a new phone shows it and starts with adding songs', (
+        tester,
+      ) async {
+        library = _Library([]);
+        history = _History(const []);
+        final store = MemoryGettingStartedStore();
+        guideStore = store;
+        await pumpHome(tester);
+        await tester.pump();
+
+        expect(
+          find.byKey(ListenHomeGettingStartedCard.cardKey),
+          findsOneWidget,
+        );
+        expect(store.saved?.visibility, GettingStartedVisibility.active);
+        expect(find.text(ListenHomeGettingStartedText.title), findsOneWidget);
+        expect(
+          find.text(GettingStartedCardText.progress(0, 3)),
+          findsOneWidget,
+        );
+        // Without an importer the first step opens the library; the
+        // computer is the second way.
+        await showCard(tester, action(MobileGettingStartedStep.addSongs));
+        expect(
+          find.descendant(
+            of: action(MobileGettingStartedStep.addSongs),
+            matching: find.text(ListenHomeGettingStartedText.openLibrary),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(ListenHomeGettingStartedCard.transferKey),
+          findsOneWidget,
+        );
+        expect(action(MobileGettingStartedStep.addLyrics), findsNothing);
+        expect(action(MobileGettingStartedStep.playWithLyrics), findsNothing);
+
+        await tester.tap(find.byKey(ListenHomeGettingStartedCard.transferKey));
+        await tester.pumpAndSettle();
+        expect(pushed.last, Routes.remoteLibrary);
+      });
+
+      testWidgets('someone who already has songs does not see it', (
+        tester,
+      ) async {
+        final store = MemoryGettingStartedStore();
+        guideStore = store;
+        await pumpHome(tester);
+        await tester.pump();
+
+        expect(find.byKey(ListenHomeGettingStartedCard.cardKey), findsNothing);
+        expect(store.saved?.visibility, GettingStartedVisibility.dismissed);
+      });
+
+      testWidgets('with songs, the next step goes to 歌词', (tester) async {
+        guideStore = MemoryGettingStartedStore(
+          const GettingStartedPreferences(
+            visibility: GettingStartedVisibility.active,
+          ),
+        );
+        history = _History(const []);
+        await pumpHome(tester);
+        await tester.pump();
+
+        expect(
+          find.text(GettingStartedCardText.progress(1, 3)),
+          findsOneWidget,
+        );
+        expect(find.text('音乐库里已经有 3 首歌。'), findsOneWidget);
+        await showCard(tester, action(MobileGettingStartedStep.addLyrics));
+        await tester.tap(action(MobileGettingStartedStep.addLyrics));
+        await tester.pumpAndSettle();
+
+        expect(pushed.last, Routes.review);
+      });
+
+      testWidgets('a song with lyrics is played from the card', (
+        tester,
+      ) async {
+        guideStore = MemoryGettingStartedStore(
+          const GettingStartedPreferences(
+            visibility: GettingStartedVisibility.active,
+          ),
+        );
+        // 稻香 was played, but has no lyrics: it does not count.
+        overrides.add(linked(anjing));
+        await pumpHome(tester);
+        await tester.pump();
+
+        expect(
+          find.text(GettingStartedCardText.progress(2, 3)),
+          findsOneWidget,
+        );
+        expect(find.textContaining('播放配好歌词的「安静」'), findsOneWidget);
+
+        await showCard(tester, action(MobileGettingStartedStep.playWithLyrics));
+        await tester.tap(action(MobileGettingStartedStep.playWithLyrics));
+        await tester.pumpAndSettle();
+
+        expect(session.played.single.audioAsset.originalPath, anjing);
+        expect(pushed.last, Routes.nowPlaying);
+      });
+
+      testWidgets('a recent play with lyrics finishes it; 收起 puts it away', (
+        tester,
+      ) async {
+        final store = MemoryGettingStartedStore(
+          const GettingStartedPreferences(
+            visibility: GettingStartedVisibility.active,
+          ),
+        );
+        guideStore = store;
+        overrides.add(linked(qingtian));
+        await pumpHome(tester);
+        await tester.pump();
+
+        expect(
+          find.text(ListenHomeGettingStartedText.doneTitle),
+          findsOneWidget,
+        );
+        final finish = find.byKey(ListenHomeGettingStartedCard.finishKey);
+        await showCard(tester, finish);
+        await tester.tap(finish);
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(ListenHomeGettingStartedCard.cardKey), findsNothing);
+        expect(store.saved?.visibility, GettingStartedVisibility.completed);
+      });
+
+      testWidgets('closing it offers an undo', (tester) async {
+        library = _Library([]);
+        history = _History(const []);
+        final store = MemoryGettingStartedStore();
+        guideStore = store;
+        await pumpHome(tester);
+        await tester.pump();
+
+        final dismiss = find.byKey(ListenHomeGettingStartedCard.dismissKey);
+        await showCard(tester, dismiss);
+        await tester.tap(dismiss);
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(ListenHomeGettingStartedCard.cardKey), findsNothing);
+        expect(store.saved?.visibility, GettingStartedVisibility.dismissed);
+        expect(
+          find.text(GettingStartedCardText.dismissedNotice),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('撤销'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(ListenHomeGettingStartedCard.cardKey),
+          findsOneWidget,
+        );
+        expect(store.saved?.visibility, GettingStartedVisibility.active);
+      });
+
+      testWidgets('fits a 320-wide phone with large text', (tester) async {
+        library = _Library([]);
+        history = _History(const []);
+        guideStore = MemoryGettingStartedStore();
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await pumpHome(tester, size: const Size(320, 568));
+        await tester.pump();
+        await showCard(
+          tester,
+          find.byKey(ListenHomeGettingStartedCard.cardKey),
+        );
+
+        expect(tester.takeException(), isNull);
+      });
+    });
   });
 }
 
@@ -646,6 +857,7 @@ class _Session implements PlaybackSessionService {
 
   final _controller = StreamController<PlaybackSessionState>.broadcast();
   final queues = <List<PlaybackItem>>[];
+  final played = <PlaybackItem>[];
   final calls = <String>[];
 
   @override
@@ -664,6 +876,11 @@ class _Session implements PlaybackSessionService {
   @override
   Future<void> setQueue(List<PlaybackItem> items, {int startIndex = 0}) async {
     queues.add(List.of(items));
+  }
+
+  @override
+  Future<void> playItem(PlaybackItem item, {Duration? resumeFrom}) async {
+    played.add(item);
   }
 
   @override
@@ -737,6 +954,13 @@ class _Collections implements LocalMediaCollectionRepository {
 }
 
 class _Metadata implements LocalMediaMetadataRepository {
+  _Metadata(this.items);
+
+  final List<LocalMediaMetadata> items;
+
+  @override
+  Future<List<LocalMediaMetadata>> getAll() async => items;
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-12-27 10:00] Delete projects and clean up duplicates ([entry](log/entries/2026-12-27-1000-delete-and-dedupe-projects.md))
 - [2026-12-26 10:00] Per-song sung language and failed-draft notice ([entry](log/entries/2026-12-26-1000-per-song-sung-language.md))
 - [2026-12-25 09:30] Sung-language probe before recognition ([entry](log/entries/2026-12-25-0930-sung-language-probe.md))
 - [2026-12-24 09:30] Auto-separated KTV accompaniment ([entry](log/entries/2026-12-24-0930-auto-separated-ktv-accompaniment.md))

@@ -144,9 +144,9 @@ class SettingsScreen extends StatelessWidget {
                             smokeTestService: dependencies.smokeTestService,
                           ),
                         ],
-                        // The checklist lives on the desktop dashboard; a
-                        // phone opens on the listening home instead.
-                        if (recognition && showGettingStarted != null) ...[
+                        // The checklist of the desktop dashboard (D-070) or
+                        // of the phone's 听歌 page (D-071).
+                        if (showGettingStarted != null) ...[
                           const SizedBox(height: AppSpacing.xl),
                           const SettingsGroupLabel(
                             key: ValueKey('settings-group:help'),
@@ -155,7 +155,9 @@ class SettingsScreen extends StatelessWidget {
                           SettingsSectionCard(
                             icon: Icons.flag_outlined,
                             title: GettingStartedSettingsText.title,
-                            subtitle: GettingStartedSettingsText.subtitle,
+                            subtitle: recognition
+                                ? GettingStartedSettingsText.subtitle
+                                : GettingStartedSettingsText.mobileSubtitle,
                             child: GettingStartedSettingsCard(
                               onShow: showGettingStarted,
                             ),

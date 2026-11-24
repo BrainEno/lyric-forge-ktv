@@ -3,11 +3,13 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-import '../../domain/models/getting_started.dart';
-import '../../domain/services/getting_started_store.dart';
+import 'getting_started.dart';
+import 'getting_started_store.dart';
 
-/// Saves the 开始使用 checklist state (D-070) as a small JSON file in the
-/// application support directory, next to the other preference files.
+/// Saves the 开始使用 checklist state (D-070, D-071) as a small JSON file in
+/// the application support directory, next to the other preference files.
+/// A device only ever runs one of the two home pages, so the desktop and the
+/// phone never share the file.
 class FileGettingStartedStore implements GettingStartedStore {
   static const String fileName = 'getting_started.json';
   static const String visibilityKey = 'visibility';

@@ -7,6 +7,8 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/playback_destination.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/navigation/transfer_entry.dart';
+import '../../../../core/onboarding/getting_started.dart';
+import '../../../../core/onboarding/getting_started_store.dart';
 import '../dashboard_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -25,7 +27,6 @@ import '../../../transcription/domain/services/batch_transcription_queue.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
 import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
 import '../../domain/models/getting_started.dart';
-import '../../domain/services/getting_started_store.dart';
 import '../widgets/dashboard_background_work_card.dart';
 import '../widgets/dashboard_getting_started_card.dart';
 import '../widgets/dashboard_now_playing.dart';
@@ -92,7 +93,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final projects = await projectsFuture;
       final saved = await store.load() ?? const GettingStartedPreferences();
-      final preferences = saved.decidedFor(hasProjects: projects.isNotEmpty);
+      final preferences = saved.decidedFor(hasContent: projects.isNotEmpty);
       if (preferences.visibility != saved.visibility) {
         await store.save(preferences);
       }

@@ -1,3 +1,4 @@
+import '../../../core/onboarding/getting_started_store.dart';
 import '../../lyrics/domain/online/song_lyrics_lookup.dart';
 import '../../lyrics/domain/online/song_tags.dart';
 import '../../lyrics/domain/services/lyric_file_import_service.dart';
@@ -80,6 +81,10 @@ class LocalLibraryDependencies {
   /// where songs stay where they are.
   final MediaImportService? mediaImport;
 
+  /// Where the phone's 开始使用 checklist (D-071) is remembered; null hides
+  /// it.
+  final GettingStartedStore? gettingStartedStore;
+
   const LocalLibraryDependencies({
     required this.libraryRepository,
     required this.collectionRepository,
@@ -92,5 +97,6 @@ class LocalLibraryDependencies {
     required this.lyricsImport,
     this.lyricsAutoLinker,
     this.mediaImport,
+    this.gettingStartedStore,
   });
 }
