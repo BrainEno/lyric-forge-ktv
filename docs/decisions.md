@@ -1348,4 +1348,4 @@
   - 不改变页面文案、筛选排序或歌曲操作行为。
 - 影响：`LocalLibraryExplorerSong` 成为公开呈现模型；新公开的列表／网格／空状态组件可通过参数及回调组合，不反向依赖页面。
 - 状态：生效
-- 来源：第五十七轮；[工作日志](log/entries/2026-11-18-2300-split-local-library-explorer-screen.md)
+- 来源：第五十七轮；[工作日志](log/entries/2026-11-18-2305-split-local-library-explorer-screen.md)
