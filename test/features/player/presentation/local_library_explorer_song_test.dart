@@ -33,7 +33,7 @@ void main() {
     expect(song.artist, 'Edited artist');
     expect(song.hasLyrics, isTrue);
     expect(song.playable, isFalse);
-    expect(song.playbackItem, isNull);
+    expect(song.playbackItem.audioAsset.originalPath, path);
     expect(song.browseItem.lastPlayedAt, now);
     expect(song.browseItem.playlistNames, ['Favorites']);
     expect(song.secondary, 'Edited artist · MP3');
