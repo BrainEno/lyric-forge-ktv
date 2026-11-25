@@ -201,8 +201,7 @@ Map<String, VoidCallback?> _songActions(
 ) => {
   if (song.playable) '加入播放队列': menu.onEnqueue,
   if (song.playable) '编辑资料与封面': menu.onEdit,
-  if (song.playable)
-    (song.hasLyrics ? '打开歌词' : '导入歌词'): menu.onLyrics,
+  if (song.playable) (song.hasLyrics ? '打开歌词' : '导入歌词'): menu.onLyrics,
   if (song.hasAutoPairedLyrics)
     LibraryLyricsLinkText.unpairAction: menu.onUnpair,
   if (!song.playable) '重新定位文件': menu.onRelink,

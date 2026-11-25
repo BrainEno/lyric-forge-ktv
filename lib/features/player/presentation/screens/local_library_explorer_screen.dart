@@ -380,11 +380,7 @@ class _LocalLibraryExplorerScreenState
         await _reload(showLoading: false);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '已重新定位“${song.title}”，收藏、播放列表、资料和播放进度已保留',
-            ),
-          ),
+          SnackBar(content: Text('已重新定位“${song.title}”，收藏、播放列表、资料和播放进度已保留')),
         );
       });
 
