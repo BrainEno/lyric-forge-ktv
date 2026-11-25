@@ -67,7 +67,7 @@ void main() {
     final item = song.playbackItem;
 
     expect(item, isNotNull);
-    expect(item!.id, 'local:${file.path}');
+    expect(item.id, 'local:${file.path}');
     expect(item.title, 'Edited title');
     expect(item.audioAsset.originalPath, file.path);
     expect(item.preferredSource.name, 'original');
