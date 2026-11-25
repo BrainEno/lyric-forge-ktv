@@ -8,6 +8,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../../core/widgets/undo_snack_bar.dart';
+import '../../domain/models/local_library_browse_item.dart';
 import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
