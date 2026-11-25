@@ -36,7 +36,7 @@ void main() {
     expect(song.playbackItem, isNull);
     expect(song.browseItem.lastPlayedAt, now);
     expect(song.browseItem.playlistNames, ['Favorites']);
-    expect(song.secondary, '文件不可用 · 引用仍保留');
+    expect(song.secondary, 'Edited artist · MP3');
   });
 
   test('maps a playable song to an original-source queue item', () async {
