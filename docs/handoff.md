@@ -12,7 +12,7 @@
 ## Git 现场
 
 - 分支：`arena/3ba64e05-lyric-forge-ktv`。
-- 当前工作目标：D-077，准备推送后为本轮建立 PR。
+- 本轮 PR：[#522 拆分本地音乐库浏览页（D-077）](https://github.com/BrainEno/lyric-forge-ktv/pull/522)，状态 OPEN；等待评审，未合并。
 
 ## 已改文件
 
@@ -20,13 +20,14 @@
 
 ## 检查结果
 
-- 本地没有 Flutter/Dart SDK。
-- `git diff --check` 通过；格式、分析和测试待 PR CI 验证。
+- `git diff --check` 通过。
+- PR #522 当前 head `fd87ee2` 的 Flutter Quality Gate 通过（包含格式、分析和全量测试）；KTV history/recovery 检查通过。
+- 本地没有 Flutter/Dart SDK，验证由 GitHub Actions 执行。
 
 ## 下一步
 
-- 提交并推送本轮改动，打开 PR，等待 Flutter quality gate、work-log 和 KTV 相关检查。
-- 有失败则修复并重跑；PR 不会自动合并，需用户明确要求。
+- 等待 PR #522 评审；CI 已全绿。
+- 有评审意见则修复并重跑；PR 不会自动合并，需用户明确要求。
 
 ## 已知风险
 

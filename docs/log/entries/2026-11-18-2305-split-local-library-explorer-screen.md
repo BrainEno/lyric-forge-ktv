@@ -11,6 +11,7 @@
   - Changed: `local_library_explorer_screen.dart`, `catalog_card_contract_test.dart`, `docs/decisions.md`, `docs/handoff.md`, `docs/work_log.md`, `docs/work_log_archive.md`.
 - Validation:
   - `git diff --check` => passed.
-  - Local Flutter/Dart SDK is unavailable; formatting, analysis and tests are pending PR CI.
+  - PR #522 CI at `fd87ee2`: Flutter Quality Gate passed (work-log preflight, Dart formatting, analysis and full test suite); KTV history and recovery validation passed.
+  - Local Flutter/Dart SDK is unavailable; verification ran in CI.
 - Notes: UI behavior and text are intended to remain unchanged. The prior D-075–D-076 PR #521 is merged; this round starts from its merge commit.
 - Commit: `Split local library explorer screen`
