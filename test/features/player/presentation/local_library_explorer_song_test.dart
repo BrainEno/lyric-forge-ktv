@@ -6,7 +6,7 @@ import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metada
 import 'package:lyric_forge_ktv/features/player/presentation/local_library_explorer_song.dart';
 
 void main() {
-  test('keeps missing library references and user metadata in the view item', () {
+  test('keeps metadata and missing library references', () {
     final now = DateTime(2026);
     final path = '${Directory.systemTemp.path}/missing-explorer-song.mp3';
     final song = LocalLibraryExplorerSong(

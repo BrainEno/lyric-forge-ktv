@@ -200,13 +200,14 @@ class _LocalLibraryExplorerScreenState
     );
   }
 
-  List<LocalLibraryExplorerSong> get _visibleSongs => queryLocalLibrary<LocalLibraryExplorerSong>(
-    items: _songs,
-    browseItem: (song) => song.browseItem,
-    query: _query,
-    smartView: _smartView,
-    sortMode: _sortMode,
-  );
+  List<LocalLibraryExplorerSong> get _visibleSongs =>
+      queryLocalLibrary<LocalLibraryExplorerSong>(
+        items: _songs,
+        browseItem: (song) => song.browseItem,
+        query: _query,
+        smartView: _smartView,
+        sortMode: _sortMode,
+      );
 
   int _smartCount(LocalLibrarySmartView view) {
     final now = DateTime.now();
@@ -369,18 +370,23 @@ class _LocalLibraryExplorerScreenState
     );
   }
 
-  Future<void> _relinkMissing(LocalLibraryExplorerSong song) => _withWork(() async {
-    if (song.playable) return;
-    final result = await _relink.pickReplacementAndRelink(
-      song.entry.sourcePath,
-    );
-    if (result == null) return;
-    await _reload(showLoading: false);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已重新定位“${song.title}”，收藏、播放列表、资料和播放进度已保留')),
-    );
-  });
+  Future<void> _relinkMissing(LocalLibraryExplorerSong song) =>
+      _withWork(() async {
+        if (song.playable) return;
+        final result = await _relink.pickReplacementAndRelink(
+          song.entry.sourcePath,
+        );
+        if (result == null) return;
+        await _reload(showLoading: false);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '已重新定位“${song.title}”，收藏、播放列表、资料和播放进度已保留',
+            ),
+          ),
+        );
+      });
 
   /// Takes the song off the list (the file stays) and offers 撤销 (D-064).
   Future<void> _remove(LocalLibraryExplorerSong song) async {
@@ -597,17 +603,18 @@ class _LocalLibraryExplorerScreenState
                   : NowPlayingListener(
                       playbackSession: _session,
                       audioPlayer: widget.dependencies.audioPlayer,
-                      builder: (context, nowPlaying) => LocalLibraryExplorerList(
-                        songs: songs,
-                        nowPlaying: nowPlaying,
-                        onPlay: _play,
-                        onEnqueue: _enqueue,
-                        onEdit: _edit,
-                        onLyrics: _lyrics,
-                        onUnpair: unpair,
-                        onRelink: _relinkMissing,
-                        onRemove: _remove,
-                      ),
+                      builder: (context, nowPlaying) =>
+                          LocalLibraryExplorerList(
+                            songs: songs,
+                            nowPlaying: nowPlaying,
+                            onPlay: _play,
+                            onEnqueue: _enqueue,
+                            onEdit: _edit,
+                            onLyrics: _lyrics,
+                            onUnpair: unpair,
+                            onRelink: _relinkMissing,
+                            onRemove: _remove,
+                          ),
                     ),
             ),
           ],
