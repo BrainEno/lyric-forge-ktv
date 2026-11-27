@@ -52,6 +52,80 @@ void main() {
     expect(session.currentState.queue[2].hasLyrics, isFalse);
   });
 
+  test(
+    'automatic links preserve a different existing project association',
+    () async {
+      const audioPath = '/music/song.mp3';
+      final metadataRepository = _FakeMetadataRepository(
+        LocalMediaMetadata(
+          sourcePath: audioPath,
+          updatedAt: DateTime(2026),
+          metadata: const {'linkedProjectId': 'existing-project'},
+        ),
+      );
+      final session = _FakePlaybackSession(
+        PlaybackSessionState(
+          queue: [_item('song', audioPath)],
+          currentIndex: 0,
+        ),
+      );
+
+      await expectLater(
+        linkPlaybackLyricsProject(
+          pathCanonicalizer: const FileAudioPathCanonicalizer(),
+          audioPath: audioPath,
+          projectId: 'new-project',
+          metadataRepository: metadataRepository,
+          playbackSession: session,
+          preserveExistingLink: true,
+        ),
+        throwsA(
+          isA<PlaybackLyricsProjectLinkConflictException>()
+              .having(
+                (error) => error.existingProjectId,
+                'existing project',
+                'existing-project',
+              )
+              .having(
+                (error) => error.requestedProjectId,
+                'requested project',
+                'new-project',
+              ),
+        ),
+      );
+
+      expect(metadataRepository.saved, isNull);
+      expect(session.currentState.queue.single.hasLyrics, isFalse);
+    },
+  );
+
+  test(
+    'explicit links may replace an existing project association',
+    () async {
+      const audioPath = '/music/song.mp3';
+      final metadataRepository = _FakeMetadataRepository(
+        LocalMediaMetadata(
+          sourcePath: audioPath,
+          updatedAt: DateTime(2026),
+          metadata: const {'linkedProjectId': 'existing-project'},
+        ),
+      );
+
+      await linkPlaybackLyricsProject(
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
+        audioPath: audioPath,
+        projectId: 'chosen-project',
+        metadataRepository: metadataRepository,
+        playbackSession: _FakePlaybackSession(const PlaybackSessionState()),
+      );
+
+      expect(
+        metadataRepository.saved?.metadata['linkedProjectId'],
+        'chosen-project',
+      );
+    },
+  );
+
   test('creates song metadata when no overrides exist', () async {
     final metadataRepository = _FakeMetadataRepository();
     final session = _FakePlaybackSession(const PlaybackSessionState());

@@ -276,6 +276,7 @@ class FileProjectRepository
           metadataRepository: mediaMetadataRepository,
           playbackSession: playbackSession,
           pathCanonicalizer: pathCanonicalizer,
+          preserveExistingLink: true,
         ).catchError(_reportAutoLinkError),
       );
     }

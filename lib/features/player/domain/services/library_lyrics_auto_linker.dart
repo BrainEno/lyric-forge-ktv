@@ -258,6 +258,7 @@ class LibraryLyricsAutoLinker {
       metadataRepository: metadata,
       playbackSession: playbackSession,
       pathCanonicalizer: pathCanonicalizer,
+      preserveExistingLink: true,
       pairing: LibraryLyricsPairing(
         lyricPath: match.lyricPath,
         projectId: saved.id,

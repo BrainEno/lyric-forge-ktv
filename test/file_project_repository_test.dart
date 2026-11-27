@@ -8,6 +8,7 @@ import 'package:lyric_forge_ktv/features/player/data/services/file_audio_path_ca
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
+import 'package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_project_linker.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/project/data/repositories/file_project_repository.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
@@ -408,6 +409,61 @@ void main() {
       expect(saved?.sourcePath, '/music/song.flac');
       expect(saved?.metadata, containsPair('linkedProjectId', project.id));
       expect(saved?.metadata['hasLyrics'], isTrue);
+    },
+  );
+
+  test(
+    'does not replace a different existing link during first-lyric auto-link',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'project-autolink-conflict-',
+      );
+      addTearDown(() async {
+        if (await root.exists()) await root.delete(recursive: true);
+      });
+
+      final metadata = _FakeMetadataRepository()
+        ..saved = LocalMediaMetadata(
+          sourcePath: '/music/song.flac',
+          updatedAt: DateTime(2026),
+          metadata: const {'linkedProjectId': 'existing-project'},
+        );
+      final reported = Completer<Object>();
+      final repository = FileProjectRepository(
+        rootDirectory: root,
+        mediaMetadataRepository: metadata,
+        playbackSession: _FakePlaybackSession(),
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
+        onAutoLinkError: (error, _) => reported.complete(error),
+      );
+      final project = await repository.createProject(name: 'Another version');
+      final savedProject = await repository.updateProject(
+        project.copyWith(
+          audioAsset: const AudioAsset(
+            originalPath: '/music/song.flac',
+            format: 'flac',
+          ),
+          lyricDocument: _lyricDocument(text: '新建歌词'),
+        ),
+      );
+
+      expect(
+        await reported.future.timeout(const Duration(seconds: 5)),
+        isA<PlaybackLyricsProjectLinkConflictException>(),
+      );
+      expect(
+        metadata.saved?.metadata['linkedProjectId'],
+        'existing-project',
+      );
+      expect(
+        (await FileProjectRepository(rootDirectory: root)
+                .getProjectById(savedProject.id))
+            ?.lyricDocument
+            ?.lines
+            .single
+            .text,
+        '新建歌词',
+      );
     },
   );
 
