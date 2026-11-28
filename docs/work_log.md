@@ -11,7 +11,7 @@
 - [2027-01-01 10:00] Merge the review filters into one 建议复核 chip `Merge the review filters into one suggested-review chip` ([entry](log/entries/2027-01-01-1000-single-suggested-review-filter.md))
 - [2026-12-31 10:00] Jump to a lyric line and pause following while browsing `Jump to a lyric line and let following wait while browsing` ([entry](log/entries/2026-12-31-1000-jump-to-line-and-follow-pause.md))
 
-<!-- 418 entries total: 8 active, 410 archived. -->
+<!-- 419 entries total: 8 active, 411 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)
