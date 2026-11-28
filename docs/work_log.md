@@ -11,7 +11,7 @@
 - [2026-12-23 09:30] Paused bars, library toolbar and song info sync `Stop the rhythm bars on pause, tidy the library toolbar, sync song info` ([entry](log/entries/2026-12-23-0930-paused-bars-library-toolbar-song-info-sync.md))
 - [2026-12-22 09:30] Mobile simplification and violet vinyl `Simplify the phone UI and turn the vinyl colour violet` ([entry](log/entries/2026-12-22-0930-mobile-simplification-and-violet-vinyl.md))
 
-<!-- 406 entries total: 8 active, 398 archived. -->
+<!-- 407 entries total: 8 active, 399 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)

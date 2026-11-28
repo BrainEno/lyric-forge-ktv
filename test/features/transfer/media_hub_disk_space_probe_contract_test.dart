@@ -43,24 +43,28 @@ $drive = New-Object System.IO.DriveInfo -ArgumentList $root
     });
 
     test('media hub service defines each helper class once', () async {
-      final source = await File(
+      final serviceSource = await File(
         'lib/features/transfer/data/services/http_media_hub_service.dart',
       ).readAsString();
-      for (final name in <String>[
-        '_BoundMediaHubServers',
-        'MediaHubException',
-        '_ByteRange',
-        '_ParsedRange',
-      ]) {
-        final definitions = RegExp(
-          '^class $name[ {]',
-          multiLine: true,
-        ).allMatches(source).length;
-        expect(
-          definitions,
-          1,
-          reason: '$name must be defined exactly once in the service file',
-        );
+      final responderSource = await File(
+        'lib/features/transfer/data/services/http_media_hub_media_responder.dart',
+      ).readAsString();
+      final expectedByFile = <String, List<String>>{
+        serviceSource: const ['_BoundMediaHubServers', 'MediaHubException'],
+        responderSource: const ['MediaHubByteRange', 'MediaHubParsedRange'],
+      };
+      for (final entry in expectedByFile.entries) {
+        for (final name in entry.value) {
+          final definitions = RegExp(
+            '^class $name[ {]',
+            multiLine: true,
+          ).allMatches(entry.key).length;
+          expect(
+            definitions,
+            1,
+            reason: '$name must be defined exactly once in its service file',
+          );
+        }
       }
     });
 
