@@ -8,15 +8,10 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/diagnostics/best_effort.dart';
 import '../../../player/domain/services/audio_library_import_service.dart';
 import '../../domain/models/media_hub_session.dart';
+import 'http_media_hub_json_writer.dart';
 
 typedef IncomingMediaCallback = Future<void> Function(String path);
 typedef IncomingDiskSpaceProbe = Future<int?> Function(Directory directory);
-typedef MediaHubJsonWriter =
-    Future<void> Function(
-      HttpResponse response,
-      int statusCode,
-      Map<String, dynamic> body,
-    );
 
 /// Handles authenticated incoming audio uploads to the Media Hub, including
 /// concurrency limits, disk-space checks, timeouts, and atomic `.part`

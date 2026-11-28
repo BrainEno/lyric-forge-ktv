@@ -111,4 +111,42 @@ void main() {
 
     expect(calls, isEmpty);
   });
+
+  testWidgets('Ctrl+G and Cmd+G open 跳到行 (D-067)', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LyricEditShortcuts(
+          onUndo: () => calls.add('undo'),
+          onRedo: () => calls.add('redo'),
+          onJumpToLine: () => calls.add('jump'),
+          child: const Scaffold(
+            body: Focus(autofocus: true, child: SizedBox.expand()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await press(
+      tester,
+      LogicalKeyboardKey.keyG,
+      modifier: LogicalKeyboardKey.controlLeft,
+    );
+    await press(
+      tester,
+      LogicalKeyboardKey.keyG,
+      modifier: LogicalKeyboardKey.metaLeft,
+    );
+    expect(calls, ['jump', 'jump']);
+  });
+
+  testWidgets('without rows Ctrl+G does nothing', (tester) async {
+    await pumpEditor(tester);
+    await press(
+      tester,
+      LogicalKeyboardKey.keyG,
+      modifier: LogicalKeyboardKey.controlLeft,
+    );
+    expect(calls, isEmpty);
+  });
 }

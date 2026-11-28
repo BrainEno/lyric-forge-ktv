@@ -8,6 +8,7 @@ import '../domain/proofreading/reference_alignment_timing_applier.dart';
 import '../domain/proofreading/reference_timing_audition_planner.dart';
 import 'controllers/reference_timing_audition_coordinator.dart';
 import '../domain/proofreading/proofread_strategy_selector.dart';
+import '../domain/models/lyric_review_queue.dart';
 import '../domain/services/lyric_review_priority_service.dart';
 
 /// Centralised user-visible strings for lyric review and line audition.
@@ -282,4 +283,89 @@ abstract final class LyricReviewStrings {
       LyricReviewPriorityReasonCode.endBeyondAudio => '结束时间超出音频长度',
     };
   }
+}
+
+/// The words of the single 建议复核 filter and its row badges (D-068).
+///
+/// The editor used to offer 全部 / 待复核 / 低置信度 in a menu, print `优先 52`
+/// on each queued row, and explain the queue in three different tooltips. One
+/// filter and two plain tiers replace all of that: the reasons that used to be
+/// a separate filter (a low engine score) are now one line of the summary.
+abstract final class LyricSuggestedReviewStrings {
+  static const String label = '建议复核';
+
+  /// The filter chip, e.g. `建议复核 5`.
+  static String chip(int count) => '$label $count';
+
+  static String urgency(LyricReviewUrgency urgency) => switch (urgency) {
+    LyricReviewUrgency.mustCheck => '必看',
+    LyricReviewUrgency.worthCheck => '留意',
+  };
+
+  static String reasonKind(LyricReviewReasonKind kind) => switch (kind) {
+    LyricReviewReasonKind.emptyText => '空歌词',
+    LyricReviewReasonKind.timing => '时间轴异常',
+    LyricReviewReasonKind.enginesDisagree => '双引擎分歧',
+    LyricReviewReasonKind.lowConfidence => '置信度低',
+    LyricReviewReasonKind.insertedLine => '补入的行',
+    LyricReviewReasonKind.suspiciousText => '文本可疑',
+  };
+
+  /// `12（必看 5）`, or just `12` when nothing is 必看 (D-069).
+  static String countWithMustCheck(int pending, int mustCheck) =>
+      mustCheck > 0 ? '$pending（${mustCheckLabel(mustCheck)}）' : '$pending';
+
+  /// `必看 5`.
+  static String mustCheckLabel(int count) =>
+      '${urgency(LyricReviewUrgency.mustCheck)} $count';
+
+  /// `必看 2 · 留意 3`, leaving out an empty tier.
+  static String tiers(LyricReviewQueue queue) => [
+    if (queue.mustCheckCount > 0)
+      '${urgency(LyricReviewUrgency.mustCheck)} ${queue.mustCheckCount}',
+    if (queue.worthCheckCount > 0)
+      '${urgency(LyricReviewUrgency.worthCheck)} ${queue.worthCheckCount}',
+  ].join(' · ');
+
+  /// `主要原因：双引擎分歧 3、时间轴异常 2、置信度低 1`, the [limit] most
+  /// common kinds; null for an empty queue.
+  static String? mainReasons(LyricReviewQueue queue, {int limit = 3}) {
+    final counts = queue.reasonKindCounts.take(limit).toList();
+    if (counts.isEmpty) return null;
+    final parts = [
+      for (final entry in counts) '${reasonKind(entry.kind)} ${entry.count}',
+    ];
+    return '主要原因：${parts.join('、')}';
+  }
+
+  static const String unscoredNote = '本稿的识别引擎没有返回分数，只按结构与时间轴证据排序';
+  static const String emptyQueue = '暂未发现需要复核的行';
+  static const String backToAll = '再点一次回到全部歌词';
+
+  /// The chip's tooltip: what turning it on shows, how it is ordered, and
+  /// why the rows are there.
+  static String chipTooltip(LyricReviewQueue queue, {required bool selected}) {
+    if (queue.isEmpty) {
+      return selected ? '$emptyQueue\n$backToAll' : emptyQueue;
+    }
+    final reasons = mainReasons(queue);
+    return [
+      selected
+          ? '正在只看建议复核的行；$backToAll'
+          : '只看建议复核的 ${queue.needsReviewCount} 行，最要紧的排在前面',
+      tiers(queue),
+      ?reasons,
+      if (!queue.hasAnyScore) unscoredNote,
+    ].join('\n');
+  }
+
+  /// The row badge's tooltip: the tier and score, then every reason.
+  static String badgeTooltip(LyricReviewPriority priority) => [
+    '${urgency(priority.urgency)} · 优先级 ${priority.score}',
+    ...priority.reasons.map(LyricReviewStrings.priorityReason),
+  ].join('\n');
+
+  /// How a queued row is read aloud, e.g. `建议复核，必看`.
+  static String rowSemantics(LyricReviewPriority priority) =>
+      '$label，${urgency(priority.urgency)}';
 }

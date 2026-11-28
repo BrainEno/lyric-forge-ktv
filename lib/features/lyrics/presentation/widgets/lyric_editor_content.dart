@@ -14,8 +14,12 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/recognition_review_summary.dart';
 import '../../domain/models/secondary_only_suggestion.dart';
 import '../../domain/services/lyric_draft_health_service.dart';
+import '../../domain/services/lyric_line_batch_service.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
+import '../controllers/lyric_batch_edit_flow.dart';
+import '../controllers/lyric_editor_document_controller.dart';
 import 'line_inspector_sheet.dart';
+import 'lyric_batch_selection_bar.dart';
 import 'lyric_batch_text_edit.dart';
 import 'lyric_editor_actions.dart';
 import 'lyric_editor_atoms.dart';
@@ -23,6 +27,7 @@ import 'lyric_editor_review_controls.dart';
 import 'lyric_editor_toolbar.dart';
 import 'lyric_edit_shortcuts.dart';
 import 'lyric_inspector_pane.dart';
+import 'lyric_line_jump.dart';
 import 'lyric_list_pane.dart';
 import 'lyric_proofread_menu_button.dart';
 import 'lyric_recognition_summary_card.dart';
@@ -86,6 +91,10 @@ class LyricEditorContent extends StatelessWidget {
   final int? focusLineIndex;
   final Set<int> manuallyEditedLineIndices;
 
+  /// The editor, for choosing rows and editing them together (D-066). Null
+  /// leaves batch edits out.
+  final LyricEditorDocumentController? editor;
+
   const LyricEditorContent({
     super.key,
     required this.project,
@@ -103,6 +112,7 @@ class LyricEditorContent extends StatelessWidget {
     required this.focusRequestId,
     required this.focusLineIndex,
     this.manuallyEditedLineIndices = const {},
+    this.editor,
   });
 
   Map<String, dynamic>? _fallbackCandidateFor(int index) {
@@ -253,8 +263,83 @@ class LyricEditorContent extends StatelessWidget {
     return open == null ? null : () => open(tool);
   }
 
+  /// Batch edits on the editor's chosen rows.
+  LyricBatchEditFlow _batchFlow(LyricEditorDocumentController editor) =>
+      LyricBatchEditFlow(
+        editor: editor,
+        onUndo: history.onUndo,
+        onEdit: edits.onBatchEdit,
+        audioDuration: project.audioAsset?.duration,
+        auditionLineIndex: audition.activeLineIndex,
+      );
+
+  /// 跳到行 (D-067): asks for a row number or a time, then shows that row.
+  /// A row the filter hides brings every row back first.
+  Future<void> _jumpToLine(
+    BuildContext context,
+    LyricLineJumpController jump,
+  ) async {
+    if (document.lines.isEmpty) return;
+    final target = await showLyricJumpToLineDialog(
+      context,
+      document: document,
+      current: review.selectionWithin(document.lines.length),
+    );
+    if (target == null || !context.mounted) return;
+    if (!review.visibleIndices(document.lines.length).contains(target)) {
+      review.onFilterChanged(LyricReviewFilter.all);
+    }
+    review.onSelectLine(target);
+    jump.jumpTo(target);
+  }
+
+  /// Rebuilt when the batch choice changes as well as with the document.
   @override
   Widget build(BuildContext context) {
+    final editor = this.editor;
+    return LyricLineJumpHost(
+      builder: (context, jump) => editor == null
+          ? _build(context, null, jump)
+          : ListenableBuilder(
+              listenable: editor,
+              builder: (context, _) => _build(context, editor, jump),
+            ),
+    );
+  }
+
+  Widget _batchBar(
+    BuildContext context,
+    LyricEditorDocumentController editor,
+    List<int> visibleIndices,
+  ) {
+    final flow = _batchFlow(editor);
+    final chosen = editor.batchSelection;
+    final reviewed = const LyricReviewDecisionService().reviewedIndices(
+      document,
+    );
+    final everyShownChosen = visibleIndices.every(chosen.contains);
+    return LyricBatchActionBar(
+      count: chosen.length,
+      allReviewed: chosen.isNotEmpty && chosen.every(reviewed.contains),
+      canMerge:
+          chosen.length >= 2 && LyricLineBatchService.isContiguous(chosen),
+      onEnd: editor.endBatch,
+      onSelectAll: everyShownChosen
+          ? null
+          : () => editor.selectAllBatch(visibleIndices),
+      onMarkReviewed: (value) => flow.markReviewed(context, reviewed: value),
+      onShift: () => unawaited(flow.shift(context)),
+      onMerge: () => flow.merge(context),
+      onCopy: () => flow.copy(context),
+      onDelete: () => flow.delete(context),
+    );
+  }
+
+  Widget _build(
+    BuildContext context,
+    LyricEditorDocumentController? editor,
+    LyricLineJumpController jump,
+  ) {
     final spec = AppResponsive.of(context);
     final currentPlaybackLine = _currentPlaybackLineIndex();
     final visibleIndices = review.visibleIndices(document.lines.length);
@@ -265,11 +350,26 @@ class LyricEditorContent extends StatelessWidget {
     );
     final selectedIndex = review.selectionWithin(document.lines.length);
     final firstQueued = review.firstQueuedLine;
+    final batch = editor == null
+        ? null
+        : LyricBatchControls.of(
+            editor,
+            onDelete: () => _batchFlow(editor).delete(context),
+          );
+    final choosing = batch != null && batch.active;
+    final VoidCallback? jumpToLine = document.lines.isEmpty
+        ? null
+        : () => unawaited(_jumpToLine(context, jump));
 
     return PopScope(
-      canPop: !hasChanges && !isSaving,
+      canPop: !hasChanges && !isSaving && !choosing,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        // Back first leaves batch mode, as on a phone's photo picker.
+        if (choosing) {
+          editor?.endBatch();
+          return;
+        }
         // A pending write decides whether leaving is safe; asking again while
         // it runs could pop twice or race the conflict dialog.
         if (isSaving) return;
@@ -294,6 +394,8 @@ class LyricEditorContent extends StatelessWidget {
         onRedo: history.onRedo,
         onSave: isSaving ? null : _requestSave,
         onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
+        onEndBatch: choosing ? editor?.endBatch : null,
+        onJumpToLine: jumpToLine,
         child: Scaffold(
           backgroundColor: AppColors.bgBase,
           appBar: AppBar(
@@ -323,6 +425,7 @@ class LyricEditorContent extends StatelessWidget {
                 redoLabel: history.availableRedoLabel,
                 canExport: document.lines.isNotEmpty,
                 onExport: onExport,
+                onJumpToLine: jumpToLine,
                 onInsertAtPlayback: player.belongsToProject
                     ? edits.onInsertAtPlayback
                     : null,
@@ -409,7 +512,7 @@ class LyricEditorContent extends StatelessWidget {
                                         ? null
                                         : () {
                                             review.onFilterChanged(
-                                              LyricReviewFilter.needsReview,
+                                              LyricReviewFilter.suggested,
                                             );
                                             if (twoPane) {
                                               review.onSelectLine(firstQueued);
@@ -463,6 +566,8 @@ class LyricEditorContent extends StatelessWidget {
                                   : edits.onSetEndFromPlayback,
                               manuallyEditedLineIndices:
                                   manuallyEditedLineIndices,
+                              batch: batch,
+                              jump: jump,
                             );
                             final list = summaryCard == null
                                 ? listPane
@@ -508,12 +613,18 @@ class LyricEditorContent extends StatelessWidget {
                           },
                         ),
                 ),
-                _BottomBar(
-                  totalLines: document.lines.length,
-                  visibleLines: visibleIndices.length,
-                  hasChanges: hasChanges,
-                  onAddLine: edits.onAddLine,
-                ),
+                if (choosing)
+                  _batchBar(context, editor!, visibleIndices)
+                else
+                  _BottomBar(
+                    totalLines: document.lines.length,
+                    visibleLines: visibleIndices.length,
+                    hasChanges: hasChanges,
+                    onAddLine: edits.onAddLine,
+                    onStartBatch: editor == null || document.lines.isEmpty
+                        ? null
+                        : editor.startBatch,
+                  ),
               ],
             ),
           ),
@@ -539,11 +650,15 @@ class _BottomBar extends StatelessWidget {
   final int visibleLines;
   final bool hasChanges;
   final VoidCallback onAddLine;
+
+  /// Turns batch mode on (D-066); null hides the 多选 button.
+  final VoidCallback? onStartBatch;
   const _BottomBar({
     required this.totalLines,
     required this.visibleLines,
     required this.hasChanges,
     required this.onAddLine,
+    this.onStartBatch,
   });
 
   @override
@@ -578,6 +693,26 @@ class _BottomBar extends StatelessWidget {
             const LyricTinyBadge(label: '有未保存修改', warning: true),
           ],
           const Spacer(),
+          if (onStartBatch case final start?)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: spec.isCompact
+                  ? IconButton(
+                      key: LyricBatchActionBar.startKey,
+                      tooltip: LyricBatchStrings.startTooltip(),
+                      onPressed: start,
+                      icon: const Icon(Icons.checklist_rounded),
+                    )
+                  : Tooltip(
+                      message: LyricBatchStrings.startTooltip(),
+                      child: TextButton.icon(
+                        key: LyricBatchActionBar.startKey,
+                        onPressed: start,
+                        icon: const Icon(Icons.checklist_rounded, size: 18),
+                        label: const Text(LyricBatchStrings.start),
+                      ),
+                    ),
+            ),
           if (spec.isCompact)
             IconButton.filledTonal(
               tooltip: '添加歌词行',

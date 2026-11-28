@@ -12,14 +12,28 @@ void offerLyricLineDeleteUndo(
   required int lineNumber,
   required int Function() revision,
   required VoidCallback undo,
+}) => offerLyricEditUndo(
+  context,
+  message: '已删除第 $lineNumber 行',
+  revision: revision,
+  undo: undo,
+);
+
+/// Shows [message] with 撤销 for the edit just made, such as a batch edit
+/// (D-066), under the same rule as [offerLyricLineDeleteUndo].
+void offerLyricEditUndo(
+  BuildContext context, {
+  required String message,
+  required int Function() revision,
+  required VoidCallback undo,
 }) {
-  final deletedAt = revision();
+  final editedAt = revision();
   showUndoSnackBar(
     ScaffoldMessenger.of(context),
-    message: '已删除第 $lineNumber 行',
+    message: message,
     onUndo: () async {
       if (!context.mounted) return null;
-      if (revision() != deletedAt) {
+      if (revision() != editedAt) {
         return '之后又有修改，请用工具栏的撤销或 Ctrl/Cmd+Z';
       }
       undo();

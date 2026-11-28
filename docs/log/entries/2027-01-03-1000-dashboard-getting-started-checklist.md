@@ -1,0 +1,22 @@
+# [2027-01-03 10:00] Dashboard 开始使用 checklist for new users
+
+- Scope: round 50, user request: first-run guide; chosen form: a checklist card on the dashboard (D-070).
+  - Domain (`lib/features/home/domain/`): `GettingStartedVisibility` (undecided / active / dismissed / completed), `GettingStartedPreferences` (`decidedFor(hasProjects:)` shows the card only to someone with no projects), `GettingStartedStep`, `GettingStartedStepState`, `GettingStartedProgress.from(projects, countReview:, openedKtv:)`; `GettingStartedStore`, `MemoryGettingStartedStore`, `showGettingStartedAgain`.
+  - Data: `FileGettingStartedStore` (`getting_started.json` in application support; visibility and `openedKtv` only).
+  - Dashboard: optional `gettingStartedStore` and `reviewCounter` in `DashboardDependencies`; `_loadGuide` decides and computes progress from the recent projects and never throws; steps open `Routes.import`, `Routes.lyricEditorPath`, `Routes.playerPath` (the last one saves `openedKtv` first); close with `showUndoSnackBar`; 收起 after all three marks it completed.
+  - Card: `DashboardGettingStartedCard` and `GettingStartedText`; keys `dashboard:getting-started[:<step>[:action]|:dismiss|:finish]`; the next step gets a filled button; one semantics sentence per step; buttons move under the text below 520 px.
+  - Settings: optional `SettingsScreenDependencies.showGettingStarted`; desktop-only 帮助 group with `GettingStartedSettingsCard` (在首页重新显示, snackbar on success or failure).
+  - Assembly: `AppServices.gettingStartedStore` (memory before bootstrap, file after); `assembleDashboardDependencies` passes it and `countProjectLyricReview`; `assembleSettingsScreenDependencies` passes `showGettingStartedAgain`.
+- Files:
+  - New: `lib/features/home/domain/models/getting_started.dart`, `lib/features/home/domain/services/getting_started_store.dart`, `lib/features/home/data/services/file_getting_started_store.dart`, `lib/features/home/presentation/widgets/dashboard_getting_started_card.dart`, `lib/features/settings/presentation/widgets/getting_started_settings_card.dart`.
+  - Changed: `lib/app/{app_services,home_assembly,transcription_assembly}.dart`, `lib/features/home/presentation/{dashboard_dependencies,screens/dashboard_screen}.dart`, `lib/features/settings/presentation/{settings_screen_dependencies,screens/settings_screen}.dart`.
+  - Tests: new `test/features/home/domain/getting_started_test.dart`, `test/features/home/data/file_getting_started_store_test.dart`, `test/features/settings/presentation/widgets/getting_started_settings_card_test.dart`; a 7-test group in `test/features/home/presentation/screens/dashboard_screen_test.dart`.
+  - `docs/decisions.md` (D-070), `docs/handoff.md`.
+- Validation:
+  - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
+  - Probe: `flutter analyze` clean and all 5427 tests passed on the first run; `dart format` asked for three line joins/splits (applied by hand). Probe removed.
+- Notes:
+  - No new feature dependency: settings gets a callback, the store lives in the home feature and is wired in `lib/app`.
+  - The phone opens on the listening home and cannot recognise; no checklist there this round.
+  - Progress uses the eight recent projects the dashboard already loads.
+- Commit: `Add the dashboard getting-started checklist`

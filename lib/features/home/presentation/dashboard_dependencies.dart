@@ -1,6 +1,8 @@
+import '../../../core/onboarding/getting_started_store.dart';
 import '../../player/domain/repositories/play_history_repository.dart';
 import '../../player/domain/services/audio_player_service.dart';
 import '../../player/domain/services/playback_session_service.dart';
+import '../../project/domain/models/lyric_review_overview.dart';
 import '../../project/domain/repositories/project_repository.dart';
 import '../../transcription/domain/services/batch_transcription_queue.dart';
 import '../../transcription/domain/services/transcription_settings_store.dart';
@@ -20,6 +22,13 @@ class DashboardDependencies {
   /// follows an undo made from a snackbar.
   final Stream<void>? projectChanges;
 
+  /// Where the 开始使用 checklist (D-070) is remembered; null hides it.
+  final GettingStartedStore? gettingStartedStore;
+
+  /// The lyric editor's 建议复核 counts (D-069), which tell the checklist
+  /// whether the user has confirmed a line yet.
+  final ProjectLyricReviewCounter? reviewCounter;
+
   const DashboardDependencies({
     required this.projectRepository,
     required this.playHistoryRepository,
@@ -29,5 +38,7 @@ class DashboardDependencies {
     required this.transcriptionSettingsStore,
     required this.configDialogDependencies,
     this.projectChanges,
+    this.gettingStartedStore,
+    this.reviewCounter,
   });
 }

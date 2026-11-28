@@ -195,6 +195,9 @@ void main() {
             )
             .first,
       );
+      // ensureVisible jumps without a frame; lay the scroll out before
+      // tapping, or the tap lands where the button was.
+      await tester.pumpAndSettle();
       await tester.tap(find.text('删除这一行'));
       await tester.pumpAndSettle();
       expect(editorA.hasChanges, isTrue);

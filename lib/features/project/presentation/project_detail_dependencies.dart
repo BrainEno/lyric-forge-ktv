@@ -1,4 +1,5 @@
 import '../../player/domain/services/playback_session_service.dart';
+import '../domain/models/lyric_review_overview.dart';
 import '../domain/repositories/project_repository.dart';
 import '../domain/services/project_deletion_service.dart';
 import '../domain/services/project_accompaniment_importer.dart';
@@ -20,6 +21,10 @@ class ProjectDetailDependencies {
   /// Offers 删除工程 when set (D-063).
   final ProjectDeletionService? deletionService;
 
+  /// The editor's 建议复核 counts for the lyric card (D-069); null leaves
+  /// them out.
+  final ProjectLyricReviewCounter? reviewCounter;
+
   TranscriptionSettingsStore get transcriptionSettingsStore =>
       asrRuntimeSetupDependencies.transcriptionSettingsStore;
   AsrRuntimeManager get asrRuntimeManager =>
@@ -33,5 +38,6 @@ class ProjectDetailDependencies {
     required this.transcriptionWorkflow,
     required this.asrRuntimeSetupDependencies,
     this.deletionService,
+    this.reviewCounter,
   });
 }

@@ -632,7 +632,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                 title: const Text('识别后自动补全漏句'),
                 subtitle: const Text(
                   '人声检查发现有人声却没有歌词的地方，识别结束前逐段再识别一次并插入，'
-                  '草稿出来时漏句已补上；补上的行会列入待复核。'
+                  '草稿出来时漏句已补上；补上的行会列入建议复核。'
                   '只在按人声识别时生效，每处多用几秒到十几秒。',
                 ),
                 value: _vocalGapFill == VocalGapFillPreference.automatic,
@@ -647,8 +647,8 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                 DropdownButtonFormField<int>(
                   initialValue: _fallbackThreshold,
                   decoration: const InputDecoration(
-                    labelText: '重点校对触发阈值',
-                    helperText: '分数越高，越多低置信度主引擎结果会进入重点校对',
+                    labelText: '第二引擎复查阈值',
+                    helperText: '主引擎分数低于它的行会请第二引擎再听一遍；分数越高，复查的行越多',
                   ),
                   items: const [
                     DropdownMenuItem(value: 60, child: Text('60 · 保守')),

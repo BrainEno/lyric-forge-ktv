@@ -3,9 +3,10 @@
 - Scope: Split `http_media_hub_service.dart` (1368 lines) into focused modules under 600 lines each for issue #462 (Subtask C), preserving the public `HttpMediaHubService` API and re-exports while isolating incoming upload handling, disk-space probing, and artwork/audio range responses.
 - Files:
   - `lib/features/transfer/data/services/http_media_hub_service.dart` (584 lines)
-  - `lib/features/transfer/data/services/http_media_hub_incoming_upload_handler.dart` (595 lines, new)
+  - `lib/features/transfer/data/services/http_media_hub_incoming_upload_handler.dart` (590 lines, new)
   - `lib/features/transfer/data/services/http_media_hub_media_responder.dart` (210 lines, new)
   - `lib/features/transfer/data/services/http_media_hub_disk_space_probe.dart` (65 lines, new)
+  - `lib/features/transfer/data/services/http_media_hub_json_writer.dart` (9 lines, new)
   - `test/features/transfer/media_hub_disk_space_probe_contract_test.dart`
   - `docs/log/entries/2026-11-28-1759-split-http-media-hub-service.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`
 - Validation:

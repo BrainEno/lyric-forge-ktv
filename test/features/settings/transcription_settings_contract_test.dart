@@ -94,7 +94,12 @@ void main() {
         contains('widget.dependencies.transcriptionSettingsStore'),
       );
       expect(project, isNot(contains('AppServices.instance')));
-      expect(project, contains("label: const Text('识别环境与高级设置')"));
+      // The button lives in the page's 下一步 panel (D-074).
+      final actionPanel = File(
+        'lib/features/project/presentation/widgets/'
+        'project_detail_action_panel.dart',
+      ).readAsStringSync();
+      expect(actionPanel, contains("label: const Text('识别环境与高级设置')"));
       expect(workflow, contains('final config = await _settingsStore.load()'));
       expect(
         services,

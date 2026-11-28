@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import '../../domain/models/shared_audio_track.dart';
-import 'http_media_hub_incoming_upload_handler.dart' show MediaHubJsonWriter;
+import 'http_media_hub_json_writer.dart';
 
 /// Serves track artwork and byte-range-capable audio streams for Media Hub
 /// HTTP requests.

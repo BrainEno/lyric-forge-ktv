@@ -40,7 +40,8 @@ void main() {
     const screens = [
       // The project player's cover moved into its transport widget.
       'lib/features/player/presentation/widgets/project_player_transport.dart',
-      'lib/features/project/presentation/screens/project_detail_screen.dart',
+      // The project page's cover moved into its hero (D-074).
+      'lib/features/project/presentation/widgets/project_detail_hero.dart',
       'lib/features/player/presentation/widgets/'
           'local_media_metadata_dialog.dart',
       'lib/features/transfer/presentation/screens/'

@@ -5,6 +5,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/models/recognition_review
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/secondary_only_suggestion.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_decision_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_review_strings.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_inspector_pane.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_recognition_summary_card.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
@@ -255,6 +256,16 @@ void main() {
       expect(find.textContaining('建议补入：1', findRichText: true), findsOneWidget);
       expect(find.textContaining('总行数：3', findRichText: true), findsOneWidget);
       expect(find.textContaining('%', findRichText: true), findsNothing);
+      // The editor's word for the queue (D-069), with its 必看 rows if any.
+      final pending = LyricSuggestedReviewStrings.countWithMustCheck(
+        summary.pendingReview,
+        summary.mustCheckReview,
+      );
+      expect(
+        find.textContaining('建议复核：$pending', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.textContaining('待复核', findRichText: true), findsNothing);
 
       await tester.tap(
         find.byKey(const ValueKey('lyric_recognition_summary_start')),

@@ -36,7 +36,7 @@ abstract final class LyricRowSemantics {
   static const String emptyText = '空歌词';
 
   /// One row in one sentence, e.g.
-  /// `第 3 行，00:12.40 到 00:15.10，月亮代表我的心，正在播放，待复核，优先级 60`.
+  /// `第 3 行，00:12.40 到 00:15.10，月亮代表我的心，正在播放，建议复核，必看`.
   static String rowLabel({
     required int index,
     required LyricLine line,
@@ -57,7 +57,7 @@ abstract final class LyricRowSemantics {
       if (isReviewed)
         '已复核'
       else if (priority != null)
-        '待复核，优先级 ${priority.score}',
+        LyricSuggestedReviewStrings.rowSemantics(priority),
       if (!isReviewed && hasCandidate) '有另一引擎的候选',
       if (!isReviewed && isSecondarySuggestion) '建议补入',
       if (isManuallyEdited) '已手动修改',

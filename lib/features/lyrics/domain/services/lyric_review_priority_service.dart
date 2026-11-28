@@ -7,6 +7,27 @@ import 'lyric_timeline_validator.dart';
 
 enum LyricReviewRiskLevel { low, medium, high, critical }
 
+/// How soon a queued row should be looked at (D-068).
+///
+/// The editor used to print the raw score (`优先 52`) on every row and offer a
+/// second filter for low confidence. A number asks the user to know where the
+/// line is; two tiers say it: [mustCheck] rows carry strong evidence (the
+/// [LyricReviewRiskLevel.high] and [LyricReviewRiskLevel.critical] levels),
+/// [worthCheck] rows are worth a listen when there is time.
+enum LyricReviewUrgency { mustCheck, worthCheck }
+
+/// What kind of evidence put a row in the queue, for one-line summaries such
+/// as `主要原因：双引擎分歧 3、时间轴异常 2`. Declared from the most to the
+/// least serious, which is also the tie-break when two kinds are as common.
+enum LyricReviewReasonKind {
+  emptyText,
+  timing,
+  enginesDisagree,
+  lowConfidence,
+  insertedLine,
+  suspiciousText,
+}
+
 enum LyricReviewPriorityReasonCode {
   emptyLyrics,
   confidenceExtremelyLow,
@@ -47,6 +68,40 @@ class LyricReviewPriorityReason {
 
   const LyricReviewPriorityReason(this.code, {this.confidence});
 
+  /// The family this reason belongs to; see [LyricReviewReasonKind].
+  LyricReviewReasonKind get kind => switch (code) {
+    LyricReviewPriorityReasonCode.emptyLyrics =>
+      LyricReviewReasonKind.emptyText,
+    LyricReviewPriorityReasonCode.confidenceExtremelyLow ||
+    LyricReviewPriorityReasonCode.confidenceVeryLow ||
+    LyricReviewPriorityReasonCode.confidenceLow ||
+    LyricReviewPriorityReasonCode.confidenceBelowThreshold =>
+      LyricReviewReasonKind.lowConfidence,
+    LyricReviewPriorityReasonCode.enginesDifferGreatly ||
+    LyricReviewPriorityReasonCode.enginesDifferClearly ||
+    LyricReviewPriorityReasonCode.enginesHaveDifferentCandidates =>
+      LyricReviewReasonKind.enginesDisagree,
+    LyricReviewPriorityReasonCode.secondaryOnlySuggestion ||
+    LyricReviewPriorityReasonCode.vocalGapFillInserted =>
+      LyricReviewReasonKind.insertedLine,
+    LyricReviewPriorityReasonCode.repeatedWords ||
+    LyricReviewPriorityReasonCode.unusuallyLongText =>
+      LyricReviewReasonKind.suspiciousText,
+    LyricReviewPriorityReasonCode.longTextWithShortInterval ||
+    LyricReviewPriorityReasonCode.intervalOverTwentySeconds ||
+    LyricReviewPriorityReasonCode.negativeStart ||
+    LyricReviewPriorityReasonCode.negativeEffectiveStart ||
+    LyricReviewPriorityReasonCode.invalidTimeInterval ||
+    LyricReviewPriorityReasonCode.nonMonotonicStart ||
+    LyricReviewPriorityReasonCode.duplicateStart ||
+    LyricReviewPriorityReasonCode.overlapsPrevious ||
+    LyricReviewPriorityReasonCode.overlapsNext ||
+    LyricReviewPriorityReasonCode.extremelyShortGap ||
+    LyricReviewPriorityReasonCode.startBeyondAudio ||
+    LyricReviewPriorityReasonCode.endBeyondAudio =>
+      LyricReviewReasonKind.timing,
+  };
+
   @override
   bool operator ==(Object other) =>
       other is LyricReviewPriorityReason &&
@@ -72,11 +127,24 @@ class LyricReviewPriority {
     required this.reasons,
   });
 
+  /// The lowest score that makes a row [LyricReviewUrgency.mustCheck]; the
+  /// same line as [LyricReviewRiskLevel.high].
+  static const int mustCheckScore = 45;
+
   LyricReviewRiskLevel get level => switch (score) {
     >= 65 => LyricReviewRiskLevel.critical,
-    >= 45 => LyricReviewRiskLevel.high,
+    >= mustCheckScore => LyricReviewRiskLevel.high,
     >= 25 => LyricReviewRiskLevel.medium,
     _ => LyricReviewRiskLevel.low,
+  };
+
+  LyricReviewUrgency get urgency => score >= mustCheckScore
+      ? LyricReviewUrgency.mustCheck
+      : LyricReviewUrgency.worthCheck;
+
+  /// The kinds of evidence behind this row, each once, in reason order.
+  Set<LyricReviewReasonKind> get reasonKinds => <LyricReviewReasonKind>{
+    for (final reason in reasons) reason.kind,
   };
 }
 

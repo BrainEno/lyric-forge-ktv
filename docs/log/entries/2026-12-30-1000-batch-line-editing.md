@@ -1,0 +1,25 @@
+# [2026-12-30 10:00] Batch selection and batch edits in the lyric editor
+
+- Scope: round 46, user request: friendlier UI, chosen area 歌词校对：批量选择和批量操作 (D-066).
+  - Domain: `LyricLineBatchService` — `normalize`, `isContiguous`, `runs`, `delete` (bottom-up, remapping row-indexed review metadata), `merge` (consecutive rows only, folds `LyricLineStructureService.merge`), `shift` (per run of consecutive rows through `LyricTimingShiftService`, reports clamped rows and introduced timeline issues).
+  - `LyricEditorDocumentController`: batch state by stable line id (`batchMode`, `batchSelection`, `startBatch`, `toggleBatchLine(includeCurrent:)`, `selectBatchRange(index, order)`, `selectAllBatch`, `endBatch`; cleared on `load`; choosing is not an edit) and one-step batch edits `setLinesReviewed`, `deleteLines`, `mergeLines`, `shiftLines` (+ `lyricBatchShiftMessage`).
+  - Presentation:
+    - `LyricBatchControls` / `LyricBatchActionBar` / `LyricBatchStrings` (labelled ≥760 px, icons ≥480 px, three icons plus a menu below);
+    - `showLyricBatchShiftDialog` (offset field, ±0.1/±1 s, preview, overlap warning);
+    - `LyricBatchEditFlow` (dialogs, editor call, 撤销 offer via the new `offerLyricEditUndo`).
+  - List: Ctrl/⌘+click, Shift+click, long press, tap-to-choose in batch mode, check boxes, Shift+↑/↓, Ctrl/⌘+A, Esc, Ctrl/⌘+Delete on the batch (`LyricListCommand.extendNext/extendPrevious/selectAll/endBatch`).
+  - Content: optional `editor` (rebuilds on batch changes), 多选 button in the bottom bar, the action bar while choosing, back and Esc (`LyricEditShortcuts.onEndBatch`) end batch mode first; `LyricLineEditActions.onBatchEdit` lets the screen drop a stale audition. Screen: two lines (1198 lines, under the 1200 budget).
+  - Shortcut panel: 多选 keys in the 歌词校对 group.
+- Files:
+  - New: `lib/features/lyrics/domain/services/lyric_line_batch_service.dart`, `lib/features/lyrics/presentation/controllers/lyric_batch_edit_flow.dart`, `lib/features/lyrics/presentation/widgets/{lyric_batch_selection_bar,lyric_batch_shift_dialog}.dart`.
+  - Changed: `lib/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart`, `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`, `lib/features/lyrics/presentation/widgets/{lyric_editor_content,lyric_list_pane,lyric_list_logic,lyric_review_row,lyric_editor_actions,lyric_edit_shortcuts,lyric_line_delete_undo}.dart`, `lib/features/search/domain/keyboard_shortcut_catalog.dart`.
+  - Tests: `test/features/lyrics/domain/services/lyric_line_batch_service_test.dart`, `test/features/lyrics/presentation/controllers/lyric_editor_batch_selection_test.dart`, `test/features/lyrics/presentation/widgets/lyric_batch_selection_test.dart`, `test/features/lyrics/presentation/screens/lyric_editor_batch_edit_test.dart`, `test/features/lyrics/presentation/widgets/lyric_list_logic_test.dart`.
+  - `docs/decisions.md` (D-066), `docs/handoff.md`.
+- Validation:
+  - No Dart SDK in the sandbox; a temporary branch CI probe ran `dart format`, `flutter analyze` and `flutter test`.
+  - First probe: analyze clean, 5359 passed, 3 failed, 2 format diffs. Causes: the row's `Tooltip` opens on long press on touch platforms and swallowed the long press that starts choosing (now `TooltipTriggerMode.manual` when the row has a long press; hover still works); the phone ⋮ menu showed the "choose neighbours" hint even when merge was allowed.
+  - Second probe: format and analyze clean, all 5362 tests passed. Probe removed.
+- Notes:
+  - A long press on a row now starts choosing; inline editing stays on double click, Enter/F2, the row menu and the phone's row sheet.
+  - The bar's 全选 chooses the rows the filter shows; Ctrl/⌘+A in the list also honours the search box.
+- Commit: `Choose several lyric rows and edit them together`

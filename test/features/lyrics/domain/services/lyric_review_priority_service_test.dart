@@ -328,4 +328,33 @@ void main() {
     );
     expect(ranked.map((item) => item.lineIndex), isNot(contains(0)));
   });
+
+  test('every reason code belongs to one summary kind (D-068)', () {
+    final kinds = {
+      for (final code in LyricReviewPriorityReasonCode.values)
+        code: LyricReviewPriorityReason(code).kind,
+    };
+    expect(
+      kinds[LyricReviewPriorityReasonCode.confidenceBelowThreshold],
+      LyricReviewReasonKind.lowConfidence,
+    );
+    expect(
+      kinds[LyricReviewPriorityReasonCode.vocalGapFillInserted],
+      LyricReviewReasonKind.insertedLine,
+    );
+    expect(
+      kinds[LyricReviewPriorityReasonCode.endBeyondAudio],
+      LyricReviewReasonKind.timing,
+    );
+    expect(kinds.values.toSet(), LyricReviewReasonKind.values.toSet());
+  });
+
+  test('the 必看 tier starts where the high risk level does', () {
+    const high = LyricReviewPriority(lineIndex: 0, score: 45, reasons: []);
+    const medium = LyricReviewPriority(lineIndex: 0, score: 44, reasons: []);
+    expect(high.level, LyricReviewRiskLevel.high);
+    expect(high.urgency, LyricReviewUrgency.mustCheck);
+    expect(medium.level, LyricReviewRiskLevel.medium);
+    expect(medium.urgency, LyricReviewUrgency.worthCheck);
+  });
 }

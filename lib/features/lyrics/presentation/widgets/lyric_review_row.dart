@@ -80,6 +80,10 @@ class LyricReviewRow extends StatelessWidget {
   final VoidCallback? onSetEndFromPlayback;
   final bool isManuallyEdited;
 
+  /// Whether the row is chosen for a batch edit (D-066); null outside batch
+  /// mode. In batch mode a check box takes the place of the row number.
+  final bool? checked;
+
   const LyricReviewRow({
     super.key,
     required this.index,
@@ -105,14 +109,12 @@ class LyricReviewRow extends StatelessWidget {
     this.onSetStartFromPlayback,
     this.onSetEndFromPlayback,
     this.isManuallyEdited = false,
+    this.checked,
   });
 
   /// Texts longer than this many characters may wrap to four lines while
   /// the row is selected.
   static const int longTextLength = 28;
-
-  /// The row's priority badge turns to a warning from this score.
-  static const int warningScore = 45;
 
   /// What [action] runs on this row, or null when the row does not offer it.
   VoidCallback? callbackFor(LyricRowMenuAction action) => switch (action) {
@@ -184,6 +186,7 @@ class LyricReviewRow extends StatelessWidget {
       excludeSemantics: true,
       button: true,
       selected: selected,
+      checked: checked,
       label: LyricRowSemantics.rowLabel(
         index: index,
         line: line,
@@ -215,7 +218,10 @@ class LyricReviewRow extends StatelessWidget {
 
   Widget _buildRow(BuildContext context) {
     final spec = AppResponsive.of(context);
-    final background = selected
+    final chosen = checked == true;
+    final background = chosen
+        ? AppColors.accent.withAlpha(28)
+        : selected
         ? AppColors.bgSurface
         : playing
         ? AppColors.accent.withAlpha(18)
@@ -229,7 +235,7 @@ class LyricReviewRow extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-        border: selected
+        border: selected || chosen
             ? Border.all(color: AppColors.accent.withAlpha(120))
             : null,
       ),
@@ -240,11 +246,20 @@ class LyricReviewRow extends StatelessWidget {
         children: [
           SizedBox(
             width: spec.isCompact ? 28 : 34,
-            child: _RowNumber(
-              index: index,
-              playing: playing,
-              edited: isManuallyEdited,
-            ),
+            child: checked == null
+                ? _RowNumber(
+                    index: index,
+                    playing: playing,
+                    edited: isManuallyEdited,
+                  )
+                : Icon(
+                    chosen
+                        ? Icons.check_box_rounded
+                        : Icons.check_box_outline_blank_rounded,
+                    key: ValueKey('lyric_row_check_$index'),
+                    size: 20,
+                    color: chosen ? AppColors.accent : AppColors.textTertiary,
+                  ),
           ),
           LyricRowAuditionButton(
             hasAudio: hasAudio,
@@ -274,14 +289,22 @@ class LyricReviewRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
           child: onDoubleTap == null
               ? content
-              : Tooltip(message: rowTooltip, child: content),
+              : Tooltip(
+                  message: rowTooltip,
+                  // On touch screens a tooltip opens on long press and would
+                  // swallow the long press that starts choosing rows (D-066).
+                  triggerMode: onLongPress == null
+                      ? null
+                      : TooltipTriggerMode.manual,
+                  child: content,
+                ),
         ),
       ),
     );
   }
 
   /// The hover hint of a row whose text can be edited.
-  static const String rowTooltip = '双击直接编辑文字 · 右键更多操作';
+  static const String rowTooltip = '双击直接编辑文字 · 长按多选 · 右键更多操作';
 
   /// One line: times, text, badges, hint and chevron side by side.
   List<Widget> _wideBody(
@@ -389,7 +412,10 @@ class LyricReviewRow extends StatelessWidget {
   }
 
   /// Chorus (wide layouts only), saved engine candidate, suggested
-  /// insertion, and the review state or priority; phones use short labels.
+  /// insertion, and the review state or tier; phones use short labels.
+  ///
+  /// A queued row says 必看 or 留意 instead of `优先 52` (D-068): the tier is
+  /// what the user acts on, and the score stays in the tooltip.
   List<Widget> _statusBadges({required bool compact}) {
     final priority = this.priority;
     return [
@@ -403,12 +429,10 @@ class LyricReviewRow extends StatelessWidget {
         const LyricTinyBadge(label: '已复核', accent: true)
       else if (priority != null)
         Tooltip(
-          message: priority.reasons
-              .map(LyricReviewStrings.priorityReason)
-              .join('\n'),
+          message: LyricSuggestedReviewStrings.badgeTooltip(priority),
           child: LyricTinyBadge(
-            label: compact ? '复核' : '优先 ${priority.score}',
-            warning: priority.score >= warningScore,
+            label: LyricSuggestedReviewStrings.urgency(priority.urgency),
+            warning: priority.urgency == LyricReviewUrgency.mustCheck,
           ),
         ),
     ];

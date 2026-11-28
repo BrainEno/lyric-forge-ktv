@@ -201,7 +201,7 @@ void main() {
       );
       expect(lines, hasLength(2));
       expect(lines.first, contains('自动补上 1 处漏句（其中 1 处由第二个引擎补上）'));
-      expect(lines.first, contains('列入待复核'));
+      expect(lines.first, contains('列入建议复核'));
       expect(lines.last, '自动补句：1 处没有识别出文字、2 处未自动识别');
     });
 
@@ -263,13 +263,13 @@ void main() {
         find.textContaining('2/2 行待听', findRichText: true),
         findsOneWidget,
       );
-      expect(find.textContaining('列入待复核'), findsNothing);
+      expect(find.textContaining('列入建议复核'), findsNothing);
 
       await tester.tap(
         find.byKey(const ValueKey('lyric_recognition_summary_toggle')),
       );
       await tester.pump();
-      expect(find.textContaining('列入待复核'), findsOneWidget);
+      expect(find.textContaining('列入建议复核'), findsOneWidget);
     });
 
     testWidgets('all confirmed shows the plain count', (tester) async {

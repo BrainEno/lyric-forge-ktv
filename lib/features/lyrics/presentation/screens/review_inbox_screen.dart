@@ -14,6 +14,7 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../controllers/review_inbox_bulk_review.dart';
+import '../lyric_review_strings.dart';
 import '../widgets/review_inbox_global_review.dart';
 
 /// One row of the review inbox: a project plus its review queue.
@@ -61,24 +62,42 @@ class ReviewInboxScreen extends StatefulWidget {
   /// badges, which were only read as loose words around a bare `InkWell`.
   /// 全部标为已复核 is the row's custom action, so the ⋮ menu is not a
   /// separate stop that only makes sense after the row.
+  ///
+  /// Since D-069 it uses the editor's words: 建议复核 and 必看 instead of
+  /// 待复核 and a separate 低置信度 count, plus the main reasons.
   static String tileLabel({
     required String name,
     required String subtitle,
     required int pending,
-    required int lowConfidence,
+    required int mustCheck,
     required int unscored,
+    String? reasons,
     bool saving = false,
   }) {
     return AppTapTarget.join([
       name,
       subtitle.replaceAll(' · ', '，'),
-      pending > 0 ? '待复核 $pending 行' : '已复核',
-      if (lowConfidence > 0)
-        '低置信度 $lowConfidence 行'
-      else if (unscored > 0 && pending > 0)
-        '未评分 $unscored 行',
+      if (pending > 0) ...[
+        '${LyricSuggestedReviewStrings.label} $pending 行',
+        if (mustCheck > 0)
+          '${LyricSuggestedReviewStrings.mustCheckLabel(mustCheck)} 行',
+        if (unscored > 0) '未评分 $unscored 行',
+        ?reasons,
+      ] else
+        '已复核',
       if (saving) savingLabel,
     ]);
+  }
+
+  /// The line above the list, e.g. `4 个工程，共 23 行建议复核，其中 6 行必看`.
+  static String summaryLine({
+    required int projects,
+    required int pending,
+    required int mustCheck,
+  }) {
+    if (pending == 0) return '$projects 个工程，暂时没有建议复核的行';
+    final must = mustCheck > 0 ? '，其中 $mustCheck 行必看' : '';
+    return '$projects 个工程，共 $pending 行建议复核$must';
   }
 
   static const String undoneMessage = '已撤销，复核标记恢复原样';
@@ -139,7 +158,13 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
         ),
       );
     }
+    // The most urgent work first, as in the editor's 建议复核 list: rows
+    // that must be checked, then everything suggested, then recency.
     entries.sort((left, right) {
+      final byMustCheck = right.queue.mustCheckCount.compareTo(
+        left.queue.mustCheckCount,
+      );
+      if (byMustCheck != 0) return byMustCheck;
       final byQueue = right.queue.needsReviewCount.compareTo(
         left.queue.needsReviewCount,
       );
@@ -302,6 +327,10 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
       0,
       (sum, entry) => sum + entry.queue.needsReviewCount,
     );
+    final totalMustCheck = pending.fold<int>(
+      0,
+      (sum, entry) => sum + entry.queue.mustCheckCount,
+    );
     final showReviewed = pending.isEmpty || _showReviewed;
 
     Widget tile(ReviewInboxEntry entry) => Padding(
@@ -317,9 +346,11 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
 
     return [
       ReviewInboxSummaryBar(
-        summary: totalPending == 0
-            ? '${entries.length} 个工程，暂时没有待复核的行'
-            : '${entries.length} 个工程，共 $totalPending 行待复核',
+        summary: ReviewInboxScreen.summaryLine(
+          projects: entries.length,
+          pending: totalPending,
+          mustCheck: totalMustCheck,
+        ),
         progress: _globalProgress,
         onMarkEverything: pending.isEmpty || _busy
             ? null
@@ -428,8 +459,11 @@ class _ReviewInboxTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pending = entry.queue.needsReviewCount;
-    final lowConfidence = entry.queue.lowConfidenceCount;
+    final mustCheck = entry.queue.mustCheckCount;
     final unscored = entry.queue.unscoredLines;
+    final reasons = pending > 0
+        ? LyricSuggestedReviewStrings.mainReasons(entry.queue)
+        : null;
     final project = entry.project;
 
     return Material(
@@ -440,8 +474,9 @@ class _ReviewInboxTile extends StatelessWidget {
           name: project.name,
           subtitle: _subtitle(project, entry.queue),
           pending: pending,
-          lowConfidence: lowConfidence,
+          mustCheck: mustCheck,
           unscored: unscored,
+          reasons: reasons,
           saving: saving,
         ),
         hint: ReviewInboxScreen.openEditorHint,
@@ -489,20 +524,37 @@ class _ReviewInboxTile extends StatelessWidget {
                           color: AppColors.textTertiary,
                         ),
                       ),
+                      // Why the rows are waiting, in the editor's words.
+                      if (reasons != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          reasons,
+                          key: ValueKey('review-inbox:reasons:${project.id}'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
                     ],
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 if (pending > 0)
-                  // A caution, as in the editor's status line; lavender is for
-                  // things to press.
-                  _Badge(label: '待复核 $pending', color: AppColors.warning)
+                  _Badge(
+                    label: LyricSuggestedReviewStrings.chip(pending),
+                    color: AppColors.textSecondary,
+                  )
                 else
                   _Badge(label: '已复核', color: AppColors.textTertiary),
-                if (lowConfidence > 0) ...[
+                if (mustCheck > 0) ...[
                   const SizedBox(width: AppSpacing.xs),
+                  // A caution, as on the editor's rows; lavender is for
+                  // things to press.
                   _Badge(
-                    label: '低置信度 $lowConfidence',
+                    label: LyricSuggestedReviewStrings.mustCheckLabel(
+                      mustCheck,
+                    ),
                     color: AppColors.warning,
                   ),
                 ] else if (unscored > 0 && pending > 0) ...[
@@ -676,11 +728,11 @@ class _MarkAllReviewedDialog extends StatelessWidget {
         children: [
           Text(
             '「${entry.project.name}」的 ${queue.totalLines} 行都会记为人工确认，'
-            '待复核的 ${queue.needsReviewCount} 行会离开队列。',
+            '建议复核的 ${queue.needsReviewCount} 行会移出列表。',
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            '之后改动任何一行的文字或时间，那一行会重新回到待复核。',
+            '之后改动任何一行的文字或时间，那一行会重新列入建议复核。',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),

@@ -22,19 +22,36 @@ const _libraryScreens = <String>[
 
 String _read(String path) => File(path).readAsStringSync();
 
+String _catalogCardPath(String screenPath) {
+  if (screenPath.endsWith('local_collections_screen.dart')) {
+    return 'lib/features/player/presentation/widgets/'
+        'local_collection_widgets.dart';
+  }
+  if (screenPath.endsWith('local_library_explorer_screen.dart')) {
+    return 'lib/features/player/presentation/widgets/'
+        'local_library_explorer_views.dart';
+  }
+  return screenPath;
+}
+
+String _catalogGridPath(String screenPath) =>
+    screenPath.endsWith('local_library_explorer_screen.dart')
+    ? _catalogCardPath(screenPath)
+    : screenPath;
+
 void main() {
   group('catalog grids', () {
     for (final path in _catalogScreens) {
       final name = path.split('/').last;
 
       test('$name draws its grid cards with AppCatalogCard', () {
-        final source = _read(path);
+        final source = _read(_catalogCardPath(path));
         expect(source, contains("core/widgets/app_catalog_card.dart'"));
         expect(source, contains('AppCatalogCard('));
       });
 
       test('$name lays its grid out with the shared delegate', () {
-        final source = _read(path);
+        final source = _read(_catalogGridPath(path));
         expect(source, contains('AppCatalogCard.gridDelegateFor('));
         expect(
           source,
@@ -54,6 +71,7 @@ void main() {
 
       test('$name has no private artwork wrapper', () {
         expect(wrapper.hasMatch(_read(path)), isFalse);
+        expect(wrapper.hasMatch(_read(_catalogCardPath(path))), isFalse);
       });
     }
 
@@ -82,8 +100,10 @@ void main() {
 
     test('a missing song uses AppArtwork.missing', () {
       final source = _read(
-        'lib/features/player/presentation/screens/'
-        'local_library_explorer_screen.dart',
+        _catalogCardPath(
+          'lib/features/player/presentation/screens/'
+          'local_library_explorer_screen.dart',
+        ),
       );
       expect(source, contains('AppArtwork.missing('));
       expect(source, isNot(contains('placeholderColor:')));
@@ -91,7 +111,7 @@ void main() {
 
     test('library covers use the named radii', () {
       for (final path in _catalogScreens) {
-        final source = _read(path);
+        final source = _read(_catalogCardPath(path));
         final covers = RegExp(
           r'AppArtwork\((?:[^()]|\([^()]*\))*\)',
         ).allMatches(source);
@@ -120,9 +140,21 @@ void main() {
       expect(source, isNot(contains('BoxDecoration(')));
     });
 
+    test('the local playlist card uses the shared catalog card', () {
+      final source = _read(
+        'lib/features/player/presentation/widgets/local_collection_widgets.dart',
+      );
+      final start = source.indexOf('class LocalPlaylistCard ');
+      expect(start, greaterThanOrEqualTo(0));
+      final next = source.indexOf('\nclass ', start + 1);
+      final body = source.substring(start, next < 0 ? source.length : next);
+      expect(body, contains('AppCatalogCard('));
+      expect(body, isNot(contains('BoxDecoration(')));
+    });
+
     test('the grid cards no longer paint their own surface', () {
       for (final path in _catalogScreens) {
-        final source = _read(path);
+        final source = _read(_catalogCardPath(path));
         for (final name in [
           'class _CatalogCard ',
           'class _ExplorerCard ',

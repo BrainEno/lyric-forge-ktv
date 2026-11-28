@@ -11,6 +11,7 @@ import '../lyric_review_strings.dart';
 import 'auto_proofread_dialogs.dart';
 import 'lyric_editor_actions.dart';
 import 'lyric_editor_review_controls.dart';
+import 'lyric_line_jump.dart';
 import 'lyric_proofread_menu_button.dart';
 
 /// Which lines the editor list shows.
@@ -18,12 +19,12 @@ import 'lyric_proofread_menu_button.dart';
 /// Public because [LyricEditorToolbar] renders it; the filter itself is pure
 /// view state and never leaves the presentation layer.
 ///
-/// There is one review concept, not three: [needsReview] is the queue built by
-/// [LyricReviewQueue], and [lowConfidence] is a subset of that same queue. The
-/// old fourth filter ("smart review") was a second spelling of [needsReview]
-/// with its own count, which is why the toolbar could show three numbers that
-/// always agreed.
-enum LyricReviewFilter { all, needsReview, lowConfidence }
+/// There is one review concept: [suggested] is the queue built by
+/// [LyricReviewQueue], most urgent first. It used to come in three spellings
+/// — 待复核, 低置信度 (a subset of the same queue) and, before that, 智能复核 —
+/// behind a menu; D-068 made it one on/off chip, and a low engine score is
+/// now one of the reasons the chip's summary lists.
+enum LyricReviewFilter { all, suggested }
 
 /// The editor's control strip.
 ///
@@ -123,9 +124,9 @@ class LyricEditorToolbar extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
-              _FilterMenu(
-                filter: review.filter,
-                review: review.queue,
+              LyricSuggestedReviewChip(
+                selected: review.filter == LyricReviewFilter.suggested,
+                queue: review.queue,
                 onChanged: review.onFilterChanged,
               ),
               FilterChip(
@@ -137,10 +138,11 @@ class LyricEditorToolbar extends StatelessWidget {
                       : Icons.location_disabled_rounded,
                   size: 16,
                 ),
+                tooltip: LyricListFollowStrings.tooltip,
                 label: const Text('跟随播放'),
               ),
               _OffsetMenu(offset: offset, onChanged: onUpdateOffset),
-              if (review.filter == LyricReviewFilter.needsReview)
+              if (review.filter == LyricReviewFilter.suggested)
                 Tooltip(
                   message: LyricReviewStrings.loopCurrentLineHelp,
                   child: FilterChip(
@@ -207,6 +209,9 @@ class LyricEditorOverflowMenu extends StatelessWidget {
   final VoidCallback? onInsertAtPlayback;
   final VoidCallback? onOpenPlayer;
 
+  /// Opens 跳到行 (D-067); null leaves the entry out.
+  final VoidCallback? onJumpToLine;
+
   const LyricEditorOverflowMenu({
     super.key,
     this.onUndo,
@@ -217,15 +222,34 @@ class LyricEditorOverflowMenu extends StatelessWidget {
     required this.onExport,
     required this.onInsertAtPlayback,
     required this.onOpenPlayer,
+    this.onJumpToLine,
   });
+
+  static const jumpToLineKey = ValueKey('lyric_editor_jump_to_line');
 
   @override
   Widget build(BuildContext context) {
     final openPlayer = onOpenPlayer;
     final undo = onUndo;
     final redo = onRedo;
+    final jumpToLine = onJumpToLine;
     return MenuAnchor(
       menuChildren: [
+        if (jumpToLine != null) ...[
+          MenuItemButton(
+            key: jumpToLineKey,
+            onPressed: jumpToLine,
+            leadingIcon: const Icon(
+              Icons.format_list_numbered_rounded,
+              size: 18,
+            ),
+            child: _OverflowLabel(
+              title: LyricJumpStrings.title,
+              detail: LyricJumpStrings.menuDetail(),
+            ),
+          ),
+          const Divider(height: 1),
+        ],
         MenuItemButton(
           onPressed: undo,
           leadingIcon: const Icon(Icons.undo_rounded, size: 18),
@@ -292,9 +316,9 @@ class LyricEditorOverflowMenu extends StatelessWidget {
 
 /// Read-only line statistics, as one line of text instead of four pills.
 ///
-/// One review number, not three. "未评分 N" is information, not a warning: it
-/// says the engine returned no probabilities for those lines, which is why the
-/// low-confidence filter has nothing to offer — instead of showing a red `0`
+/// The review count lives on the 建议复核 chip (D-068), so this line only says
+/// what the document is. "未评分 N" is information, not a warning: it says the
+/// engine returned no probabilities for those lines, instead of a red `0`
 /// that reads like "everything was checked and is fine".
 class _StatusLine extends StatelessWidget {
   final int lineCount;
@@ -309,121 +333,88 @@ class _StatusLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = Theme.of(context).textTheme.labelSmall;
-    Widget item(String text, Color color, {String? tooltip}) {
-      final label = Text(text, style: base?.copyWith(color: color));
+    final style = Theme.of(
+      context,
+    ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary);
+    Widget item(String text, {String? tooltip}) {
+      final label = Text(text, style: style);
       if (tooltip == null) return label;
       return Tooltip(message: tooltip, child: label);
     }
 
-    const separator = Text('·');
-    final needsReview = review.needsReviewCount;
+    final items = <Widget>[
+      item('$lineCount 行'),
+      if (language.trim().isNotEmpty)
+        item(
+          RecognitionReviewSummary.languageLabel(language.trim().toLowerCase()),
+        ),
+      if (review.unscoredLines > 0)
+        item(
+          '未评分 ${review.unscoredLines}',
+          tooltip:
+              '引擎没有为这些行返回分数，置信度不参与它们的排序；'
+              '需要复核时按结构与时间轴证据排队。',
+        ),
+    ];
 
     return Wrap(
       spacing: AppSpacing.xs,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        item('$lineCount 行', AppColors.textTertiary),
-        separator,
-        if (language.trim().isNotEmpty) ...[
-          item(
-            RecognitionReviewSummary.languageLabel(
-              language.trim().toLowerCase(),
-            ),
-            AppColors.textTertiary,
-          ),
-          separator,
-        ],
-        item(
-          '待复核 $needsReview',
-          // Lines waiting for review are a caution, not a success state.
-          needsReview > 0 ? AppColors.warning : AppColors.textTertiary,
-          tooltip: review.hasAnyScore
-              ? '按证据强度排序：双引擎分歧、时间轴异常、重复、异常时长与低分。'
-              : '本稿的识别引擎没有返回分数，队列只按结构证据排序（双引擎分歧、时间轴异常、重复、异常时长）。',
-        ),
-        if (review.unscoredLines > 0) ...[
-          separator,
-          item(
-            '未评分 ${review.unscoredLines}',
-            AppColors.textTertiary,
-            tooltip:
-                '引擎没有为这些行返回分数，因此它们不计入"低置信度"；'
-                '需要复核时按结构与时间轴证据排队。',
-          ),
+        for (var index = 0; index < items.length; index++) ...[
+          if (index > 0) Text('·', style: style),
+          items[index],
         ],
       ],
     );
   }
 }
 
-/// The review filters, collapsed from a row of chips into one menu.
+/// The review filter: one chip, on for the 建议复核 queue and off for every
+/// line (D-068).
 ///
-/// Every entry is derived from [LyricReviewQueue], so the counts cannot drift
-/// apart: 低置信度 is a subset of 待复核 by construction.
-class _FilterMenu extends StatelessWidget {
-  final LyricReviewFilter filter;
-  final LyricReviewQueue review;
+/// It replaced a menu of 全部 / 待复核 / 低置信度 whose entries were all slices
+/// of the same [LyricReviewQueue]. The count is on the chip; how the queue
+/// splits into 必看 and 留意 and the most common reasons are in its tooltip.
+/// An empty queue leaves the chip disabled unless it is already on, so the
+/// user can always get back to every line.
+class LyricSuggestedReviewChip extends StatelessWidget {
+  final bool selected;
+  final LyricReviewQueue queue;
   final ValueChanged<LyricReviewFilter> onChanged;
 
-  const _FilterMenu({
-    required this.filter,
-    required this.review,
+  const LyricSuggestedReviewChip({
+    super.key,
+    required this.selected,
+    required this.queue,
     required this.onChanged,
   });
 
-  String _label(LyricReviewFilter value) {
-    return switch (value) {
-      LyricReviewFilter.all => '全部',
-      LyricReviewFilter.needsReview => '待复核 ${review.needsReviewCount}',
-      LyricReviewFilter.lowConfidence => '低置信度 ${review.lowConfidenceCount}',
-    };
-  }
-
-  String? _detail(LyricReviewFilter value) {
-    return switch (value) {
-      LyricReviewFilter.all => null,
-      LyricReviewFilter.needsReview => '按证据强度排序：双引擎分歧、时间轴异常、重复、异常时长',
-      LyricReviewFilter.lowConfidence =>
-        review.canFilterByConfidence
-            ? '引擎给出分数且低于 ${review.confidenceThreshold} 的行；是待复核的子集'
-            : '本稿的识别引擎没有返回分数，无从判断',
-    };
-  }
+  static const chipKey = ValueKey('lyric_review_suggested_filter');
 
   @override
   Widget build(BuildContext context) {
-    return MenuAnchor(
-      menuChildren: [
-        for (final value in LyricReviewFilter.values)
-          MenuItemButton(
-            // An option with nothing behind it stays visible but disabled, and
-            // its second line says why — the same rule as the overflow menu.
-            onPressed:
-                value == LyricReviewFilter.lowConfidence &&
-                    !review.canFilterByConfidence
-                ? null
-                : () => onChanged(value),
-            leadingIcon: Icon(
-              value == filter
-                  ? Icons.check_circle_rounded
-                  : Icons.circle_outlined,
-              size: 18,
-            ),
-            child: _OverflowLabel(title: _label(value), detail: _detail(value)),
-          ),
-      ],
-      builder: (context, controller, child) {
-        return Tooltip(
-          message: '筛选要显示的行',
-          child: OutlinedButton.icon(
-            onPressed: () =>
-                controller.isOpen ? controller.close() : controller.open(),
-            icon: const Icon(Icons.filter_list_rounded, size: 18),
-            label: Text(_label(filter)),
-          ),
-        );
-      },
+    final mustCheck = queue.mustCheckCount > 0;
+    final enabled = selected || !queue.isEmpty;
+    return FilterChip(
+      key: chipKey,
+      selected: selected,
+      onSelected: enabled
+          ? (value) => onChanged(
+              value ? LyricReviewFilter.suggested : LyricReviewFilter.all,
+            )
+          : null,
+      avatar: Icon(
+        Icons.fact_check_outlined,
+        size: 16,
+        // Strong evidence is a caution, not a success state.
+        color: mustCheck && !selected ? AppColors.warning : null,
+      ),
+      tooltip: LyricSuggestedReviewStrings.chipTooltip(
+        queue,
+        selected: selected,
+      ),
+      label: Text(LyricSuggestedReviewStrings.chip(queue.needsReviewCount)),
     );
   }
 }

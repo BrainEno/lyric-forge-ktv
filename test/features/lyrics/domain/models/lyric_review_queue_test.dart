@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_review_queue.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_decision_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 LyricLine _line(
@@ -159,5 +160,57 @@ void main() {
     expect(queue.needsReview(1), isFalse);
     expect(queue.isLowConfidence(1), isFalse);
     expect(queue.byIndex.length, queue.needsReviewCount);
+  });
+
+  group('建议复核 tiers and reasons (D-068)', () {
+    LyricReviewPriority item(
+      int index,
+      int score,
+      List<LyricReviewPriorityReasonCode> codes,
+    ) => LyricReviewPriority(
+      lineIndex: index,
+      score: score,
+      reasons: [for (final code in codes) LyricReviewPriorityReason(code)],
+    );
+
+    final queue = LyricReviewQueue(
+      items: [
+        item(0, 80, [
+          LyricReviewPriorityReasonCode.enginesDifferGreatly,
+          LyricReviewPriorityReasonCode.confidenceVeryLow,
+        ]),
+        item(3, 45, [LyricReviewPriorityReasonCode.overlapsNext]),
+        item(5, 44, [
+          LyricReviewPriorityReasonCode.enginesHaveDifferentCandidates,
+          // Two codes of one kind count the row once.
+          LyricReviewPriorityReasonCode.enginesDifferClearly,
+        ]),
+        item(7, 12, [LyricReviewPriorityReasonCode.repeatedWords]),
+      ],
+      lowConfidenceIndices: const {0},
+      totalLines: 10,
+      scoredLines: 10,
+      reviewedLines: 0,
+      confidenceThreshold: kLyricReviewConfidenceThreshold,
+    );
+
+    test('a score of 45 or more is 必看, the rest 留意', () {
+      expect(queue.items[1].urgency, LyricReviewUrgency.mustCheck);
+      expect(queue.items[2].urgency, LyricReviewUrgency.worthCheck);
+      expect(queue.mustCheckCount, 2);
+      expect(queue.worthCheckCount, 2);
+      expect(LyricReviewQueue.empty.mustCheckCount, 0);
+    });
+
+    test('reason kinds are counted per row, most common first', () {
+      expect(queue.reasonKindCounts, [
+        (kind: LyricReviewReasonKind.enginesDisagree, count: 2),
+        // Ties keep the serious-first order of the enum.
+        (kind: LyricReviewReasonKind.timing, count: 1),
+        (kind: LyricReviewReasonKind.lowConfidence, count: 1),
+        (kind: LyricReviewReasonKind.suspiciousText, count: 1),
+      ]);
+      expect(LyricReviewQueue.empty.reasonKindCounts, isEmpty);
+    });
   });
 }

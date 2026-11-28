@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_review_queue.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_language.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
@@ -302,5 +303,59 @@ void main() {
         entry.value,
       );
     }
+  });
+
+  group('LyricSuggestedReviewStrings', () {
+    LyricReviewQueue queueOf(List<LyricReviewPriority> items) =>
+        LyricReviewQueue(
+          items: items,
+          lowConfidenceIndices: const <int>{},
+          totalLines: 20,
+          scoredLines: 20,
+          reviewedLines: 0,
+          confidenceThreshold: 70,
+        );
+    LyricReviewPriority row(int score, LyricReviewPriorityReasonCode code) =>
+        LyricReviewPriority(
+          lineIndex: 0,
+          score: score,
+          reasons: [LyricReviewPriorityReason(code)],
+        );
+
+    test('a count names its 必看 rows only when there are some (D-069)', () {
+      expect(LyricSuggestedReviewStrings.countWithMustCheck(12, 5), '12（必看 5）');
+      expect(LyricSuggestedReviewStrings.countWithMustCheck(3, 0), '3');
+      expect(LyricSuggestedReviewStrings.mustCheckLabel(2), '必看 2');
+    });
+
+    test('tiers leave out an empty tier', () {
+      final onlyWorth = queueOf([
+        row(20, LyricReviewPriorityReasonCode.repeatedWords),
+      ]);
+      expect(LyricSuggestedReviewStrings.tiers(onlyWorth), '留意 1');
+    });
+
+    test('the summary names at most three kinds', () {
+      final queue = queueOf([
+        row(60, LyricReviewPriorityReasonCode.emptyLyrics),
+        row(50, LyricReviewPriorityReasonCode.duplicateStart),
+        row(40, LyricReviewPriorityReasonCode.enginesDifferClearly),
+        row(30, LyricReviewPriorityReasonCode.secondaryOnlySuggestion),
+      ]);
+      expect(
+        LyricSuggestedReviewStrings.mainReasons(queue),
+        '主要原因：空歌词 1、时间轴异常 1、双引擎分歧 1',
+      );
+      expect(LyricSuggestedReviewStrings.mainReasons(queueOf([])), isNull);
+    });
+
+    test('a badge reads its tier; the tooltip keeps score and reasons', () {
+      final priority = row(52, LyricReviewPriorityReasonCode.overlapsNext);
+      expect(LyricSuggestedReviewStrings.rowSemantics(priority), '建议复核，必看');
+      expect(
+        LyricSuggestedReviewStrings.badgeTooltip(priority),
+        '必看 · 优先级 52\n与下一行时间重叠',
+      );
+    });
   });
 }

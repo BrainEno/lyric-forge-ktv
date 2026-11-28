@@ -122,10 +122,10 @@ void main() {
   group('LyricListPane reads the review group', () {
     test('filter and follow come from the group', () {
       final pane = _list(
-        _review(filter: LyricReviewFilter.needsReview, followPlayback: true),
+        _review(filter: LyricReviewFilter.suggested, followPlayback: true),
       );
 
-      expect(pane.filter, LyricReviewFilter.needsReview);
+      expect(pane.filter, LyricReviewFilter.suggested);
       expect(pane.followPlayback, isTrue);
     });
 
@@ -142,7 +142,7 @@ void main() {
       expect(_list(_review(calls: calls)).onShowAllLines, isNull);
 
       final filtered = _list(
-        _review(filter: LyricReviewFilter.lowConfidence, calls: calls),
+        _review(filter: LyricReviewFilter.suggested, calls: calls),
       );
       filtered.onShowAllLines!();
       expect(calls, ['filter:all']);
